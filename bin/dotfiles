@@ -61,7 +61,7 @@ fi
 # Clone repository
 if ! [[ -d "$DOTFILES_DIR" ]]; then
     echo -e "${ARROW} ${CYAN}Cloning repository...${NC}"
-    git clone -- quiet "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR" 2>&1 > /dev/null
+    git clone --quiet "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR" 2>&1 > /dev/null
 else
     echo -e "${ARROW} ${CYAN}Updating repository...${NC}"
     git -C "$DOTFILES_DIR" pull > /dev/null

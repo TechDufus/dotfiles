@@ -35,6 +35,8 @@ if ! dpkg -s ansible >/dev/null 2>&1; then
     sudo apt-add-repository -y ppa:ansible/ansible
     sudo apt-get update
     sudo apt-get install -y ansible
+    sudo apt install python3-argcomplete
+    sudo activate-global-python-argcomplete3
 fi
 
 # Generate SSH keys

@@ -1,6 +1,13 @@
 ---
 - hosts: localhost
-  connection: local
+
+  pre_tasks:
+    - name: Set package state variables
+      import_tasks: pre_tasks/package_state.yaml
+
+    - name: Detect WSL
+      import_tasks: pre_tasks/detect_wsl.yaml connection: local
+
   tasks:
     - name: set roles
       set_fact:

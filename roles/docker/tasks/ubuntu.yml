@@ -13,7 +13,7 @@
     name: docker
     state: started
   become: true
-  when: ansible_host_environment_is_wsl == false
+  when: not ansible_host_environment_is_wsl
 
 - name: Add to group
   ansible.builtin.user:

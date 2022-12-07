@@ -1,0 +1,15 @@
+---
+- name: Install
+  ansible.builtin.apt:
+    name:
+      - jq
+      - open-iscsi
+    state: present
+  become: true
+
+- name: Set sudo
+  ansible.builtin.replace:
+    path: "/etc/sudoers.d/10-installer"
+    regexp: '\%wheel ALL=\(ALL\) ALL'
+    replace: "%wheel ALL=(ALL) NOPASSWD: ALL"
+  become: true

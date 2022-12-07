@@ -4,8 +4,6 @@
     name:
       - cmake
       - curl
-      - ninja
-      - tree-sitter
       - unzip
     state: present
   become: true

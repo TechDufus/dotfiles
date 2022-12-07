@@ -70,9 +70,9 @@ pushd "$DOTFILES_DIR" 2>&1 > /dev/null
 echo -e "${ARROW} ${CYAN}Running playbook...${NC}"
 if [[ -f "$CONFIG_DIR/vault-password.txt" ]]; then
     echo -e "${ARROW} ${CYAN}Using vault password file...${NC}"
-    ansible-playbook --diff --extra-vars "@$CONFIG_DIR/values.yaml" --vault-password-file "$CONFIG_DIR/vault-password.txt" "$DOTFILES_DIR/main.yaml" "$@"
+    ansible-playbook --diff --extra-vars "@$CONFIG_DIR/values.yml" --vault-password-file "$CONFIG_DIR/vault-password.txt" "$DOTFILES_DIR/main.yml" "$@"
 else
-    ansible-playbook --diff --extra-vars "@$CONFIG_DIR/values.yaml" "$DOTFILES_DIR/main.yaml" "$@"
+    ansible-playbook --diff --extra-vars "@$CONFIG_DIR/values.yml" "$DOTFILES_DIR/main.yml" "$@"
 fi
 
 popd 2>&1 > /dev/null

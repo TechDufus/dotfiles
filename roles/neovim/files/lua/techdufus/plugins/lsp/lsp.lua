@@ -41,7 +41,6 @@ lsp.ensure_installed({
     'ansiblels',
     'bashls',
     'dockerls',
-    'goimports',
     'golines',
     'gomodifytags',
     'gopls',

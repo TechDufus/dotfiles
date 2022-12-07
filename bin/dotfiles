@@ -30,13 +30,20 @@ SSH_DIR="$HOME/.ssh"
 # check lsb_release -si
 if ! dpkg -s ansible >/dev/null 2>&1; then
     echo -e "${ARROW} ${CYAN}Installing Ansible...${NC}"
-    sudo apt-get update
-    sudo apt-get install -y software-properties-common
-    sudo apt-add-repository -y ppa:ansible/ansible
-    sudo apt-get update
-    sudo apt-get install -y ansible
-    sudo apt install python3-argcomplete
-    sudo activate-global-python-argcomplete3
+    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
+    sudo apt-get update 2>&1 > /dev/null
+    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Installing dependency: software-properties-common${NC}"
+    sudo apt-get install -y software-properties-common 2>&1 > /dev/null
+    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Adding Ansible PPA Repo${NC}"
+    sudo apt-add-repository -y ppa:ansible/ansible 2>&1 > /dev/null
+    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
+    sudo apt-get update 2>&1 > /dev/null
+    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Installing Ansible${NC}"
+    sudo apt-get install -y ansible 2>&1 > /dev/null
+    echo -e "${ARROW} ${GREEN}Ansible installed!${NC}"
+    echo -e "${ARROW} ${CYAN}Installing ansible argument completion...${NC}"
+    sudo apt install python3-argcomplete 2>&1 > /dev/null
+    sudo activate-global-python-argcomplete3 2>&1 > /dev/null
 fi
 
 # Generate SSH keys
@@ -46,7 +53,7 @@ if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
 
     chmod 700 "$SSH_DIR"
 
-    ssh-keygen -b 4096 -t rsa -f "$SSH_DIR/id_rsa" -N "" -C "$USER@$HOSTNAME"
+    ssh-keygen -b 4096 -t rsa -f "$SSH_DIR/id_rsa" -N "" -C "$USER@$HOSTNAME" 2>&1 > /dev/null
 
     cat "$SSH_DIR/id_rsa.pub" >> "$SSH_DIR/authorized_keys"
 fi
@@ -54,10 +61,10 @@ fi
 # Clone repository
 if ! [[ -d "$DOTFILES_DIR" ]]; then
     echo -e "${ARROW} ${CYAN}Cloning repository...${NC}"
-    git clone "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR"
+    git clone "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR" 2>&1 > /dev/null
 else
     echo -e "${ARROW} ${CYAN}Updating repository...${NC}"
-    git -C "$DOTFILES_DIR" pull
+    git -C "$DOTFILES_DIR" pull 2>&1 > /dev/null
 fi
 
 # Create path

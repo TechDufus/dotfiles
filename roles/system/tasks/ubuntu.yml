@@ -16,7 +16,7 @@
 - name: Set sudo
   ansible.builtin.template:
     src: user-sudo.j2
-    dest: "/etc/sudoers.d/{{ ansible_env['USER'] }}"
+    dest: "/etc/sudoers.d/{{ host_user }}"
     mode: 0644
   become: true
 

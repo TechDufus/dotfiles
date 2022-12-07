@@ -35,7 +35,7 @@ else
 fi
 
 # Create path
-cd "$DOTFILES_DIR"
+pushd "$DOTFILES_DIR"
 
 # Update Galaxy
 ansible-galaxy install -r requirements.yml
@@ -46,3 +46,5 @@ if [[ -f "$CONFIG_DIR/vault-password.txt" ]]; then
 else
     ansible-playbook --diff --extra-vars "@$CONFIG_DIR/values.yaml" "$DOTFILES_DIR/main.yaml" "$@"
 fi
+
+popd

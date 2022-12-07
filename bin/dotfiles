@@ -38,7 +38,8 @@ fi
 pushd "$DOTFILES_DIR"
 
 # Update Galaxy
-ansible-galaxy install -r requirements.yml
+# currently empty... uncomment when requirements are needed
+# ansible-galaxy install -r requirements.yml
 
 # Run playbook
 if [[ -f "$CONFIG_DIR/vault-password.txt" ]]; then

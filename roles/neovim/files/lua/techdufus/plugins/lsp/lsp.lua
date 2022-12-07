@@ -38,13 +38,26 @@ lsp.setup_nvim_cmp({
 
 -- make sure these servers are installed
 lsp.ensure_installed({
-  'ansiblels',
-  'bashls',
-  'yamlls',
-  'gopls',
-  'dockerls',
-  'sumneko_lua',
-  'powershell_es'
+    'ansible-language-server',
+    'bash-language-server',
+    'dockerfile-language-server',
+    'gitlint',
+    'goimports',
+    'golines',
+    'gomodifytags',
+    'gopls',
+    'gotests',
+    'groovy-language-server',
+    'json-lsp',
+    'json-to-struct',
+    'jsonlint',
+    'ltex-ls',
+    'lua-language-server',
+    'powershell-editor-services',
+    'rubocop',
+    'solargraph',
+    'tailwindcss-language-server',
+    'yaml-language-server',
 })
 
 -- share options between serveral servers

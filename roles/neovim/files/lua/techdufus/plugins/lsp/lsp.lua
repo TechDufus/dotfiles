@@ -38,9 +38,9 @@ lsp.setup_nvim_cmp({
 
 -- make sure these servers are installed
 lsp.ensure_installed({
-    'ansible-language-server',
-    'bash-language-server',
-    'dockerfile-language-server',
+    'ansiblels',
+    'bashls',
+    'dockerls',
     'gitlint',
     'goimports',
     'golines',

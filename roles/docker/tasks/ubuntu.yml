@@ -1,0 +1,30 @@
+---
+- name: Install
+  ansible.builtin.apt:
+    name:
+      - docker
+      - docker-compose
+    state: present
+  become: true
+
+- name: Enable service
+  ansible.builtin.systemd:
+    enabled: true
+    name: docker
+    state: started
+  become: true
+
+- name: Add to group
+  ansible.builtin.user:
+    append: true
+    groups: docker
+    name: "{{ ansible_env['USER'] }}"
+  become: true
+
+- name: Copy daemon.json
+  ansible.builtin.template:
+    dest: "/etc/docker/daemon.json"
+    src: "daemon.json"
+    mode: 0644
+  become: true
+  notify: restart_docker

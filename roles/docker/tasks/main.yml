@@ -1,0 +1,6 @@
+---
+- import_tasks: ubuntu.yaml
+  when: ansible_os_family|lower == 'debian'
+
+- import_tasks: something_else.yaml
+  when: ansible_os_family|lower == 'something_else'

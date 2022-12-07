@@ -1,5 +1,0 @@
----
-- name: Register host user
-  become: false
-  local_action: command whoami
-  register: host_user

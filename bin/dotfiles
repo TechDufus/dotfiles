@@ -63,7 +63,7 @@ if ! [[ -d "$DOTFILES_DIR" ]]; then
     echo -e "${ARROW} ${CYAN}Cloning repository: ${YELLOW}github.com/TechDufus/dotfiles${NC}"
     git clone --quiet "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR" 2>&1 > /dev/null
 else
-    echo -e "${ARROW} ${CYAN}Updating repository...${NC}"
+    echo -e "${ARROW} ${CYAN}Updating repository: ${YELLOW}github.com/TechDufus/dotfiles${NC}"
     git -C "$DOTFILES_DIR" pull --quiet > /dev/null
 fi
 
@@ -71,9 +71,8 @@ fi
 pushd "$DOTFILES_DIR" 2>&1 > /dev/null
 
 # Update Galaxy
-# currently empty... uncomment when requirements are needed
-# echo -e "${ARROW} ${CYAN}Updating Galaxy...${NC}"
-# ansible-galaxy install -r requirements.yml
+echo -e "${ARROW} ${CYAN}Updating Galaxy...${NC}"
+ansible-galaxy install -r requirements.yml
 
 # Run playbook
 echo -e "${ARROW} ${CYAN}Running playbook...${NC}"

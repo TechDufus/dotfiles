@@ -30,19 +30,19 @@ SSH_DIR="$HOME/.ssh"
 # check lsb_release -si
 if ! dpkg -s ansible >/dev/null 2>&1; then
     echo -e "${ARROW} ${CYAN}Installing Ansible...${NC}"
-    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
+    echo -e "   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
     sudo apt-get update 2>&1 > /dev/null
-    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Installing dependency: software-properties-common${NC}"
+    echo -e "   ${RIGHT_ANGLE} ${CYAN}Installing dependency: software-properties-common${NC}"
     sudo apt-get install -y software-properties-common 2>&1 > /dev/null
-    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Adding Ansible PPA Repo${NC}"
+    echo -e "   ${RIGHT_ANGLE} ${CYAN}Adding Ansible PPA Repo${NC}"
     sudo apt-add-repository -y ppa:ansible/ansible 2>&1 > /dev/null
-    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
+    echo -e "   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
     sudo apt-get update 2>&1 > /dev/null
-    echo -e "$   ${RIGHT_ANGLE} ${CYAN}Installing Ansible${NC}"
+    echo -e "   ${RIGHT_ANGLE} ${CYAN}Installing Ansible${NC}"
     sudo apt-get install -y ansible 2>&1 > /dev/null
     echo -e "${ARROW} ${GREEN}Ansible installed!${NC}"
     echo -e "${ARROW} ${CYAN}Installing ansible argument completion...${NC}"
-    sudo apt install python3-argcomplete 2>&1 > /dev/null
+    sudo apt-get install python3-argcomplete 2>&1 > /dev/null
     sudo activate-global-python-argcomplete3 2>&1 > /dev/null
 fi
 

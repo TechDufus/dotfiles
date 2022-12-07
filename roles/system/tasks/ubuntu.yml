@@ -1,4 +1,12 @@
 ---
+- name: Update APT Repos and Upgrade APT Packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: "yes"
+    autoremove: true
+    autoclean: true
+  become: true
+
 - name: Install
   ansible.builtin.apt:
     name:
@@ -7,16 +15,10 @@
     state: present
   become: true
 
-# - name: Allow sudoers.d/ permissions
-#   ansible.builtin.lineinfile:
-#     path: "/etc/sudoers"
-#     line: "includedir /etc/sudoers.d"
-#   become: true
-
 - name: Set sudo
   ansible.builtin.template:
     src: user-sudo.j2
-    dest: "/etc/sudoers.d/{{ host_user }}"
+    dest: "/etc/sudoers.d/{{ ansible_env['USER'] }}"
     mode: 0644
   become: true
 

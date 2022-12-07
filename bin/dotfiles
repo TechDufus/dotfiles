@@ -7,18 +7,13 @@ DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
 
 # Install Ansible
-if lsb_release(1) >/dev/null 2>&1; then
-    if ! dpkg -s ansible >/dev/null 2>&1; then
-        sudo apt-get update
-        sudo apt-get install -y software-properties-common
-        sudo apt-add-repository -y ppa:ansible/ansible
-        sudo apt-get update
-        sudo apt-get install -y ansible
-    fi
-else
-    if ! [ -x "$(command -v ansible)" ]; then
-        sudo pacman -S ansible --noconfirm
-    fi
+# check lsb_release -si
+if ! dpkg -s ansible >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y software-properties-common
+    sudo apt-add-repository -y ppa:ansible/ansible
+    sudo apt-get update
+    sudo apt-get install -y ansible
 fi
 
 # Generate SSH keys

@@ -7,9 +7,23 @@
     state: present
   become: true
 
+- name: Allow sudoers.d/ permissions
+  ansible.builtin.lineinfile:
+    path: "/etc/sudoers"
+    line: "includedir /etc/sudoers.d"
+  become: true
+
 - name: Set sudo
   ansible.builtin.replace:
     path: "/etc/sudoers.d/10-installer"
     regexp: '\%wheel ALL=\(ALL\) ALL'
     replace: "%wheel ALL=(ALL) NOPASSWD: ALL"
   become: true
+
+- name: Set hosts
+  ansible.builtin.template:
+    dest: "/etc/hosts"
+    src: hosts.j2
+    mode: 0644
+  become: true
+  when: not ansible_host_environment_is_wsl

@@ -2,6 +2,7 @@
 - name: Install
   ansible.builtin.apt:
     name:
-      - npm
+      - ruby
+      - ruby-dev
     state: present
   become: true

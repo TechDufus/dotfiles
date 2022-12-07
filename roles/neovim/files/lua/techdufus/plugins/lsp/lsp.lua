@@ -44,7 +44,7 @@ lsp.ensure_installed({
     'gopls',
     'groovyls',
     'jsonls',
-    'ltex-ls',
+    'ltex',
     'lua-language-server',
     'powershell_es',
     'rubocop',

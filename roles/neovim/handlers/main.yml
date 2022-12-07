@@ -1,0 +1,18 @@
+---
+- name: Build
+  make:
+    chdir: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
+    params:
+      CMAKE_BUILD_TYPE: RelWithDebInfo
+
+- name: Install
+  make:
+    chdir: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
+    target: install
+  become: true
+
+- name: Remove build folder
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim/build"
+    state: absent
+  become: true

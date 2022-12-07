@@ -4,6 +4,7 @@
     chdir: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
     params:
       CMAKE_BUILD_TYPE: RelWithDebInfo
+  become: true
 
 - name: Install
   community.general.make:

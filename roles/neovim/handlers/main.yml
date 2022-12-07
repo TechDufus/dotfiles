@@ -1,12 +1,12 @@
 ---
 - name: Build
-  make:
+  community.general.make:
     chdir: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
     params:
       CMAKE_BUILD_TYPE: RelWithDebInfo
 
 - name: Install
-  make:
+  community.general.make:
     chdir: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
     target: install
   become: true

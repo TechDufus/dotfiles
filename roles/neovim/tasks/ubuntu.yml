@@ -11,7 +11,7 @@
   become: true
 
 - name: Install
-  ansible.auiltin.apt:
+  ansible.builtin.apt:
     name: neovim
     state: present
   become: true

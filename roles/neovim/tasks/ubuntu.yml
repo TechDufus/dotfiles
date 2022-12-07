@@ -4,6 +4,7 @@
     name:
       - cmake
       - curl
+      - pkg-config
       - unzip
     state: present
   become: true

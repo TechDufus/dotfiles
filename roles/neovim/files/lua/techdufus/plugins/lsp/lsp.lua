@@ -44,7 +44,6 @@ lsp.ensure_installed({
     'gopls',
     'groovyls',
     'jsonls',
-    'ltex',
     'powershell_es',
     'sumneko_lua',
     'solargraph',

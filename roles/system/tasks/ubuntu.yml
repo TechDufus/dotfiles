@@ -7,11 +7,11 @@
     state: present
   become: true
 
-- name: Allow sudoers.d/ permissions
-  ansible.builtin.lineinfile:
-    path: "/etc/sudoers"
-    line: "includedir /etc/sudoers.d"
-  become: true
+# - name: Allow sudoers.d/ permissions
+#   ansible.builtin.lineinfile:
+#     path: "/etc/sudoers"
+#     line: "includedir /etc/sudoers.d"
+#   become: true
 
 - name: Set sudo
   ansible.builtin.template:

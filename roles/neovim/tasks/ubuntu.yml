@@ -5,25 +5,32 @@
       - cmake
       - curl
       - pkg-config
+      - libtool
       - unzip
     state: present
   become: true
 
-- name: Clone
-  ansible.builtin.git:
-    clone: true
-    depth: 1
-    dest: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
-    force: true
-    repo: https://github.com/neovim/neovim.git
-    single_branch: true
-    update: true
-    version: "{{ neovim_version | default('master') }}"
-  register: clone
-  notify:
-    - Build
-    - Install
-    - Remove build folder
+- name: Install
+  ansible.auiltin.apt:
+    name: neovim
+    state: present
+  become: true
+
+# - name: Clone
+#   ansible.builtin.git:
+#     clone: true
+#     depth: 1
+#     dest: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
+#     force: true
+#     repo: https://github.com/neovim/neovim.git
+#     single_branch: true
+#     update: true
+#     version: "{{ neovim_version | default('master') }}"
+#   register: clone
+#   notify:
+#     - Build
+#     - Install
+#     - Remove build folder
 
 - name: Config folder
   ansible.builtin.file:

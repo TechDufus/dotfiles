@@ -15,7 +15,7 @@
 
 - name: Set sudo
   ansible.builtin.template:
-    path: user-sudo.j2
+    src: user-sudo.j2
     dest: "/etc/sudoers.d/{{ ansible_env['USER'] }}"
     mode: 0644
   become: true

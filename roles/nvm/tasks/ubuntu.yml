@@ -2,6 +2,6 @@
 - name: Install
   ansible.builtin.apt:
     name:
-      - node
+      - nvm
     state: present
   become: true

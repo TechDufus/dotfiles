@@ -64,7 +64,7 @@ if ! [[ -d "$DOTFILES_DIR" ]]; then
     git clone "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR" 2>&1 > /dev/null
 else
     echo -e "${ARROW} ${CYAN}Updating repository...${NC}"
-    git -C "$DOTFILES_DIR" pull 2>&1 > /dev/null
+    git -C "$DOTFILES_DIR" pull > /dev/null
 fi
 
 # Create path

@@ -47,7 +47,6 @@ lsp.ensure_installed({
     'ltex',
     'powershell_es',
     'sumneko_lua',
-    'rubocop',
     'solargraph',
     'ltex',
     'tailwindcss',

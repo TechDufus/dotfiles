@@ -14,10 +14,10 @@
   become: true
 
 - name: Set sudo
-  ansible.builtin.replace:
-    path: "/etc/sudoers.d/10-installer"
-    regexp: '\%wheel ALL=\(ALL\) ALL'
-    replace: "%wheel ALL=(ALL) NOPASSWD: ALL"
+  ansible.builtin.template:
+    path: user-sudo.j2
+    dest: "/etc/sudoers.d/{{ ansible_user }}"
+    mode: 0644
   become: true
 
 - name: Set hosts

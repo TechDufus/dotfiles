@@ -6,6 +6,9 @@
     - name: Detect WSL
       import_tasks: pre_tasks/detect_wsl.yml
 
+    - name: Detect Host User
+      import_tasks: pre_tasks/whoami.yml
+
   tasks:
     - name: set roles
       set_fact:

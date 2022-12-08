@@ -70,6 +70,8 @@
     remote_src: true
     src: /tmp/go
     dest: /usr/local/go
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
     mode: 0644
     force: true
   become: true

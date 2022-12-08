@@ -32,43 +32,31 @@
 
 - name: WSL config
   block:
-    # - name: Ensure /etc/wsl.conf exists
-    #   ansible.builtin.file:
-    #     path: /etc/wsl.conf
-    #     state: touch
-    #     mode: 0644
-    #
-    # - name: Disable generateResolvConf
-    #   ansible.builtin.blockinfile:
-    #     path: /etc/wsl.conf
-    #     block: |
-    #       [network]
-    #       generateResolvConf = false
-    #     state: present
-    #
-    # # This is needed to remove any symLinks for this file
-    # - name: Delete /ect/resolv.conf
-    #   ansible.builtin.file:
-    #     path: /ect/resolv.conf
-    #     state: absent
-    #   become: true
-    #
-    # - name: Ensure /ect/resolv.conf exists
-    #   ansible.builtin.file:
-    #     path: /ect/resolv.conf
-    #     state: touch
-    #     mode: 0644
-    #
-    # - name: Set nameserver in /ect/resolv.conf
-    #   ansible.builtin.blockinfile:
-    #     path: /ect/resolv.conf
-    #     block: |
-    #       nameserver 1.1.1.1
-    #     state: present
-    - name: Prepend DNS server in DHCP config
-      ansible.builtin.lineinfile:
-        path: /etc/dhcp/dhclient.conf
-        line: "prepend domain-name-servers 1.1.1.1"
+    - name: Disable generateResolvConf
+      ansible.builtin.blockinfile:
+        path: /etc/wsl.conf
+        block: |
+          [network]
+          generateResolvConf = false
         state: present
+        create: true
+        mode: 0644
+
+    # This is needed to remove any symLinks for this file
+    - name: Delete /ect/resolv.conf
+      ansible.builtin.file:
+        path: /ect/resolv.conf
+        state: absent
+      become: true
+
+    - name: Set nameserver in /ect/resolv.conf
+      ansible.builtin.blockinfile:
+        path: /ect/resolv.conf
+        block: |
+          nameserver 1.1.1.1
+        state: present
+        create: true
+        mode: 0644
+
   become: true
   when: ansible_host_environment_is_wsl

@@ -68,7 +68,7 @@
 - name: Install Go
   ansible.builtin.copy:
     remote_src: true
-    src: /tmp/go
+    src: /tmp/go/go
     dest: /usr/local/go
     owner: "{{ host_user }}"
     group: "{{ host_user }}"

@@ -23,6 +23,7 @@ set -e
 
 # Paths
 CONFIG_DIR="$HOME/.config/dotfiles"
+VAULT_SECRET="$HOME/.ansible-vault/vault.secret"
 DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
 
@@ -76,12 +77,12 @@ ansible-galaxy install -r requirements.yml
 
 # Run playbook
 echo -e "${ARROW} ${CYAN}Running playbook...${NC}"
-if [[ -f "$CONFIG_DIR/vault-password.txt" ]]; then
+if [[ -f $VAULT_SECRET ]]; then
     echo -e "${ARROW} ${CYAN}Using vault config file...${NC}"
-    ansible-playbook --diff --extra-vars "@$CONFIG_DIR/values.yml" --vault-password-file "$CONFIG_DIR/vault-password.txt" "$DOTFILES_DIR/main.yml" "$@"
+    ansible-playbook --extra-vars "@$DOTFILES_DIR/values.yml" --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
 else
     echo -e "${WARNING} ${CYAN}Vault config file not found...${NC}"
-    ansible-playbook --extra-vars "@$CONFIG_DIR/values.yml" "$DOTFILES_DIR/main.yml" "$@"
+    ansible-playbook --extra-vars "@$DOTFILES_DIR/values.yml" "$DOTFILES_DIR/main.yml" "$@"
 fi
 
 popd 2>&1 > /dev/null

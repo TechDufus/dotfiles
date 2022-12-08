@@ -34,6 +34,7 @@
   ansible.builtin.file:
     path: "/tmp/go{{ go_version }}.{{ goos }}-{{ goarch }}.tar.gz"
     state: absent
+  diff: false
   become: true
 
 - name: Download GitHub Release
@@ -49,12 +50,14 @@
   ansible.builtin.file:
     path: "/tmp/go"
     state: absent
+  diff: false
   become: true
 
 - name: Extract go tar file
   ansible.builtin.unarchive:
     src: "/tmp/{{ go_file }}.tar.gz"
     dest: /tmp
+  diff: false
 
 - name: Remove any current Go installations
   ansible.builtin.file:

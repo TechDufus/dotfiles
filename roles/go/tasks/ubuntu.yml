@@ -57,12 +57,12 @@
   ansible.builtin.unarchive:
     src: "/tmp/{{ go_file }}.tar.gz"
     dest: /tmp
-  diff: false
 
 - name: Remove any current Go installations
   ansible.builtin.file:
     path: /usr/local/go
     state: absent
+  diff: false
   become: true
 
 - name: Install Go

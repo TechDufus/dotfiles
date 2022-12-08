@@ -30,6 +30,12 @@
   ansible.builtin.set_fact:
     go_file: "go{{ go_version }}.{{ goos }}-{{ goarch }}"
 
+- name: Ensure clean download destination
+  ansible.builtin.file:
+    path: "/tmp/go{{ go_version }}.{{ goos }}-{{ goarch }}.tar.gz"
+    state: absent
+  become: true
+
 - name: Download GitHub Release
   ansible.builtin.get_url:
     url: "https://golang.org/dl/{{ go_file }}.tar.gz"
@@ -39,6 +45,11 @@
   notify:
     - Cleanup go downloaded tar
 
+- name: Ensure clean extraction destination
+  ansible.builtin.file:
+    path: "/tmp/go"
+    state: absent
+  become: true
 - name: Extract go tar file
   ansible.builtin.unarchive:
     src: "/tmp/{{ go_file }}.tar.gz"

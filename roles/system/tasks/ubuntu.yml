@@ -51,6 +51,7 @@
       ansible.builtin.file:
         path: /ect/resolv.conf
         state: absent
+      become: true
 
     - name: Ensure /ect/resolv.conf exists
       ansible.builtin.file:

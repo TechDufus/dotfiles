@@ -33,7 +33,7 @@
 - name: Download GitHub Release
   ansible.builtin.get_url:
     url: "https://golang.org/dl/{{ go_file }}.tar.gz"
-    dest: /tmp
+    dest: /tmp/
     mode: 0644
     force: true
   notify:
@@ -49,6 +49,7 @@
   ansible.builtin.file:
     path: /usr/local/go
     state: absent
+  become: true
 
 - name: Install Go
   ansible.builtin.copy:
@@ -57,5 +58,6 @@
     dest: /usr/local/go
     mode: 0644
     force: true
+  become: true
   notify:
     - Remove extracted go directory

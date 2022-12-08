@@ -40,7 +40,7 @@
 
 - name: "Go-Lang | Define go_file"
   ansible.builtin.set_fact:
-    go_file: "go{{ go_latest_version }}.{{ goos }}-{{ goarch }}"
+    go_file: "{{ go_latest_version }}.{{ goos }}-{{ goarch }}"
 
 - name: Install
   block:
@@ -50,7 +50,7 @@
         state: absent
       become: true
 
-    - name: Download GitHub Release
+    - name: Downloading GoLang Release
       ansible.builtin.get_url:
         url: "https://golang.org/dl/{{ go_file }}.tar.gz"
         dest: /tmp/

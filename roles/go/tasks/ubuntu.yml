@@ -41,6 +41,11 @@
     expected_go_version_output: "go version go{{ go_version }} {{ goos }}/{{ goarch }}"
   when: expected_go_version_output is not defined
 
+- ansible.builtin.debug:
+    var: current_go_version
+- ansible.builtin.debug:
+    var: expected_go_version_output
+
 - name: Install
   block:
     - name: Ensure clean download destination

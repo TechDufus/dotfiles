@@ -38,9 +38,13 @@
   ansible.builtin.set_fact:
     go_latest_version: "go version {{ go_latest_version_json.json[0].version }} {{ goos }}/{{ goarch }}"
 
+- name: Registering go Latest Release
+  ansible.builtin.set_fact:
+    go_latest_release: "{{ go_latest_version_json.json[0].version }}"
+
 - name: "Go-Lang | Define go_file"
   ansible.builtin.set_fact:
-    go_file: "{{ go_latest_version }}.{{ goos }}-{{ goarch }}"
+    go_file: "{{ go_latest_release }}.{{ goos }}-{{ goarch }}"
 
 - name: Install
   block:

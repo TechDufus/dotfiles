@@ -28,16 +28,20 @@
   changed_when: false
   failed_when: false
 
-- name: "Go-Lang | Detect Latest Version"
-  ansible.builtin.shell:
-    shell: |
-      curl -s https://go.dev/dl/?mode=json | jq -r '.[0].version'
-  register: go_latest_version_stdout
+- name: "Go-Lang | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://go.dev/dl/?mode=json
+    method: GET
+    headers:
+      content-type: 'aplication/json'
+    return_content: true
+    body_format: json
+  register: go_latest_version_json
   changed_when: false
 
 - name: Registering go Latest Version
   ansible.builtin.set_fact:
-    go_latest_version: "go version go{{ go_latest_version_stdout.stdout|string }} {{ goos }}/{{ goarch }}"
+    go_latest_version: "go version {{ go_latest_version_json.json[0].version }} {{ goos }}/{{ goarch }}"
 
 - name: "Go-Lang | Define go_file"
   ansible.builtin.set_fact:

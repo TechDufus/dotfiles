@@ -87,7 +87,6 @@
         dest: /usr/local/
         owner: "{{ host_user }}"
         group: "{{ host_user }}"
-        mode: 0644
         force: true
       become: true
       notify:

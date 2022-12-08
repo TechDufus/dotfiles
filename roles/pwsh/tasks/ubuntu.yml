@@ -1,1 +1,21 @@
 ---
+- name: Download and Add Powershell Key to Apt-Get Keyring
+  ansible.builtin.apt_key:
+    url: "https://packages.microsoft.com/keys/microsoft.asc"
+    state: present
+  become: true
+
+- name: Add Powershell Repository into /etc/apt/sources.list
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://packages.microsoft.com/{{ ansible_distribution }}/{{ ansible_distribution_version }}/prod {{ ansible_distribution_release }} main"
+    state: present
+  become: true
+
+
+- name: Install Powershell
+  ansible.builtin.apt:
+    name:
+      - powershell
+    update_cache: true
+    state: present
+  become: true

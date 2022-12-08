@@ -88,4 +88,4 @@
       notify:
         - Remove extracted go directory
 
-  when: ((expected_go_version_output|string not in current_go_version.stdout|default(''))
+  when: expected_go_version_output|string not in current_go_version.stdout|default('')

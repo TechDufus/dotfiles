@@ -20,7 +20,7 @@ Fully automated development environment for [TechDufus](https://www.twitch.tv/Te
     - [Examples](#examples)
       - [Minimal](#minimal)
       - [Advanced](#advanced)
-  - [vault.secret](#vault.secret)
+  - [vault.secret](#vaultsecret)
 - [Usage](#usage)
   - [Install](#install)
   - [Update](#update)

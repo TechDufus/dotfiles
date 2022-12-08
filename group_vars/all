@@ -9,6 +9,5 @@ default_roles:
   - npm
   - ruby
 
-go_version: 1.19.4
 goos: linux
 goarch: amd64

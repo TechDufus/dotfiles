@@ -9,6 +9,7 @@
       - 'make'
       - 'rsync'
       - 'tar'
+      - 'jq'
     state: present
   register: apt_result
   become: true
@@ -21,30 +22,25 @@
     goarch: "amd64"
   when: goarch is not defined
 
-- name: "Go-Lang | Define go_version"
-  set_fact:
-    go_version: 1.19.4
-  when: go_version is not defined
-
-- name: "Go-Lang | Define go_file"
-  ansible.builtin.set_fact:
-    go_file: "go{{ go_version }}.{{ goos }}-{{ goarch }}"
-
 - name: "Go-Lang | Getting version information"
   command: "/usr/local/go/bin/go version"
   register: current_go_version
   changed_when: false
   failed_when: false
 
-- name: "Go-Lang | Define expected version output"
-  set_fact:
-    expected_go_version_output: "go version go{{ go_version }} {{ goos }}/{{ goarch }}"
-  when: expected_go_version_output is not defined
+- name: "Go-Lang | Detect Latest Version"
+  ansible.builtin.command:
+    shell: curl -s https://go.dev/dl/?mode=json | jq -r '.[0].version'
+    register: go_latest_version_stdout
+  changed_when: false
 
-- ansible.builtin.debug:
-    var: current_go_version
-- ansible.builtin.debug:
-    var: expected_go_version_output
+- name: Registering go Latest Version
+  ansible.builtin.set_fact:
+    go_latest_version: "go version go{{ go_latest_version_stdout.stdout|string }} {{ goos }}/{{ goarch }}"
+
+- name: "Go-Lang | Define go_file"
+  ansible.builtin.set_fact:
+    go_file: "go{{ go_latest_version }}.{{ goos }}-{{ goarch }}"
 
 - name: Install
   block:

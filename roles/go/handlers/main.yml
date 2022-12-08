@@ -1,0 +1,5 @@
+---
+- name: Cleanup go downloaded tar
+  ansible.builtin.file:
+    path: "/tmp/{{ go_file }}.tar.gz"
+    state: absent

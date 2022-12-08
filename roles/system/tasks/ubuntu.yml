@@ -59,4 +59,4 @@
         block: |
           nameserver 1.1.1.1
         state: present
-  when: ansible_host_environment_is_wsl == "true"
+  when: ansible_host_environment_is_wsl

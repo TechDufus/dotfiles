@@ -31,7 +31,7 @@
     go_file: "go{{ go_version }}.{{ goos }}-{{ goarch }}"
 
 - name: "Go-Lang | Getting version information"
-  command: "go version"
+  command: "/usr/local/go/bin/go version"
   register: current_go_version
   changed_when: false
   failed_when: false

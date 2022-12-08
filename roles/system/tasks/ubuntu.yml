@@ -53,6 +53,12 @@
         state: absent
         force: true
 
+    - name: Ensure /ect/resolv.conf exists
+      ansible.builtin.file:
+        path: /ect/resolv.conf
+        state: touch
+        mode: 0644
+
     - name: Set nameserver in /ect/resolv.conf
       ansible.builtin.blockinfile:
         path: /ect/resolv.conf

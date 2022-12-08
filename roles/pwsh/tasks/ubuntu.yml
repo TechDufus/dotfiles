@@ -7,7 +7,7 @@
 
 - name: Add Powershell Repository into /etc/apt/sources.list
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64] https://packages.microsoft.com/{{ ansible_distribution }}/{{ ansible_distribution_version }}/prod {{ ansible_distribution_release }} main"
+    repo: "deb [arch=amd64] https://packages.microsoft.com/{{ ansible_distribution|lower }}/{{ ansible_distribution_version }}/prod {{ ansible_distribution_release|lower }} main"
     state: present
   become: true
 

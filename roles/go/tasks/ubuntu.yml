@@ -31,7 +31,7 @@
 - name: "Go-Lang | Detect Latest Version"
   ansible.builtin.command:
     shell: curl -s https://go.dev/dl/?mode=json | jq -r '.[0].version'
-    register: go_latest_version_stdout
+  register: go_latest_version_stdout
   changed_when: false
 
 - name: Registering go Latest Version

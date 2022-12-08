@@ -8,7 +8,6 @@
 
     - name: detect_wsl
       ansible.builtin.debug:
-        msg: "System WSL Detection"
         var: ansible_host_environment_is_wsl
 
     - name: Detect Host User

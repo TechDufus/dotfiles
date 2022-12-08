@@ -46,7 +46,7 @@
   block:
     - name: Ensure clean download destination
       ansible.builtin.file:
-        path: "/tmp/go{{ go_version }}.{{ goos }}-{{ goarch }}.tar.gz"
+        path: "/tmp/{{ go_file }}.tar.gz"
         state: absent
       become: true
 

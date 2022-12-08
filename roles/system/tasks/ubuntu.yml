@@ -29,3 +29,34 @@
     mode: 0644
   become: true
   when: not ansible_host_environment_is_wsl
+
+- name: WSL config
+  block:
+    - name: Ensure /etc/wsl.conf exists
+      ansible.builtin.file:
+        path: /etc/wsl.conf
+        state: exists
+        mode: 0644
+
+    - name: Disable generateResolvConf
+      ansible.builtin.blockinfile:
+        path: /etc/wsl.conf
+        block: |
+          [network]
+          generateResolvConf = false
+        state: present
+
+    # This is needed to remove any symLinks for this file
+    - name: Delete /ect/resolv.conf
+      ansible.builtin.file:
+        path: /ect/resolv.conf
+        state: absent
+        force: true
+
+    - name: Set nameserver in /ect/resolv.conf
+      ansible.builtin.blockinfile:
+        path: /ect/resolv.conf
+        block: |
+          nameserver 1.1.1.1
+        state: present
+  when: ansible_host_environment_is_wsl == "true"

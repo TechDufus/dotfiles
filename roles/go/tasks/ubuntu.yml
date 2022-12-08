@@ -30,46 +30,62 @@
   ansible.builtin.set_fact:
     go_file: "go{{ go_version }}.{{ goos }}-{{ goarch }}"
 
-- name: Ensure clean download destination
-  ansible.builtin.file:
-    path: "/tmp/go{{ go_version }}.{{ goos }}-{{ goarch }}.tar.gz"
-    state: absent
-  become: true
+- name: "Go-Lang | Getting version information"
+  command: "go version"
+  register: current_go_version
+  changed_when: false
+  failed_when: false
 
-- name: Download GitHub Release
-  ansible.builtin.get_url:
-    url: "https://golang.org/dl/{{ go_file }}.tar.gz"
-    dest: /tmp/
-    mode: 0644
-    force: true
-  notify:
-    - Cleanup go downloaded tar
+- name: "Go-Lang | Define expected version output"
+  set_fact:
+    expected_go_version_output: "go version go{{ go_version }} {{ GOOS }}/{{ GOARCH }}"
+  when: expected_go_version_output is not defined
 
-- name: Ensure clean extraction destination
-  ansible.builtin.file:
-    path: "/tmp/go"
-    state: absent
-  become: true
+- name: Install
+  block:
+    - name: Ensure clean download destination
+      ansible.builtin.file:
+        path: "/tmp/go{{ go_version }}.{{ goos }}-{{ goarch }}.tar.gz"
+        state: absent
+      become: true
 
-- name: Extract go tar file
-  ansible.builtin.unarchive:
-    src: "/tmp/{{ go_file }}.tar.gz"
-    dest: /tmp
+    - name: Download GitHub Release
+      ansible.builtin.get_url:
+        url: "https://golang.org/dl/{{ go_file }}.tar.gz"
+        dest: /tmp/
+        mode: 0644
+        force: true
+      notify:
+        - Cleanup go downloaded tar
 
-- name: Remove any current Go installations
-  ansible.builtin.file:
-    path: /usr/local/go
-    state: absent
-  become: true
+    - name: Ensure clean extraction destination
+      ansible.builtin.file:
+        path: "/tmp/go"
+        state: absent
+      become: true
 
-- name: Install Go
-  ansible.builtin.copy:
-    remote_src: true
-    src: /tmp/go
-    dest: /usr/local/
-    owner: "{{ host_user }}"
-    group: "{{ host_user }}"
-    force: true
-  become: true
-  notify:
-    - Remove extracted go directory
+    - name: Extract go tar file
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ go_file }}.tar.gz"
+        dest: /tmp
+
+    - name: Remove any current Go installations
+      ansible.builtin.file:
+        path: /usr/local/go
+        state: absent
+      become: true
+
+    - name: Install Go
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/go
+        dest: /usr/local/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        mode: 0644
+        force: true
+      become: true
+      notify:
+        - Remove extracted go directory
+
+  when: ((expected_go_version_output|string not in current_go_version.stdout|default(''))

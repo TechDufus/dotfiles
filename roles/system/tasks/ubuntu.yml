@@ -58,6 +58,7 @@
         path: /ect/resolv.conf
         state: touch
         mode: 0644
+        force: true
 
     - name: Set nameserver in /ect/resolv.conf
       ansible.builtin.blockinfile:

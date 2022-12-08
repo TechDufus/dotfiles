@@ -38,7 +38,7 @@
 
 - name: "Go-Lang | Define expected version output"
   set_fact:
-    expected_go_version_output: "go version go{{ go_version }} {{ GOOS }}/{{ GOARCH }}"
+    expected_go_version_output: "go version go{{ go_version }} {{ goos }}/{{ goarch }}"
   when: expected_go_version_output is not defined
 
 - name: Install

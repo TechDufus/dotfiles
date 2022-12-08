@@ -31,11 +31,6 @@
 - name: "Go-Lang | Download Latest Version JSON"
   ansible.builtin.uri:
     url: https://go.dev/dl/?mode=json
-    method: GET
-    headers:
-      content-type: 'aplication/json'
-    return_content: true
-    body_format: json
   register: go_latest_version_json
   changed_when: false
 

@@ -50,11 +50,11 @@
     path: "/tmp/go"
     state: absent
   become: true
+
 - name: Extract go tar file
   ansible.builtin.unarchive:
     src: "/tmp/{{ go_file }}.tar.gz"
     dest: /tmp
-    mode: 0644
 
 - name: Remove any current Go installations
   ansible.builtin.file:

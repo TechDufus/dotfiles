@@ -46,6 +46,14 @@
   ansible.builtin.set_fact:
     go_file: "{{ go_latest_release }}.{{ goos }}-{{ goarch }}"
 
+- name: Show current_go_version debug
+  ansible.builtin.debug:
+    var: current_go_version.stdout|default('')
+
+- name: Show go_latest_release debug
+  ansible.builtin.debug:
+    var: go_latest_release
+
 - name: Install
   block:
     - name: Ensure clean download destination

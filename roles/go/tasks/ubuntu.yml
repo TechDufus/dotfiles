@@ -1,22 +1,41 @@
 ---
-- name: Get latest release of a public repository
-  community.general.github_release:
-    user: ansible
-    repo: ansible
-    action: latest_release
-  register: latest_go_release
+- name: "Go-Lang | Install dependencies"
+  apt:
+    pkg:
+      - 'curl'
+      - 'gcc'
+      - 'git'
+      - 'findutils'
+      - 'make'
+      - 'rsync'
+      - 'tar'
+    state: present
+  register: apt_result
+  become: true
+  until: apt_result is success
+  retries: 1
+  delay: 2
 
-- name: Generate go file name
+- name: "Go-Lang | Define GOARCH"
+  set_fact:
+    goarch: "amd64"
+  when: goarch is not defined
+
+- name: "Go-Lang | Define go_version"
+  set_fact:
+    go_version: 1.19.4
+  when: go_version is not defined
+
+- name: "Go-Lang | Define go_file"
   ansible.builtin.set_fact:
-    go_file: "go{{ latest_go_release }}.linux-amd64"
+    go_file: "go{{ go_version }}.{{ goos }}-{{ goarch }}"
 
 - name: Download GitHub Release
   ansible.builtin.get_url:
-    url: "https://storage.googleapis.com/golang/{{ go_file }}.tar.gz"
+    url: "https://golang.org/dl/{{ go_file }}.tar.gz"
     dest: /tmp
     mode: 0644
     force: true
-  when: ansible_architecture == "x86_64" or ansible_architecture == "amd64"
   notify:
     - Cleanup go downloaded tar
 
@@ -25,4 +44,18 @@
     src: "/tmp/{{ go_file }}.tar.gz"
     dest: /tmp
     mode: 0644
-  
+
+- name: Remove any current Go installations
+  ansible.builtin.file:
+    path: /usr/local/go
+    state: absent
+
+- name: Install Go
+  ansible.builtin.copy:
+    remote_src: true
+    src: /tmp/go
+    dest: /usr/local/go
+    mode: 0644
+    force: true
+  notify:
+    - Remove extracted go directory

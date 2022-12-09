@@ -1,4 +1,10 @@
 ---
+- name: Install dependencies
+  ansible.builtin.pip:
+    name:
+      - github3.py
+  become: true
+
 - name: Get latest release of a public repository
   community.general.github_release:
     user: derailed

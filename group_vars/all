@@ -1,5 +1,6 @@
 default_roles:
   - system
+  - python
   - bash
   - docker
   - git

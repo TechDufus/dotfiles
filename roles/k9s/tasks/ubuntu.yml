@@ -1,38 +1,43 @@
 ---
-- name: Install dependencies
-  ansible.builtin.pip:
-    name:
-      - github3.py
-  become: true
+- name: "k9s | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/derailed/k9s/releases/latest
+  register: k9s_latest_version_json
+  changed_when: false
 
-- name: Get latest release of a public repository
-  community.general.github_release:
-    user: derailed
-    repo: k9s
-    action: latest_release
-  register: k9s_latest_release
+- name: Registering k9s Latest Release
+  ansible.builtin.set_fact:
+    k9s_latest_release: "{{ k9s_latest_version_json.json[0].tag_name }}"
 
 - name: Registering k9s Latest Version
   ansible.builtin.set_fact:
     k9s_latest_version: "{{ k9s_latest_release.stdout|default('') }}"
 
+- name: "Debug | k9s_latest_release"
+  ansible.builtin.debug:
+    var: k9s_latest_release
+
 - name: "k9s | Getting version information"
   command: "/usr/local/bin/k9s version -s | grep Version | cut -d 'v' -f 2"
-  register: current_k9s_version
+  register: current_k9s_version_stdout
   changed_when: false
   failed_when: false
 
-- name: "k9s | Define k9s_file"
+- name: Registering k9s current version
   ansible.builtin.set_fact:
-    k9s_file: "k9s_Linux_x86_64"
+    current_k9s_version: current_k9s_version_stdout.stdout|default('')
 
 - name: Show current_k9s_version debug
   ansible.builtin.debug:
-    var: current_k9s_version.stdout|default('')
+    var: current_k9s_version
 
 - name: Show k9s_latest_release debug
   ansible.builtin.debug:
     var: k9s_latest_release
+
+- name: "k9s | Define k9s_file"
+  ansible.builtin.set_fact:
+    k9s_file: "k9s_Linux_x86_64"
 
 - name: Install
   block:

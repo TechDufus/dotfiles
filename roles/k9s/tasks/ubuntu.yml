@@ -49,7 +49,7 @@
 
     - name: Downloading k9s Release
       ansible.builtin.get_url:
-        url: "https://github.com/derailed/k9s/releases/download/v{{ k9s_latest_release }}/{{ k9s_file }}.tar.gz"
+        url: "https://github.com/derailed/k9s/releases/download/{{ k9s_latest_release }}/{{ k9s_file }}.tar.gz"
         dest: /tmp/
         mode: 0644
         force: true

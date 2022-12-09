@@ -21,16 +21,12 @@
   ansible.builtin.shell:
     cmd: |
       /usr/local/bin/k9s version -s | grep Version | cut -d "v" -f 2
-  register: current_k9s_version_stdout
+  register: current_k9s_version
   changed_when: false
   failed_when: false
 
 - ansible.builtin.debug:
-    var: current_k9s_version_stdout
-
-- name: Registering k9s current version
-  ansible.builtin.set_fact:
-    current_k9s_version: "v{{ current_k9s_version_stdout.stdout|default('') }}"
+    var: current_k9s_version
 
 - name: Show current_k9s_version debug
   ansible.builtin.debug:
@@ -91,4 +87,4 @@
       notify:
         - Remove extracted k9s directory
 
-  when: k9s_latest_version|string not in current_k9s_version|string
+  when: current_k9s_version not in k9s_latest_release

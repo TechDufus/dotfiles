@@ -10,5 +10,3 @@ default_roles:
   - ruby
   - pwsh
 
-goos: linux
-goarch: amd64

@@ -20,7 +20,22 @@
 - name: "Go-Lang | Define GOARCH"
   set_fact:
     goarch: "amd64"
-  when: goarch is not defined
+  when: golang["goarch"] is not defined
+
+- name: "Go-Lang | Define GOARCH"
+  set_fact:
+    goarch: golang["goarch"]
+  when: golang["goarch"] is defined
+
+- name: "Go-Lang | Define GOOS"
+  set_fact:
+    goos: "linux"
+  when: golang["goos"] is not defined
+
+- name: "Go-Lang | Define GOOS"
+  set_fact:
+    goarch: golang["goos"]
+  when: golang["goos"] is defined
 
 - name: "Go-Lang | Getting version information"
   command: "/usr/local/go/bin/go version"

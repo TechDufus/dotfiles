@@ -199,7 +199,7 @@ bash_private:
 The `vault.secret` file allows you to encrypt values with `Ansible vault` and store them securely in source control. Create a file located at `~/.config/dotfiles/vault.secret` with a secure password in it.
 
 ```bash
-vim .config/dotfiles/vault-password.yaml
+vim ~/.ansible-vault/vault.secret
 ```
 
 To then encrypt values with your vault password use the following:
@@ -217,7 +217,7 @@ $ cat myfile.conf | ansible-vault encrypt_string --vault-password-file $HOME/.an
 
 This playbook includes a custom shell script located at `bin/dotfiles`. This script is added to your $PATH after installation and can be run multiple times while making sure any Ansible dependencies are installed and updated.
 
-This shell script is also used to initialize your environment after installing `Ubuntu`, performing a full system upgrade and creating your `~/.config/dotfiles/values.yaml` configuration file as mentioned above.
+This shell script is also used to initialize your environment after installing `Ubuntu` and performing a full system upgrade as mentioned above.
 
 > NOTE: You must follow required steps before running this command or things may become unusable until fixed.
 

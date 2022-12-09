@@ -31,7 +31,7 @@ Provide fully automated `Ubuntu` development environment that is easy to set up 
 
 ### Why Ansible?
 
-Ansible replicates what we would do to set up a development environment pretty well. There are many automation solutions out there - we happen to enjoy using Ansible.
+Ansible replicates what we would do to set up a development environment pretty well. There are many automation solutions out there - I happen to enjoy using Ansible.
 
 ## Requirements
 
@@ -222,7 +222,7 @@ This shell script is also used to initialize your environment after installing `
 > NOTE: You must follow required steps before running this command or things may become unusable until fixed.
 
 ```bash
-$ bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
 ```
 
 ### Update
@@ -232,7 +232,7 @@ This repository is continuously updated with new features and settings which bec
 To update your environment run the `dotfiles` command in your shell:
 
 ```bash
-$ dotfiles
+dotfiles
 ```
 
 This will handle the following tasks:

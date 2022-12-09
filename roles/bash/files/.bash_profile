@@ -42,8 +42,8 @@ done
 # if ~./.bash_public exists source it
 if [[ -f "$HOME/.bash_public" ]]; then
     source "$HOME/.bash_public"
-if
+fi
 
 if [[ -f "$HOME/.bash_private" ]]; then
     source "$HOME/.bash_private"
-if
+fi

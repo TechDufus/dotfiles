@@ -85,4 +85,4 @@
       notify:
         - Remove extracted k9s directory
 
-  when: k9s_latest_version not in current_k9s_version.stdout|default('')
+  when: k9s_latest_version not in current_k9s_version

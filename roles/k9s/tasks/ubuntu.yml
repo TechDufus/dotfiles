@@ -18,7 +18,8 @@
     var: k9s_latest_release
 
 - name: "k9s | Getting version information"
-  command: "/usr/local/bin/k9s version -s | grep Version | cut -d \"v\" -f 2"
+  ansible.builtin.shell:
+    shell: "/usr/local/bin/k9s version -s | grep Version | cut -d \"v\" -f 2"
   register: current_k9s_version_stdout
   changed_when: false
   failed_when: false

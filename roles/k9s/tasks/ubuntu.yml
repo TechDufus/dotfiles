@@ -16,7 +16,7 @@
 - name: "k9s | Getting version information"
   ansible.builtin.shell:
     cmd: |
-      /usr/local/bin/k9s version -s | grep Version | cut -d "v" -f 2
+      /usr/local/bin/k9s version -s | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*'
   register: current_k9s_version
   changed_when: false
   failed_when: false

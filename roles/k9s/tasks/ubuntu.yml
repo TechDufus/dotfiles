@@ -25,7 +25,7 @@
 
 - name: Registering k9s current version
   ansible.builtin.set_fact:
-    current_k9s_version: current_k9s_version_stdout.stdout|default('')
+    current_k9s_version: "{{ current_k9s_version_stdout.stdout|default('') }}"
 
 - name: Show current_k9s_version debug
   ansible.builtin.debug:
@@ -35,12 +35,12 @@
   ansible.builtin.debug:
     var: k9s_latest_release
 
-- name: "k9s | Define k9s_file"
-  ansible.builtin.set_fact:
-    k9s_file: "k9s_Linux_x86_64"
-
 - name: Install
   block:
+    - name: "k9s | Define k9s_file"
+      ansible.builtin.set_fact:
+        k9s_file: "k9s_Linux_x86_64"
+
     - name: Ensure clean download destination
       ansible.builtin.file:
         path: "/tmp/{{ k9s_file }}.tar.gz"

@@ -7,7 +7,7 @@
 
 - name: Registering k9s Latest Release
   ansible.builtin.set_fact:
-    k9s_latest_release: "{{ k9s_latest_version_json.json[0].tag_name }}"
+    k9s_latest_release: "{{ k9s_latest_version_json.json.tag_name }}"
 
 - name: Registering k9s Latest Version
   ansible.builtin.set_fact:

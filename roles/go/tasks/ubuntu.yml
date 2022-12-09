@@ -38,7 +38,7 @@
 
 - name: "Go-Lang | Define GOOS"
   set_fact:
-    goarch: "{{ golang.goos }}"
+    goos: "{{ golang.goos }}"
   when: golang["goos"] is defined
 
 - name: "Debug: goos"

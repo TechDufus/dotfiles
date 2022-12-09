@@ -27,6 +27,10 @@
     goarch: "{{ golang.goarch }}"
   when: golang['goarch'] is defined
 
+- name: "Debug: goarch"
+  ansible.builtin.debug:
+    var: goarch
+
 - name: "Go-Lang | Define GOOS"
   set_fact:
     goos: linux
@@ -36,6 +40,10 @@
   set_fact:
     goarch: "{{ golang.goos }}"
   when: golang["goos"] is defined
+
+- name: "Debug: goos"
+  ansible.builtin.debug:
+    var: goos
 
 - name: "Go-Lang | Getting version information"
   command: "/usr/local/go/bin/go version"

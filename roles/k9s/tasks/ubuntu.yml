@@ -69,7 +69,7 @@
 
     - name: Remove any current k9s installations
       ansible.builtin.file:
-        path: /usr/local/k9s
+        path: /usr/local/bin/k9s
         state: absent
       become: true
 

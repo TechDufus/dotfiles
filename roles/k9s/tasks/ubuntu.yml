@@ -25,6 +25,9 @@
   changed_when: false
   failed_when: false
 
+- ansible.builtin.debug:
+    var: current_k9s_version_stdout
+
 - name: Registering k9s current version
   ansible.builtin.set_fact:
     current_k9s_version: "v{{ current_k9s_version_stdout.stdout|default('') }}"

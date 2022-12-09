@@ -1,0 +1,14 @@
+---
+- name: Add ppa:ytvwld/asciiquarium APT repo
+  ansible.builtin.apt_repository:
+    repo: ppa:ytvwld/asciiquarium
+    state: present
+    update_cache: true
+  become: true
+
+- name: Install
+  ansible.builtin.apt:
+    name:
+      - asciiquarium
+    state: present
+  become: true

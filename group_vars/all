@@ -1,6 +1,6 @@
 default_roles:
   - system
-  - python
+  - asciiquarium
   - bash
   - docker
   - git
@@ -10,6 +10,7 @@ default_roles:
   - nodejs
   - npm
   - pwsh
+  - python
   - ruby
   - ssh
   - spotify

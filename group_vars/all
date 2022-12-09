@@ -9,8 +9,9 @@ default_roles:
   - neovim
   - nodejs
   - npm
-  - ruby
   - pwsh
+  - ruby
+  - spotify
 
 git_user_name: "Matthew DeGarmo"
 git_user_email: !vault |

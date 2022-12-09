@@ -80,10 +80,10 @@ ansible-galaxy install -r requirements.yml
 echo -e "${ARROW} ${CYAN}Running playbook...${NC}"
 if [[ -f $VAULT_SECRET ]]; then
     echo -e "${ARROW} ${CYAN}Using vault config file...${NC}"
-    ansible-playbook --extra-vars "@$DOTFILES_DIR/values.yml" --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
+    ansible-playbook --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
 else
     echo -e "${WARNING} ${CYAN}Vault config file not found...${NC}"
-    ansible-playbook --extra-vars "@$DOTFILES_DIR/values.yml" "$DOTFILES_DIR/main.yml" "$@"
+    ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 fi
 
 popd 2>&1 > /dev/null

@@ -39,3 +39,12 @@ for file in ~/.config/bash/*; do
   source $file
 done
 
+# if ~./.bash_public exists source it
+if [[ -f "$HOME/.bash_public" ]]; then
+    source "$HOME/.bash_public"
+if
+
+if [[ -f "$HOME/.bash_private" ]]; then
+    source "$HOME/.bash_private"
+if
+

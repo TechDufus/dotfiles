@@ -68,6 +68,9 @@ Below is a list of all available values. Not all are required but incorrect valu
 | exclude_roles         | array `(see group_vars/all)`        | no       |
 | ssh_key               | dict `(see SSH Keys below)`         | no       |
 | system_host           | dict `(see System Hosts below)`     | no       |
+| bash_public           | dict `(see Environment below)`      | no       |
+| bash_private          | dict `(see Environment below)`      | no       |
+
 
 #### Environment
 

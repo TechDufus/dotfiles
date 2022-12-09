@@ -1,0 +1,5 @@
+{% if bash_public is defined %}
+{% for key, value in bash_public.items() %}
+export {{ key }}="{{ value }}"
+{% endfor %}
+{% endif %}

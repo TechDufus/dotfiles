@@ -24,3 +24,22 @@
     src: ".bash_profile"
     mode: 0644
     force: true
+
+- name: Set default
+  user:
+    name: "{{ host_user }}"
+    shell: /usr/bin/bash
+  become: true
+
+- name: Set public
+  ansible.builtin.template:
+    dest: "{{ ansible_user_dir }}/.bash_public"
+    src: ".bash_public.j2"
+    mode: 0644
+
+- name: Set private
+  ansible.builtin.template:
+    dest: "{{ ansible_user_dir }}/.bash_private"
+    src: ".bash_private.j2"
+    mode: 0644
+  no_log: true

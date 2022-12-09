@@ -1,0 +1,5 @@
+{% if bash_private is defined %}
+{% for key, value in bash_private.items() %}
+export {{ key }}="{{ value | trim }}"
+{% endfor %}
+{% endif %}

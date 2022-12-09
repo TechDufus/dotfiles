@@ -11,6 +11,7 @@ default_roles:
   - npm
   - pwsh
   - ruby
+  - ssh
   - spotify
 
 git_user_name: "Matthew DeGarmo"

@@ -1,0 +1,12 @@
+---
+- name: Cleanup k9s downloaded tar
+  ansible.builtin.file:
+    path: "/tmp/{{ k9s_file }}.tar.gz"
+    state: absent
+  become: true
+
+- name: Remove extracted k9s directory
+  ansible.builtin.file:
+    path: /tmp/k9s
+    state: absent
+  become: true

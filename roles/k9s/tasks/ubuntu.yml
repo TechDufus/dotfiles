@@ -1,0 +1,77 @@
+---
+- name: Get latest release of a public repository
+  community.general.github_release:
+    user: derailed
+    repo: k9s
+    action: latest_release
+  register: k9s_latest_release
+
+- name: Registering k9s Latest Version
+  ansible.builtin.set_fact:
+    k9s_latest_version: "{{ k9s_latest_release.stdout|default('') }}"
+
+- name: "k9s | Getting version information"
+  command: "/usr/local/bin/k9s version -s | grep Version | cut -d 'v' -f 2"
+  register: current_k9s_version
+  changed_when: false
+  failed_when: false
+
+- name: "k9s | Define k9s_file"
+  ansible.builtin.set_fact:
+    k9s_file: "k9s_Linux_x86_64"
+
+- name: Show current_k9s_version debug
+  ansible.builtin.debug:
+    var: current_k9s_version.stdout|default('')
+
+- name: Show k9s_latest_release debug
+  ansible.builtin.debug:
+    var: k9s_latest_release
+
+- name: Install
+  block:
+    - name: Ensure clean download destination
+      ansible.builtin.file:
+        path: "/tmp/{{ k9s_file }}.tar.gz"
+        state: absent
+      become: true
+
+    - name: Downloading k9s Release
+      ansible.builtin.get_url:
+        url: "https://github.com/derailed/k9s/releases/download/v{{ k9s_latest_release }}/{{ k9s_file }}.tar.gz"
+        dest: /tmp/
+        mode: 0644
+        force: true
+      notify:
+        - Cleanup k9s downloaded tar
+
+    - name: Ensure clean extraction destination
+      ansible.builtin.file:
+        path: "/tmp/k9s"
+        state: absent
+      become: true
+
+    - name: Extract k9s tar file
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ k9s_file }}.tar.gz"
+        dest: /tmp
+
+    - name: Remove any current k9s installations
+      ansible.builtin.file:
+        path: /usr/local/k9s
+        state: absent
+      become: true
+
+    - name: Install k9s
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/k9s
+        dest: /usr/local/bin/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        force: true
+      become: true
+      notify:
+        - Remove extracted k9s directory
+
+  when: k9s_latest_version not in current_k9s_version.stdout|default('')

@@ -4,6 +4,7 @@ default_roles:
   - docker
   - git
   - go
+  - k9s
   - neovim
   - nodejs
   - npm

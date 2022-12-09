@@ -70,7 +70,7 @@ Below is a list of all available values. Not all are required but incorrect valu
 | system_host           | dict `(see System Hosts below)`     | no       |
 | bash_public           | dict `(see Environment below)`      | no       |
 | bash_private          | dict `(see Environment below)`      | no       |
-| golang                | dict `(see Environment below)`      | no       |
+| golang                | dict `(see Environment below)`      | no (`Defaults:`<br>`goarch: linux`<br>`goos: amd64`)|
 
 
 #### Environment

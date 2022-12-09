@@ -24,7 +24,7 @@
 
 - name: "Go-Lang | Define GOARCH"
   set_fact:
-    goarch: "{{ golang['goarch'] }}"
+    goarch: "{{ golang.goarch }}"
   when: golang['goarch'] is defined
 
 - name: "Go-Lang | Define GOOS"
@@ -34,7 +34,7 @@
 
 - name: "Go-Lang | Define GOOS"
   set_fact:
-    goarch: "{{ golang['goos'] }}"
+    goarch: "{{ golang.goos }}"
   when: golang["goos"] is defined
 
 - name: "Go-Lang | Getting version information"

@@ -1,0 +1,7 @@
+---
+- name: Install
+  ansible.builtin.apt:
+    name:
+      - zioxide
+    state: present
+  become: true

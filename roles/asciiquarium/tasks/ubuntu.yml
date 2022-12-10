@@ -1,14 +1,77 @@
 ---
-- name: Add ppa:ytvwld/asciiquarium APT repo
-  ansible.builtin.apt_repository:
-    repo: ppa:ytvwld/asciiquarium
-    state: present
-    update_cache: true
-  become: true
+# - name: Add ppa:ytvwld/asciiquarium APT repo
+#   ansible.builtin.apt_repository:
+#     repo: ppa:ytvwld/asciiquarium
+#     state: present
+#     update_cache: true
+#   become: true
+#
+# - name: Install
+#   ansible.builtin.apt:
+#     name:
+#       - asciiquarium
+#     state: absent
+#   become: true
+
+- name: Detect any installed versions
+  ansible.builtin.command:
+    cmd: which asciiquarium
+  changed_when: false
+  failed_when: false
+  register: is_installed
+
+- name: Register any installed versions
+  ansible.builtin.set_fact:
+    is_installed: "{{ is_installed.stdout|default('') }}"
+
+- name: Installed versions
+  ansible.builtin.debug:
+    var: is_installed
 
 - name: Install
-  ansible.builtin.apt:
-    name:
-      - asciiquarium
-    state: present
-  become: true
+  block:
+    - name: Install Dependencies
+      ansible.builtin.apt:
+        name:
+          - cpanminus
+        state: present
+
+    - name: Ensure clean location to download tarball
+      ansible.builtin.file:
+        path: /tmp/asciiquarium.tar.gz
+        state: absent
+
+    - name: Download the asciiquarium tarball
+      ansible.builtin.get_url:
+        url: https://robobunny.com/projects/asciiquarium/asciiquarium.tar.gz
+        dest: /tmp/asciiquarium.tar.gz
+      notify:
+        - Remove tarball
+
+    - name: Extract the tarball
+      unarchive:
+        src: /tmp/asciiquarium.tar.gz
+        dest: /tmp/
+
+    - name: Install libcurses-perl
+      apt:
+        name: libcurses-perl
+        state: present
+
+    - name: Install Term::Animation from CPAN
+      ansible.builtin.cpanm:
+        name: Term::Animation
+
+    - name: Install
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/asciiquarium
+        dest: /usr/local/bin/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        force: true
+      become: true
+      notify:
+        - Remove extracted tarball
+
+  when: is_installed|bool

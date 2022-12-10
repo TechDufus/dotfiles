@@ -35,6 +35,7 @@
         name:
           - cpanminus
         state: present
+      become: true
 
     - name: Ensure clean location to download tarball
       ansible.builtin.file:
@@ -57,10 +58,12 @@
       apt:
         name: libcurses-perl
         state: present
+      become: true
 
     - name: Install Term::Animation from CPAN
       ansible.builtin.cpanm:
         name: Term::Animation
+      become: true
 
     - name: Install
       ansible.builtin.copy:
@@ -74,4 +77,4 @@
       notify:
         - Remove extracted tarball
 
-  when: is_installed|bool
+  when: is_installed | length < 1

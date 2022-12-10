@@ -19,6 +19,7 @@
     - name: Install Dependencies
       ansible.builtin.apt:
         name:
+          - make
           - cpanminus
         state: present
       become: true

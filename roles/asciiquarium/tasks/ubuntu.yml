@@ -68,7 +68,7 @@
     - name: Install
       ansible.builtin.copy:
         remote_src: true
-        src: /tmp/asciiquarium
+        src: /tmp/asciiquarium_1.1/asciiquarium
         dest: /usr/local/bin/
         owner: "{{ host_user }}"
         group: "{{ host_user }}"

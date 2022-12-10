@@ -25,10 +25,10 @@ set -e
 # Check if the spinner command exists
 if ! command -v spinner > /dev/null; then
   # Download the spinner script from GitHub
-  wget https://raw.githubusercontent.com/techdufus/dotfiles/master/bin/spinner -O /usr/local/bin/spinner
+  sudo wget https://raw.githubusercontent.com/techdufus/dotfiles/master/bin/spinner -O /usr/local/bin/spinner
 
   # Make the script executable
-  chmod +x /usr/local/bin/spinner
+  sudo chmod +x /usr/local/bin/spinner
 fi
 # Paths
 CONFIG_DIR="$HOME/.config/dotfiles"

@@ -29,12 +29,6 @@
   ansible.builtin.debug:
     var: k9s_latest_release
 
-- name: Copy skin config
-  ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/k9s/skin.yml"
-    src: "skin.yml"
-    mode: 0644
-
 - name: Install
   block:
     - name: "k9s | Define k9s_file"
@@ -87,3 +81,9 @@
         - Remove extracted k9s directory
 
   when: k9s_latest_release not in current_k9s_version.stdout|default('')
+
+- name: Copy skin config
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/k9s/skin.yml"
+    src: "skin.yml"
+    mode: 0644

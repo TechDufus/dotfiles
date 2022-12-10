@@ -73,7 +73,7 @@
         owner: "{{ host_user }}"
         group: "{{ host_user }}"
         force: true
-      become: true
+        mode: 0755
       notify:
         - Remove extracted tarball
 

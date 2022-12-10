@@ -21,15 +21,6 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 set -e
 
-# if the spinner command doesn't exist, create a spinner function that calls a github script
-# Check if the spinner command exists
-if ! command -v spinner > /dev/null; then
-  # Download the spinner script from GitHub
-  sudo wget https://raw.githubusercontent.com/techdufus/dotfiles/master/bin/spinner -O /usr/local/bin/spinner
-
-  # Make the script executable
-  sudo chmod +x /usr/local/bin/spinner
-fi
 # Paths
 CONFIG_DIR="$HOME/.config/dotfiles"
 VAULT_SECRET="$HOME/.ansible-vault/vault.secret"
@@ -42,19 +33,19 @@ IS_FIRST_RUN="$HOME/.dotfiles_run"
 if ! dpkg -s ansible >/dev/null 2>&1; then
     echo -e "${ARROW} ${CYAN}Installing Ansible...${NC}"
     echo -e "   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
-    spinner sudo apt-get update
+    sudo apt-get update 2>&1 > /dev/null
     echo -e "   ${RIGHT_ANGLE} ${CYAN}Installing dependency: ${YELLOW}software-properties-common${NC}"
-    spinner sudo apt-get install -y software-properties-common
+    sudo apt-get install -y software-properties-common 2>&1 > /dev/null
     echo -e "   ${RIGHT_ANGLE} ${CYAN}Adding Ansible PPA Repo${NC}"
-    spinner sudo apt-add-repository -y ppa:ansible/ansible
+    sudo apt-add-repository -y ppa:ansible/ansible 2>&1 > /dev/null
     echo -e "   ${RIGHT_ANGLE} ${CYAN}Updating APT Repos${NC}"
-    spinner sudo apt-get update
+    sudo apt-get update 2>&1 > /dev/null
     echo -e "   ${RIGHT_ANGLE} ${CYAN}Installing Ansible${NC}"
-    spinner sudo apt-get install -y ansible
+    sudo apt-get install -y ansible 2>&1 > /dev/null
     echo -e "${ARROW} ${GREEN}Ansible installed!${NC}"
     echo -e "${ARROW} ${CYAN}Installing ansible argument completion...${NC}"
-    spinner sudo apt-get install python3-argcomplete
-    spinner sudo activate-global-python-argcomplete3
+    sudo apt-get install python3-argcomplete 2>&1 > /dev/null
+    sudo activate-global-python-argcomplete3 2>&1 > /dev/null
 fi
 
 # Generate SSH keys
@@ -72,10 +63,10 @@ fi
 # Clone repository
 if ! [[ -d "$DOTFILES_DIR" ]]; then
     echo -e "${ARROW} ${CYAN}Cloning repository: ${YELLOW}github.com/TechDufus/dotfiles${NC}"
-    spinner git clone --quiet "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR"
+    git clone --quiet "https://github.com/TechDufus/dotfiles.git" "$DOTFILES_DIR" 2>&1 > /dev/null
 else
     echo -e "${ARROW} ${CYAN}Updating repository: ${YELLOW}github.com/TechDufus/dotfiles${NC}"
-    spinner git -C "$DOTFILES_DIR" pull --quiet
+    git -C "$DOTFILES_DIR" pull --quiet > /dev/null
 fi
 
 # Create path
@@ -83,7 +74,7 @@ pushd "$DOTFILES_DIR" 2>&1 > /dev/null
 
 # Update Galaxy
 echo -e "${ARROW} ${CYAN}Updating Galaxy...${NC}"
-spinner ansible-galaxy install -r requirements.yml
+ansible-galaxy install -r requirements.yml
 
 # Run playbook
 echo -e "${ARROW} ${CYAN}Running playbook...${NC}"
@@ -104,7 +95,3 @@ if ! [[ -f "$IS_FIRST_RUN" ]]; then
     touch "$IS_FIRST_RUN"
 fi
 
-# Cleanup temp spinner function
-if [ -f /usr/local/bin/spinner ]; then
-    rm /usr/local/bin/spinner
-fi

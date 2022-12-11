@@ -82,6 +82,12 @@
 
   when: k9s_latest_release not in current_k9s_version.stdout|default('')
 
+- name: Ensure k9s config directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/k9s"
+    state: directory
+    mode: 0755
+
 - name: Copy skin config
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/k9s/skin.yml"

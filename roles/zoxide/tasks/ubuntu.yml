@@ -2,6 +2,6 @@
 - name: Install
   ansible.builtin.apt:
     name:
-      - zioxide
+      - zoxide
     state: present
   become: true

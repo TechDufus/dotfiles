@@ -1,0 +1,5 @@
+---
+- name: Remove oh-my-bash Install Script
+  ansible.builtin.file:
+    path: /tmp/oh-my-bash.install.sh
+    state: absent

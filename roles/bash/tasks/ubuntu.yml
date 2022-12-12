@@ -1,9 +1,4 @@
 ---
-# - name: Config folder
-#   ansible.builtin.file:
-#     mode: "0755"
-#     path: "{{ ansible_user_dir }}/.config/bash"
-#     state: directory
 - name: Ensure .bashrc is sourcing .bash_profile
   ansible.builtin.lineinfile:
     path: "{{ ansible_user_dir }}/.bashrc"

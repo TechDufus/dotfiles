@@ -147,7 +147,7 @@ if [[ -f "$HOME/.bash_private" ]]; then
     source "$HOME/.bash_private"
 fi
 
-for file in "$HOME/.config/bash/*.sh"; do
+for file in $HOME/.config/bash/*.sh; do
   source "$file"
 done
 

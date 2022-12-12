@@ -6,7 +6,7 @@
 
 - name: Register oh-my-bash state
   ansible.builtin.set_fact:
-    ohmybash_is_installed: ohmybash.stat.exists
+    ohmybash_is_installed: "{{ ohmybash.stat.exists }}"
 
 - name: Debug ohmybash_is_installed
   ansible.builtin.debug:

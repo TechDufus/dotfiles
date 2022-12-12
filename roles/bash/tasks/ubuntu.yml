@@ -21,9 +21,15 @@
 
 - name: Install oh-my-bash
   block:
+    - name: Download oh-my-bash Install Script
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
+        dest: /tmp/oh-my-bash.install.sh
+        force: true
+        mode: 0755
     - name: Run the install script
       ansible.builtin.script:
-        cmd: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
+        cmd: /tmp/oh-my-bash.install.sh
   when: not ohmybash_is_installed
 
 - name: Copy .bashrc

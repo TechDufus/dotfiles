@@ -27,9 +27,11 @@
         dest: /tmp/oh-my-bash.install.sh
         force: true
         mode: 0755
+
     - name: Run the install script
       ansible.builtin.script:
         cmd: /tmp/oh-my-bash.install.sh
+
   when: not ohmybash_is_installed
 
 - name: Copy .bashrc

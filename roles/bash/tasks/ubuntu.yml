@@ -30,16 +30,11 @@
 
 - name: Copy custom bash aliases
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
-    src: "bash/{{ item }}"
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom"
+    src: "bash"
     mode: 0644
     directory_mode: 0755
     force: true
-  loop:
-    - aliases
-    - completions
-    - env
-    - functions
 
 - name: Set default
   user:

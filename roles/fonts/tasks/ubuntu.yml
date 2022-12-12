@@ -1,0 +1,7 @@
+---
+- name: Install
+  ansible.builtin.apt:
+    name:
+      - fonts-powerline
+    state: present
+  become: true

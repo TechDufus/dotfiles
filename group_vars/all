@@ -3,6 +3,7 @@ default_roles:
   - asciiquarium
   - bash
   - docker
+  - fonts
   - git
   - go
   - k9s
@@ -28,4 +29,3 @@ git_user_email: !vault |
 golang:
   goos: linux
   goarch: amd64
-

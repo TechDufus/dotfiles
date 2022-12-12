@@ -1,24 +1,5 @@
 #!/usr/bin/env bash
 
-# Super cool keyboard stuffs.
-# Required for x applications
-# setxkbmap -option caps:ctrl_modifier
-
-export STOW_FOLDERS="nvim,uwuntu,bash"
-export EDITOR="nvim"
-
-go-nvim() {
-    cd ~/.dotfiles/nvim/.config/nvim
-}
-change_background() {
-    dconf write /org/mate/desktop/background/picture-filename "'$HOME/anime/$(ls ~/anime| fzf)'"
-}
-
-die () {
-    echo >&2 "$@"
-    exit 1
-}
-
 get_latest_release() {
   curl --silent "https://api.github.com/repos/$1/releases/latest" | # Get latest release from GitHub api
     grep '"tag_name":' |                                            # Get tag line
@@ -73,23 +54,6 @@ pinger-upgrade() {
     popd > /dev/null 2>&1
 }
 
-newRole() {
-    if [ -z "$1" ]; then
-        die "Usage: newRole <role name>"
-    fi
-    # Check to see if we are in the ansible or ansible-roles directory
-    # If we are in ansible, create the role in ansible-roles
-    # If we are in ansible-roles, create the role in ansible-roles
-    # If we are in neither, error out
-    if [ ! -d "ansible" ] && [ ! -d "roles" ]; then
-        echo -e "${WARNING} ${RED}Must be in ansible or roles directory."
-    else
-        echo -e "${ARROW} ${GREEN}Creating role in roles...${NC}"
-        ansible-galaxy init roles/$1
-    fi
-}
-
-
 go-upgrade() {
     # if no arg is passed, get latest version
     if [[ -z $1 ]]; then
@@ -109,16 +73,4 @@ go-upgrade() {
     sudo mv go /usr/local
     popd > /dev/null 2>&1
     echo -e "${CHECK_MARK} ${GREEN}Successfully Installed GO Version: ${YELLOW}$(/usr/local/go/bin/go version)${NC}"
-}
-
-addToPath() {
-    if [[ "$PATH" != *"$1"* ]]; then
-        export PATH=$PATH:$1
-    fi
-}
-
-addToPathFront() {
-    if [[ "$PATH" != *"$1"* ]]; then
-        export PATH=$1:$PATH
-    fi
 }

@@ -1,24 +1,45 @@
 ---
-- name: Ensure .bashrc is sourcing .bash_profile
-  ansible.builtin.lineinfile:
-    path: "{{ ansible_user_dir }}/.bashrc"
-    line: "source {{ ansible_user_dir }}/.bash_profile"
-    state: present
+- name: Detect oh-my-bash
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.oh-my-bash"
+  register: ohmybash
 
-- name: Copy bash config
+- name: Register oh-my-bash state
+  ansible.builtin.set_fact:
+    ohmybash_is_installed: ohmybash.stat.exists
+
+- name: Upgrade oh-my-bash
+  block:
+    - name: Run Upgrade oh-my-bash script
+      ansible.builtin.script:
+        cmd: "{{ ansible_user_dir }}/.oh-my-bash/tools/upgrade.sh"
+  when: ohmybash_is_installed
+
+- name: Install oh-my-bash
+  block:
+    - name: Run the install script
+      ansible.builtin.script:
+        cmd: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
+  when: not ohmybash_is_installed
+
+- name: Copy .bashrc
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/"
-    src: "bash"
+    src: ".bashrc"
+    dest: "{{ ansible_user_dir }}/.bashrc"
+    mode: 0644
+
+- name: Copy custom bash aliases
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
+    src: "bash/{{ item }}"
     mode: 0644
     directory_mode: 0755
     force: true
-
-- name: Copy .bash_profile
-  ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/"
-    src: ".bash_profile"
-    mode: 0644
-    force: true
+  loop:
+    - aliases
+    - completions
+    - env
+    - functions
 
 - name: Set default
   user:
@@ -26,15 +47,15 @@
     shell: /usr/bin/bash
   become: true
 
-- name: Set public
-  ansible.builtin.template:
-    dest: "{{ ansible_user_dir }}/.bash_public"
-    src: ".bash_public.j2"
-    mode: 0644
+- name: Ensure vars directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.oh-my-bash/custom/vars"
+    state: directory
+    mode: 0755
 
 - name: Set private
   ansible.builtin.template:
-    dest: "{{ ansible_user_dir }}/.bash_private"
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/vars/.bash_private"
     src: ".bash_private.j2"
     mode: 0644
   no_log: true

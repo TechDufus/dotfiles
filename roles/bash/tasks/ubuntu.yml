@@ -38,9 +38,9 @@
     dest: "{{ ansible_user_dir }}/.bashrc"
     mode: 0644
 
-- name: Copy custom bash aliases
+- name: Copy custom bash config
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom"
+    dest: "{{ ansible_user_dir }}/.config/"
     src: "bash"
     mode: 0644
     directory_mode: 0755
@@ -52,15 +52,9 @@
     shell: /usr/bin/bash
   become: true
 
-- name: Ensure vars directory exists
-  ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.oh-my-bash/custom/vars"
-    state: directory
-    mode: 0755
-
 - name: Set private
   ansible.builtin.template:
-    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/vars/.bash_private"
+    dest: "{{ ansible_user_dir }}/.config/bash/.bash_private"
     src: ".bash_private.j2"
     mode: 0644
   no_log: true

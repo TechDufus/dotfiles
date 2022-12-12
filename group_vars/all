@@ -15,7 +15,7 @@ default_roles:
   - ssh
   - tmate
   - spotify
-  - zioxide
+  - zoxide
 
 git_user_name: "Matthew DeGarmo"
 git_user_email: !vault |

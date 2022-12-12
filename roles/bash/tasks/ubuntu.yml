@@ -8,6 +8,10 @@
   ansible.builtin.set_fact:
     ohmybash_is_installed: ohmybash.stat.exists
 
+- name: Debug ohmybash_is_installed
+  ansible.builtin.debug:
+    var: ohmybash_is_installed
+
 - name: Upgrade oh-my-bash
   block:
     - name: Run Upgrade oh-my-bash script

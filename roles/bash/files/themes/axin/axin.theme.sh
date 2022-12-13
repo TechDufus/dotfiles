@@ -35,7 +35,7 @@ fi
 
 function k8s_info() {
     local k8s_data=$(kubectl config view --minify --output 'jsonpath={..namespace}@{.current-context}' 2> /dev/null)
-    if k8s_data != ""; then
+    if $k8s_data != ""; then
         echo "[$(k8s_data)]"
     fi
 }

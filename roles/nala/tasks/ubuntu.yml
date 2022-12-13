@@ -34,6 +34,7 @@
   ansible.builtin.apt:
     name: nala
     state: latest
+  become: true
   when: ansible_distribution_major_version == "22"
 
 - name: Install Nala-legacy
@@ -41,4 +42,5 @@
     name: nala-legacy
     state: latest
     update_cache: yes
+  become: true
   when: ansible_distribution_major_version == "20"

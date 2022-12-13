@@ -16,5 +16,5 @@
     name:
       - powershell
     update_cache: true
-    state: present
+    state: latest
   become: true

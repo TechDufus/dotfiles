@@ -8,7 +8,7 @@
       - libtool
       - unzip
       - ansible-lint
-    state: present
+    state: latest
   become: true
 
 # add ppa:neovim-ppa/unstable
@@ -21,7 +21,7 @@
 - name: Install
   ansible.builtin.apt:
     name: neovim
-    state: present
+    state: latest
   become: true
 
 # - name: Clone

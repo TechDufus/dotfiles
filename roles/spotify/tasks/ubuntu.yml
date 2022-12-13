@@ -3,6 +3,6 @@
   ansible.builtin.apt:
     name:
       - spotify-client
-    state: present
+    state: latest
   become: true
   when: not ansible_host_environment_is_wsl

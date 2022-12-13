@@ -3,5 +3,5 @@
   ansible.builtin.apt:
     name:
       - npm
-    state: present
+    state: latest
   become: true

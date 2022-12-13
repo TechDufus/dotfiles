@@ -3,7 +3,7 @@
   ansible.builtin.apt:
     name:
       - git
-    state: present
+    state: latest
   become: true
 
 - name: Set diff.colorMoved

@@ -4,5 +4,5 @@
     name:
       - ruby
       - ruby-dev
-    state: present
+    state: latest
   become: true

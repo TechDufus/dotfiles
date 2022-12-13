@@ -4,6 +4,5 @@
     name:
       - python3
       - python3-pip
-    state: present
+    state: latest
   become: true
-

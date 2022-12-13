@@ -12,7 +12,7 @@
     name:
       - jq
       - open-iscsi
-    state: present
+    state: latest
   become: true
 
 - name: Set sudo

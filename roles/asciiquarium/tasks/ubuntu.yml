@@ -18,10 +18,11 @@
   block:
     - name: Install Dependencies
       ansible.builtin.apt:
-        name:
-          - make
-          - cpanminus
-        state: present
+        name: "{{ item }}"
+        state: latest
+      loop:
+        - make
+        - cpanminus
       become: true
 
     - name: Ensure clean location to download tarball

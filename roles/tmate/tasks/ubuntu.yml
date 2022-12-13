@@ -3,5 +3,5 @@
   ansible.builtin.apt:
     name:
       - tmate
-    state: present
+    state: latest
   become: true

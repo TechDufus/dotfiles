@@ -3,5 +3,5 @@
   ansible.builtin.apt:
     name:
       - nodejs
-    state: present
+    state: latest
   become: true

@@ -3,6 +3,6 @@
   ansible.builtin.apt:
     name:
       - zoxide
-    state: present
+    state: latest
   become: true
   when: ansible_distribution_version >= '21.04'

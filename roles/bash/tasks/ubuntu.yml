@@ -48,6 +48,14 @@
     directory_mode: 0755
     force: true
 
+- name: Copy custom bash theme
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/themes"
+    src: "themes"
+    directory_mode: 0755
+    mode: 0644
+    force: true
+
 - name: Set default
   user:
     name: "{{ host_user }}"

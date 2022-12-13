@@ -1,17 +1,19 @@
 ---
 - name: Detecting Installed Nala
-  command: which nala
+  ansible.builtin.command:
+    cmd: which nala
   register: nala_cmd
+  failed_when: false
 
-- name: Register nala status
+- name: Register nala status installed
   ansible.builtin.set_fact:
     nala_is_installed: true
-  when: nala_cmd.stdout != ""
+  when: nala_cmd.stdout|lenght > 0
 
-- name: Register nala status
+- name: Register nala status not installed
   ansible.builtin.set_fact:
     nala_is_installed: false
-  when: nala_cmd.stdout == ""
+  when: nala_cmd.stdout|lenght == 0
 
 - name: Install Nala APT Repo
   block:

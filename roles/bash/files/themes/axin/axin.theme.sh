@@ -38,7 +38,7 @@ function k8s_info() {
 }
 
 function _omb_theme_PROMPT_COMMAND() {
-  PS1="\[${BOLD}${MAGENTA}\]\u \[$WHITE\]@ \[$ORANGE\]\h \[$WHITE\]in \[$GREEN\]\w\[$WHITE\]\[$SCM_THEME_PROMPT_PREFIX\]$(clock_prompt) \[$PURPLE\]\$(scm_prompt_info) [\$(k8s_info)]\n\$ \[$RESET\]"
+  PS1="\[${BOLD}${MAGENTA}\]\u \[$WHITE\]@ \[$ORANGE\]\h \[$WHITE\]in \[$GREEN\]\w\[$WHITE\]\[$SCM_THEME_PROMPT_PREFIX\]$(clock_prompt) \[$PURPLE\]\$(scm_prompt_info) $YELLOW[\$(k8s_info)]$PURPLE\n\$ \[$RESET\]"
 }
 THEME_CLOCK_COLOR=${THEME_CLOCK_COLOR:-"${_omb_prompt_white}"}
 

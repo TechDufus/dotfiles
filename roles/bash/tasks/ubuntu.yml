@@ -50,7 +50,7 @@
 
 - name: Copy custom bash theme
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/themes"
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
     src: "themes"
     directory_mode: 0755
     mode: 0644

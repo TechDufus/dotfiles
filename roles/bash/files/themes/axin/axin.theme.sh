@@ -34,7 +34,10 @@ else
 fi
 
 function k8s_info() {
-    echo "\[$(kubectl config view --minify --output 'jsonpath={..namespace}@{.current-context}' 2> /dev/null)\]"
+    local k8s_info=$(kubectl config view --minify --output 'jsonpath={..namespace}@{.current-context}' 2> /dev/null)
+    if k8s_info != ""; then
+        echo "[$(k8s_info)]"
+    fi
 }
 
 function _omb_theme_PROMPT_COMMAND() {

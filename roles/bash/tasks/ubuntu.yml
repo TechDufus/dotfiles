@@ -12,13 +12,6 @@
   ansible.builtin.debug:
     var: ohmybash_is_installed
 
-# - name: Upgrade oh-my-bash
-#   block:
-#     - name: Run Upgrade oh-my-bash script
-#       ansible.builtin.script:
-#         cmd: "{{ ansible_user_dir }}/.oh-my-bash/tools/upgrade.sh"
-#   when: ohmybash_is_installed
-
 - name: Install oh-my-bash
   block:
     - name: Download oh-my-bash Install Script

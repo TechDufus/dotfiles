@@ -1,7 +1,7 @@
 require("filetype").setup({
   overrides = {
     extensions = {
-      tfvars = "tf",
+      tfvars = "terraform",
       tfstate = "json",
       tfstate_backup = "json",
       tfplan = "json",

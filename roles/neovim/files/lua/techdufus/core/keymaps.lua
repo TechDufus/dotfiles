@@ -47,9 +47,31 @@ keymap(visual_mode, "<", "<gv", opts)
 keymap(visual_mode, ">", ">gv", opts)
 
 -- Move text up and down
-keymap(visual_mode, "<A-j>", ":m .+1<CR>==", opts)
-keymap(visual_mode, "<A-k>", ":m .-2<CR>==", opts)
+keymap(visual_mode, "J", ":m '>+1<CR>gv=gv", opts)
+keymap(visual_mode, "V", ":m '>-2<CR>gv=gv", opts)
+-- keymap(visual_mode, "<A-j>", ":m .+1<CR>==", opts)
+-- keymap(visual_mode, "<A-k>", ":m .-2<CR>==", opts)
 keymap(visual_mode, "p", '"_dP', opts)
+
+-- keep cursor in place when appending below line to current line
+keymap(normal_mode, "J", "mzJ`z", opts)
+
+-- Keep search term in the middle
+keymap(normal_mode, "n", "nzzzv", opts)
+keymap(normal_mode, "N", "Nzzzv", opts)
+
+-- Keep current buffer when pasting over text
+keymap(normal_mode, "<leader>p", '"_dP', opts)
+
+-- Worst place in the universe
+keymap(normal_mode, "Q", "<nop>", opts)
+
+-- Make current file executable
+keymap(normal_mode, "<leader>x", ":w !chmod +x %<CR>", opts)
+
+-- Find / Replace Current Word
+keymap(normal_mode, "<leader>fr", ":%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<left><left><left>", opts)
+
 
 -- Move line up/down
 keymap(normal_mode, "<leader>j", "ddp", opts)
@@ -79,10 +101,11 @@ keymap(normal_mode, "<leader>ps", "<cmd>lua require('telescope.builtin').live_gr
 -- keymap(normal_mode, "<leader>pg", "<cmd>lua require('telescope.builtin').git_files()<cr>", opts)
 -- Telescope find files in nvim config directory
 keymap(normal_mode, "<leader>rc",
-  "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/.dotfiles', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>"
-  , opts)
+    "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/.dotfiles', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>"
+    , opts)
 keymap(normal_mode, "<leader>1", "<cmd>lua require'telescope.builtin'.buffers()<cr>", opts)
-keymap(normal_mode, "<Leader>pg", "<CMD>lua require'techdufus.telescope'.project_files()<CR>", { noremap = true, silent = true })
+keymap(normal_mode, "<Leader>pg", "<CMD>lua require'techdufus.telescope'.project_files()<CR>",
+    { noremap = true, silent = true })
 
 -- Symbols outline
 keymap(normal_mode, "<leader>sy", "<cmd>SymbolsOutline<CR>", opts)

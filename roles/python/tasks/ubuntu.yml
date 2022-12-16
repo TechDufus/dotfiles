@@ -6,3 +6,12 @@
       - python3-pip
     state: latest
   become: true
+
+- name: Install pip packages
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    state: latest
+  loop:
+    - bpytop
+  become: true
+

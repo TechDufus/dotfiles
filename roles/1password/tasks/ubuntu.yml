@@ -1,49 +1,44 @@
 ---
-- name: Add APT Repo
+- name: "1Password | Add APT Key"
   ansible.builtin.apt_key:
     url: https://downloads.1password.com/linux/keys/1password.asc
     keyring: /usr/share/keyrings/1password-archive-keyring.gpg
     state: present
   become: true
 
-- name: Add APT Repo
+- name: "1Password | Add APT Repo"
   ansible.builtin.apt_repository:
-    repo: "deb [arch={{ ansible_machine | replace('x86_64', 'amd64') }}] https://downloads.1password.com/linux/debian/amd64 stable main"
+    repo: "deb [arch={{ ansible_machine | replace('x86_64', 'amd64') }} signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/{{ ansible_machine | replace('x86_64', 'amd64') }} stable main"
     state: present
   become: true
 
-- name: Add debsig-verify policy
+- name: "1Password | Add debsig-verify policy"
   block:
-    - name: Ensure policy directory exists
+    - name: "1Password | Ensure policy directory exists"
       ansible.builtin.file:
         name: /etc/debsig/policies/AC2D62742012EA22
         state: directory
         mode: 0755
-      register: debsig_dir
 
-    - name: Copy debsig-verify policy
+    - name: "1Password | Copy debsig-verify policy"
       ansible.builtin.get_url:
         url: https://downloads.1password.com/linux/debian/debsig/1password.pol
         dest: /etc/debsig/policies/AC2D62742012EA22/1password.pol
         mode: 0644
-      when: debsig_dir is changed
 
-    - name: Ensure debsig keyring directory exists
+    - name: "1Password | Ensure debsig keyring directory exists"
       ansible.builtin.file:
         name: /usr/share/debsig/keyrings/AC2D62742012EA22
         state: directory
         mode: 0755
-      register: debsig_keyring_dir
 
-    - name: Add debsig keyring
+    - name: "1Password | Add debsig keyring"
       ansible.builtin.apt_key:
-        url: https://downloads.1password.com/linux/debian/debsig/1password.asc
+        url: https://downloads.1password.com/linux/keys/1password.asc
         keyring: /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
-        mode: 0644
-      when: debsig_keyring_dir is changed
   become: true
 
-- name: Install 1Password
+- name: "1Password | Install 1Password"
   ansible.builtin.apt:
     name: 1password-cli
     state: present

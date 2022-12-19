@@ -1,5 +1,5 @@
 ---
-- name: Install
+- name: "NPM | Install"
   ansible.builtin.apt:
     name:
       - npm

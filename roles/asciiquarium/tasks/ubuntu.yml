@@ -1,22 +1,22 @@
 ---
-- name: Detect any installed versions
+- name: "Asciiquarium | Detect any installed versions"
   ansible.builtin.command:
     cmd: which asciiquarium
   changed_when: false
   failed_when: false
   register: is_installed
 
-- name: Register any installed versions
+- name: "Asciiquarium | Register any installed versions"
   ansible.builtin.set_fact:
     is_installed: "{{ is_installed.stdout|default('') }}"
 
-- name: Installed versions
+- name: "Asciiquarium | Installed versions"
   ansible.builtin.debug:
     var: is_installed
 
 - name: Install
   block:
-    - name: Install Dependencies
+    - name: "Asciiquarium | Install Dependencies"
       ansible.builtin.apt:
         name: "{{ item }}"
         state: latest
@@ -25,35 +25,35 @@
         - cpanminus
       become: true
 
-    - name: Ensure clean location to download tarball
+    - name: "Asciiquarium | Ensure clean location to download tarball"
       ansible.builtin.file:
         path: /tmp/asciiquarium.tar.gz
         state: absent
 
-    - name: Download the asciiquarium tarball
+    - name: "Asciiquarium | Download the asciiquarium tarball"
       ansible.builtin.get_url:
         url: https://robobunny.com/projects/asciiquarium/asciiquarium.tar.gz
         dest: /tmp/asciiquarium.tar.gz
       notify:
         - Remove tarball
 
-    - name: Extract the tarball
+    - name: "Asciiquarium | Extract the tarball"
       unarchive:
         src: /tmp/asciiquarium.tar.gz
         dest: /tmp/
 
-    - name: Install libcurses-perl
+    - name: "Asciiquarium | Install libcurses-perl"
       apt:
         name: libcurses-perl
         state: present
       become: true
 
-    - name: Install Term::Animation from CPAN
+    - name: "Asciiquarium | Install Term::Animation from CPAN"
       ansible.builtin.cpanm:
         name: Term::Animation
       become: true
 
-    - name: Install
+    - name: "Asciiquarium | Install"
       ansible.builtin.copy:
         remote_src: true
         src: /tmp/asciiquarium_1.1/asciiquarium

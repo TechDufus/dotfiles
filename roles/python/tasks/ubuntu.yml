@@ -1,5 +1,5 @@
 ---
-- name: Install
+- name: "Python | Install"
   ansible.builtin.apt:
     name:
       - python3
@@ -7,7 +7,7 @@
     state: latest
   become: true
 
-- name: Install pip packages
+- name: "Python | Install pip packages"
   ansible.builtin.pip:
     name: "{{ item }}"
     state: latest

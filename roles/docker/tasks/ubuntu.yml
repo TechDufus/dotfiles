@@ -1,5 +1,5 @@
 ---
-- name: Install
+- name: "Docker | Install"
   ansible.builtin.apt:
     name:
       - docker
@@ -7,7 +7,7 @@
     state: present
   become: true
 
-- name: Enable service
+- name: "Docker | Enable service"
   ansible.builtin.systemd:
     enabled: true
     name: docker
@@ -15,14 +15,14 @@
   become: true
   when: not ansible_host_environment_is_wsl
 
-- name: Add to group
+- name: "Docker | Add to group"
   ansible.builtin.user:
     append: true
     groups: docker
     name: "{{ ansible_env['USER'] }}"
   become: true
 
-- name: Copy daemon.json
+- name: "Docker | Copy daemon.json"
   ansible.builtin.template:
     dest: "/etc/docker/daemon.json"
     src: "daemon.json"

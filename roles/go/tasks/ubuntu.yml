@@ -25,11 +25,11 @@
   ansible.builtin.set_fact:
     goos: "{{ ansible_system | lower }}"
 
-- name: GOARCH Value
+- name: "Go-Lang | GOARCH Value"
   ansible.builtin.debug:
     var: goarch
 
-- name: GOOS Value
+- name: "Go-Lang | GOOS Value"
   ansible.builtin.debug:
     var: goos
 
@@ -45,11 +45,11 @@
   register: go_latest_version_json
   changed_when: false
 
-- name: Registering go Latest Version
+- name: "Go-Lang | Registering go Latest Version"
   ansible.builtin.set_fact:
     go_latest_version: "go version {{ go_latest_version_json.json[0].version }} {{ goos }}/{{ goarch }}"
 
-- name: Registering go Latest Release
+- name: "Go-Lang | Registering go Latest Release"
   ansible.builtin.set_fact:
     go_latest_release: "{{ go_latest_version_json.json[0].version }}"
 
@@ -57,23 +57,23 @@
   ansible.builtin.set_fact:
     go_file: "{{ go_latest_release }}.{{ goos }}-{{ goarch }}"
 
-- name: Show current_go_version debug
+- name: "Go-Lang | Show current_go_version debug"
   ansible.builtin.debug:
     var: current_go_version.stdout|default('')
 
-- name: Show go_latest_release debug
+- name: "Go-Lang | Show go_latest_release debug"
   ansible.builtin.debug:
     var: go_latest_release
 
-- name: Install
+- name: "Go-Lang | Install"
   block:
-    - name: Ensure clean download destination
+    - name: "Go-Lang | Ensure clean download destination"
       ansible.builtin.file:
         path: "/tmp/{{ go_file }}.tar.gz"
         state: absent
       become: true
 
-    - name: Downloading GoLang Release
+    - name: "Go-Lang | Downloading GoLang Release"
       ansible.builtin.get_url:
         url: "https://golang.org/dl/{{ go_file }}.tar.gz"
         dest: /tmp/
@@ -82,24 +82,24 @@
       notify:
         - Cleanup go downloaded tar
 
-    - name: Ensure clean extraction destination
+    - name: "Go-Lang | Ensure clean extraction destination"
       ansible.builtin.file:
         path: "/tmp/go"
         state: absent
       become: true
 
-    - name: Extract go tar file
+    - name: "Go-Lang | Extract go tar file"
       ansible.builtin.unarchive:
         src: "/tmp/{{ go_file }}.tar.gz"
         dest: /tmp
 
-    - name: Remove any current Go installations
+    - name: "Go-Lang | Remove any current Go installations"
       ansible.builtin.file:
         path: /usr/local/go
         state: absent
       become: true
 
-    - name: Install Go
+    - name: "Go-Lang | Install Go"
       ansible.builtin.copy:
         remote_src: true
         src: /tmp/go

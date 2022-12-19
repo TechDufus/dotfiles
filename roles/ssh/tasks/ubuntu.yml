@@ -1,5 +1,5 @@
 ---
-- name: Copy SSH keys
+- name: "SSH | Copy SSH keys"
   copy:
     dest: "{{ ansible_user_dir }}/.ssh/{{ ssh_key_item.key }}"
     content: "{{ ssh_key_item.value }}"

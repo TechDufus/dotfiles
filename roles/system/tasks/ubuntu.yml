@@ -1,5 +1,5 @@
 ---
-- name: Update APT Repos and Upgrade APT Packages
+- name: "System | Update APT Repos and Upgrade APT Packages"
   ansible.builtin.apt:
     update_cache: true
     upgrade: "yes"
@@ -7,7 +7,7 @@
     autoclean: true
   become: true
 
-- name: Install
+- name: "System | Install"
   ansible.builtin.apt:
     name:
       - jq
@@ -15,14 +15,14 @@
     state: latest
   become: true
 
-- name: Set sudo
+- name: "System | Set sudo"
   ansible.builtin.template:
     src: user-sudo.j2
     dest: "/etc/sudoers.d/{{ ansible_env['USER'] }}"
     mode: 0644
   become: true
 
-- name: Set hosts
+- name: "System | Set hosts"
   ansible.builtin.template:
     dest: "/etc/hosts"
     src: hosts.j2

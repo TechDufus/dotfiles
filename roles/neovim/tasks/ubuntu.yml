@@ -1,5 +1,5 @@
 ---
-- name: Dependencies
+- name: "Neovim | Dependencies"
   ansible.builtin.apt:
     name:
       - cmake
@@ -12,53 +12,37 @@
   become: true
 
 # add ppa:neovim-ppa/unstable
-- name: Add neovim-ppa/unstable Repo
+- name: "Neovim | Add neovim-ppa/unstable Repo"
   ansible.builtin.apt_repository:
     repo: ppa:neovim-ppa/unstable
     state: present
   become: true
 
-- name: Install
+- name: "Neovim | Install"
   ansible.builtin.apt:
     name: neovim
     state: latest
   become: true
 
-# - name: Clone
-#   ansible.builtin.git:
-#     clone: true
-#     depth: 1
-#     dest: "{{ ansible_user_dir }}/Development/repository/github.com/neovim/neovim"
-#     force: true
-#     repo: https://github.com/neovim/neovim.git
-#     single_branch: true
-#     update: true
-#     version: "{{ neovim_version | default('master') }}"
-#   register: clone
-#   notify:
-#     - Build
-#     - Install
-#     - Remove build folder
-
-- name: Config folder
+- name: "Neovim | Config folder"
   ansible.builtin.file:
     mode: "0755"
     path: "{{ ansible_user_dir }}/.config/nvim"
     state: directory
 
-- name: Copy init.lua
+- name: "Neovim | Copy init.lua"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/nvim/init.lua"
     src: "init.lua"
     mode: 0644
 
-- name: Copy .luarc.json
+- name: "Neovim | Copy .luarc.json"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/nvim/.luarc.json"
     src: ".luarc.json"
     mode: 0644
 
-- name: Copy modules
+- name: "Neovim | Copy modules"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/nvim/lua"
     src: "lua/"

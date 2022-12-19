@@ -1,39 +1,39 @@
 ---
-- name: Detect oh-my-bash
+- name: "Bash | Detect oh-my-bash"
   ansible.builtin.stat:
     path: "{{ ansible_user_dir }}/.oh-my-bash"
   register: ohmybash
 
-- name: Register oh-my-bash state
+- name: "Bash | Register oh-my-bash state"
   ansible.builtin.set_fact:
     ohmybash_is_installed: "{{ ohmybash.stat.exists }}"
 
-- name: Debug ohmybash_is_installed
+- name: "Bash | Debug ohmybash_is_installed"
   ansible.builtin.debug:
     var: ohmybash_is_installed
 
-- name: Install oh-my-bash
+- name: "Bash | Install oh-my-bash"
   block:
-    - name: Download oh-my-bash Install Script
+    - name: "Bash | Download oh-my-bash Install Script"
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
         dest: /tmp/oh-my-bash.install.sh
         force: true
         mode: 0755
 
-    - name: Run the install script
+    - name: "Bash | Run the install script"
       ansible.builtin.script:
         cmd: /tmp/oh-my-bash.install.sh
 
   when: not ohmybash_is_installed
 
-- name: Copy .bashrc
+- name: "Bash | Copy .bashrc"
   ansible.builtin.copy:
     src: ".bashrc"
     dest: "{{ ansible_user_dir }}/.bashrc"
     mode: 0644
 
-- name: Copy custom bash config
+- name: "Bash | Copy custom bash config"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/"
     src: "bash"
@@ -41,7 +41,7 @@
     directory_mode: 0755
     force: true
 
-- name: Copy custom bash theme
+- name: "Bash | Copy custom bash theme"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
     src: "themes"
@@ -49,13 +49,13 @@
     mode: 0644
     force: true
 
-- name: Set default
+- name: "Bash | Set default terminal"
   user:
     name: "{{ host_user }}"
     shell: /usr/bin/bash
   become: true
 
-- name: Set private
+- name: "Bash | Set private variables"
   ansible.builtin.template:
     dest: "{{ ansible_user_dir }}/.config/bash/.bash_private"
     src: ".bash_private.j2"

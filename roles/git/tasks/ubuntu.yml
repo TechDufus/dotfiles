@@ -1,49 +1,49 @@
 ---
-- name: Install
+- name: "Git | Install"
   ansible.builtin.apt:
     name:
       - git
     state: latest
   become: true
 
-- name: Set diff.colorMoved
+- name: "Git | Set diff.colorMoved"
   community.general.git_config:
     name: diff.colorMoved
     scope: global
     value: zebra
 
-- name: Set fetch.prune
+- name: "Git | Set fetch.prune"
   community.general.git_config:
     name: fetch.prune
     scope: global
     value: true
 
-- name: Set init.defaultBranch
+- name: "Git | Set init.defaultBranch"
   community.general.git_config:
     name: init.defaultBranch
     scope: global
     value: main
 
-- name: Set pull.rebase
+- name: "Git | Set pull.rebase"
   community.general.git_config:
     name: pull.rebase
     scope: global
     value: true
 
-- name: Set rebase.autoStash
+- name: "Git | Set rebase.autoStash"
   community.general.git_config:
     name: rebase.autoStash
     scope: global
     value: true
 
-- name: Set user.email
+- name: "Git | Set user.email"
   community.general.git_config:
     name: user.email
     scope: global
     value: "{{ git_user_email }}"
   no_log: true
 
-- name: Set user.name
+- name: "Git | Set user.name"
   community.general.git_config:
     name: user.name
     scope: global

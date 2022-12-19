@@ -1,5 +1,5 @@
 ---
-- name: Install
+- name: "Spotify | Install"
   ansible.builtin.apt:
     name:
       - spotify-client

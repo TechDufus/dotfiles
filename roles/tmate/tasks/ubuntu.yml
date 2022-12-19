@@ -1,5 +1,5 @@
 ---
-- name: Install
+- name: "TMate | Install"
   ansible.builtin.apt:
     name:
       - tmate

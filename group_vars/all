@@ -1,5 +1,6 @@
 default_roles:
   - system
+  - 1password
   - asciiquarium
   - bash
   - docker

@@ -39,7 +39,7 @@
   changed_when: false
   failed_when: false
 
-- name: "Go-Lang | Download Latest Version JSON"
+- name: "Go-Lang | Querying Latest Version JSON"
   ansible.builtin.uri:
     url: https://go.dev/dl/?mode=json
   register: go_latest_version_json

@@ -70,7 +70,6 @@ Below is a list of all available values. Not all are required but incorrect valu
 | system_host           | dict `(see System Hosts below)`     | no       |
 | bash_public           | dict `(see Environment below)`      | no       |
 | bash_private          | dict `(see Environment below)`      | no       |
-| golang                | dict `(see Environment below)`      | no       |
 
 
 #### Environment
@@ -133,20 +132,6 @@ Manage `/etc/hosts` by setting the `system_host` value in `values.yaml`.
 ---
 system_host:
   127.0.0.1: foobar.localhost
-```
-
-##### golang
-
-The `golang` value allows you to download and install a specific go architecture / os depending on if you are on a mac / raspberry-pi, etc...
-
-The values in the example below are the default values when not provided.
-
-```yaml
-
----
-golang:
-  goos: linux
-  goarch: amd64
 ```
 
 ### Examples

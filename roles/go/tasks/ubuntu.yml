@@ -18,35 +18,23 @@
   delay: 2
 
 - name: "Go-Lang | Define GOARCH"
-  set_fact:
-    goarch: amd64
-  when: golang["goarch"] is not defined
+  ansible.builtin.set_fact:
+    goarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
-- name: "Go-Lang | Define GOARCH"
-  set_fact:
-    goarch: "{{ golang.goarch }}"
-  when: golang['goarch'] is defined
+- name: "Go-Lang | Define GOOS"
+  ansible.builtin.set_fact:
+    goos: "{{ ansible_system | lower }}"
 
-- name: "Debug: goarch"
+- name: GOARCH Value
   ansible.builtin.debug:
     var: goarch
 
-- name: "Go-Lang | Define GOOS"
-  set_fact:
-    goos: linux
-  when: golang["goos"] is not defined
-
-- name: "Go-Lang | Define GOOS"
-  set_fact:
-    goos: "{{ golang.goos }}"
-  when: golang["goos"] is defined
-
-- name: "Debug: goos"
+- name: GOOS Value
   ansible.builtin.debug:
     var: goos
 
 - name: "Go-Lang | Getting version information"
-  command: "/usr/local/go/bin/go version"
+  ansible.builtin.command: "/usr/local/go/bin/go version"
   register: current_go_version
   changed_when: false
   failed_when: false

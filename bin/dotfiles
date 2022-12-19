@@ -48,6 +48,25 @@ if ! dpkg -s ansible >/dev/null 2>&1; then
     sudo activate-global-python-argcomplete3 2>&1 > /dev/null
 fi
 
+# Check if python3 and pip is installed
+if ! dpkg -s python3 >/dev/null 2>&1; then
+    echo -e "${ARROW} ${CYAN}Installing Python3...${NC}"
+    sudo apt-get install -y python3 2>&1 > /dev/null
+    echo -e "${ARROW} ${GREEN}Python3 installed!${NC}"
+fi
+if ! dpkg -s python3-pip >/dev/null 2>&1; then
+    echo -e "${ARROW} ${CYAN}Installing Python3 Pip...${NC}"
+    sudo apt-get install -y python3-pip 2>&1 > /dev/null
+    echo -e "${ARROW} ${GREEN}Python3 Pip installed!${NC}"
+fi
+# Check if pip module watchdog is installed
+if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+    echo -e "${ARROW} ${CYAN}Installing Python3 Watchdog...${NC}"
+    sudo pip3 install watchdog 2>&1 > /dev/null
+    echo -e "${ARROW} ${GREEN}Python3 Watchdog installed!${NC}"
+fi
+
+
 # Generate SSH keys
 if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
     echo -e "${ARROW} ${CYAN}Generating SSH keys...${NC}"

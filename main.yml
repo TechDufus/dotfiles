@@ -5,13 +5,19 @@
   pre_tasks:
     - name: Detect WSL
       import_tasks: pre_tasks/detect_wsl.yml
+      tags:
+        - always
 
     - name: detect_wsl
       ansible.builtin.debug:
         var: ansible_host_environment_is_wsl
+      tags:
+        - always
 
     - name: Detect Host User
       import_tasks: pre_tasks/whoami.yml
+      tags:
+        - always
 
   tasks:
     - name: set roles

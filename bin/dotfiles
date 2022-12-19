@@ -62,7 +62,7 @@ fi
 # Check if pip module watchdog is installed
 if ! pip3 list | grep watchdog >/dev/null 2>&1; then
     echo -e "${ARROW} ${CYAN}Installing Python3 Watchdog...${NC}"
-    sudo pip3 install watchdog 2>&1 > /dev/null
+    pip3 install watchdog 2>&1 > /dev/null
     echo -e "${ARROW} ${GREEN}Python3 Watchdog installed!${NC}"
 fi
 

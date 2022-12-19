@@ -14,4 +14,3 @@
   loop:
     - bpytop
   become: true
-

@@ -210,6 +210,11 @@ This shell script is also used to initialize your environment after installing `
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
 ```
 
+If you want to run only a specific role, you can specify the following bash command:
+```bash
+curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles | bash -s -- --tags comma,seperated,tags
+```
+
 ### Update
 
 This repository is continuously updated with new features and settings which become available to you when updating.

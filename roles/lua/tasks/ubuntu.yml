@@ -13,7 +13,7 @@
     - luarocks
     - luajit
 
-- name: Gather installd lua rocks
+- name: Gather installed lua rocks
   ansible.builtin.command: luarocks list
   register: rocks
   changed_when: false

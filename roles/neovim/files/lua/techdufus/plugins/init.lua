@@ -1,5 +1,4 @@
 require('techdufus.plugins.lsp')
-require('techdufus.plugins.presence')
 require('techdufus.plugins.terminal')
 require("techdufus.plugins.web-devicons")
 require('techdufus.plugins.comment')

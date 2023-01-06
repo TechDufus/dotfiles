@@ -1,0 +1,8 @@
+---
+- name: Install Lua
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+  become: true
+  loop:
+    - luajit

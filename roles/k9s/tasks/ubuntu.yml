@@ -33,7 +33,7 @@
   block:
     - name: "k9s | Define k9s_file"
       ansible.builtin.set_fact:
-        k9s_file: "k9s_Linux_x86_64"
+        k9s_file: "k9s_Linux_amd64"
 
     - name: "k9s | Ensure clean download destination"
       ansible.builtin.file:

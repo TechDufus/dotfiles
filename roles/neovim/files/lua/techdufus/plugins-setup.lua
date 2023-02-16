@@ -144,6 +144,10 @@ return packer.startup(function(use)
         'kosayoda/nvim-lightbulb',
         requires = 'antoinemadec/FixCursorHold.nvim',
     }
+    use {
+        'uloco/bluloco.nvim',
+        requires = 'rktjmp/lush.nvim'
+    }
     -- Automatically set up your configuration after cloning packer.nvim
     -- Put this at the end after all plugins
     if PACKER_BOOTSTRAP then

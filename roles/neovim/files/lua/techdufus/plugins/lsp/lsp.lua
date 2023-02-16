@@ -45,7 +45,7 @@ lsp.ensure_installed({
     'jsonls',
     'powershell_es',
     'solargraph',
-    'sumneko_lua',
+    -- 'sumneko_lua',
     'yamlls'
 })
 

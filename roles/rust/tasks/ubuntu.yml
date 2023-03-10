@@ -1,0 +1,10 @@
+---
+- name: Rust | Install packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  become: true
+  loop:
+    - rustc
+    - cargo

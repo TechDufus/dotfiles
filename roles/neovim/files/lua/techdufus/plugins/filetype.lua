@@ -1,6 +1,6 @@
 return {
     'nathom/filetype.nvim',
-    config = {
+    opts = {
         overrides = {
             extensions = {
                 tfvars = "terraform",

@@ -1,7 +1,7 @@
 ---
 - name: Update APT cache
   apt:
-    update_cache: yes
+    update_cache: true
   become: true
 
 - name: Install Lua

@@ -1,4 +1,3 @@
-if ConfigMode == "rich" then
-  -- vim.cmd("packadd nvim-web-devicons")
-  require("nvim-web-devicons")
-end
+return {
+    "kyazdani42/nvim-web-devicons",
+}

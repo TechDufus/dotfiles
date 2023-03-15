@@ -18,21 +18,17 @@
 return {
     "nvim-lua/popup.nvim", -- An implementation of the Popup API from vim in Neovim
     "nvim-lua/plenary.nvim", -- Useful lua functions used ny lots of plugins
-    "nvim-telescope/telescope.nvim",
     "nvim-telescope/telescope-media-files.nvim",
     'simrat39/symbols-outline.nvim',
     "ThePrimeagen/harpoon",
     { "windwp/nvim-ts-autotag", dependencies = "nvim-treesitter" },
-    { "nvim-treesitter/nvim-treesitter", build = ":TSUpdate" },
-    { 'nvim-treesitter/nvim-treesitter-context' },
     { "catppuccin/nvim", name = "catppuccin" },
-    { "navarasu/onedark.nvim" },
+    -- { "navarasu/onedark.nvim" },
     "neovim/nvim-lspconfig",
     ({ "mfussenegger/nvim-dap", dependencies = { "rcarriga/nvim-dap-ui" } }),
     "andweeb/presence.nvim",
     "leoluz/nvim-dap-go",
     "sharkdp/fd",
-    "kyazdani42/nvim-web-devicons",
     "numToStr/Comment.nvim",
     {
         'lewis6991/gitsigns.nvim',
@@ -40,14 +36,12 @@ return {
             require('gitsigns').setup()
         end
     },
-    'mbbill/undotree',
-    {
-        'feline-nvim/feline.nvim',
-        config = function()
-            require('feline').setup()
-        end
-    },
-    's1n7ax/nvim-terminal',
+    -- {
+    --     'feline-nvim/feline.nvim',
+    --     config = function()
+    --         require('feline').setup()
+    --     end
+    -- },
     {
         'noib3/nvim-cokeline',
         dependencies = 'kyazdani42/nvim-web-devicons', -- If you want devicons
@@ -56,7 +50,6 @@ return {
         end
     },
     { 'kyazdani42/nvim-tree.lua', dependencies = { 'kyazdani42/nvim-web-devicons' } },
-    'akinsho/toggleterm.nvim',
     'crispgm/nvim-go',
     'nathom/filetype.nvim',
     'erikzaadi/vim-ansible-yaml',
@@ -101,7 +94,7 @@ return {
         end,
         dependencies = "nvim-treesitter/nvim-treesitter",
     },
-    "rcarriga/nvim-notify", -- pretty notifications
+    -- "rcarriga/nvim-notify", -- pretty notifications
     {
         'zbirenbaum/copilot-cmp',
         dependencies = { 'copilot.lua' },

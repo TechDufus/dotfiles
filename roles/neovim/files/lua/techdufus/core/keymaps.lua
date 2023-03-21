@@ -104,7 +104,7 @@ keymap(normal_mode, "<leader>rc",
     "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/.dotfiles', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>"
     , opts)
 keymap(normal_mode, "<leader>1", "<cmd>lua require'telescope.builtin'.buffers()<cr>", opts)
-keymap(normal_mode, "<Leader>pg", "<CMD>lua require'techdufus.telescope'.project_files()<CR>",
+keymap(normal_mode, "<Leader>pg", "<CMD>lua require'techdufus.plugins.telescope'.project_files()<CR>",
     { noremap = true, silent = true })
 
 -- Symbols outline

@@ -22,11 +22,8 @@ return {
     'simrat39/symbols-outline.nvim',
     "ThePrimeagen/harpoon",
     { "windwp/nvim-ts-autotag", dependencies = "nvim-treesitter" },
-    { "catppuccin/nvim", name = "catppuccin" },
-    -- { "navarasu/onedark.nvim" },
     "neovim/nvim-lspconfig",
     ({ "mfussenegger/nvim-dap", dependencies = { "rcarriga/nvim-dap-ui" } }),
-    "andweeb/presence.nvim",
     "leoluz/nvim-dap-go",
     "sharkdp/fd",
     "numToStr/Comment.nvim",
@@ -36,12 +33,6 @@ return {
             require('gitsigns').setup()
         end
     },
-    -- {
-    --     'feline-nvim/feline.nvim',
-    --     config = function()
-    --         require('feline').setup()
-    --     end
-    -- },
     {
         'noib3/nvim-cokeline',
         dependencies = 'kyazdani42/nvim-web-devicons', -- If you want devicons
@@ -87,13 +78,13 @@ return {
             end, 100)
         end,
     },
-    {
-        "danymat/neogen",
-        config = function()
-            require('neogen').setup {}
-        end,
-        dependencies = "nvim-treesitter/nvim-treesitter",
-    },
+    -- {
+    --     "danymat/neogen",
+    --     config = function()
+    --         require('neogen').setup {}
+    --     end,
+    --     dependencies = "nvim-treesitter/nvim-treesitter",
+    -- },
     -- "rcarriga/nvim-notify", -- pretty notifications
     {
         'zbirenbaum/copilot-cmp',
@@ -101,14 +92,5 @@ return {
         config = function()
             require('copilot_cmp').setup()
         end
-    },
-    'ThePrimeagen/vim-be-good',
-    {
-        'kosayoda/nvim-lightbulb',
-        dependencies = 'antoinemadec/FixCursorHold.nvim',
-    },
-    {
-        'uloco/bluloco.nvim',
-        dependencies = 'rktjmp/lush.nvim'
     },
 }

@@ -6,7 +6,6 @@ return {
     config = {
         options = {
             theme = 'codedark',
-            icons_enabled = true,
         },
     }
 }

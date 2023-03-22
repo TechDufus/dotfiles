@@ -6,12 +6,12 @@
     state: latest
   become: true
 
-- name: "NPM | Install NodeJS"
-  community.general.npm:
-    name: "node"
-    state: latest
-    global: true
+- name: "NPM | Install N"
+  ansible.builtin.command: npm install -g n
   become: true
 
+- name: "NPM | Install NodeJS"
+  ansible.builtin.command: n stable
+  become: true
 
 

@@ -5,3 +5,11 @@
       - npm
     state: latest
   become: true
+
+- name: "NPM | Install NodeJS"
+  community.general.npm:
+    name: "node"
+    global: true
+    state: latest
+
+

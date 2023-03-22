@@ -8,9 +8,9 @@
 
 - name: "NPM | Install NodeJS"
   community.general.npm:
-    name: "n"
-    global: true
+    name: "node"
     state: latest
+    global: true
   become: true
 
 

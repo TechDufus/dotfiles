@@ -11,5 +11,7 @@
     name: "node"
     global: true
     state: latest
+  become: true
+
 
 

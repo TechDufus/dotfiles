@@ -26,7 +26,6 @@ return {
     ({ "mfussenegger/nvim-dap", dependencies = { "rcarriga/nvim-dap-ui" } }),
     "leoluz/nvim-dap-go",
     "sharkdp/fd",
-    "numToStr/Comment.nvim",
     {
         'lewis6991/gitsigns.nvim',
         config = function()
@@ -42,7 +41,6 @@ return {
     },
     { 'kyazdani42/nvim-tree.lua', dependencies = { 'kyazdani42/nvim-web-devicons' } },
     'crispgm/nvim-go',
-    'nathom/filetype.nvim',
     'erikzaadi/vim-ansible-yaml',
     {
         'VonHeikemen/lsp-zero.nvim',
@@ -78,14 +76,6 @@ return {
             end, 100)
         end,
     },
-    -- {
-    --     "danymat/neogen",
-    --     config = function()
-    --         require('neogen').setup {}
-    --     end,
-    --     dependencies = "nvim-treesitter/nvim-treesitter",
-    -- },
-    -- "rcarriga/nvim-notify", -- pretty notifications
     {
         'zbirenbaum/copilot-cmp',
         dependencies = { 'copilot.lua' },

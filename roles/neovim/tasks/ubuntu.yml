@@ -8,7 +8,7 @@
       - libtool
       - unzip
       - ansible-lint
-    state: latest
+    state: present
   become: true
 
 # add ppa:neovim-ppa/unstable
@@ -21,7 +21,7 @@
 - name: "Neovim | Install"
   ansible.builtin.apt:
     name: neovim
-    state: latest
+    state: present
   become: true
 
 - name: "Neovim | Config folder"
@@ -47,3 +47,4 @@
     dest: "{{ ansible_user_dir }}/.config/nvim/lua"
     src: "lua/"
     mode: 0644
+

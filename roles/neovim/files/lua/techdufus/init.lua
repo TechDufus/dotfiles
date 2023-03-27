@@ -5,4 +5,4 @@ vim.g.loaded_netrwPlugin = 1
 
 require('techdufus.core')
 require('techdufus.plugins-setup')
-require('techdufus.plugins')
+require('techdufus.lsp')

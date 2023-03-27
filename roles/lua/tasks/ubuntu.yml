@@ -1,7 +1,7 @@
 ---
 - name: Update APT cache
   apt:
-    update_cache: yes
+    update_cache: true
   become: true
 
 - name: Install Lua
@@ -19,10 +19,9 @@
   changed_when: false
   check_mode: false
 
-- name: Install Lua modules
-  ansible.builtin.command:
-    cmd: luarocks install {{ item }}
-  become: true
-  loop:
-    - luabitop
-  when: item not in rocks.stdout
+# - name: Install Lua modules
+#   ansible.builtin.command:
+#     cmd: luarocks install {{ item }} --lacal
+#   loop:
+#     - luabitop
+#   when: item not in rocks.stdout

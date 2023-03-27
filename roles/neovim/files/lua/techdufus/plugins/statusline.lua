@@ -1,9 +1,12 @@
-require('feline').setup({
-  provider = {
-    name = 'file_info',
-    opts = {
-      type = 'relative'
+return {
+    'nvim-lualine/lualine.nvim',
+    dependencies = {
+        'kyazdani42/nvim-web-devicons',
+    },
+    config = {
+        options = {
+            theme = 'codedark',
+        },
     }
-  }
-})
-require('feline').winbar.setup()
+}
+

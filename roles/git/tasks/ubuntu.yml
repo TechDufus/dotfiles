@@ -18,6 +18,13 @@
     scope: global
     value: true
 
+# git config --global --add url."git@github.com:".insteadOf "https://github.com/"
+# - name: "Git | Set URL to SSH"
+#   community.general.git_config:
+#     name: URL
+#     scope: global
+#     value: "git@github.com"
+
 - name: "Git | Set init.defaultBranch"
   community.general.git_config:
     name: init.defaultBranch

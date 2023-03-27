@@ -1,1 +1,3 @@
-require("treesitter-context").setup()
+return {
+    'nvim-treesitter/nvim-treesitter-context',
+}

@@ -17,7 +17,7 @@ default_roles:
   - ruby
   - rust
   - ssh
-  # - terraform
+  - terraform
   - tmate
   # - spotify
   - zoxide

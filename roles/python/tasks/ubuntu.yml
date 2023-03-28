@@ -4,13 +4,14 @@
     name:
       - python3
       - python3-pip
-    state: latest
+      - python3-venv
+    state: present
   become: true
 
 - name: "Python | Install pip packages"
   ansible.builtin.pip:
     name: "{{ item }}"
-    state: latest
+    state: present
   loop:
     - bpytop
   become: true

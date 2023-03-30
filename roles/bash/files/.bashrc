@@ -143,8 +143,8 @@ fi
 # alias bashconfig="mate ~/.bashrc"
 # alias ohmybash="mate ~/.oh-my-bash"
 
-if [[ -f "$HOME/.bash_private" ]]; then
-    source "$HOME/.bash_private"
+if [[ -f "$HOME/.config/bash/.bash_private" ]]; then
+    source "$HOME/.config/bash/.bash_private"
 fi
 
 for file in $HOME/.config/bash/*.sh; do

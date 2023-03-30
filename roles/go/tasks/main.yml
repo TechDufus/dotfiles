@@ -2,13 +2,4 @@
 - import_tasks: ubuntu.yml
   when: ansible_os_family == 'Debian'
 
-- name: Go-Lang | Install GoLang Packages
-  ansible.builtin.command:
-    cmd: "go install {{ item.package }}"
-    creates: "~/go/bin/{{ item.cmd }}"
-  register: go_install
-  changed_when: go_install.rc != 0
-  loop_control:
-    label: "{{ item.package }}"
-  loop:
-    - {package: github.com/stillmatic/chat@latest, cmd: chat}
+- import_tasks: packages.yml

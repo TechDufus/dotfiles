@@ -2,6 +2,7 @@
 - name: "Nala | Detecting Installed Nala"
   ansible.builtin.command:
     cmd: which nala
+  changed_when: false
   register: nala_cmd
   failed_when: false
 
@@ -20,11 +21,12 @@
     - name: "Nala | Add nala repo gpg key"
       apt_key:
         url: "https://deb.volian.org/volian/scar.key"
+        keyring: volian-archive-scar-unstable.gpg
         state: present
 
     - name: "Nala | Add nala repository source"
       apt_repository:
-        repo: "deb https://deb.volian.org/volian/ scar main"
+        repo: "deb [arch=amd64,arm64,armhf] http://deb.volian.org/volian/ scar main"
         state: present
 
   become: true

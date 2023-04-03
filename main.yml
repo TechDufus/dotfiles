@@ -29,7 +29,7 @@
 
     - name: Display roles
       ansible.builtin.debug:
-        vars: roles
+        var: roles
       tags:
         - always
 

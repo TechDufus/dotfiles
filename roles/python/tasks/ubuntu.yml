@@ -15,3 +15,18 @@
   loop:
     - bpytop
   become: true
+
+- name: "Python | Ensure bpytop directory structure exists"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0755"
+    state: directory
+  loop:
+    - ~/.config
+    - ~/.config/bpytop
+
+- name: "Python | Copy bpytop config"
+  ansible.builtin.copy:
+    src: bpytop.conf
+    dest: ~/.config/bpytop/bpytop.conf
+    mode: "0644"

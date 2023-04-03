@@ -1,38 +1,40 @@
 ---
-- hosts: localhost
+- name: DotFiles Config
+  hosts: localhost
   connection: local
 
   pre_tasks:
     - name: Detect WSL
-      import_tasks: pre_tasks/detect_wsl.yml
+      ansible.builtin.import_tasks: pre_tasks/detect_wsl.yml
       tags:
         - always
 
-    - name: detect_wsl
+    - name: Detect_wsl
       ansible.builtin.debug:
         var: ansible_host_environment_is_wsl
       tags:
         - always
 
     - name: Detect Host User
-      import_tasks: pre_tasks/whoami.yml
+      ansible.builtin.import_tasks: pre_tasks/whoami.yml
       tags:
         - always
 
   tasks:
-    - name: set roles
-      set_fact:
+    - name: Set roles
+      ansible.builtin.set_fact:
         roles: "{{ ansible_run_tags != ['all'] and ansible_run_tags or default_roles | difference(exclude_roles | default([])) }}"
       tags:
         - always
 
     - name: Display roles
-      debug: "var=roles"
+      ansible.builtin.debug:
+        vars: roles
       tags:
         - always
 
     - name: Run roles
-      include_role:
+      ansible.builtin.include_role:
         apply:
           tags:
             - "{{ roles_item }}"

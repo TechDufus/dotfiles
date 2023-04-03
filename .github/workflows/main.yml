@@ -1,6 +1,7 @@
 name: Ansible CI
 on:
   push:
+    branches: ['*']
 
 jobs:
   lint:

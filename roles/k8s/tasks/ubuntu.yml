@@ -1,0 +1,39 @@
+---
+- name: Adding kubernetes apt key
+  ansible.builtin.apt_key:
+    url: "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+  become: true
+
+- name: Adding kubernetes apt repo
+  ansible.builtin.apt_repository:
+    repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+  become: true
+
+- name: Installing Kubernetes
+  ansible.builtin.apt:
+    name: "{{ item.name }}={{ item.version }}"
+    state: present
+    force: true
+  become: true
+  loop: "{{ k8s.package_versions }}"
+
+- name: Preventing unintended upgrades
+  ansible.builtin.dpkg_selections:
+    name: "{{ item.name }}"
+    selection: hold
+  become: true
+  loop: "{{ k8s.package_versions }}"
+
+- name: Configure .kube/config
+  block:
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: "~/.kube"
+        state: directory
+        mode: "0755"
+
+    - name: Copy .kube/config file
+      ansible.builtin.copy:
+        src: config
+        dest: "~/.kube/config"
+        mode: "0644"

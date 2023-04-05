@@ -14,9 +14,9 @@
   ansible.builtin.command: n stable
   become: true
 
-- name: "NPM | Install NPM Packages"
-  community.general.npm:
-    name: "{{ item }}"
-    state: present
-  loop:
-    - remark
+# - name: "NPM | Install NPM Packages"
+#   community.general.npm:
+#     name: "{{ item }}"
+#     state: present
+#   loop:
+#     - remark

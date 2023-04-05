@@ -1,10 +1,10 @@
 ---
-- name: Update APT cache
+- name: Lua | Update APT cache
   apt:
     update_cache: true
   become: true
 
-- name: Install Lua
+- name: Lua | Install Lua
   ansible.builtin.apt:
     name: "{{ item }}"
   become: true
@@ -13,13 +13,13 @@
     - luarocks
     - luajit
 
-- name: Gather installed lua rocks
+- name: Lua | Gather installed lua rocks
   ansible.builtin.command: luarocks list
   register: rocks
   changed_when: false
   check_mode: false
 
-# - name: Install Lua modules
+# - name: Lua | Install Lua modules
 #   ansible.builtin.command:
 #     cmd: luarocks install {{ item }} --lacal
 #   loop:

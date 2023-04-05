@@ -61,3 +61,12 @@
     src: ".bash_private.j2"
     mode: 0644
   no_log: true
+
+- name: Bash | Install profile dependencies
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  become: true
+  loop:
+    - fzf

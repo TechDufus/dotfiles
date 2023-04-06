@@ -72,7 +72,10 @@ OMB_USE_SUDO=true
 completions=(
   docker
   git
+  gh
   go
+  helm
+  kubectl
   ssh
   system
   terraform
@@ -154,4 +157,6 @@ done
 if [[ -f "$HOME/.bash_lumen" ]]; then
     source "$HOME/.bash_lumen"
 fi
+
+
 

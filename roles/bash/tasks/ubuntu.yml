@@ -62,6 +62,14 @@
     mode: 0644
   no_log: true
 
+- name: "Bash | Copy Private Files"
+  ansible.builtin.lineinfile:
+    name: "~/.openai.apikey"
+    line: "{{ bash_private.OPENAI_KEY }}"
+    create: true
+    mode: "0600"
+    state: present
+
 - name: Bash | Install profile dependencies
   ansible.builtin.apt:
     name: "{{ item }}"

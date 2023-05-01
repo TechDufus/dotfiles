@@ -12,13 +12,6 @@
     state: present
   become: true
 
-# add ppa:neovim-ppa/unstable
-- name: "Neovim | Add neovim-ppa/unstable Repo"
-  ansible.builtin.apt_repository:
-    repo: ppa:neovim-ppa/unstable
-    state: absent
-  become: true
-
 - name: "Neovim | Install"
   ansible.builtin.apt:
     name: neovim

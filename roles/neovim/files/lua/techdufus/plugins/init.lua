@@ -27,6 +27,12 @@ return {
     "leoluz/nvim-dap-go",
     "sharkdp/fd",
     {
+        'lewis6991/gitsigns.nvim',
+        config = function()
+            require('gitsigns').setup()
+        end
+    },
+    {
         'noib3/nvim-cokeline',
         dependencies = 'kyazdani42/nvim-web-devicons', -- If you want devicons
         config = function()

@@ -21,7 +21,7 @@
     - name: "Nala | Add nala repo gpg key"
       apt_key:
         url: "https://deb.volian.org/volian/scar.key"
-        keyring: volian-archive-scar-unstable.gpg
+        keyring: /etc/apt/trusted.gpg.d/volian-archive-scar-unstable.gpg
         state: present
 
     - name: "Nala | Add nala repository source"

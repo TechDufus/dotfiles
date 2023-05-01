@@ -2,6 +2,7 @@
 - name: "PowerShell | Download and Add Powershell Key to Apt-Get Keyring"
   ansible.builtin.apt_key:
     url: "https://packages.microsoft.com/keys/microsoft.asc"
+    keyring: "/etc/apt/trusted.gpg.d/microsoft.gpg"
     state: present
   become: true
 
@@ -16,5 +17,5 @@
     name:
       - powershell
     update_cache: true
-    state: latest
+    state: present
   become: true

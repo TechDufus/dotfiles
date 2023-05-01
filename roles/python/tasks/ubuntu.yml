@@ -14,22 +14,8 @@
     state: present
   loop:
     - bpytop
+    - shell-gpt==0.9.0
   become: true
-
-- name: "Python | Install pip packages in user mode"
-  ansible.builtin.pip:
-    name: "{{ item }}"
-    state: present
-    extra_args: --user
-  loop:
-    - pipx
-
-- name: "Python | Install pipx packages"
-  community.general.pipx:
-    name: "{{ item }}"
-    state: present
-  loop:
-    - hey-gpt
 
 - name: "Python | Ensure bpytop directory structure exists"
   ansible.builtin.file:

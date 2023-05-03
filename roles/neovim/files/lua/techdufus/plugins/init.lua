@@ -16,12 +16,12 @@
 -- require("techdufus.plugins.treesitter-context")
 -- require("techdufus.plugins.undotree")
 return {
-    "nvim-lua/popup.nvim", -- An implementation of the Popup API from vim in Neovim
+    "nvim-lua/popup.nvim",   -- An implementation of the Popup API from vim in Neovim
     "nvim-lua/plenary.nvim", -- Useful lua functions used ny lots of plugins
     "nvim-telescope/telescope-media-files.nvim",
     'simrat39/symbols-outline.nvim',
     "ThePrimeagen/harpoon",
-    { "windwp/nvim-ts-autotag", dependencies = "nvim-treesitter" },
+    { "windwp/nvim-ts-autotag",   dependencies = "nvim-treesitter" },
     "neovim/nvim-lspconfig",
     ({ "mfussenegger/nvim-dap", dependencies = { "rcarriga/nvim-dap-ui" } }),
     "leoluz/nvim-dap-go",
@@ -82,5 +82,17 @@ return {
         config = function()
             require('copilot_cmp').setup()
         end
+    },
+    {
+        "jackMort/ChatGPT.nvim",
+        event = "VeryLazy",
+        config = function()
+            require("chatgpt").setup()
+        end,
+        dependencies = {
+            "MunifTanjim/nui.nvim",
+            "nvim-lua/plenary.nvim",
+            "nvim-telescope/telescope.nvim"
+        }
     },
 }

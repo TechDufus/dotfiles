@@ -231,4 +231,4 @@ This will handle the following tasks:
 - Generate SSH keys and add to `~/.ssh/authorized_keys`
 - Clone this repository locally to `~/.dotfiles`
 - Verify any `ansible-galaxy` plugins are updated
-- Run this playbook with the values in `~/.config/dotfiles/values.yaml`
+- Run this playbook with the values in `~/.config/dotfiles/group_vars/all.yaml`

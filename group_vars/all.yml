@@ -24,7 +24,7 @@ default_roles:
   # - spotify
   - zoxide
 
-git_user_name: "Matthew DeGarmo"
+git_user_name: "TechDufus"
 git_user_email: !vault |
     $ANSIBLE_VAULT;1.1;AES256
     66363134376562313931393632316139636566636137626231373539623666373464336336663466

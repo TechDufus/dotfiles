@@ -38,6 +38,8 @@ return {
                 'jsonls',
                 'powershell_es',
                 'solargraph',
+                'terraformls',
+                'lua_ls',
                 -- 'sumneko_lua',
                 'yamlls'
             })

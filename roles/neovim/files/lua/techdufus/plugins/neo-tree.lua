@@ -17,7 +17,7 @@ return {
     config = function()
         local icons = require('techdufus.core.icons')
         require("neo-tree").setup({
-            close_if_last_window = false,
+            close_if_last_window = true,
             popup_border_style = "single",
             enable_git_status = true,
             enable_modified_markers = true,
@@ -25,11 +25,11 @@ return {
             sort_case_insensitive = true,
             default_component_configs = {
                 indent = {
-                    with_markers = false,
+                    with_markers = true,
                     with_expanders = true,
                 },
                 modified = {
-                    symbol = " ",
+                    symbol = "",
                     highlight = "NeoTreeModified",
                 },
                 icon = {
@@ -71,6 +71,9 @@ return {
                         "thumbs.db",
                     },
                 },
+            },
+            buffers = {
+                follow_current_file = true,
             },
             event_handlers = {
                 {

@@ -9,9 +9,7 @@ return {
             {
                 -- Optional
                 'williamboman/mason.nvim',
-                build = function()
-                    pcall(vim.cmd, 'MasonUpdate')
-                end,
+                build = ":MasonUpdate",
             },
             { 'williamboman/mason-lspconfig.nvim' }, -- Optional
 
@@ -85,8 +83,8 @@ return {
 
             -- cmp icons
             local cmp = require('cmp')
-            local lspkind = require('lspkind')
             local icons = require('techdufus.core.icons')
+            local lspkind = require('lspkind')
             local luasnip = require('luasnip')
             local cmp_mapping = require('cmp.config.mapping')
             local cmp_types = require('cmp.types.cmp')
@@ -99,35 +97,20 @@ return {
                         if max_width ~= 0 and #vim_item.abbr > max_width then
                             vim_item.abbr = string.sub(vim_item.abbr, 1, max_width - 1) .. icons.ui.Ellipsis
                         end
-                        vim_item.kind = lspkind.presets.default[vim_item.kind] .. " " .. vim_item.kind
+                        vim_item.kind = icons.kind[vim_item.kind] .. " " .. vim_item.kind
 
-                        if entry.source.name == "copilot" then
-                            vim_item.kind = icons.git.Octoface
-                            vim_item.kind_hl_group = "CmpItemKindCopilot"
-                        end
-
-                        if entry.source.name == "crates" then
-                            vim_item.kind = icons.misc.Package
-                            vim_item.kind_hl_group = "CmpItemKindCrate"
-                        end
-
-                        if entry.source.name == "emoji" then
-                            vim_item.kind = icons.misc.Smiley
-                            vim_item.kind_hl_group = "CmpItemKindEmoji"
-                        end
                         vim_item.menu = ({
-                            vsnip = "(Snippet)",
-                            copilot = "(Copilot)",
                             nvim_lsp = "[LSP]",
-                            luasnip = "[LuaSnip]",
-                            buffer = "[Buffer]",
-                            nvim_lua = "[Lua]",
+                            emoji = "[Emoji]",
                             path = "[Path]",
                             calc = "[Calc]",
-                            emoji = "[Emoji]",
-                            treesitter = "[Treesitter]",
+                            vsnip = "[Snippet]",
+                            luasnip = "[LuaSnip]",
+                            buffer = "[Buffer]",
                             tmux = "[Tmux]",
-                            crates = "[Crates]",
+                            nvim_lua = "[Lua]",
+                            copilot = "[Copilot]",
+                            treesitter = "[Treesitter]",
                         })[entry.source.name]
                         vim_item.dup = ({
                             buffer = 1,
@@ -186,12 +169,12 @@ return {
                         name = "nvim_lsp",
                         entry_filter = function(entry, ctx)
                             local kind = require("cmp.types.lsp").CompletionItemKind[entry:get_kind()]
-                            if kind == "Snippet" and ctx.prev_context.filetype == "java" then
-                                return false
-                            end
-                            if kind == "Text" then
-                                return false
-                            end
+                            -- if kind == "Snippet" and ctx.prev_context.filetype == "java" then
+                            --     return false
+                            -- end
+                            -- if kind == "Text" then
+                            --     return false
+                            -- end
                             return true
                         end,
                     },

@@ -23,6 +23,11 @@ return {
             { 'onsails/lspkind.nvim' },
         },
         config = function()
+            require('mason.settings').set({
+                ui = {
+                    border = 'rounded'
+                }
+            })
             local lsp = require('lsp-zero').preset("recommended")
 
             lsp.ensure_installed({

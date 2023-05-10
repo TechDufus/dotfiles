@@ -1,20 +1,3 @@
--- require('techdufus.plugins.terminal')
--- require("techdufus.plugins.web-devicons")
--- require('techdufus.plugins.comment')
--- require('techdufus.plugins.telescope')
--- require('techdufus.plugins.harpoon')
--- require('techdufus.plugins.autopairs')
--- require('techdufus.plugins.statusline')
--- require('techdufus.plugins.nvim-tree')
--- require('techdufus.plugins.nvim-lightbulb')
--- require('techdufus.plugins.toggleterm')
--- require('techdufus.plugins.filetype')
--- require("techdufus.plugins.color_scheme")
--- require("techdufus.plugins.notify")
--- require("techdufus.plugins.symbols-outline")
--- require("techdufus.plugins.treesitter")
--- require("techdufus.plugins.treesitter-context")
--- require("techdufus.plugins.undotree")
 return {
     "nvim-lua/popup.nvim",   -- An implementation of the Popup API from vim in Neovim
     "nvim-lua/plenary.nvim", -- Useful lua functions used ny lots of plugins

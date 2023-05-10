@@ -21,7 +21,7 @@ return {
             popup_border_style = "single",
             enable_git_status = true,
             enable_modified_markers = true,
-            enable_diagnostics = true,
+            enable_diagnostics = false,
             sort_case_insensitive = true,
             default_component_configs = {
                 indent = {
@@ -48,7 +48,7 @@ return {
                         -- Status type
                         untracked = "U",
                         ignored = "",
-                        unstaged = icons.git.FileUnstaged,
+                        unstaged = icons.git.Unstaged,
                         staged = "",
                         conflict = "",
                     },

@@ -60,11 +60,11 @@ return {
                 bind('n', 'gD', '<Cmd>lua vim.lsp.buf.declaration()<CR>', noremap)
                 bind('n', 'gd', '<Cmd>lua vim.lsp.buf.definition()<CR>', noremap)
                 bind('n', 'K', '<Cmd>lua vim.lsp.buf.hover()<CR>', noremap)
-                bind('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', noremap)
-                bind('n', 'gt', '<cmd>lua vim.lsp.buf.type_definition()<CR>', noremap)
+                bind('n', 'gi', '<cmd>lua require("telescope.builtin").lsp_implementations()<CR>', noremap)
+                bind('n', 'gt', '<cmd>lua require("telescope.builtin").lsp_type_definitions()<CR>', noremap)
                 bind('n', '<Leader>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', noremap)
                 bind('n', '<Leader>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', noremap)
-                bind('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', noremap)
+                bind('n', 'gr', '<cmd>lua require("telescope.builtin").lsp_references()<CR>', noremap)
                 bind('n', '<Leader>dl', '<cmd>Telescope diagnostics<CR>', noremap)
                 bind('n', '<Leader>ld', '<cmd>lua vim.diagnostic.open_float()<CR>', noremap)
                 bind('n', '[d', '<cmd>lua vim.lsp.diagnostic.goto_prev()<CR>', noremap)
@@ -169,12 +169,6 @@ return {
                         name = "nvim_lsp",
                         entry_filter = function(entry, ctx)
                             local kind = require("cmp.types.lsp").CompletionItemKind[entry:get_kind()]
-                            -- if kind == "Snippet" and ctx.prev_context.filetype == "java" then
-                            --     return false
-                            -- end
-                            -- if kind == "Text" then
-                            --     return false
-                            -- end
                             return true
                         end,
                     },

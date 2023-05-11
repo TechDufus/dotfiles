@@ -28,7 +28,7 @@ return {
                     border = {},
                     borderchars = nil,
                     layout_config = {
-                        width = 0.75,
+                        width = 0.95,
                         preview_cutoff = 120,
                         prompt_position = "top",
                         horizontal = { mirror = false },

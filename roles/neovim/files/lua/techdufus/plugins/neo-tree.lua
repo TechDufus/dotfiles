@@ -41,26 +41,33 @@ return {
                 git_status = {
                     symbols = {
                         -- Change type
-                        added = "",
-                        deleted = "",
-                        modified = "",
-                        renamed = "",
+                        added = icons.git.added,
+                        deleted = icons.git.deleted,
+                        modified = icons.git.modified,
+                        renamed = icons.git.renamed,
                         -- Status type
-                        untracked = "U",
-                        ignored = "",
+                        untracked = icons.git.untracked,
+                        ignored = icons.git.ignored,
                         unstaged = icons.git.Unstaged,
-                        staged = "",
-                        conflict = "",
+                        staged = icons.git.staged,
+                        conflict = icons.git.conflict,
                     },
                 },
             },
             window = {
                 position = "left",
                 width = 35,
+                mappings = {
+                    ["<Backspace>"] = {
+                        "close_node",
+                        nowait = true, -- disable `nowait` if you have existing combos starting with this char that you want to use
+                    }
+                }
             },
             filesystem = {
                 use_libuv_file_watcher = true,
                 filtered_items = {
+                    visable = true,
                     hide_dotfiles = false,
                     hide_gitignored = false,
                     hide_by_name = {

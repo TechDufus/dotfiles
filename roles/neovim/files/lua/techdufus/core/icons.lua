@@ -60,6 +60,15 @@ return {
         Repo = "",
         Unstaged = "",
         Octoface = "",
+        added = "",
+        deleted = "",
+        modified = "",
+        renamed = "",
+        -- Status type
+        untracked = "U",
+        ignored = "",
+        staged = "",
+        conflict = "",
     },
     ui = {
         ArrowClosed = "",

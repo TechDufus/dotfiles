@@ -13,4 +13,4 @@ jobs:
       - name: Install Galaxy Modules
         run: ansible-galaxy install -r requirements.yml
       - name: Linting with ansible-lint
-        run: ansible-lint
+        run: ansible-lint main.yml

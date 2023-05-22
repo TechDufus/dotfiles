@@ -11,4 +11,4 @@ jobs:
       - name: Install ansible-lint
         run: pip install ansible-lint
       - name: Linting with ansible-lint
-        run: ansible-lint main.yml
+        run: ansible-lint

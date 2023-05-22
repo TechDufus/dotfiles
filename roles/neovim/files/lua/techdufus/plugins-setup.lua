@@ -14,4 +14,28 @@ vim.opt.rtp:prepend(lazypath)
 
 
 -- Install your plugins here
-require('lazy').setup('techdufus.plugins')
+require('lazy').setup('techdufus.plugins', {
+    install = {
+		missing = true,
+	},
+	checker = {
+		enabled = true,
+		notify = false,
+	},
+	change_detection = {
+		enabled = true,
+		notify = false,
+	},
+    performance = {
+        rtp = {
+            -- disable some rtp plugins
+            disabled_plugins = {
+                "gzip",
+                "tarPlugin",
+                "tohtml",
+                "tutor",
+                "zipPlugin",
+            },
+        },
+    },
+})

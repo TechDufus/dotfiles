@@ -23,13 +23,13 @@
   tasks:
     - name: Set roles
       ansible.builtin.set_fact:
-        roles: "{{ ansible_run_tags != ['all'] and ansible_run_tags or default_roles | difference(exclude_roles | default([])) }}"
+        run_roles: "{{ ansible_run_tags != ['all'] and ansible_run_tags or default_roles | difference(exclude_roles | default([])) }}"
       tags:
         - always
 
     - name: Display roles
       ansible.builtin.debug:
-        var: roles
+        var: run_roles
       tags:
         - always
 
@@ -41,6 +41,6 @@
         name: "{{ roles_item }}"
       loop_control:
         loop_var: roles_item
-      with_items: "{{ roles }}"
+      with_items: "{{ run_roles }}"
       tags:
         - always

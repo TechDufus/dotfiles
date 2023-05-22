@@ -8,7 +8,7 @@ default_roles:
   - git
   - go
   - helm
-  # - k8s
+  # - k8s # This is removed until a better kube config mgmt solution is found
   - k9s
   - lua
   - nala

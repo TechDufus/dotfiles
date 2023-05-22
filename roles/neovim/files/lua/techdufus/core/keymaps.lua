@@ -107,9 +107,6 @@ keymap(normal_mode, "<leader>1", "<cmd>lua require'telescope.builtin'.buffers()<
 keymap(normal_mode, "<Leader>pg", "<CMD>lua require'telescope.builtin'.git_files()<CR>",
     { noremap = true, silent = true })
 
--- Symbols outline
-keymap(normal_mode, "<leader>sy", "<cmd>SymbolsOutline<CR>", opts)
-
 -- Harpoon --
 keymap(normal_mode, "<leader>a", "<cmd>lua require'harpoon.mark'.add_file()<cr>", opts)
 keymap(normal_mode, "<leader>e", "<cmd>lua require'harpoon.ui'.toggle_quick_menu()<cr>", opts)

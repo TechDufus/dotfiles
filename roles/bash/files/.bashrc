@@ -79,6 +79,7 @@ completions=(
   ssh
   system
   terraform
+  kubectl
   vault
 )
 

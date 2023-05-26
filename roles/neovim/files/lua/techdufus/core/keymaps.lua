@@ -116,3 +116,4 @@ keymap(normal_mode, "<leader>n", "<cmd>lua require'harpoon.ui'.nav_file(3)<cr>",
 keymap(normal_mode, "<leader>s", "<cmd>lua require'harpoon.ui'.nav_file(4)<cr>", opts)
 
 keymap(normal_mode, "<Leader>gb", ":Gitsigns toggle_current_line_blame<CR>", opts)
+

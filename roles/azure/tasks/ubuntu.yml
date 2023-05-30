@@ -1,0 +1,32 @@
+---
+- name: "Azure | Install dependencies"
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  become: true
+  loop:
+    - ca-certificates
+    - curl
+    - apt-transport-https
+    - lsb-release
+    - gnupg
+
+- name: "Azure | Download and Add Azure-CLI Key to Apt-Get Keyring"
+  ansible.builtin.apt_key:
+    url: "https://packages.microsoft.com/keys/microsoft.asc"
+    keyring: "/etc/apt/trusted.gpg.d/microsoft.gpg"
+    state: present
+  become: true
+
+- name: "Azure | Add Azure Repository into /etc/apt/sources.list"
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_machine | replace('x86_64', 'amd64') }}] https://packages.microsoft.com/repos/azure-cli/ {{ ansible_distribution_release | lower }} main"
+    state: present
+  become: true
+
+- name: "Azure | Install azure-cli"
+  ansible.builtin.apt:
+    name: azure-cli
+    update_cache: true
+    state: present
+  become: true

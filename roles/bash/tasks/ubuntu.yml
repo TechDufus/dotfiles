@@ -33,6 +33,12 @@
     dest: "{{ ansible_user_dir }}/.bashrc"
     mode: 0644
 
+- name: "Bash | Copy .profile"
+  ansible.builtin.copy:
+    src: ".profile"
+    dest: "{{ ansible_user_dir }}/.profile"
+    mode: 0644
+
 - name: "Bash | Copy custom bash config"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/"

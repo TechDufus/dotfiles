@@ -3,7 +3,7 @@
   copy:
     dest: "{{ ansible_user_dir }}/.ssh/{{ ssh_key_item.key }}"
     content: "{{ ssh_key_item.value }}"
-    mode: 0400
+    mode: 0600
   no_log: true
   loop_control:
     loop_var: ssh_key_item

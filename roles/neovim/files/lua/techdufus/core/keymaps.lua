@@ -117,3 +117,9 @@ keymap(normal_mode, "<leader>s", "<cmd>lua require'harpoon.ui'.nav_file(4)<cr>",
 
 keymap(normal_mode, "<Leader>gb", ":Gitsigns toggle_current_line_blame<CR>", opts)
 
+-- tmux-navigator --
+keymap(normal_mode, "<C-h>", "<cmd>TmuxNavigateLeft<cr>", opts)
+keymap(normal_mode, "<C-j>", "<cmd>TmuxNavigateDown<cr>", opts)
+keymap(normal_mode, "<C-k>", "<cmd>TmuxNavigateUp<cr>", opts)
+keymap(normal_mode, "<C-l>", "<cmd>TmuxNavigateRight<cr>", opts)
+

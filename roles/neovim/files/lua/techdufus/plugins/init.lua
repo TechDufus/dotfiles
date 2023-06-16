@@ -15,6 +15,10 @@ return {
         end
     },
     {
+        "christoomey/vim-tmux-navigator",
+        lazy = false,
+    },
+    {
         'noib3/nvim-cokeline',
         dependencies = 'nvim-tree/nvim-web-devicons', -- If you want devicons
         config = function()

@@ -160,4 +160,5 @@ if [[ -f "$HOME/.bash_lumen" ]]; then
 fi
 
 
+toilet "TechDufus" -F border:gay -f emboss2
 

@@ -11,6 +11,9 @@ return {
     enabled = true,
     lazy = false,
     event = { "BufReadPost", "BufNewFile" },
+    dependencies = {
+        'nvim-tree/nvim-web-devicons',
+    },
     config = function()
         require("lualine").setup {
             options = {
@@ -77,7 +80,6 @@ return {
                 lualine_y = {},
                 lualine_z = {},
             },
-            tabline = {},
             extensions = { "neo-tree", "lazy" },
         }
     end, -- }

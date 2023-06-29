@@ -123,3 +123,5 @@ keymap(normal_mode, "<C-j>", "<cmd>TmuxNavigateDown<cr>", opts)
 keymap(normal_mode, "<C-k>", "<cmd>TmuxNavigateUp<cr>", opts)
 keymap(normal_mode, "<C-l>", "<cmd>TmuxNavigateRight<cr>", opts)
 
+-- Copilot --
+keymap(normal_mode, "<leader>cpa", "<cmd>Copilot! attach<cr>", opts)

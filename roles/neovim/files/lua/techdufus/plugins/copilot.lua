@@ -21,6 +21,9 @@ return {
                         ratio = 0.4,
                     },
                 },
+                filetypes = {
+                    yaml = true,
+                },
                 suggestion = {
                     enabled = true,
                     auto_trigger = true,
@@ -39,7 +42,9 @@ return {
     },
     {
         "zbirenbaum/copilot-cmp",
-        ater = { "copilot.lua" },
+        after = { "copilot.lua" },
+        event = { "InsertEnter", "LspAttach" },
+        fix_pairs = true,
         config = function()
             require("copilot_cmp").setup()
         end,

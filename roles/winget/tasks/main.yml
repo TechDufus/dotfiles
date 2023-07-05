@@ -47,3 +47,4 @@
   register: winget_install_result
   changed_when: winget_install_result.stdout != 'False'
   loop: "{{ winget_packages }}"
+  when: winget_packages is defined

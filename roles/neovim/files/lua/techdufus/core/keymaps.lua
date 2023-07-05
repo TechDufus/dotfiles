@@ -46,6 +46,9 @@ keymap(normal_mode, "<S-h>", ":bprevious<CR>", opts)
 keymap(visual_mode, "<", "<gv", opts)
 keymap(visual_mode, ">", ">gv", opts)
 
+-- Visual search --
+keymap(visual_mode, "//", 'y/<C-R>"<CR>', opts)
+
 -- Move text up and down
 keymap(visual_mode, "J", ":m '>+1<CR>gv=gv", opts)
 keymap(visual_mode, "V", ":m '>-2<CR>gv=gv", opts)

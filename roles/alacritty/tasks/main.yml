@@ -1,0 +1,8 @@
+---
+- name: Run Ubuntu Tasks
+  ansible.builtin.import_tasks: ubuntu.yml
+  when: ansible_os_family == 'Debian' and not ansible_host_environment_is_wsl
+
+- name: Run WSL Tasks
+  ansible.builtin.import_tasks: wsl.yml
+  when: ansible_host_environment_is_wsl

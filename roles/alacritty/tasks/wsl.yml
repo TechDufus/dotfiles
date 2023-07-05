@@ -1,0 +1,22 @@
+---
+- name: Install Alacritty
+  ansible.builtin.include_role:
+    name: winget
+  vars:
+    winget_packages:
+      - Alacritty.Alacritty
+
+- name: Copy Alacritty config into Windows
+  block:
+    - name: Ensure AppData\Roaming\alacritty exists
+      ansible.builtin.shell:
+        cmd: New-Item -ItemType Directory -Path "$env:APPDATA\alacritty1" -ErrorAction SilentlyContinue
+      failed_when: false
+      args:
+        executable: powershell.exe
+
+    - name: Copy Alacritty config
+      ansible.builtin.copy:
+        src: wsl_alacritty.j2
+        dest: /mnt/c/Users/{{ wsl_host_user }}/AppData/Roaming/alacritty1/alacritty.yml
+

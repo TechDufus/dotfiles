@@ -1,8 +1,8 @@
 shell:
   program: wsl -d ubuntu
 
-window:
-  opacity: 1
+# window:
+#   opacity: 1
 
 
 font:
@@ -35,7 +35,8 @@ mouse:
 colors:
   # Default colors
   primary:
-    background: '0x10100E'
+    background: '0x000000'
+    # background: '0x10100E'
     foreground: '0xC6C6C4'
   # Normal colors
   normal:

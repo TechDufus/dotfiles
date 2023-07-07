@@ -9,9 +9,21 @@
       tags:
         - always
 
-    - name: Detect_wsl
+    - name: Detect wsl
       ansible.builtin.debug:
         var: ansible_host_environment_is_wsl
+      tags:
+        - always
+
+    - name: Confirm Windows PowerShell Execution Policy
+      ansible.builtin.import_tasks: pre_tasks/powershell_executionpolicy.yml
+      when: ansible_host_environment_is_wsl
+      tags:
+        - always
+
+    - name: Detect Host User
+      ansible.builtin.import_tasks: pre_tasks/whoami_wsl.yml
+      when: ansible_host_environment_is_wsl
       tags:
         - always
 

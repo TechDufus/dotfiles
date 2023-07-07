@@ -128,3 +128,6 @@ keymap(normal_mode, "<C-l>", "<cmd>TmuxNavigateRight<cr>", opts)
 
 -- Copilot --
 keymap(normal_mode, "<leader>cpa", "<cmd>Copilot! attach<cr>", opts)
+
+-- reload current file --
+keymap(normal_mode, "<leader>r", "<cmd>e!", opts)

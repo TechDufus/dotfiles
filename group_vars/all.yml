@@ -84,6 +84,11 @@ helm:
     - name: traefik
       url: https://helm.traefik.io/traefik
 
+go:
+  # packages:
+    # - package: github.com/stillmatic/chat@latest
+    #   cmd: chat
+
 ssh_key:
   lumen-windows-wsl: !vault |
     $ANSIBLE_VAULT;1.1;AES256

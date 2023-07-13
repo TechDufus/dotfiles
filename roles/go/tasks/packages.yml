@@ -7,5 +7,5 @@
   changed_when: go_install.rc != 0
   loop_control:
     label: "{{ item.package }}"
-  loop:
-    - {package: github.com/stillmatic/chat@latest, cmd: chat}
+  loop: "{{ go.packages }}"
+  when: go.packages is defined

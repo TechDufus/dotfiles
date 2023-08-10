@@ -22,6 +22,18 @@
     mode: 0644
   become: true
 
+- name: "System | Ensure group exists for current user"
+  ansible.builtin.group:
+    name: "{{ host_user }}"
+    state: present
+  become: true
+
+- name: "System | Ensure {{ host_user }} is in group {{ host_user }}"
+  ansible.builtin.user:
+    name: "{{ host_user }}"
+    groups: "{{ host_user }}"
+    append: true
+
 - name: "System | Set hosts"
   ansible.builtin.template:
     dest: "/etc/hosts"

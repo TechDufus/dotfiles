@@ -80,7 +80,9 @@ return {
                 },
             },
             buffers = {
-                follow_current_file = true,
+                follow_current_file = {
+                    enabled = true
+                },
             },
             event_handlers = {
                 {

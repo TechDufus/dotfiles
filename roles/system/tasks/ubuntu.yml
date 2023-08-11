@@ -33,6 +33,7 @@
     name: "{{ host_user }}"
     groups: "{{ host_user }}"
     append: true
+  become: true
 
 - name: "System | Set hosts"
   ansible.builtin.template:

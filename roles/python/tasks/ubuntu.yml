@@ -15,7 +15,6 @@
   loop:
     - bpytop
     - shell-gpt==0.9.0
-  become: true
 
 - name: "Python | Ensure bpytop directory structure exists"
   ansible.builtin.file:

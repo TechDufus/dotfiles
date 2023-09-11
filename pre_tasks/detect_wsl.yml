@@ -8,6 +8,7 @@
   args:
     executable: /bin/bash
   ignore_errors: true
+  changed_when: false
 - name: Register WSL State fact
   ansible.builtin.set_fact:
     ansible_host_environment_is_wsl: "{{ ansible_host_environment_is_wsl.stdout }}"

@@ -6,6 +6,7 @@
       sed -E 's/.*"([^"]+)".*/\1/' |
       sed 's/v//'
   register: command_result
+  changed_when: false
   failed_when: >
     command_result.rc != 0 or
     not command_result.stdout|regex_search('\w+\.\w+\.\w+')

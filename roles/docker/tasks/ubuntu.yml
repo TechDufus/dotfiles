@@ -26,6 +26,6 @@
   ansible.builtin.template:
     dest: "/etc/docker/daemon.json"
     src: "daemon.json"
-    mode: 0644
+    mode: "0644"
   become: true
   notify: restart_docker

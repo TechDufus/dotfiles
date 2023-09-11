@@ -56,7 +56,7 @@
     - name: "NPM | Extract NodeJS"
       ansible.builtin.unarchive:
         src: /tmp/{{ nodejs_packoge_name }}.tar.xz
-        dest: /tmp
+        dest: /tmp/
         remote_src: true
         extra_opts: "--strip-components=1"
 

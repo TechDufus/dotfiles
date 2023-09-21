@@ -10,12 +10,14 @@
   register: nodejs_installed
   failed_when: nodejs_installed.rc != 0
   changed_when: false
+  become: true
 
 - name: "NPM | Check if NodeJS is up to date"
   ansible.builtin.command: node --version
   register: nodejs_up_to_date
   failed_when: nodejs_up_to_date.stdout != nodejs_latest_version.stdout
   changed_when: false
+  become: true
 
 - name: "NPM | Show NodeJS version"
   ansible.builtin.debug:
@@ -29,8 +31,8 @@
   ansible.builtin.set_fact:
     nodejs_install_needed: true
   when:
-    - nodejs_installed.rc == 0
-    - nodejs_up_to_date.rc != 0
+    # - nodejs_installed.rc == 0
+    # - nodejs_up_to_date.rc != 0
     - nodejs_up_to_date.stdout != nodejs_latest_version.stdout
 
 - name: "NPM | Install NodeJS"
@@ -50,26 +52,33 @@
     - name: "NPM | Download NodeJS"
       ansible.builtin.get_url:
         url: "https://nodejs.org/dist/{{ nodejs_latest_version.stdout }}/{{ nodejs_package_name }}.tar.xz"
-        dest: /tmp/{{ nodejs_packoge_name }}.tar.xz
+        dest: /tmp/{{ nodejs_package_name }}.tar.xz
         mode: "0644"
+
+    - name: NPM | Ensure Extraction NodeJS directory exists
+      ansible.builtin.file:
+        path: /tmp/{{ nodejs_package_name }}
+        state: directory
+        mode: "0755"
 
     - name: "NPM | Extract NodeJS"
       ansible.builtin.unarchive:
-        src: /tmp/{{ nodejs_packoge_name }}.tar.xz
-        dest: /tmp/
+        src: /tmp/{{ nodejs_package_name }}.tar.xz
+        dest: /tmp/{{ nodejs_package_name }}
         remote_src: true
         extra_opts: "--strip-components=1"
 
     - name: "NPM | Copy NodeJS"
       ansible.builtin.copy:
-        src: /tmp/{{ nodejs_packoge_name }}/bin/*
+        src: /tmp/{{ nodejs_package_name }}/bin/
         dest: /usr/local/bin/
         remote_src: true
         mode: "0644"
+        force: true
 
     - name: "NPM | Copy NodeJS Modules"
       ansible.builtin.copy:
-        src: /tmp/{{ nodejs_packoge_name }}/lib/node_modules/*
+        src: /tmp/{{ nodejs_package_name }}/lib/node_modules/*
         dest: /usr/local/lib/node_modules/
         remote_src: true
         mode: "0644"

@@ -1,0 +1,8 @@
+---
+- name: NPM | Cleanup NodeJS
+  ansible.builtin.file:
+    path: /tmp/{{ nodejs_package_name }}*
+    state: absent
+  when:
+    - nodejs_install_needed is defined
+    - nodejs_install_needed

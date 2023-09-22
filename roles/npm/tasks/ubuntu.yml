@@ -73,6 +73,12 @@
         remote_src: true
         mode: "0644"
 
+    - name: NPM | Ensure NodeJS Modules directory exists
+      ansible.builtin.file:
+        path: /usr/local/lib/node_modules
+        state: directory
+        mode: "0755"
+
     - name: "NPM | Copy NodeJS Modules"
       ansible.builtin.copy:
         src: /tmp/{{ nodejs_package_name }}/lib/node_modules/

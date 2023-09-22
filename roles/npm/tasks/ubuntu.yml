@@ -10,14 +10,12 @@
   register: nodejs_installed
   failed_when: nodejs_installed.rc != 0
   changed_when: false
-  become: true
 
 - name: "NPM | Check if NodeJS is up to date"
   ansible.builtin.command: node --version
   register: nodejs_up_to_date
   failed_when: nodejs_up_to_date.stdout != nodejs_latest_version.stdout
   changed_when: false
-  become: true
 
 - name: "NPM | Show NodeJS version"
   ansible.builtin.debug:
@@ -71,14 +69,13 @@
     - name: "NPM | Copy NodeJS"
       ansible.builtin.copy:
         src: /tmp/{{ nodejs_package_name }}/bin/
-        dest: /usr/local/bin/
+        dest: /usr/local/bin/*
         remote_src: true
         mode: "0644"
-        force: true
 
     - name: "NPM | Copy NodeJS Modules"
       ansible.builtin.copy:
-        src: /tmp/{{ nodejs_package_name }}/lib/node_modules/*
-        dest: /usr/local/lib/node_modules/
+        src: /tmp/{{ nodejs_package_name }}/lib/node_modules/
+        dest: /usr/local/lib/node_modules/*
         remote_src: true
         mode: "0644"

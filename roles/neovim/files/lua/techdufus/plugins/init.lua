@@ -24,7 +24,12 @@ return {
     {
         "tjdevries/sPoNGe-BoB.NvIm",
     },
-    --     end
+    {
+        'akinsho/bufferline.nvim',
+        version = "*",
+        dependencies = 'nvim-tree/nvim-web-devicons',
+        config = true,
+    },
     'crispgm/nvim-go',
     'erikzaadi/vim-ansible-yaml',
 }

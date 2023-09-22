@@ -23,6 +23,7 @@ default_roles:
   - ssh
   - terraform
   - tmate
+  - tmux
   # - spotify
   - zoxide
 

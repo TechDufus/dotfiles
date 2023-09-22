@@ -24,29 +24,7 @@ return {
     {
         "tjdevries/sPoNGe-BoB.NvIm",
     },
-    {
-        'noib3/nvim-cokeline',
-        dependencies = 'nvim-tree/nvim-web-devicons', -- If you want devicons
-        config = function()
-            require('cokeline').setup({
-                components = {
-                    {
-                        text = function(buffer) return ' ' .. buffer.devicon.icon end,
-                    },
-                    {
-                        text = function(buffer) return ' ' .. buffer.filename .. ' ' end,
-                    },
-                    {
-                        text = '',
-                        delete_buffer_on_left_click = true,
-                    },
-                    {
-                        text = ' ',
-                    }
-                },
-            })
-        end
-    },
+    --     end
     'crispgm/nvim-go',
     'erikzaadi/vim-ansible-yaml',
 }

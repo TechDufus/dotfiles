@@ -8,7 +8,7 @@
 - name: "NPM | Check if NodeJS is installed"
   ansible.builtin.command: node --version
   register: nodejs_installed
-  failed_when: nodejs_installed.rc != 0 or nodejs_installed.rc != 2
+  failed_when: false
   changed_when: false
 
 - name: "NPM | Check if NodeJS is up to date"

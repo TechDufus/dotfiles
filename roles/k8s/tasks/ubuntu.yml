@@ -15,14 +15,14 @@
     state: present
     force: true
   become: true
-  loop: "{{ k8s.package_versions[ansible_hostname] | default(default) }}"
+  loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
 
 - name: K8s | Preventing unintended upgrades
   ansible.builtin.dpkg_selections:
     name: "{{ item.name }}"
     selection: hold
   become: true
-  loop: "{{ k8s.package_versions[ansible_hostname] | default(default) }}"
+  loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
 
 # - name: K8s | Configure .kube/config
 #   block:

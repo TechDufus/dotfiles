@@ -12,6 +12,15 @@ function kgs() {
 function kgn() {
         kubectl get nodes -o wide $@
 }
+function kns() {
+    kubectl config set-context --current --namespace $1
+}
+function kgns() {
+    kubectl get namespaces
+}
+function kgnonly() {
+    kubectl get nodes | awk 'NR!=1 {print $1}'
+}
 function kd() {
         kubectl describe $@
 }
@@ -29,4 +38,7 @@ function kli() {
 }
 function kexec() {
     kubectl exec -it -- $@
+}
+function kc() {
+    kubectl config use-context $1
 }

@@ -20,6 +20,13 @@ keymap(normal_mode, "<C-h>", "<C-w>h", opts)
 keymap(normal_mode, "<C-j>", "<C-w>j", opts)
 keymap(normal_mode, "<C-k>", "<C-w>k", opts)
 keymap(normal_mode, "<C-l>", "<C-w>l", opts)
+
+-- Better window navigation (using alt with zellij)
+-- keymap(normal_mode, "<A-h>", "<C-w>h", opts)
+-- keymap(normal_mode, "<A-j>", "<C-w>j", opts)
+-- keymap(normal_mode, "<A-k>", "<C-w>k", opts)
+-- keymap(normal_mode, "<A-l>", "<C-w>l", opts)
+
 keymap(normal_mode, ";", ":", opts)
 
 keymap(normal_mode, "<leader>w", ":NvimTreeFocus<cr>", opts)

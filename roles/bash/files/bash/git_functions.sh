@@ -7,9 +7,7 @@ gacp() {
 }
 
 gacpgh() {
-  git add -A
-  git commit -m "$*"
-  git push -u origin $(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
+  gacp "$*"
   gh pr create --fill
   gh pr review --approve
   gh pr merge -dm

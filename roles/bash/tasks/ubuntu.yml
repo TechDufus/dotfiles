@@ -13,37 +13,37 @@
     var: ohmybash_is_installed
 
 - name: "Bash | Install oh-my-bash"
+  when: not ohmybash_is_installed
   block:
     - name: "Bash | Download oh-my-bash Install Script"
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
         dest: /tmp/oh-my-bash.install.sh
         force: true
-        mode: 0755
+        mode: 755
 
     - name: "Bash | Run the install script"
       ansible.builtin.script:
         cmd: /tmp/oh-my-bash.install.sh
 
-  when: not ohmybash_is_installed
 
 - name: "Bash | Copy .bashrc"
   ansible.builtin.copy:
     src: ".bashrc"
     dest: "{{ ansible_user_dir }}/.bashrc"
-    mode: 0644
+    mode: "0644"
 
 - name: "Bash | Copy .profile"
   ansible.builtin.copy:
     src: ".profile"
     dest: "{{ ansible_user_dir }}/.profile"
-    mode: 0644
+    mode: "0644"
 
 - name: "Bash | Copy custom bash config"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/"
     src: "bash"
-    mode: 0644
+    mode: "0644"
     directory_mode: 0755
     force: true
 
@@ -52,7 +52,7 @@
     dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
     src: "themes"
     directory_mode: 0755
-    mode: 0644
+    mode: "0644"
     force: true
 
 - name: "Bash | Set default terminal"
@@ -65,7 +65,7 @@
   ansible.builtin.template:
     dest: "{{ ansible_user_dir }}/.config/bash/.bash_private"
     src: ".bash_private.j2"
-    mode: 0644
+    mode: "0644"
   no_log: true
 
 - name: "Bash | Copy Private Files"

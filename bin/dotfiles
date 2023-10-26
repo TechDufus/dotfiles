@@ -113,3 +113,4 @@ if ! [[ -f "$IS_FIRST_RUN" ]]; then
     touch "$IS_FIRST_RUN"
 fi
 
+# vi:ft=sh:

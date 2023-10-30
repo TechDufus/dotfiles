@@ -38,6 +38,7 @@ return {
                 --     folder_empty = "",
                 --     folder_empty_open = "",
                 -- },
+
                 git_status = {
                     symbols = {
                         -- Change type

@@ -42,3 +42,6 @@ function kexec() {
 function kc() {
     kubectl config use-context $1
 }
+
+complete -W "$(kubectl config get-contexts -o=name)" kc
+complete -W "$(kgnonly)" k.node.exec

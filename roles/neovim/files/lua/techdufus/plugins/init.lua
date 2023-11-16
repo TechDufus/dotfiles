@@ -22,9 +22,6 @@ return {
         "sbdchd/neoformat",
     },
     {
-        "tjdevries/sPoNGe-BoB.NvIm",
-    },
-    {
         'akinsho/bufferline.nvim',
         version = "*",
         dependencies = 'nvim-tree/nvim-web-devicons',

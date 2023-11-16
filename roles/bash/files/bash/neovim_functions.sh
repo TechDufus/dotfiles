@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# Write a function that first ensures that ~/.sshfs exists, then mounts the
-# remote directory to ~/.sshfs/<name_of_server_input>, then opens the remote directory in
-# Neovim. When neovim is closed, unmount the remote directory.
-
 function nisshfs() {
     local remote_dir='/'
     if [ ! -d ~/.sshfs ]; then mkdir ~/.sshfs > /dev/null 2>&1; fi

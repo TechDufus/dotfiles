@@ -21,6 +21,7 @@ default_roles:
   - ruby
   - rust
   - ssh
+  - sshfs
   - terraform
   - tmate
   - tmux

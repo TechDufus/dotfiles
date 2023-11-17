@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 function nisshfs() {
+    if [ -z $1 ]; then echo "nisshfs <server> [remote_dir]"; return 1; fi
     local remote_dir='/'
     if [ ! -d ~/.sshfs ]; then mkdir ~/.sshfs > /dev/null 2>&1; fi
     if [ ! -d ~/.sshfs/$1 ]; then mkdir ~/.sshfs/$1 > /dev/null 2>&1; fi

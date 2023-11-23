@@ -1,15 +1,42 @@
 #!/usr/bin/env bash
 
+function __nisshfs_usage() {
+    echo -e "${ARROW} ${YELLOW}Usage: nisshfs -s <server> [-d remote_dir]${NC}"
+}
+
 function nisshfs() {
-    if [ -z $1 ]; then echo "Usage: nisshfs <server> [remote_dir]"; return 1; fi
     local remote_dir='/'
+    local server=''
+    local OPTIND=1
+    while getopts "hd:s:" opt; do
+        case ${opt} in
+            h )
+                __nisshfs_usage
+                return 0
+                ;;
+            d )
+                local remote_dir=$OPTARG
+                ;;
+            s )
+                local server=$OPTARG
+                ;;
+            \? )
+                echo -e "${WARNING} ${YELLOW}Invalid option${NC}"
+                __nisshfs_usage
+                return 1
+                ;;
+        esac
+    done
+    if [ -z $server ]; then
+        __nisshfs_usage
+        return 1
+    fi
     if [ ! -d ~/.sshfs ]; then mkdir ~/.sshfs > /dev/null 2>&1; fi
-    if [ ! -d ~/.sshfs/$1 ]; then mkdir ~/.sshfs/$1 > /dev/null 2>&1; fi
-    if [ ! -z $2 ]; then remote_dir=$2; fi
-    sshfs -o default_permissions $1:$remote_dir $HOME/.sshfs/$1
-    nvim $HOME/.sshfs/$1
-    fusermount -zu $HOME/.sshfs/$1
-    rm -rf $HOME/.sshfs/$1
+    if [ ! -d ~/.sshfs/$server ]; then mkdir ~/.sshfs/$server > /dev/null 2>&1; fi
+    sshfs -o default_permissions $server:$remote_dir $HOME/.sshfs/$server
+    nvim $HOME/.sshfs/$server
+    fusermount -zu $HOME/.sshfs/$server
+    rm -rf $HOME/.sshfs/$server
 }
 
 

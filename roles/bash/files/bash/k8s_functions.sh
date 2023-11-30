@@ -46,5 +46,27 @@ function __refresh_kubecontexts() {
     complete -W "$(kubectl config get-contexts -o=name)" kc
 }
 
-__refresh_kubecontexts
-complete -W "$(kgnonly)" k.node.exec
+function __kgnonly_complete() {
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    COMPREPLY=( $(compgen -W "$(kgnonly)" -- $cur) )
+}
+
+function __kc_complete() {
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    COMPREPLY=( $(compgen -W "$(kubectl config get-contexts -o=name)" -- $cur) )
+}
+
+function k.node.debug() {
+    if [ -z "$1" ]; then
+        echo -e "${WARNING}${RED} Node name not found: ${YELLOW}$1${NC}"
+        return
+    fi
+    echo -e "${YELLOW}===========================================${NC}"
+    echo -e "${ARROW}${CYAN} $1 ${YELLOW}: [${GREEN}${@:2}${YELLOW}] : ${SEA}$(TZ="America/Chicago" date)${NC}"
+    echo -e "${YELLOW}===========================================${NC}"
+    kubectl debug node/$1 -qit --image=mcr.microsoft.com/dotnet/runtime-deps:6.0 --target $1 -- chroot /host bash
+}
+
+complete -o nospace -F __kc_complete kc
+omplete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
+

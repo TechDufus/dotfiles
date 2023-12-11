@@ -103,12 +103,12 @@ return {
                 pickers = {
                     find_files = {
                         hidden = true,
-                        previewer = false,
+                        previewer = true,
                         layout_config = {
-                            horizontal = {
+                            vertical = {
                                 width = 0.5,
                                 height = 0.4,
-                                preview_width = 0.6,
+                                preview_height = 0.5,
                             },
                         },
                     },
@@ -159,7 +159,7 @@ return {
                         },
                     },
                     lsp_reference = {
-                        show_line = false,
+                        show_line = true,
                         layout_config = {
                             horizontal = {
                                 width = 0.9,
@@ -169,7 +169,7 @@ return {
                         },
                     },
                     treesitter = {
-                        show_line = false,
+                        show_line = true,
                         sorting_strategy = nil,
                         layout_config = {
                             horizontal = {

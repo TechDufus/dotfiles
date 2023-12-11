@@ -68,5 +68,5 @@ function k.node.debug() {
 }
 
 complete -o nospace -F __kc_complete kc
-omplete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
+complete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
 

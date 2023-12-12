@@ -158,10 +158,8 @@ for file in $HOME/.config/bash/*.sh; do
   source "$file"
 done
 
-if [[ -f "$HOME/.bash_lumen" ]]; then
-    source "$HOME/.bash_lumen"
-fi
-
+[ -f ~/.bash_lumen] && source ~/.bash_lumen
+[ -f ~/.fzf.bash ]  && source ~/.fzf.bash
 
 toilet "TechDufus" -F border:gay -f emboss2
 

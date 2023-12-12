@@ -76,12 +76,3 @@
     create: true
     mode: "0600"
     state: present
-
-- name: Bash | Install profile dependencies
-  ansible.builtin.apt:
-    name: "{{ item }}"
-    state: present
-    update_cache: true
-  become: true
-  loop:
-    - fzf

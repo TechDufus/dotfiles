@@ -33,7 +33,23 @@ else
     RESET="\033[m"
 fi
 
+function k.togglePromptInfo() {
+    if [ "$SHOW_K8S_PROMPT_INFO" == "true" ]; then
+        echo -e "${ARROW} ${YELLOW}SHOW_K8S_PROMPT_INFO is set to true, setting to false${NC}"
+        export SHOW_K8S_PROMPT_INFO="false"
+        return
+    elif [ "$SHOW_K8S_PROMPT_INFO" == "false" ]; then
+        echo -e "${ARROW} ${YELLOW}SHOW_K8S_PROMPT_INFO is set to false, setting to true${NC}"
+        export SHOW_K8S_PROMPT_INFO="true"
+        return
+    fi
+}
+
 function k8s_info() {
+    # Only show k8s info in prompt if it is enabled
+    if [[ "$SHOW_K8S_PROMPT_INFO" == "false" ]]; then
+        return
+    fi
     local k8s_data="$(kubectl config view --minify --output 'jsonpath={..namespace}@{.current-context}' 2> /dev/null)"
     if [[ "$k8s_data" != "" ]]; then
         echo "[$k8s_data]"

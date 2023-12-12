@@ -67,6 +67,21 @@ function k.node.debug() {
     kubectl debug node/$1 -qit --image=mcr.microsoft.com/dotnet/runtime-deps:6.0 --target $1 -- chroot /host bash
 }
 
+function k.togglePromptInfo() {
+    # create export if not exists
+    if [ -z "$SHOW_K8S_PROMPT_INFO" ]; then
+        export SHOW_K8S_PROMPT_INFO="false"
+        return
+    elif [ "$SHOW_K8S_PROMPT_INFO" == "true" ]; then
+        export SHOW_K8S_PROMPT_INFO="false"
+        return
+    elif [ "$SHOW_K8S_PROMPT_INFO" == "false" ]; then
+        export SHOW_K8S_PROMPT_INFO="true"
+        return
+    fi
+}
+
+
 complete -o nospace -F __kc_complete kc
 complete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
 

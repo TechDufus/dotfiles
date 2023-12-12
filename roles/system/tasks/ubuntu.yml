@@ -3,6 +3,7 @@
   ansible.builtin.apt:
     update_cache: true
     upgrade: "yes"
+    state: latest
     autoremove: true
     autoclean: true
   become: true

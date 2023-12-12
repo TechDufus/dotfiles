@@ -1,0 +1,109 @@
+---
+# - name: "FZF | Download Latest Version JSON"
+#   ansible.builtin.uri:
+#     url: https://api.github.com/repos/junegunn/fzf/releases/latest
+#   register: fzf_latest_version_json
+#   changed_when: false
+#
+# - name: "FZF | Registering fzf Latest Release"
+#   ansible.builtin.set_fact:
+#     fzf_latest_release: "{{ fzf_latest_version_json.json.tag_name }}"
+#
+# - name: "FZF | Registering fzf Latest Version"
+#   ansible.builtin.set_fact:
+#     fzf_latest_version: "{{ fzf_latest_release.stdout | default('') }}"
+#
+# - name: "FZF | Getting version information"
+#   ansible.builtin.shell:
+#     cmd: |
+#       /usr/local/bin/fzf version -s | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*'
+#   register: current_fzf_version
+#   changed_when: false
+#   failed_when: false
+#
+# - name: "FZF | Show current_fzf_version debug"
+#   ansible.builtin.debug:
+#     var: current_fzf_version.stdout
+#
+# - name: "FZF | Show fzf_latest_release debug"
+#   ansible.builtin.debug:
+#     var: fzf_latest_release
+#
+# - name: "FZF | Install"
+#   when: fzf_latest_release not in current_fzf_version.stdout|default('')
+#   block:
+#     - name: "FZF | Define fzfarch"
+#       ansible.builtin.set_fact:
+#         fzfarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+#
+#     - name: "FZF | Define fzfos"
+#       ansible.builtin.set_fact:
+#         fzfos: "{{ ansible_system | lower }}"
+#
+#     - name: "FZF | Debug fzfarch"
+#       ansible.builtin.debug:
+#         var: fzfarch
+#
+#     - name: "FZF | Debug fzfos"
+#       ansible.builtin.debug:
+#         var: fzfos
+#
+#     - name: "FZF | Define fzf_file"
+#       ansible.builtin.set_fact:
+#         fzf_file: "fzf-{{ fzf_latest_release }}-{{ fzfos }}_{{ fzfarch }}"
+#
+#     - name: "FZF | Ensure clean download destination"
+#       ansible.builtin.file:
+#         path: "/tmp/{{ fzf_file }}.tar.gz"
+#         state: absent
+#       become: true
+#
+#     - name: "FZF | Downloading fzf Release"
+#       ansible.builtin.get_url:
+#         url: "https://github.com/junegunn/fzf/releases/download/{{ fzf_latest_release }}/{{ fzf_file }}.tar.gz"
+#         dest: /tmp/
+#         mode: "0644"
+#         force: true
+#       notify:
+#         - Cleanup fzf downloaded tar
+#
+#     - name: "FZF | Ensure clean extraction destination"
+#       ansible.builtin.file:
+#         path: "/tmp/fzf"
+#         state: absent
+#       become: true
+#
+#     - name: "FZF | Extract fzf tar file"
+#       ansible.builtin.unarchive:
+#         src: "/tmp/{{ fzf_file }}.tar.gz"
+#         dest: /tmp
+#
+#     - name: "FZF | Remove any current fzf installations"
+#       ansible.builtin.file:
+#         path: /usr/local/bin/fzf
+#         state: absent
+#       become: true
+#
+#     - name: "FZF | Install fzf"
+#       ansible.builtin.copy:
+#         remote_src: true
+#         src: /tmp/fzf
+#         dest: /usr/local/bin/
+#         owner: "{{ host_user }}"
+#         group: "{{ host_user }}"
+#         force: true
+#         mode: "0755"
+#       become: true
+#       notify:
+#         - Remove extracted fzf directory
+
+- name: "FZF | Clone Latest Version"
+  ansible.builtin.git:
+    repo: https://github.com/junegunn/fzf.git
+    depth: 1
+    dest: "{{ ansible_user_dir }}/.fzf"
+  register: fzf_git_clone
+
+- name: "FZF | Install"
+  when: fzf_git_clone.changed
+  shell: "{{ ansible_user_dir }}/.fzf/install --all --no-update-rc --no-zsh --no-fish"

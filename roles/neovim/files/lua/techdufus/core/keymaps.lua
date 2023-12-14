@@ -29,7 +29,7 @@ keymap(normal_mode, "<C-l>", "<C-w>l", opts)
 
 keymap(normal_mode, ";", ":", opts)
 
-keymap(normal_mode, "<leader>w", ":NvimTreeFocus<cr>", opts)
+keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --
 keymap(normal_mode, "<leader>chl", ":nohl<cr>", opts)
 

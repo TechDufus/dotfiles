@@ -40,5 +40,25 @@
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/nvim/lua"
     src: "lua/"
-    mode: 0644
+    mode: "0644"
+
+- name: "Neovim | Get config files"
+  ansible.builtin.find:
+    paths: "{{ ansible_role_path }}/files/lua"
+    file_type: file
+  register: config_files
+
+- name: Find all remote files
+  ansible.builtin.find:
+    paths: "{{ ansible_user_dir }}/.config/nvim/lua"
+    file_type: file
+  register: existing
+
+- name: "Neovim | Delete any leftover files"
+  ansible.builtin.file:
+    path: {{ item.path }}
+    state: absent
+  when: item.path|basename not in config_files.files|map(attribute='path')|list
+  with_items: "{{existing.files|default([ ])}}"
+  register: removed
 

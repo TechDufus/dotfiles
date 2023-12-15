@@ -41,39 +41,3 @@
     dest: "{{ ansible_user_dir }}/.config/nvim/lua"
     src: "lua/"
     mode: "0644"
-
-- name: "Neovim | Define base paths"
-  ansible.builtin.set_fact:
-    remote_path: "{{ ansible_user_dir }}/.config/nvim/lua"
-    config_path: "{{ role_path }}/files/lua"
-
-- name: "Neovim | Get config files"
-  ansible.builtin.find:
-    paths: "{{ role_path }}/files/lua"
-    file_type: file
-    recurse: true
-  register: config_files
-
-- name: "Neovim | Find all remote files"
-  ansible.builtin.find:
-    paths: "{{ ansible_user_dir }}/.config/nvim/lua"
-    file_type: file
-    recurse: true
-  register: existing
-
-- ansible.builtin.debug:
-    # msg: "{{ item.path | replace('{{ remote_path }}', '') }}"
-    msg: "{{ item.path }}"
-  loop: "{{ existing.files | default([]) }}"
-
-- name: "Neovim | Setting File List Facts"
-  ansible.builtin.set_fact:
-    config_trimmed_files: "{{ config_files.files | map(attribute='path') | map('regex_replace', config_path, '') | list }}"
-
-- name: "Neovim | Delete any leftover files"
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: absent
-  when: item.path|map('regex_replace', remote_path, '') not in config_trimmed_files
-  with_items: "{{ existing.files | default([]) }}"
-  register: removed

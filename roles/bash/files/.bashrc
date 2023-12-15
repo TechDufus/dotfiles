@@ -158,8 +158,8 @@ for file in $HOME/.config/bash/*.sh; do
   source "$file"
 done
 
-[ -f ~/.bash_lumen] && source ~/.bash_lumen
-[ -f ~/.fzf.bash ]  && source ~/.fzf.bash
+[ -f ~/.bash_lumen ] && source ~/.bash_lumen
+[ -f ~/.fzf.bash ]   && source ~/.fzf.bash
 
 toilet "TechDufus" -F border:gay -f emboss2
 

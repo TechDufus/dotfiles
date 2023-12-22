@@ -18,6 +18,9 @@ function kns() {
 function kgns() {
     kubectl get namespaces
 }
+function kgnsonly() {
+    kubectl get namespaces | awk 'NR!=1 {print $1}'
+}
 function kgnonly() {
     kubectl get nodes | awk 'NR!=1 {print $1}'
 }
@@ -44,6 +47,11 @@ function kc() {
 }
 function __refresh_kubecontexts() {
     complete -W "$(kubectl config get-contexts -o=name)" kc
+}
+
+function __kgnsonly_complete() {
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    COMPREPLY=( $(compgen -W "$(kgnsonly)" -- $cur) )
 }
 
 function __kgnonly_complete() {
@@ -84,4 +92,5 @@ function k.togglePromptInfo() {
 
 complete -o nospace -F __kc_complete kc
 complete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
+complete -o nospace -F __kgnsonly_complete kns
 

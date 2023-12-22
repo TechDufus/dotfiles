@@ -18,12 +18,16 @@ return {
         local icons = require('techdufus.core.icons')
         require("neo-tree").setup({
             close_if_last_window = false,
-            popup_border_style = "single",
+            popup_border_style = "rounded",
             enable_git_status = true,
             enable_modified_markers = true,
-            enable_diagnostics = false,
+            update_cwd = true,
+            enable_diagnostics = true,
             sort_case_insensitive = true,
             default_component_configs = {
+                container = {
+                    enable_character_fade = true,
+                },
                 indent = {
                     with_markers = true,
                     with_expanders = true,
@@ -56,7 +60,7 @@ return {
                 },
             },
             window = {
-                position = "left",
+                position = "float",
                 width = 35,
                 mappings = {
                     ["<Backspace>"] = {
@@ -85,24 +89,7 @@ return {
                     enabled = true
                 },
             },
-            event_handlers = {
-                {
-                    event = "neo_tree_window_after_open",
-                    handler = function(args)
-                        if args.position == "left" or args.position == "right" then
-                            vim.cmd("wincmd =")
-                        end
-                    end,
-                },
-                {
-                    event = "neo_tree_window_after_close",
-                    handler = function(args)
-                        if args.position == "left" or args.position == "right" then
-                            vim.cmd("wincmd =")
-                        end
-                    end,
-                },
-            },
+            event_handlers = { },
         })
     end,
 }

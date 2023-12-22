@@ -29,7 +29,7 @@ keymap(normal_mode, "<C-l>", "<C-w>l", opts)
 
 keymap(normal_mode, ";", ":", opts)
 
-keymap(normal_mode, "<leader>w", ":NvimTreeFocus<cr>", opts)
+keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --
 keymap(normal_mode, "<leader>chl", ":nohl<cr>", opts)
 
@@ -92,6 +92,11 @@ keymap(normal_mode, "<leader>k", "ddkP", opts)
 -- Better Ctrl u | d
 keymap(normal_mode, "<C-u>", "<C-u>zz", opts)
 keymap(normal_mode, "<C-d>", "<C-d>zz", opts)
+
+-- MACROS
+keymap(normal_mode, "Q", "@qj", opts)
+keymap(visual_block_mode, "Q", ":norm @q<CR>gv", opts)
+
 
 -- Visual Block --
 -- Move text up and down

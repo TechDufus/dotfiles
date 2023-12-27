@@ -56,13 +56,9 @@ sudo apt-get update && sudo apt-get upgrade -y
 
 ## Setup
 
-### values.yaml
+### all.yaml values file
 
-The `values.yaml` file allows you to personalize your setup to your needs. Create a file located at `~/.config/dotfiles/values.yaml` and include your desired settings.
-
-```bash
-cd $HOME && mkdir -p .config/dotfiles && vim .config/dotfiles/values.yaml
-```
+The `all.yaml` file allows you to personalize your setup to your needs. This file will be created in the file located at `~/.dotfiles/group_vars/all.yaml` after you [Install this dotfiles](#install) and include your desired settings.
 
 Below is a list of all available values. Not all are required but incorrect values will break the playbook if not properly set.
 

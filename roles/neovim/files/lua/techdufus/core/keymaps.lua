@@ -113,7 +113,7 @@ keymap(term_mode, "<C-k>", "<C-\\><C-N><C-w>k", term_opts)
 keymap(term_mode, "<C-l>", "<C-\\><C-N><C-w>l", term_opts)
 
 -- Telescope --
-keymap(normal_mode, "<leader>pf", "<cmd>:Neotree close<cr><cmd>lua require'telescope.builtin'.find_files({ hidden = true })<cr>", opts)
+keymap(normal_mode, "<leader>pf", "<cmd>:Neotree close<cr><cmd>lua require'telescope.builtin'.find_files({find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>", opts)
 keymap(normal_mode, "<leader>ps", "<cmd>lua require('telescope.builtin').live_grep({ hidden = true })<cr>", opts)
 
 -- Telescope find files in nvim config directory

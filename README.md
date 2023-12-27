@@ -2,6 +2,8 @@
 
 Fully automated development environment for [TechDufus](https://www.twitch.tv/TechDufus) on Twitch.
 
+You can watch a quick 'tour' here: [Automating your Dotfiles with Ansible: A Showcase](https://youtu.be/hPPIScBt4Gw)
+
 
 <!-- ## Table of Contents -->
 <!---->

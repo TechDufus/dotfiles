@@ -237,3 +237,12 @@ This will handle the following tasks:
 - Clone this repository locally to `~/.dotfiles`
 - Verify any `ansible-galaxy` plugins are updated
 - Run this playbook with the values in `~/.config/dotfiles/group_vars/all.yaml`
+
+This `dotfiles` command is available to you after the first use of this repo, as it adds this repo's `bin` directory to your path, allowing you to call `dotfiles` from anywhere.
+
+Any flags or arguments you pass to the `dotfiles` command are passed as-is to the `ansible-playbook` command.
+
+For Example: Running the tmux tag with verbosity
+```bash
+dotfiles -t tmux -vvv
+```

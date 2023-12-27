@@ -3,28 +3,28 @@
 Fully automated development environment for [TechDufus](https://www.twitch.tv/TechDufus) on Twitch.
 
 
-## Table of Contents
-
-- [Goals](#goals)
-  - [Why Ansible?](#why-ansible)
-- [Requirements](#requirements)
-  - [Operating System](#operating-system)
-  - [System Upgrade](#system-upgrade)
-- [Setup](#setup)
-  - [values.yaml](#valuesyaml)
-    - [Environment](#environment)
-      - [bash_public](#bash_public)
-      - [bash_private](#bash_private)
-    - [SSH Keys](#ssh-keys)
-    - [System Hosts](#system-hosts)
-    - [Examples](#examples)
-      - [Minimal](#minimal)
-      - [Advanced](#advanced)
-  - [vault.secret](#vaultsecret)
-- [Usage](#usage)
-  - [Install](#install)
-  - [Update](#update)
-
+<!-- ## Table of Contents -->
+<!---->
+<!-- - [Goals](#goals) -->
+<!--   - [Why Ansible?](#why-ansible) -->
+<!-- - [Requirements](#requirements) -->
+<!--   - [Operating System](#operating-system) -->
+<!--   - [System Upgrade](#system-upgrade) -->
+<!-- - [Setup](#setup) -->
+<!--   - [values.yaml](#valuesyaml) -->
+<!--     - [Environment](#environment) -->
+<!--       - [bash_public](#bash_public) -->
+<!--       - [bash_private](#bash_private) -->
+<!--     - [SSH Keys](#ssh-keys) -->
+<!--     - [System Hosts](#system-hosts) -->
+<!--     - [Examples](#examples) -->
+<!--       - [Minimal](#minimal) -->
+<!--       - [Advanced](#advanced) -->
+<!--   - [vault.secret](#vaultsecret) -->
+<!-- - [Usage](#usage) -->
+<!--   - [Install](#install) -->
+<!--   - [Update](#update) -->
+<!---->
 ## Goals
 
 Provide fully automated `Ubuntu` development environment that is easy to set up and maintain.

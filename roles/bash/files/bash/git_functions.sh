@@ -2,7 +2,11 @@
 
 gacp() {
   git add -A
-  git commit -m "$*"
+  git commit -S -m "$*"
+  # if signing fails, commit without signing
+  if [ $? -ne 0 ]; then
+    git commit -m "$*"
+  fi
   git push -u origin $(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
 }
 

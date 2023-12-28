@@ -32,17 +32,6 @@ return {
                     with_markers = true,
                     with_expanders = true,
                 },
-                -- modified = {
-                --     symbol = "",
-                --     highlight = "NeoTreeModified",
-                -- },
-                -- icon = {
-                --     folder_closed = icons.documents.Folder,
-                --     folder_open = icons.documents.FolderOpen,
-                --     folder_empty = "",
-                --     folder_empty_open = "",
-                -- },
-
                 git_status = {
                     symbols = {
                         -- Change type

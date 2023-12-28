@@ -8,28 +8,6 @@ You can watch a quick 'tour' here on YouTube:
     <img src="https://github.com/TechDufus/dotfiles/assets/46715299/b114ea0c-b67b-437b-87d3-7c7732aeccf8" alt="Automating your Dotfiles with Ansible: A Showcase" style="width:60%;"/>
 </a>
 
-<!-- ## Table of Contents -->
-<!---->
-<!-- - [Goals](#goals) -->
-<!--   - [Why Ansible?](#why-ansible) -->
-<!-- - [Requirements](#requirements) -->
-<!--   - [Operating System](#operating-system) -->
-<!--   - [System Upgrade](#system-upgrade) -->
-<!-- - [Setup](#setup) -->
-<!--   - [values.yaml](#valuesyaml) -->
-<!--     - [Environment](#environment) -->
-<!--       - [bash_public](#bash_public) -->
-<!--       - [bash_private](#bash_private) -->
-<!--     - [SSH Keys](#ssh-keys) -->
-<!--     - [System Hosts](#system-hosts) -->
-<!--     - [Examples](#examples) -->
-<!--       - [Minimal](#minimal) -->
-<!--       - [Advanced](#advanced) -->
-<!--   - [vault.secret](#vaultsecret) -->
-<!-- - [Usage](#usage) -->
-<!--   - [Install](#install) -->
-<!--   - [Update](#update) -->
-<!---->
 ## Goals
 
 Provide fully automated `Ubuntu` development environment that is easy to set up and maintain.

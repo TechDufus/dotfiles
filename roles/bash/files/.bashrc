@@ -83,6 +83,7 @@ completions=(
   system
   terraform
   kubectl
+  tmux
   vault
 )
 
@@ -110,6 +111,7 @@ plugins=(
   golang
   kubectl
   progress
+  xterm
   zoxide
 )
 

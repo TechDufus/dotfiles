@@ -84,11 +84,14 @@ return {
             -- cmp icons
             local cmp = require('cmp')
             local icons = require('techdufus.core.icons')
-            local lspkind = require('lspkind')
+            -- local lspkind = require('lspkind')
             local luasnip = require('luasnip')
             local cmp_mapping = require('cmp.config.mapping')
             local cmp_types = require('cmp.types.cmp')
             local utils = require('techdufus.core.utils')
+
+            require('luasnip.loaders.from_vscode').lazy_load()
+
             cmp.setup {
                 formatting = {
                     fields = { "kind", "abbr", "menu" },
@@ -130,41 +133,8 @@ return {
                     completion = require('cmp.config.window').bordered(),
                     documentation = require('cmp.config.window').bordered(),
                 },
-                sources = {
-                    {
-                        name = "copilot",
-                        -- keyword_length = 0,
-                        max_item_count = 3,
-                        trigger_characters = {
-                            {
-                                ".",
-                                ":",
-                                "(",
-                                "'",
-                                '"',
-                                "[",
-                                ",",
-                                "#",
-                                "*",
-                                "@",
-                                "|",
-                                "=",
-                                "-",
-                                "{",
-                                "/",
-                                "\\",
-                                "+",
-                                "?",
-                                " ",
-                                "*",
-                                "!",
-                                "<",
-                                ">",
-                                -- "\t",
-                                -- "\n",
-                            },
-                        },
-                    },
+                sources = cmp.config.sources({
+                    { name = "copilot" },
                     {
                         name = "nvim_lsp",
                         entry_filter = function(entry, ctx)
@@ -172,9 +142,9 @@ return {
                             return true
                         end,
                     },
-
                     { name = "path" },
                     { name = "luasnip" },
+                    { name = "saadparwaiz1/cmp_luasnip" },
                     { name = "nvim_lua" },
                     { name = "buffer" },
                     { name = "calc" },
@@ -182,7 +152,7 @@ return {
                     { name = "treesitter" },
                     { name = "crates" },
                     { name = "tmux" },
-                },
+                }),
                 mapping = cmp_mapping.preset.insert {
                     ["<C-k>"] = cmp_mapping(cmp_mapping.select_prev_item(), { "i", "c" }),
                     ["<C-j>"] = cmp_mapping(cmp_mapping.select_next_item(), { "i", "c" }),
@@ -227,30 +197,10 @@ return {
                     end, { "i", "s" }),
                     ["<C-Space>"] = cmp_mapping.complete(),
                     ["<C-e>"] = cmp_mapping.abort(),
-                    ["<CR>"] = cmp_mapping(function(fallback)
-                        if cmp.visible() then
-                            local confirm_opts = vim.deepcopy({
-                                behavior = cmp_types.ConfirmBehavior.Replace,
-                                select = false,
-                            }) -- avoid mutating the original opts below
-                            local is_insert_mode = function()
-                                return vim.api.nvim_get_mode().mode:sub(1, 1) == "i"
-                            end
-                            if is_insert_mode() then -- prevent overwriting brackets
-                                confirm_opts.behavior = cmp_types.ConfirmBehavior.Insert
-                            end
-                            local entry = cmp.get_selected_entry()
-                            local is_copilot = entry and entry.source.name == "copilot"
-                            if is_copilot then
-                                confirm_opts.behavior = cmp_types.ConfirmBehavior.Replace
-                                confirm_opts.select = true
-                            end
-                            if cmp.confirm(confirm_opts) then
-                                return -- success, exit early
-                            end
-                        end
-                        fallback() -- if not exited early, always fallback
-                    end),
+                    ['<CR>'] = cmp.mapping.confirm({
+                        behavior = cmp.ConfirmBehavior.Replace,
+                        select = false,
+                    })
                 },
             }
         end

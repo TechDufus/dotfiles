@@ -22,7 +22,40 @@ function kgnsonly() {
     kubectl get namespaces | awk 'NR!=1 {print $1}'
 }
 function kgnonly() {
-    kubectl get nodes | awk 'NR!=1 {print $1}'
+    local flag=""
+    local filter=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -a|--all)
+                flag="all"
+                shift
+                ;;
+            *)
+                filter="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [ "$flag" == "all" ]; then
+        kgnonly.allCluster $filter | sort -u
+        return
+    fi
+
+    if [ -z "$filter" ]; then
+        kubectl get nodes | awk 'NR!=1 {print $1}'
+        return
+    fi
+    kubectl get nodes | grep "$filter" | awk '{print $1}'
+}
+function kgnonly.allCluster() {
+    local originalContext=$(kubectl config current-context)
+    for cluster in $(kubectl config get-contexts -o=name); do
+        kubectl config use-context $cluster > /dev/null 1>&1
+        kgnonly $1
+    done
+    kubectl config use-context $originalContext > /dev/null 1>&1
 }
 function kd() {
         kubectl describe $@
@@ -93,4 +126,5 @@ function k.togglePromptInfo() {
 complete -o nospace -F __kc_complete kc
 complete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
 complete -o nospace -F __kgnsonly_complete kns
+complete -W "master worker etcd control-plane" kgnonly kgnonly.allCluster
 

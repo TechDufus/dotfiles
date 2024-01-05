@@ -56,8 +56,21 @@ function k8s_info() {
     fi
 }
 
+function rancher_info() {
+    # if the rancher command exists, use it to get the current context
+    # which will run 'rancher context current' and parse the data from this example output:
+    # Cluster:sandbox Project:dufus-test to look like [sandbox@dufus-test]
+    if [[ -x "$(command -v rancher)" ]]; then
+        local rancher_data="$(rancher context current 2> /dev/null | sed -E 's/Cluster:(\w+) Project:(\w+)/\1@\2/')"
+        if [[ "$rancher_data" != "" ]]; then
+            echo "[$rancher_data]"
+        fi
+        return
+    fi
+}
+
 function _omb_theme_PROMPT_COMMAND() {
-  PS1="\[${BOLD}${MAGENTA}\]\u \[$WHITE\]@ \[$ORANGE\]\h \[$WHITE\]in \[$GREEN\]\w\[$WHITE\]\[$SCM_THEME_PROMPT_PREFIX\]$(clock_prompt) \[$PURPLE\]\$(scm_prompt_info) $YELLOW\$(k8s_info)$PURPLE\n\$ \[$RESET\]"
+    PS1="\[${BOLD}${MAGENTA}\]\u \[$WHITE\]@ \[$ORANGE\]\h \[$WHITE\]in \[$GREEN\]\w\[$WHITE\]\[$SCM_THEME_PROMPT_PREFIX\]$(clock_prompt)\[$PURPLE\]\$(scm_prompt_info)$YELLOW\$(k8s_info)$CYAN\$(rancher_info)$PURPLE\n\$ \[$RESET\]"
 }
 THEME_CLOCK_COLOR=${THEME_CLOCK_COLOR:-"${_omb_prompt_white}"}
 

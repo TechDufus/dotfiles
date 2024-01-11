@@ -1,13 +1,26 @@
 #!/usr/env/bin bash
 
-#color codes
-RED='\033[1;31m'
-YELLOW='\033[1;33m'
-BLUE="\\033[38;5;27m"
-SEA="\\033[38;5;49m"
-GREEN='\033[1;32m'
-CYAN='\033[1;36m'
+# color codes
+RESTORE='\033[0m'
 NC='\033[0m'
+BLACK='\033[00;30m'
+RED='\033[00;31m'
+GREEN='\033[00;32m'
+YELLOW='\033[00;33m'
+BLUE='\033[00;34m'
+PURPLE='\033[00;35m'
+CYAN='\033[00;36m'
+SEA="\\033[38;5;49m"
+LIGHTGRAY='\033[00;37m'
+LBLACK='\033[01;30m'
+LRED='\033[01;31m'
+LGREEN='\033[01;32m'
+LYELLOW='\033[01;33m'
+LBLUE='\033[01;34m'
+LPURPLE='\033[01;35m'
+LCYAN='\033[01;36m'
+WHITE='\033[01;37m'
+OVERWRITE='\e[1A\e[K'
 
 #emoji codes
 CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
@@ -19,3 +32,4 @@ BOOK="${RED}\xF0\x9F\x93\x8B${NC}"
 HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
 WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
 RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
+

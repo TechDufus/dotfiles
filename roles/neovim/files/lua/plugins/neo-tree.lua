@@ -49,13 +49,14 @@ return {
                 },
             },
             window = {
-                position = "float",
+                position = "left",
                 width = 35,
                 mappings = {
                     ["<Backspace>"] = {
                         "close_node",
                         nowait = true, -- disable `nowait` if you have existing combos starting with this char that you want to use
-                    }
+                    },
+                    ["P"] = { "toggle_preview", config = { use_float = false, use_image_nvim = true } }
                 }
             },
             filesystem = {

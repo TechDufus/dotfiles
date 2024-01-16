@@ -1,0 +1,6 @@
+---
+- name: "NCDU | Installing ncdu"
+  ansible.builtin.apt:
+    name: ncdu
+    state: latest
+  become: true

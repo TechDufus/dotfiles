@@ -9,6 +9,8 @@ return {
                 tfstate_backup = "json",
                 tfplan = "json",
                 sh = "sh",
+                html = "html",
+                bashrc = "sh",
             },
         },
     },

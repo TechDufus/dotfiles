@@ -11,7 +11,7 @@ default_roles:
   - git
   - go
   - helm
-  # - k8s # This is removed until a better kube config mgmt solution is found
+  - k8s
   - k9s
   - lua
   - nala
@@ -71,13 +71,6 @@ bash_private:
 
 k8s:
   package_versions:
-    USA-X8026373:
-      - name: kubectl
-        version: 1.25.3-00
-      - name: kubelet
-        version: 1.25.3-00
-      - name: kubeadm
-        version: 1.25.3-00
     default:
       - name: kubectl
       - name: kubelet

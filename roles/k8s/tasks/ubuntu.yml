@@ -23,6 +23,7 @@
     selection: hold
   become: true
   loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
+  when: item.version is defined
 
 # - name: K8s | Configure .kube/config
 #   block:

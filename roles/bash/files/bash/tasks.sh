@@ -23,6 +23,11 @@ function _clear_task {
     TASK=""
 }
 
+function _task_done {
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+    _clear_task
+}
+
 # _cmd performs commands with error checking
 function _cmd {
     LOG=$(generate_log)

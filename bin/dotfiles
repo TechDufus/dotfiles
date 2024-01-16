@@ -1,15 +1,5 @@
 #!/bin/bash
 
-#emoji codes
-CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
-X_MARK="${RED}\xE2\x9C\x96${NC}"
-PIN="${RED}\xF0\x9F\x93\x8C${NC}"
-CLOCK="${GREEN}\xE2\x8C\x9B${NC}"
-ARROW="${SEA}\xE2\x96\xB6${NC}"
-BOOK="${RED}\xF0\x9F\x93\x8B${NC}"
-HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
-WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
-RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 # color codes
 RESTORE='\033[0m'
 NC='\033[0m'
@@ -32,8 +22,19 @@ LCYAN='\033[01;36m'
 WHITE='\033[01;37m'
 OVERWRITE='\e[1A\e[K'
 
-DOTFILES_LOG="$HOME/.dotfiles.log"
+#emoji codes
+CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
+X_MARK="${RED}\xE2\x9C\x96${NC}"
+PIN="${RED}\xF0\x9F\x93\x8C${NC}"
+CLOCK="${GREEN}\xE2\x8C\x9B${NC}"
+ARROW="${SEA}\xE2\x96\xB6${NC}"
+BOOK="${RED}\xF0\x9F\x93\x8B${NC}"
+HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
+WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
+RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
+
+DOTFILES_LOG="$HOME/.dotfiles.log"
 
 # _header colorize the given argument with spacing
 function _task {
@@ -68,6 +69,15 @@ function _cmd {
     rm $DOTFILES_LOG
     # exit installation
     exit 1
+}
+
+function _clear_task {
+    TASK=""
+}
+
+function _task_done {
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+    _clear_task
 }
 
 
@@ -131,7 +141,7 @@ pushd "$DOTFILES_DIR" 2>&1 > /dev/null
 _task "Updating Galaxy"
     _cmd "ansible-galaxy install -r requirements.yml"
 
-_task "Running playbook"
+_task "Running playbook"; _task_done
 if [[ -f $VAULT_SECRET ]]; then
     ansible-playbook --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
 else

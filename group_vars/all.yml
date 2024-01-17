@@ -1,6 +1,6 @@
 default_roles:
   - system
-  # - 1password
+  - 1password
   # - alacritty
   - asciiquarium
   - bash

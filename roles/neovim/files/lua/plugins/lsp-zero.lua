@@ -38,8 +38,17 @@ return {
                 'solargraph',
                 'terraformls',
                 'lua_ls',
-                -- 'sumneko_lua',
-                'yamlls'
+                'yamlls',
+                'ansible-lint',
+                'beautysh',
+                'cssls',
+                'gh',
+                'gopls',
+                'jsonls',
+                'lua_ls',
+                'prettier',
+                'pylsp',
+                'tsserver',
             })
 
             lsp.on_attach(function(client, bufnr)

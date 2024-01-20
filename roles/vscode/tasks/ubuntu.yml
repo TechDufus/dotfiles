@@ -1,0 +1,16 @@
+---
+- name: Import Microsoft GPG Key
+  ansible.builtin.apt_key:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    state: present
+
+- name: Add Visual Studio Code Repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
+    state: present
+    filename: vscode
+    
+- name: Install VS Code
+  ansible.builtin.apt:
+    name: code
+    state: present

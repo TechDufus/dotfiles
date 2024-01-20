@@ -5,3 +5,7 @@
 
 - name: Install Packages
   import_tasks: packages.yml
+
+- name: Run Fedora Tasks
+  ansible.builtin.import_tasks: fedora.yml
+  when: ansible_os_family == 'RedHat'

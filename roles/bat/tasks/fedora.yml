@@ -1,0 +1,47 @@
+---
+- name: BAT | GITHUB | Get current version of bat
+  ansible.builtin.shell: >
+      curl --silent https://api.github.com/repos/{{ gh_user }}/{{ gh_repo }}/releases/latest |
+      grep '"tag_name":' |
+      sed -E 's/.*"([^"]+)".*/\1/' |
+      sed 's/v//'
+  register: command_result
+  changed_when: false
+  failed_when: >
+    command_result.rc != 0 or
+    not command_result.stdout|regex_search('\w+\.\w+\.\w+')
+  when: target_bat_version|length == 0
+
+- name: BAT | GITHUB | Set latest version of bat
+  ansible.builtin.set_fact:
+    target_bat_version: "{{ command_result.stdout }}"
+  when: target_bat_version|length == 0
+
+- name: BAT | Getting local version information
+  ansible.builtin.command: "bat -V"
+  register: current_bat_version
+  changed_when: false
+  failed_when: false
+
+- name: "BAT | Show current_bat_version debug"
+  ansible.builtin.debug:
+    var: current_bat_version.stdout|default('')
+
+- name: "BAT | Show target_bat_version debug"
+  ansible.builtin.debug:
+    var: target_bat_version|default('')
+
+- name: BAT | Install BAT
+  when:
+    - target_bat_version not in current_bat_version.stdout|default('')
+    - ansible_machine != 'aarch64'
+  block:
+    - name: BAT | FEDORA | Set URL to download bins
+      ansible.builtin.set_fact:
+        fedora_url: "{{ gh_repo_url }}/releases/download/v{{ target_bat_version }}/bat_{{ target_bat_version }}_x86_64.rpm"
+
+    - name: BAT | FEDORA | Install rpm from github
+      become: true
+      ansible.builtin.dnf:
+        name: "{{ fedora_url }}"
+        state: present

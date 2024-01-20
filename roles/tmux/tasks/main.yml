@@ -1,19 +1,8 @@
 ---
-- name: "tmux | Install tmux"
-  ansible.builtin.apt:
-    name: tmux
-    state: present
-  become: true
+- name: Run Ubuntu Tasks
+  ansible.builtin.import_tasks: ubuntu.yml
+  when: ansible_os_family == 'Debian'
 
-- name: "tmux | Install TPM"
-  ansible.builtin.git:
-    repo: https://github.com/tmux-plugins/tpm
-    dest: ~/.tmux/plugins/tpm
-
-- name: "tmux | Configure tmux"
-  ansible.builtin.copy:
-    src: tmux
-    dest: "{{ ansible_user_dir }}/.config/"
-    mode: 0644
-    directory_mode: 0755
-    force: true
+- name: Run Fedora Tasks
+  ansible.builtin.import_tasks: fedora.yml
+  when: ansible_os_family == 'RedHat'

@@ -1,0 +1,95 @@
+---
+- name: "k9s | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/derailed/k9s/releases/latest
+  register: k9s_latest_version_json
+  changed_when: false
+
+- name: "k9s | Registering k9s Latest Release"
+  ansible.builtin.set_fact:
+    k9s_latest_release: "{{ k9s_latest_version_json.json.tag_name }}"
+
+- name: "k9s | Registering k9s Latest Version"
+  ansible.builtin.set_fact:
+    k9s_latest_version: "{{ k9s_latest_release.stdout|default('') }}"
+
+- name: "k9s | Getting version information"
+  ansible.builtin.shell:
+    cmd: |
+      /usr/local/bin/k9s version -s | grep -o 'v[0-9]*\.[0-9]*\.[0-9]*'
+  register: current_k9s_version
+  changed_when: false
+  failed_when: false
+
+- name: "k9s | Show current_k9s_version debug"
+  ansible.builtin.debug:
+    var: current_k9s_version.stdout
+
+- name: "k9s | Show k9s_latest_release debug"
+  ansible.builtin.debug:
+    var: k9s_latest_release
+
+- name: "k9s | Install"
+  block:
+    - name: "k9s | Define k9s_file"
+      ansible.builtin.set_fact:
+        k9s_file: "k9s_Linux_amd64"
+
+    - name: "k9s | Ensure clean download destination"
+      ansible.builtin.file:
+        path: "/tmp/{{ k9s_file }}.tar.gz"
+        state: absent
+      become: true
+
+    - name: "k9s | Downloading k9s Release"
+      ansible.builtin.get_url:
+        url: "https://github.com/derailed/k9s/releases/download/{{ k9s_latest_release }}/{{ k9s_file }}.tar.gz"
+        dest: /tmp/
+        mode: 0644
+        force: true
+      notify:
+        - Cleanup k9s downloaded tar
+
+    - name: "k9s | Ensure clean extraction destination"
+      ansible.builtin.file:
+        path: "/tmp/k9s"
+        state: absent
+      become: true
+
+    - name: "k9s | Extract k9s tar file"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ k9s_file }}.tar.gz"
+        dest: /tmp
+
+    - name: "k9s | Remove any current k9s installations"
+      ansible.builtin.file:
+        path: /usr/local/bin/k9s
+        state: absent
+      become: true
+
+    - name: "k9s | Install k9s"
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/k9s
+        dest: /usr/local/bin/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        force: true
+        mode: 0755
+      become: true
+      notify:
+        - Remove extracted k9s directory
+
+  when: k9s_latest_release not in current_k9s_version.stdout|default('')
+
+- name: "k9s | Ensure k9s config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/k9s"
+    state: directory
+    mode: 0755
+
+- name: "k9s | Copy skin config"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/k9s/skin.yml"
+    src: "skin.yml"
+    mode: 0644

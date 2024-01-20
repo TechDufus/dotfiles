@@ -1,0 +1,8 @@
+---
+- name: "Zoxide | Install"
+  ansible.builtin.apt:
+    name:
+      - zoxide
+    state: present
+  become: true
+  when: ansible_distribution_version >= '21.04'

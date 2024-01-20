@@ -1,0 +1,39 @@
+---
+- name: "Azure | Install dependencies"
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+  become: true
+  loop:
+    - ca-certificates
+    - curl
+    - dnf-plugins-core
+    - redhat-lsb-core
+    - gnupg
+
+- name: "Azure | Download and Add Azure-CLI Key to DNF Keyring"
+  ansible.builtin.dnf_key:
+    url: "https://packages.microsoft.com/keys/microsoft.asc"
+    keyring: "/etc/pki/rpm-gpg/microsoft.gpg"
+    state: present
+  become: true
+
+- name: "Azure | Add Azure Repository into /etc/dnf.repos.d"
+  ansible.builtin.copy:
+    content: |
+      [azure-cli]
+      name=Azure CLI
+      baseurl=https://packages.microsoft.com/yumrepos/azure-cli
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+      metadata_expire=86400
+      skip_if_unavailable=True
+    dest: "/etc/dnf.repos.d/azure-cli.repo"
+  become: true
+
+- name: "Azure | Install azure-cli"
+  ansible.builtin.dnf:
+    name: azure-cli
+    state: present
+  become: true

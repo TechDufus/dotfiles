@@ -1,0 +1,43 @@
+---
+- name: Helm | Add Helm Repos
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    url: "{{ item.url }}"
+    repo_state: present
+  loop: "{{ helm.repos }}"
+
+- name: Helm | Add Helm GPG key
+  ansible.builtin.dnf:
+    name: https://baltocdn.com/helm/signing.asc
+    state: present
+    installroot: /
+    keyring: /etc/pki/rpm-gpg/RPM-GPG-KEY-helm
+  become: true
+
+- name: Helm | Install dnf-plugins-core
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+  become: true
+
+- name: Helm | Add Helm DNF repository
+  ansible.builtin.dnf_repository:
+    name: helm-stable
+    description: Helm Stable Repository
+    baseurl: https://baltocdn.com/helm/stable/rpm/$basearch
+    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-helm
+    enabled: yes
+    gpgcheck: yes
+  become: true
+
+- name: Helm | Update DNF cache
+  ansible.builtin.dnf:
+    name: ''
+    update_cache: yes
+  become: true
+
+- name: Helm | Install Helm
+  ansible.builtin.dnf:
+    name: helm
+    state: present
+  become: true

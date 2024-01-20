@@ -1,0 +1,24 @@
+- name: Check if Discord is installed
+  command: rpm -q discord
+  register: discord_installed
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Register installed Discord version as Ansible fact
+  set_fact:
+    discord_version: "{{ discord_installed.stdout }}"
+  when: discord_installed.rc == 0
+
+- name: Get Discord Fedora installer
+  get_url:
+    url: https://discord.com/api/download?platform=linux&format=rpm
+    dest: /tmp/discord.rpm
+  when: discord_installed.rc != 0 or discord_version < "NEW_VERSION"
+
+- name: Install Discord
+  dnf:
+    name: /tmp/discord.rpm
+    state: present
+  when: discord_installed.rc != 0 or discord_version < "NEW_VERSION"
+

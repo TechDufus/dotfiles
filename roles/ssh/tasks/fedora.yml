@@ -1,0 +1,15 @@
+---
+- name: "SSH | Copy SSH keys"
+  copy:
+    dest: "{{ ansible_user_dir }}/.ssh/{{ ssh_key_item.key }}"
+    content: "{{ ssh_key_item.value }}"
+    mode: 0600
+  no_log: true
+  loop_control:
+    loop_var: ssh_key_item
+  with_items: "{{ ssh_key | default({}) | dict2items }}"
+
+# - name: Copy config
+#   copy:
+#     dest: "{{ ansible_user_dir }}/.ssh/config"
+#     src: "config.j2"

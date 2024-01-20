@@ -8,3 +8,6 @@ target_bat_version: ''
 
 # DEBIAN
 debian_url: ~
+
+# Redhat
+fedora_url: ~

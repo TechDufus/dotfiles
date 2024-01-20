@@ -1,0 +1,19 @@
+- name: Check if Podman is installed
+  command: podman --version
+  register: podman_version
+  ignore_errors: true
+  become: true
+
+- name: Install Podman on Ubuntu
+  apt:
+    name: podman
+    state: present
+  when: podman_version.rc != 0
+  become: true
+
+- name: Update Podman on Ubuntu
+  apt:
+    name: podman
+    state: latest
+  when: podman_version.stdout != "podman version X.X.X"
+  become: true

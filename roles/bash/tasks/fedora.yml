@@ -1,0 +1,125 @@
+---
+- name: "Bash | Detect oh-my-bash"
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.oh-my-bash"
+  register: ohmybash
+
+- name: "Bash | Register oh-my-bash state"
+  ansible.builtin.set_fact:
+    ohmybash_is_installed: "{{ ohmybash.stat.exists }}"
+
+- name: "Bash | Debug ohmybash_is_installed"
+  ansible.builtin.debug:
+    var: ohmybash_is_installed
+
+- name: "Bash | Install oh-my-bash"
+  when: not ohmybash_is_installed
+  block:
+    - name: "Bash | Download oh-my-bash Install Script"
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
+        dest: "/{{ ansible_user_dir }}/oh-my-bash.install.sh"
+        force: true
+        mode: 755
+      notify:
+        - "Bash | Cleanup oh-my-bash install script"
+
+    - name: "Bash | Run the install script"
+      ansible.builtin.script:
+        cmd: "/{{ ansible_user_dir }}/oh-my-bash.install.sh"
+
+- name: "Bash | Copy .bashrc"
+  ansible.builtin.copy:
+    src: ".bashrc"
+    dest: "{{ ansible_user_dir }}/.bashrc"
+    mode: "0644"
+
+- name: "Bash | Copy .profile"
+  ansible.builtin.copy:
+    src: ".profile"
+    dest: "{{ ansible_user_dir }}/.profile"
+    mode: "0644"
+
+- name: "Bash | Copy custom bash config"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/"
+    src: "bash"
+    mode: "0644"
+    directory_mode: 0755
+    force: true
+
+- name: "Bash | Copy custom bash theme"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
+    src: "themes"
+    directory_mode: 0755
+    mode: "0644"
+    force: true
+
+- name: "Bash | Set default terminal"
+  user:
+    name: "{{ host_user }}"
+    shell: "/usr/bin/bash"
+  become: true
+
+- name: "Bash | Set private variables"
+  ansible.builtin.template:
+    dest: "{{ ansible_user_dir }}/.config/bash/.bash_private"
+    src: ".bash_private.j2"
+    mode: "0644"
+  no_log: true
+
+- name: "Bash | Copy Private Files"
+  ansible.builtin.lineinfile:
+    path: "~/.openai.apikey"
+    line: "{{ bash_private.OPENAI_KEY }}"
+    create: true
+    mode: "0600"
+    state: present
+  ansible.builtin.copy:
+    src: ".bashrc"
+    dest: "{{ ansible_user_dir }}/.bashrc"
+    mode: "0644"
+
+- name: "Bash | Copy .profile"
+  ansible.builtin.copy:
+    src: ".profile"
+    dest: "{{ ansible_user_dir }}/.profile"
+    mode: "0644"
+
+- name: "Bash | Copy custom bash config"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/"
+    src: "bash"
+    mode: "0644"
+    directory_mode: 0755
+    force: true
+
+- name: "Bash | Copy custom bash theme"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
+    src: "themes"
+    directory_mode: 0755
+    mode: "0644"
+    force: true
+
+- name: "Bash | Set default terminal"
+  user:
+    name: "{{ host_user }}"
+    shell: /usr/bin/bash
+  become: true
+
+- name: "Bash | Set private variables"
+  ansible.builtin.template:
+    dest: "{{ ansible_user_dir }}/.config/bash/.bash_private"
+    src: ".bash_private.j2"
+    mode: "0644"
+  no_log: true
+
+- name: "Bash | Copy Private Files"
+  ansible.builtin.lineinfile:
+    name: "~/.openai.apikey"
+    line: "{{ bash_private.OPENAI_KEY }}"
+    create: true
+    mode: "0600"
+    state: present

@@ -1,0 +1,189 @@
+---
+- name: "System | Add RPM Fusion Repos"
+  ansible.builtin.dnf_repository:
+    name: "rpmfusion-free"
+    description: "RPM Fusion Free"
+    baseurl: "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    state: present
+  become: true
+
+- name: "System | Add RPM Fusion Nonfree Repos"
+  ansible.builtin.dnf_repository:
+    name: "rpmfusion-nonfree"
+    description: "RPM Fusion Nonfree"
+    baseurl: "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    state: present
+  become: true
+
+- name: Enable Fedora Copr for LXD
+  command:
+      cmd: dnf copr enable -y dnf copr enable szydell/system76
+      creates: /_copr:copr.fedorainfracloud.org:szydell:system76.repo
+
+- name: Install DNF plugins core
+  ansible.builtin.dnf:
+    name: dnf-plugins-core
+    state: present
+
+- name: "System | Update DNF Repos and Upgrade DNF Packages"
+  ansible.builtin.dnf:
+    update_cache: true
+    upgrade: yes
+    state: latest
+    autoremove: true
+    autoclean: true
+  become: true
+
+- name: "System | Install system76 Packages when on system76 machine type"
+  ansible.builtin.dnf:
+    name:
+      - system76-dkms
+      - system76-power
+      - system76-drivers
+      - system76-firmware
+      - system76-io-dkms
+      - system76-acpi-dkms
+      - firmware-manager
+    state: present
+  become: true
+
+- name: "System | Install Packages"
+  ansible.builtin.dnf:
+    name:
+      - jq
+      - open-iscsi
+      - git 
+      - git-lfs
+      - htop
+      - tmux
+      - gcc
+      - gcc-c++
+      - make
+      - cmake
+      - go-task
+      - openssl-devel
+      - luarocks
+      - "@Development Tools"
+      - "@Development Libraries"
+      - "@C Development Tools and Libraries"
+      - podman-compose
+      - podman-docker
+      - ncurses-devel
+      - autoconf
+      - wl-clipboard
+      - libxslt
+      - fop
+      - inotify-tools
+      - ffmpeg
+      - ffmpeg-libs
+      - ffmpegthumbnailer
+      - gnome-tweaks
+      - blender
+      - inkscape
+      - gimp
+      - steam
+      - lutris
+      - calibre  
+      - toilet
+      - dotnet-sdk-8.0
+      - unrar
+    state: present
+  become: true
+
+
+
+- name: Import Brave Browser GPG Key
+  ansible.builtin.rpm_key:
+    key: https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+    state: present
+
+- name: Add Brave Browser Repo
+  ansible.builtin.yum_repository:
+    name: brave-browser
+    description: Brave Browser
+    baseurl: https://brave-browser-rpm-release.s3.brave.com/x86_64/
+    gpgkey: https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+    gpgcheck: true
+    enabled: true
+
+- name: Install Brave Browser
+  ansible.builtin.dnf:
+    name: brave-browser
+    state: present
+
+- name: Install Flatpak packages
+  community.general.flatpak:
+    name:
+      - com.obsproject.Studio
+      - org.videolan.VLC
+      - org.tenacityaudio.Tenacity
+      - org.gnome.meld
+      - org.sqlitebrowser.sqlitebrowser
+    state: present
+
+- name: "System | Set sudo"
+  ansible.builtin.template:
+    src: user-sudo.j2
+    dest: "/etc/sudoers.d/{{ ansible_env['USER'] }}"
+    mode: "0644"
+  become: true
+
+- name: "System | Ensure group exists for current user"
+  ansible.builtin.group:
+    name: "{{ host_user }}"
+    state: present
+  become: true
+
+- name: "System | Ensure user is in group {{ host_user }}"
+  ansible.builtin.user:
+    name: "{{ host_user }}"
+    groups: "{{ host_user }}"
+    append: true
+  become: true
+
+- name: "System | Set hosts"
+  ansible.builtin.template:
+    dest: "/etc/hosts"
+    src: hosts.j2
+    mode: "0644"
+  become: true
+  when: not ansible_host_environment_is_wsl
+
+- name: System | Detecting win32yank
+  ansible.builtin.stat:
+    path: /usr/local/bin/win32yank.exe
+  register: win32yank_installed
+  when: ansible_host_environment_is_wsl
+
+- name: "System | Install win32yank.exe"
+  when:
+    - ansible_host_environment_is_wsl
+    - not win32yank_installed.stat.exists
+  block:
+    - name: Download win32yank zip
+      ansible.builtin.get_url:
+        url: https://github.com/equalsraf/win32yank/releases/download/v0.0.4/win32yank-x64.zip
+        dest: /tmp/win32yank.zip
+        mode: "0755"
+
+    - name: System | Unzip win32yank.exe
+      ansible.builtin.unarchive:
+        src: /tmp/win32yank.zip
+        dest: /tmp
+        mode: "0755"
+
+    - name: System | Copy win32yank into path
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/win32yank.exe
+        dest: /usr/local/bin/win32yank.exe
+        mode: "0755"
+      become: true
+
+    - name: System | Remove tmp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/win32yank.zip
+        - /tmp/win32yank.exe

@@ -1,0 +1,13 @@
+---
+- name: "FZF | Clone Latest Version"
+  ansible.builtin.git:
+    repo: https://github.com/junegunn/fzf.git
+    depth: 1
+    dest: "{{ ansible_user_dir }}/.fzf"
+  register: fzf_git_clone
+
+- name: "FZF | Install"
+  when: fzf_git_clone.changed
+  ansible.builtin.shell: |
+    dnf install -y ncurses-devel
+    "{{ ansible_user_dir }}/.fzf/install --all --no-update-rc --no-zsh --no-fish"

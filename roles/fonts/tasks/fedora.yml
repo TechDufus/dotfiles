@@ -1,0 +1,7 @@
+---
+- name: "Fonts | Install"
+  ansible.builtin.dnf:
+    name:
+      - powerline-fonts
+    state: present
+  become: true

@@ -1,0 +1,8 @@
+---
+- name: "Ruby | Install"
+  ansible.builtin.dnf:
+    name:
+      - ruby
+      - ruby-devel
+    state: latest
+  become: true

@@ -1,0 +1,6 @@
+---
+- name: SSHFS | Install sshfs
+  ansible.builtin.dnf:
+    name: sshfs
+    state: present
+  become: true

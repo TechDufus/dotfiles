@@ -1,4 +1,11 @@
 ---
+- name: Helm | Add Helm Repos
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    url: "{{ item.url }}"
+    repo_state: present
+  loop: "{{ helm.repos }}"
+
 - name: Helm | Add Helm GPG key
   ansible.builtin.apt_key:
     url: https://baltocdn.com/helm/signing.asc

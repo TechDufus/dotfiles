@@ -2,7 +2,7 @@ default_roles:
   - system
   # - 1password
   # - alacritty
-  - asciiquarium
+  # - asciiquarium
   - bash
   - bat
   - docker
@@ -10,11 +10,11 @@ default_roles:
   - fzf
   - git
   - go
-  - helm
+  # - helm
   # - k8s # This is removed until a better kube config mgmt solution is found
-  - k9s
+  # - k9s
   - lua
-  - nala
+  # - nala
   - neovim
   - npm
   - pwsh

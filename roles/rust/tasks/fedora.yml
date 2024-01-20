@@ -1,0 +1,10 @@
+---
+- name: Rust | Install packages
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  become: true
+  loop:
+    - rust
+    - cargo

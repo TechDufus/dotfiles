@@ -1,0 +1,20 @@
+---
+- name: Add the HashiCorp GPG key.
+  ansible.builtin.dnf_key:
+    url: https://rpm.releases.hashicorp.com/gpg
+    state: present
+  become: true
+
+- name: Add the official HashiCorp Linux repository
+  ansible.builtin.dnf_repository:
+    name: hashicorp
+    baseurl: https://rpm.releases.hashicorp.com/fedora/{{ ansible_distribution_major_version }}/$basearch/stable
+    gpgkey: https://rpm.releases.hashicorp.com/gpg
+    state: present
+  become: true
+
+- name: Install Terraform
+  ansible.builtin.dnf:
+    name: terraform
+    state: present
+  become: true

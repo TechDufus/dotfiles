@@ -1,0 +1,36 @@
+---
+- name: Add Brave repository for Fedora
+  become: true
+  dnf_repository:
+    name: brave-browser
+    description: Brave Browser
+    baseurl: https://brave-browser-rpm-release.s3.brave.com/x86_64/
+    gpgcheck: yes
+    gpgkey: https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+
+- name: Check if Brave browser is already installed
+  become: true
+  command: rpm -q brave-browser
+  register: brave_installed
+  changed_when: false
+
+- name: Register Brave browser version
+  become: true
+  command: rpm -q --qf "%{VERSION}" brave-browser
+  register: brave_version
+  changed_when: false
+  when: brave_installed.stdout != ""
+
+- name: Update Brave browser if newer version is available
+  become: true
+  dnf:
+    name: brave-browser
+    state: latest
+  when: brave_installed.stdout != "" and brave_version.stdout != "" and brave_version.stdout > brave_installed.stdout
+
+- name: Install Brave browser if not already installed
+  become: true
+  dnf:
+    name: brave-browser
+    state: present
+  when: brave_installed.stdout == ""

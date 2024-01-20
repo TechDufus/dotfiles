@@ -1,0 +1,43 @@
+---
+- name: "Neovim | Dependencies"
+  ansible.builtin.dnf:
+    name:
+      - cmake
+      - curl
+      - pkgconfig
+      - libtool
+      - unzip
+      - ansible-lint
+      - ripgrep
+    state: present
+  become: true
+
+- name: "Neovim | Install"
+  ansible.builtin.dnf:
+    name: neovim
+    state: present
+  become: true
+
+- name: "Neovim | Config folder"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ ansible_user_dir }}/.config/nvim"
+    state: directory
+
+- name: "Neovim | Copy init.lua"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/nvim/init.lua"
+    src: "init.lua"
+    mode: "0644"
+
+- name: "Neovim | Copy .luarc.json"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/nvim/.luarc.json"
+    src: ".luarc.json"
+    mode: "0644"
+
+- name: "Neovim | Copy modules"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/nvim/lua"
+    src: "lua/"
+    mode: "0644"

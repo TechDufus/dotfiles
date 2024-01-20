@@ -1,0 +1,7 @@
+---
+- name: "TMate | Install"
+  ansible.builtin.dnf:
+    name:
+      - tmate
+    state: latest
+  become: true

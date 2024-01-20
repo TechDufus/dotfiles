@@ -1,0 +1,27 @@
+---
+- name: "PowerShell | Download and Add Powershell Key to DNF Keyring"
+  ansible.builtin.dnf_key:
+    url: "https://packages.microsoft.com/keys/microsoft.asc"
+    name: "Microsoft GPG Key"
+    state: present
+  become: true
+
+- name: "PowerShell | Add Powershell Repository into /etc/dnf.repos.d/"
+  ansible.builtin.copy:
+    content: |
+      [microsoft]
+      name=Microsoft Packages
+      baseurl=https://packages.microsoft.com/{{ ansible_distribution | lower }}/{{ ansible_distribution_version }}/prod
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+      exclude=powershell
+    dest: "/etc/dnf.repos.d/microsoft.repo"
+  become: true
+
+- name: "PowerShell | Install Powershell"
+  ansible.builtin.dnf:
+    name:
+      - powershell
+    state: present
+  become: true

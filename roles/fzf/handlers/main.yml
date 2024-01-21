@@ -4,9 +4,11 @@
     path: "/tmp/{{ fzf_file }}.tar.gz"
     state: absent
   become: true
+  when: not ansible_check_mode
 
 - name: Remove extracted fzf directory
   ansible.builtin.file:
     path: /tmp/fzf
     state: absent
   become: true
+  when: not ansible_check_mode

@@ -6,3 +6,4 @@
   when:
     - nodejs_install_needed is defined
     - nodejs_install_needed
+    - not ansible_check_mode

@@ -4,9 +4,11 @@
     path: "/tmp/{{ k9s_file }}.tar.gz"
     state: absent
   become: true
+  when: not ansible_check_mode
 
 - name: Remove extracted k9s directory
   ansible.builtin.file:
     path: /tmp/k9s
     state: absent
   become: true
+  when: not ansible_check_mode

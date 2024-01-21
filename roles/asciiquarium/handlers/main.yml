@@ -4,9 +4,11 @@
     path: "/tmp/asciiquarium.tar.gz"
     state: absent
   become: true
+  when: not ansible_check_mode
 
 - name: Remove extracted tarball
   ansible.builtin.file:
     path: /tmp/asciiquarium
     state: absent
   become: true
+  when: not ansible_check_mode

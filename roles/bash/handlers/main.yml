@@ -3,8 +3,10 @@
   ansible.builtin.file:
     path: /tmp/oh-my-bash.install.sh
     state: absent
+  when: not ansible_check_mode
 
 - name: Bash | Cleanup oh-my-bash install script
   ansible.builtin.file:
     path: /{{ ansible_user_dir }}/oh-my-bash.install.sh
     state: absent
+  when: not ansible_check_mode

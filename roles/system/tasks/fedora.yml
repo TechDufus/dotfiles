@@ -31,7 +31,6 @@
     upgrade: yes
     state: latest
     autoremove: true
-    autoclean: true
   become: true
 
 - name: "System | Install system76 Packages when on system76 machine type"

@@ -74,7 +74,7 @@ set -e
 
 # Paths
 CONFIG_DIR="$HOME/.config/dotfiles"
-VAULT_SECRET="$HOME/.ansible-vault/vault.secret"
+VAULT_SECRET="$HOME/.ansible-vault/vault-password.txt"
 DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
@@ -96,7 +96,7 @@ fi
 # Check if python3 and pip is installed
 if ! dpkg -s python3 >/dev/null 2>&1; then
     _task "Installing Python3"
-        _cmd "sudo apt-get install -y python3"
+        _cmd "sudo dnf install -y python3"
 fi
 # Check if pip module watchdog is installed
 if ! pip3 list | grep watchdog >/dev/null 2>&1; then
@@ -109,8 +109,8 @@ if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
     _task "Generating SSH keys"
         _cmd "mkdir -p $SSH_DIR"
         _cmd "chmod 700 $SSH_DIR"
-        _cmd "ssh-keygen -b 4096 -t rsa -f $SSH_DIR/id_rsa -N '' -C $USER@$HOSTNAME"
-        _cmd "cat $SSH_DIR/id_rsa.pub >> $SSH_DIR/authorized_keys"
+        _cmd "ssh-keygen -b 4096 -t rsa -f $SSH_DIR/dotfiles_id_rsa -N '' -C $USER@$HOSTNAME"
+        _cmd "cat $SSH_DIR/dotfiles_id_rsa.pub >> $SSH_DIR/authorized_keys"
 fi
 
 # Clone repository

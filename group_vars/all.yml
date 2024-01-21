@@ -32,7 +32,7 @@ default_roles:
   - zoxide
 
 git_user_name: "lcividin"
-git_user_email: 
+git_user_email: "lcividin@linux.com"
 
 work_computer: 
 

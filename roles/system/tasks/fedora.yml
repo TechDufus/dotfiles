@@ -27,6 +27,7 @@
 
 - name: "System | Update DNF Repos and Upgrade DNF Packages"
   ansible.builtin.dnf:
+    name: "*"
     update_cache: true
     state: latest
     autoremove: true

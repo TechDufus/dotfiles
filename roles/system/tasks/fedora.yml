@@ -49,7 +49,6 @@
   ansible.builtin.dnf:
     name:
       - jq
-      - open-iscsi
       - git 
       - git-lfs
       - htop

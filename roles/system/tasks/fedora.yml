@@ -15,9 +15,9 @@
     state: present
   become: true
 
-- name: Enable Fedora Copr for LXD
+- name: Enable Fedora Copr for System76 drivers on fedora 
   command:
-      cmd: dnf copr enable -y dnf copr enable szydell/system76
+      cmd: copr enable szydell/system76
       creates: /_copr:copr.fedorainfracloud.org:szydell:system76.repo
 
 - name: Install DNF plugins core

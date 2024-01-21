@@ -65,4 +65,6 @@
       become: true
       notify:
         - Remove extracted tarball
-      when: is_installed | length < 1
+      when: 
+        - is_installed | length < 1
+        - not ansible_check_mode

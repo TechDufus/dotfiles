@@ -42,9 +42,9 @@
         dest: /tmp/
       when: not ansible_check_mode
 
-    - name: "Asciiquarium | Install libcurses-perl"
+    - name: "Asciiquarium | Install perl-curses"
       ansible.builtin.dnf:
-        name: perl-curses
+        name: perl-Curses
         state: present
       become: true
 

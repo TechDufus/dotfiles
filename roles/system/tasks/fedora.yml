@@ -32,18 +32,18 @@
     state: latest
   become: true
 
-- name: "System | Install system76 Packages when on system76 machine type"
-  ansible.builtin.dnf:
-    name:
-      - system76-dkms
-      - system76-power
-      - system76-drivers
-      - system76-firmware
-      - system76-io-dkms
-      - system76-acpi-dkms
-      - firmware-manager
-    state: present
-  become: true
+# - name: "System | Install system76 Packages when on system76 machine type"
+#   ansible.builtin.dnf:
+#     name:
+#       - system76-dkms
+#       - system76-power
+#       - system76-drivers
+#       - system76-firmware
+#       - system76-io-dkms
+#       - system76-acpi-dkms
+#       - firmware-manager
+#     state: present
+#   become: true
 
 - name: "System | Install Packages"
   ansible.builtin.dnf:

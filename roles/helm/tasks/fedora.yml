@@ -21,7 +21,7 @@
   become: true
 
 - name: Helm | Add Helm DNF repository
-  ansible.builtin.dnf_repository:
+  ansible.builtin.dnf:
     name: helm-stable
     description: Helm Stable Repository
     baseurl: https://baltocdn.com/helm/stable/rpm/$basearch

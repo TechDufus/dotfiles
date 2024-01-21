@@ -12,7 +12,7 @@
     - gnupg
 
 - name: "Azure | Download and Add Azure-CLI Key to DNF Keyring"
-  ansible.builtin.dnf_key:
+  ansible.builtin.rpm_key:
     url: "https://packages.microsoft.com/keys/microsoft.asc"
     keyring: "/etc/pki/rpm-gpg/microsoft.gpg"
     state: present

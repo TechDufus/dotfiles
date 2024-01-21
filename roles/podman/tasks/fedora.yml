@@ -6,14 +6,20 @@
 
 - name: Install Podman
   ansible.builtin.dnf:
-    name: podman
+    name: 
+      - podman
+      - podman-docker
+      - podman-compose
     state: present
   when: podman_version.rc != 0
   become: true
 
 - name: Update Podman
   ansible.builtin.dnf:
-    name: podman
+    name: 
+      - podman
+      - podman-docker
+      - podman-compose
     state: latest
   when: podman_version.stdout != "podman_version"
   become: true

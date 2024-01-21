@@ -65,6 +65,7 @@
       ansible.builtin.unarchive:
         src: "/tmp/{{ zellij_file }}.tar.gz"
         dest: /tmp
+      when: not ansible_check_mode
 
     - name: "Zellij | Remove any current zellij installations"
       ansible.builtin.file:

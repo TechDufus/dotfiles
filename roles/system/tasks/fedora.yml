@@ -56,15 +56,11 @@
       - gcc
       - gcc-c++
       - make
-      - cmake
       - go-task
       - openssl-devel
-      - luarocks
       - "@Development Tools"
       - "@Development Libraries"
       - "@C Development Tools and Libraries"
-      - podman-compose
-      - podman-docker
       - ncurses-devel
       - autoconf
       - wl-clipboard
@@ -86,8 +82,6 @@
       - unrar
     state: present
   become: true
-
-
 
 - name: Import Brave Browser GPG Key
   ansible.builtin.rpm_key:
@@ -168,6 +162,7 @@
         src: /tmp/win32yank.zip
         dest: /tmp
         mode: "0755"
+      when: not ansible_check_mode
 
     - name: System | Copy win32yank into path
       ansible.builtin.copy:
@@ -184,3 +179,4 @@
       loop:
         - /tmp/win32yank.zip
         - /tmp/win32yank.exe
+      when: not ansible_check_mode

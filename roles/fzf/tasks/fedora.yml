@@ -9,5 +9,5 @@
 - name: "FZF | Install"
   when: fzf_git_clone.changed
   ansible.builtin.shell: |
-    dnf install -y ncurses-devel
+    dnf install -y ncurses-devel 
     "{{ ansible_user_dir }}/.fzf/install --all --no-update-rc --no-zsh --no-fish"

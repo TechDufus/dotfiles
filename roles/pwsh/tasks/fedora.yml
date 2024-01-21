@@ -1,6 +1,6 @@
 ---
 - name: "PowerShell | Download and Add Powershell Key to DNF Keyring"
-  ansible.builtin.dnf_key:
+  ansible.builtin.rpm_key:
     url: "https://packages.microsoft.com/keys/microsoft.asc"
     name: "Microsoft GPG Key"
     state: present

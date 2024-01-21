@@ -6,7 +6,7 @@
   become: true
 
 - name: K8s | Adding kubernetes repo
-  ansible.builtin.dnf:
+  ansible.builtin.yum_repository:
     name: "kubernetes"
     description: "Kubernetes Repository"
     baseurl: "https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64"
@@ -24,12 +24,11 @@
   loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
 
 - name: K8s | Preventing unintended upgrades
-  ansible.builtin.dpkg_selections:
+  ansible.builtin.dnf:
     name: "{{ item.name }}"
-    selection: hold
+    state: hold
   become: true
   loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
-
 - name: K8s | Configure .kube/config
   block:
     - name: K8s | Ensure .kube directory exists

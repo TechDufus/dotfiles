@@ -6,7 +6,7 @@
   become: true
 
 - name: Add the official HashiCorp Linux repository
-  ansible.builtin.dnf:
+  ansible.builtin.yum_repository:
     name: hashicorp
     baseurl: https://rpm.releases.hashicorp.com/fedora/{{ ansible_distribution_major_version }}/$basearch/stable
     gpgkey: https://rpm.releases.hashicorp.com/gpg

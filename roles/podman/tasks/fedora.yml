@@ -5,15 +5,15 @@
   become: true
 
 - name: Install Podman
-  package:
+  ansible.builtin.dnf:
     name: podman
     state: present
   when: podman_version.rc != 0
   become: true
 
 - name: Update Podman
-  package:
+  ansible.builtin.dnf:
     name: podman
     state: latest
-  when: podman_version.stdout != "podman version X.X.X"
+  when: podman_version.stdout != "podman_version"
   become: true

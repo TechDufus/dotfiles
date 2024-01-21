@@ -7,7 +7,7 @@
   loop: "{{ helm.repos }}"
 
 - name: Helm | Add Helm GPG key
-  ansible.builtin.dnf:
+  ansible.builtin.rpm_key module:
     name: https://baltocdn.com/helm/signing.asc
     state: present
     installroot: /
@@ -21,7 +21,7 @@
   become: true
 
 - name: Helm | Add Helm DNF repository
-  ansible.builtin.dnf:
+  ansible.builtin.yum_repository:
     name: helm-stable
     description: Helm Stable Repository
     baseurl: https://baltocdn.com/helm/stable/rpm/$basearch

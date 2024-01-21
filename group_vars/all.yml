@@ -5,7 +5,7 @@ default_roles:
   - asciiquarium
   - bash
   - bat
-  - docker
+  #- docker
   - fonts
   - fzf
   - git
@@ -17,18 +17,20 @@ default_roles:
   # - nala
   - neovim
   - npm
+  - podman
   - pwsh
   - python
   - ruby
   - rust
+  # - spotify
   - ssh
   - sshfs
   - terraform
   - tmate
   - tmux
   - vscode
+  - wireguard
   - zellij
-  # - spotify
   - zoxide
 
 git_user_name: "lcividin"

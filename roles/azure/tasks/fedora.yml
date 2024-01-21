@@ -18,7 +18,7 @@
     state: present
   become: true
 
-- name: "Azure | Add Azure Repository into /etc/dnf.repos.d"
+- name: "Azure | Add Azure Repository into /etc/yum.repos.d"
   ansible.builtin.copy:
     content: |
       [azure-cli]
@@ -29,7 +29,7 @@
       gpgkey=https://packages.microsoft.com/keys/microsoft.asc
       metadata_expire=86400
       skip_if_unavailable=True
-    dest: "/etc/dnf.repos.d/azure-cli.repo"
+    dest: "/etc/yum.repos.d/azure-cli.repo"
   become: true
 
 - name: "Azure | Install azure-cli"

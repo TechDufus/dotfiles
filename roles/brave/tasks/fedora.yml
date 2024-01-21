@@ -1,7 +1,7 @@
 ---
 - name: Add Brave repository for Fedora
   become: true
-  dnf_repository:
+  ansible.builtin.yum_repository:
     name: brave-browser
     description: Brave Browser
     baseurl: https://brave-browser-rpm-release.s3.brave.com/x86_64/

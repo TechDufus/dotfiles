@@ -1,6 +1,6 @@
 ---
 - name: "System | Add RPM Fusion Repos"
-  ansible.builtin.dnf:
+  ansible.builtin.yum_repository:
     name: "rpmfusion-free"
     description: "RPM Fusion Free"
     baseurl: "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
@@ -8,7 +8,7 @@
   become: true
 
 - name: "System | Add RPM Fusion Nonfree Repos"
-  ansible.builtin.dnf:
+  ansible.builtin.yum_repository:
     name: "rpmfusion-nonfree"
     description: "RPM Fusion Nonfree"
     baseurl: "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
@@ -98,7 +98,7 @@
     state: present
 
 - name: Add Brave Browser Repo
-  ansible.builtin.dnf:
+  ansible.builtin.yum_repository:
     name: brave-browser
     description: Brave Browser
     baseurl: https://brave-browser-rpm-release.s3.brave.com/x86_64/

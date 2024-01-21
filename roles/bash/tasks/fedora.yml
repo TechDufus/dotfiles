@@ -27,6 +27,8 @@
     - name: "Bash | Run the install script"
       ansible.builtin.script:
         cmd: "/{{ ansible_user_dir }}/oh-my-bash.install.sh"
+      args:
+        creates: "{{ ansible_user_dir }}/.oh-my-bash"
 
 - name: "Bash | Copy .bashrc"
   ansible.builtin.copy:

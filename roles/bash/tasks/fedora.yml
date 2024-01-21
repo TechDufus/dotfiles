@@ -76,6 +76,8 @@
     create: true
     mode: "0600"
     state: present
+
+- name: "Copy bashrc file in place"    
   ansible.builtin.copy:
     src: ".bashrc"
     dest: "{{ ansible_user_dir }}/.bashrc"

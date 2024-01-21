@@ -44,7 +44,7 @@
 
     - name: "Asciiquarium | Install libcurses-perl"
       ansible.builtin.dnf:
-        name: libcurses-perl
+        name: perl-curses
         state: present
       become: true
 

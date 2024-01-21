@@ -30,7 +30,6 @@
     name: "*"
     update_cache: true
     state: latest
-    autoremove: true
   become: true
 
 - name: "System | Install system76 Packages when on system76 machine type"

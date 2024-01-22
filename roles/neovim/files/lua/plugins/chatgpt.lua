@@ -5,8 +5,8 @@ return {
         "nvim-lua/plenary.nvim",
         "nvim-telescope/telescope.nvim",
     },
-        event = "VeryLazy",
+    event = "VeryLazy",
     config = function()
-      require("chatgpt").setup()
+        require("chatgpt").setup()
     end,
 }

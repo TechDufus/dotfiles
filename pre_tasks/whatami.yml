@@ -1,0 +1,7 @@
+---
+- name: "Detect system type"
+  setup: 
+    filter: ansible_product_name
+  set_fact:
+    system_type: "{{ ansible_product_name }}"
+  tags: always

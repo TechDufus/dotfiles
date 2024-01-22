@@ -17,8 +17,10 @@
 
 - name: Enable Fedora Copr for System76 drivers on fedora 
   command:
-      cmd: copr enable szydell/system76
-      creates: /_copr:copr.fedorainfracloud.org:szydell:system76.repo
+    cmd: copr enable szydell/system76
+    creates: /_copr:copr.fedorainfracloud.org:szydell:system76.repo
+  when: system_type == "Oryx Pro"
+
 
 - name: Install DNF plugins core
   ansible.builtin.dnf:
@@ -44,6 +46,7 @@
 #       - firmware-manager
 #     state: present
 #   become: true
+#   when: system_type == "Oryx Pro"
 
 - name: "System | Install Packages"
   ansible.builtin.dnf:

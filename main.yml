@@ -4,6 +4,11 @@
   connection: local
 
   pre_tasks:
+    - name: Detect system type
+      ansible.builtin.import_tasks: pre_tasks/whatami.yml
+      tags:
+        - always
+      
     - name: Detect WSL
       ansible.builtin.import_tasks: pre_tasks/detect_wsl.yml
       tags:

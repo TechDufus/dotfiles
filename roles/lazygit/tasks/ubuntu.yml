@@ -1,0 +1,84 @@
+---
+- name: "LAZYGIT | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/jesseduffield/lazygit/releases/latest
+  register: lazygit_latest_version_json
+  changed_when: false
+
+- name: "LAZYGIT | Registering lazygit Latest Release"
+  ansible.builtin.set_fact:
+    lazygit_latest_release: "{{ lazygit_latest_version_json.json.tag_name }}"
+
+- name: "LAZYGIT | Registering lazygit Latest Version"
+  ansible.builtin.set_fact:
+    lazygit_latest_version: "{{ lazygit_latest_release.stdout | default('') }}"
+
+- name: "LAZYGIT | Getting version information"
+  ansible.builtin.shell:
+    cmd: /usr/local/bin/lazygit --version | grep -oP 'version=\K[^,]+' | awk 'NR==1' | sed 's/^/v/'
+  args:
+    executable: /bin/bash
+  register: current_lazygit_version
+  changed_when: false
+  failed_when: false
+#
+- name: "LAZYGIT | Show current_lazygit_version debug"
+  ansible.builtin.debug:
+    var: current_lazygit_version.stdout
+
+- name: "LAZYGIT | Show lazygit_latest_release debug"
+  ansible.builtin.debug:
+    var: lazygit_latest_release
+
+- name: "LAZYGIT | Install"
+  when: lazygit_latest_release not in current_lazygit_version.stdout|default('')
+  block:
+    # regex_replace('^.', '') removes the first character from the string (the 'v' in the version number)
+    - name: "LAZYGIT | Define lazygit_file"
+      ansible.builtin.set_fact:
+        lazygit_file: "lazygit_{{ lazygit_latest_release | regex_replace('^.', '') }}_Linux_x86_64"
+
+    - name: "LAZYGIT | Ensure clean download destination"
+      ansible.builtin.file:
+        path: "/tmp/{{ lazygit_file }}.tar.gz"
+        state: absent
+      become: true
+
+    - name: "LAZYGIT | Downloading lazygit Release"
+      ansible.builtin.get_url:
+        url: "https://github.com/jesseduffield/lazygit/releases/download/{{ lazygit_latest_release }}/{{ lazygit_file }}.tar.gz"
+        dest: /tmp/
+        mode: "0644"
+        force: true
+      notify:
+        - Cleanup lazygit downloaded tar
+
+    - name: "LAZYGIT | Ensure clean extraction destination"
+      ansible.builtin.file:
+        path: "/tmp/lazygit"
+        state: absent
+      become: true
+
+    - name: "LAZYGIT | Extract lazygit tar file"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ lazygit_file }}.tar.gz"
+        dest: /tmp
+
+    - name: "LAZYGIT | Remove any current lazygit installations"
+      ansible.builtin.file:
+        path: /usr/local/bin/lazygit
+        state: absent
+      become: true
+
+    - name: "LAZYGIT | Install lazygit"
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/lazygit
+        dest: /usr/local/bin/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        force: true
+        mode: "0755"
+      become: true
+      notify:
+        - Remove extracted lazygit directory

@@ -18,6 +18,7 @@ default_roles:
   - nala
   - neovim
   - npm
+  - nvm
   - pwsh
   - python
   - ruby

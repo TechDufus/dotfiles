@@ -29,6 +29,16 @@ keymap(normal_mode, "<C-l>", "<C-w>l", opts)
 
 keymap(normal_mode, ";", ":", opts)
 
+keymap(normal_mode, "<left>",  ":echohl WarningMsg<Bar>echo 'USE h you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(normal_mode, "<right>", ":echohl WarningMsg<Bar>echo 'USE l you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(normal_mode, "<up>",    ":echohl WarningMsg<Bar>echo 'USE k you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(normal_mode, "<down>",  ":echohl WarningMsg<Bar>echo 'USE j you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<left>",  "<C-o>:echohl WarningMsg<Bar>echo 'USE h you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<right>", "<C-o>:echohl WarningMsg<Bar>echo 'USE l you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<up>", "<C-o>:echohl WarningMsg<Bar>echo 'USE k you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<down>", "<C-o>:echohl WarningMsg<Bar>echo 'USE j you SWINE!'<Bar>echohl None<CR>", opts)
+
+
 keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --
 keymap(normal_mode, "<leader>chl", ":nohl<cr>", opts)

@@ -33,6 +33,11 @@ keymap(normal_mode, "<left>", ":echohl WarningMsg<Bar>echo 'USE h you SWINE!'<Ba
 keymap(normal_mode, "<right>", ":echohl WarningMsg<Bar>echo 'USE l you SWINE!'<Bar>echohl None<CR>", opts)
 keymap(normal_mode, "<up>", ":echohl WarningMsg<Bar>echo 'USE k you SWINE!'<Bar>echohl None<CR>", opts)
 keymap(normal_mode, "<down>", ":echohl WarningMsg<Bar>echo 'USE j you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<left>", ":echohl WarningMsg<Bar>echo 'USE h you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<right>", ":echohl WarningMsg<Bar>echo 'USE l you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<up>", ":echohl WarningMsg<Bar>echo 'USE k you SWINE!'<Bar>echohl None<CR>", opts)
+keymap(insert_mode, "<down>", ":echohl WarningMsg<Bar>echo 'USE j you SWINE!'<Bar>echohl None<CR>", opts)
+
 
 keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --
@@ -118,16 +123,18 @@ keymap(term_mode, "<C-k>", "<C-\\><C-N><C-w>k", term_opts)
 keymap(term_mode, "<C-l>", "<C-\\><C-N><C-w>l", term_opts)
 
 -- Telescope --
-keymap(normal_mode, "<leader>pf", "<cmd>:Neotree close<cr><cmd>lua require'telescope.builtin'.find_files({find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>", opts)
+keymap(normal_mode, "<leader>pf",
+  "<cmd>:Neotree close<cr><cmd>lua require'telescope.builtin'.find_files({find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>",
+  opts)
 keymap(normal_mode, "<leader>ps", "<cmd>lua require('telescope.builtin').live_grep({ hidden = true })<cr>", opts)
 
 -- Telescope find files in nvim config directory
 keymap(normal_mode, "<leader>rc",
-    "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/.dotfiles', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>"
-    , opts)
+  "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/.dotfiles', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>"
+  , opts)
 keymap(normal_mode, "<leader>1", "<cmd>lua require'telescope.builtin'.buffers()<cr>", opts)
 keymap(normal_mode, "<Leader>pg", "<CMD>lua require'telescope.builtin'.git_files()<CR>",
-    { noremap = true, silent = true })
+  { noremap = true, silent = true })
 
 -- Harpoon --
 keymap(normal_mode, "<leader>a", "<cmd>lua require'harpoon.mark'.add_file()<cr>", opts)

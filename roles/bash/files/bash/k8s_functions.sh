@@ -70,7 +70,31 @@ function ktp() {
         kubectl top pods $@
 }
 function kli() {
-    kubectl get pods -o jsonpath='{range .items[*]}{"\n"}{.metadata.name}{":\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}' | grep -v -e '^$' | grep -v latest
+  local kubectl_args=""
+  local tag=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -A)
+        kubectl_args="$kubectl_args -A"
+        shift
+        ;;
+      -n|--namespace)
+        kubectl_args="$kubectl_args $1 $2"
+        shift 2
+        ;;
+      *)
+        tag="$tag $1"
+        shift
+        ;;
+    esac
+  done
+  # echo "Tag: $tag"
+  # echo "kubectl_args: $kubectl_args"
+  if [ -n "$tag" ]; then
+    kubectl get pods $kubectl_args -o=custom-columns=NAMESPACE:metadata.namespace,POD:metadata.name,IMAGE:spec.containers[*].image | { head -1;grep $tag; } | column -t
+    return
+  fi
+  kubectl get pods $kubectl_args -o=custom-columns=NAMESPACE:metadata.namespace,POD:metadata.name,IMAGE:spec.containers[*].image
 }
 function kexec() {
     kubectl exec -it -- $@

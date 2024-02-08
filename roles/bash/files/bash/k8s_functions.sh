@@ -88,8 +88,6 @@ function kli() {
         ;;
     esac
   done
-  # echo "Tag: $tag"
-  # echo "kubectl_args: $kubectl_args"
   if [ -n "$tag" ]; then
     kubectl get pods $kubectl_args -o=custom-columns=NAMESPACE:metadata.namespace,POD:metadata.name,IMAGE:spec.containers[*].image | { head -1;grep $tag; } | column -t
     return

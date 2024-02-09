@@ -7,6 +7,7 @@
     <a href="https://discord.gg/5M4hjfyRBj"><img align="center" src="https://img.shields.io/discord/905178979844116520.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2"/></a>
     <a href="https://github.com/TechDufus/dotfiles/commits/main"><img align="center" src="https://img.shields.io/github/commit-activity/m/techdufus/dotfiles" alt="commit frequency"></a>
 </p>
+
 ---
 Fully automated development environment for [TechDufus](https://www.twitch.tv/TechDufus) on Twitch.
 

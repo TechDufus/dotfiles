@@ -1,0 +1,7 @@
+---
+- name: "TLDR | Install TLDR"
+  ansible.builtin.apt:
+    name: tldr
+    state: present
+    update_cache: true
+  become: true

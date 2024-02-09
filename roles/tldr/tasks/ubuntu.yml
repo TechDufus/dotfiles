@@ -16,7 +16,7 @@
 - name: "TLDR | Getting version information"
   ansible.builtin.shell:
     cmd: |
-      /usr/local/bin/tldr -v
+      echo "v$(/usr/local/bin/tldr -v)"
   register: current_tldr_version
   changed_when: false
   failed_when: false
@@ -30,7 +30,7 @@
     var: tldr_latest_release
 
 - name: "TLDR | Install"
-  when: tldr_latest_release not in current_tldr_version.stdout|default('')
+  when: tldr_latest_release not in current_tldr_version.stdout | default('')
   block:
     - name: "TLDR | Define tldr_file"
       ansible.builtin.set_fact:

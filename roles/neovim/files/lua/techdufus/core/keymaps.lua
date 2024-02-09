@@ -38,6 +38,9 @@ keymap(insert_mode, "<right>", "<C-o>:echohl WarningMsg<Bar>echo 'USE l you SWIN
 keymap(insert_mode, "<up>", "<C-o>:echohl WarningMsg<Bar>echo 'USE k you SWINE!'<Bar>echohl None<CR>", opts)
 keymap(insert_mode, "<down>", "<C-o>:echohl WarningMsg<Bar>echo 'USE j you SWINE!'<Bar>echohl None<CR>", opts)
 
+-- Better indenting
+keymap(normal_mode, "<leader>ft", "gg=G<C-o>", opts)
+
 
 keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --

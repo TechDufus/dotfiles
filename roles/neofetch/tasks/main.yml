@@ -6,3 +6,15 @@
 - name: Run Arch Tasks
   ansible.builtin.import_tasks: arch.yml
   when: ansible_os_family == 'Archlinux'
+
+- name: "Neofetch | {{ ansible_os_family }} | Ensure .config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/neofetch"
+    state: directory
+    mode: "0755"
+
+- name: "Neofetch | {{ ansible_os_family }} | Copy config file"
+  ansible.builtin.copy:
+    src: config
+    dest: "{{ ansible_user_dir }}/.config/neofetch/config"
+    mode: "0644"

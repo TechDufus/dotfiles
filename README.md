@@ -39,7 +39,10 @@ This Ansible playbook only supports `Ubuntu|Arch` distribution. This is by desig
 Verify your `Ubuntu|Arch` installation has all latest packages installed before running the playbook.
 
 ```
+# Ubuntu
 sudo apt-get update && sudo apt-get upgrade -y
+# Arch
+sudo pacman -Syu
 ```
 
 > NOTE: This will take some time.

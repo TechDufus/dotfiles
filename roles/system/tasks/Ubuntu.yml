@@ -1,14 +1,13 @@
 ---
-- name: "System | Update APT Repos and Upgrade APT Packages"
+- name: "System | {{ ansible_distribution }} | Update APT Repos and Upgrade APT Packages"
   ansible.builtin.apt:
     update_cache: true
     upgrade: full
-    state: latest
     autoremove: true
     autoclean: true
   become: true
 
-- name: "System | Install"
+- name: "System | {{ ansible_distribution }} | Install"
   ansible.builtin.apt:
     name:
       - jq

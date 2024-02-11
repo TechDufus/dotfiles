@@ -77,9 +77,27 @@
     mode: "0600"
     state: present
 
-- name: "Bash | Copy custom bash config for os: {{ ansible_os_family }}"
+- name: "Bash | {{ ansible_distribution }} | Identify distribution config"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/os/{{ ansible_distribution }}"
+  register: bash_os_distribution_config
+
+- name: "Bash | {{ ansible_os_family }} | Identify os family config"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/os/{{ ansible_os_family }}"
+  register: bash_os_family_config
+  when: not bash_os_distribution_config.stat.exists
+
+- name: "Bash | Calculate os config src"
+  ansible.builtin.set_fact:
+    bash_os_config: "{{ bash_os_distribution_config if bash_os_distribution_config.stat.exists else bash_os_family_config }}"
+
+- name: "Bash | Copy custom bash config for os: {{ bash_os_config.stat.path | basename }}"
   ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.config/bash/"
-    src: "os/{{ ansible_os_family }}/"
+    src: "{{ bash_os_config.stat.path }}/"
     mode: "0644"
     force: true
+  when:
+    - bash_os_config is defined
+    - bash_os_config.stat.exists

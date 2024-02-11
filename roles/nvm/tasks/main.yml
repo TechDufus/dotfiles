@@ -23,4 +23,3 @@
   args:
     creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
     executable: /bin/bash
-

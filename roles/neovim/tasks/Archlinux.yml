@@ -1,0 +1,6 @@
+---
+- name: "Neovim | {{ ansible_distribution }} | Install Neovim Nightly"
+  community.general.pacman:
+    name: neovim-nightly-bin
+    state: present
+  become: true

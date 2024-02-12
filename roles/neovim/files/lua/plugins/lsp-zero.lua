@@ -227,7 +227,7 @@ return {
         "crispgm/nvim-go",
         dependencies = {
             "nvim-lua/plenary.nvim",
-            "rcarriga/nvim-notify",
+            -- "rcarriga/nvim-notify",
         },
         config = function()
             require('go').setup({

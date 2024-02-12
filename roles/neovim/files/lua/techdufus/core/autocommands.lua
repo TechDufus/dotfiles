@@ -68,10 +68,10 @@ api.nvim_create_autocmd({ "InsertLeave", "WinEnter" }, {
   command = "set cursorline",
   group = cursorGrp,
 })
--- api.nvim_create_autocmd(
---   { "InsertEnter", "WinLeave" },
---   { pattern = "*", command = "set nocursorline", group = cursorGrp }
--- )
+api.nvim_create_autocmd(
+  { "InsertEnter", "WinLeave" },
+  { pattern = "*", command = "set nocursorline", group = cursorGrp }
+)
 
 -- Enable spell checking for certain file types
 api.nvim_create_autocmd(

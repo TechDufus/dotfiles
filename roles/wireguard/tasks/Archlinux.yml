@@ -1,0 +1,6 @@
+---
+- name: "Wireguard | {{ ansible_distribution }} | Install Wireguard"
+  community.general.pacman:
+    name: wireguard-tools
+    state: present
+  become: true

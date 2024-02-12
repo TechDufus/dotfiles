@@ -1,0 +1,6 @@
+---
+- name: "Zoxide | {{ ansible_distribution }} | Install Zoxide"
+  community.general.pacman:
+    name: zoxide
+    state: present
+  become: true

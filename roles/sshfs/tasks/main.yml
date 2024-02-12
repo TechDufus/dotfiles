@@ -1,0 +1,9 @@
+---
+- name: "Sshfs | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: sshfs_distribution_config
+
+- name: "Sshfs | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: sshfs_distribution_config.stat.exists

@@ -27,6 +27,10 @@ return {
       view_error = "mini", -- view for errors
       view_warn = "mini", -- view for warnings
     },
+    notify = {
+      enabled = true,
+      view = "mini", -- default view for notifications
+    },
     -- you can enable a preset for easier configuration
     presets = {
       bottom_search = true, -- use a classic bottom cmdline for search

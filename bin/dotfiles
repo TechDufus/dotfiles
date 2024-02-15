@@ -109,6 +109,10 @@ function ubuntu_setup() {
     _task "Installing Python3 Pip"
     _cmd "sudo apt-get install -y python3-pip"
   fi
+  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+    _task "Installing Python3 Watchdog"
+    _cmd "pip3 install watchdog"
+  fi
 }
 
 function arch_setup() {
@@ -117,7 +121,7 @@ function arch_setup() {
     _cmd "sudo pacman -Syu"
     _cmd "sudo pacman -S --noconfirm ansible"
     _cmd "sudo pacman -S --noconfirm python-argcomplete"
-    _cmd "sudo activate-global-python-argcomplete3"
+    # _cmd "sudo activate-global-python-argcomplete3"
   fi
   if ! [ -x "$(command -v python3)" ]; then
     _task "Installing Python3"
@@ -127,6 +131,8 @@ function arch_setup() {
     _task "Installing Python3 Pip"
     _cmd "sudo pacman -S --noconfirm python-pip"
   fi
+  _task "Installing Python3 Watchdog"
+  _cmd "sudo pacman -S --noconfirm python-watchdog"
 }
 
 source /etc/os-release
@@ -144,10 +150,6 @@ case $ID in
     ;;
 esac
 
-if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-  _task "Installing Python3 Watchdog"
-  _cmd "pip3 install watchdog"
-fi
 
 if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
   _task "Generating SSH keys"

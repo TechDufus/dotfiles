@@ -123,16 +123,18 @@ function arch_setup() {
     _cmd "sudo pacman -S --noconfirm python-argcomplete"
     # _cmd "sudo activate-global-python-argcomplete3"
   fi
-  if ! [ -x "$(command -v python3)" ]; then
+  if ! pacman -Q python3 >/dev/null 2>&1; then
     _task "Installing Python3"
     _cmd "sudo pacman -S --noconfirm python3"
   fi
-  if ! [ -x "$(command -v python-pip)" ]; then
+  if ! pacman -Q python-pip >/dev/null 2>&1; then
     _task "Installing Python3 Pip"
     _cmd "sudo pacman -S --noconfirm python-pip"
   fi
-  _task "Installing Python3 Watchdog"
-  _cmd "sudo pacman -S --noconfirm python-watchdog"
+  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+    _task "Installing Python3 Watchdog"
+    _cmd "sudo pacman -S --noconfirm python-watchdog"
+  fi
 }
 
 source /etc/os-release

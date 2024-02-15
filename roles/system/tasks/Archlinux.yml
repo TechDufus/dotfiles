@@ -12,3 +12,4 @@
       - jq
       - open-iscsi
     state: present
+  become: true

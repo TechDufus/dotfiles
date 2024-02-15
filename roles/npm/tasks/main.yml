@@ -85,3 +85,11 @@
         dest: /usr/local/lib/node_modules/*
         remote_src: true
         mode: "0644"
+
+- name: "NPM | Install NPM Packages"
+  community.general.npm:
+    name: "{{ item }}"
+    global: yes
+  with_items:
+    - bun
+    - blitz

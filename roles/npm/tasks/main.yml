@@ -89,7 +89,7 @@
 - name: "NPM | Install NPM Packages"
   community.general.npm:
     name: "{{ item }}"
-    global: yes
+    global: true
   with_items:
     - bun
     - blitz

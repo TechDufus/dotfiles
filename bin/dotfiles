@@ -118,7 +118,7 @@ function ubuntu_setup() {
 function arch_setup() {
   if ! [ -x "$(command -v ansible)" ]; then
     _task "Installing Ansible"
-    _cmd "sudo pacman -S --noconfirm ansible"
+    _cmd "sudo pacman -Sy --noconfirm ansible"
     _cmd "sudo pacman -S --noconfirm python-argcomplete"
     # _cmd "sudo activate-global-python-argcomplete3"
   fi
@@ -135,7 +135,6 @@ function arch_setup() {
     _cmd "sudo pacman -S --noconfirm python-watchdog"
   fi
 
-  # openssh if ssh-keygen is not found
   if ! pacman -Q openssh >/dev/null 2>&1; then
     _task "Installing OpenSSH"
     _cmd "sudo pacman -S --noconfirm openssh"

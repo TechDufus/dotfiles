@@ -145,6 +145,17 @@ function arch_setup() {
   _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
 }
 
+update_ansible_galaxy() {
+  local os=$1
+  local os_requirements=""
+  _task "Updating Ansible Galaxy"
+  if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
+    _task "${OVERWRITE}Updating Ansible Galaxy with OS Config: $os"
+    os_requirements="$DOTFILES_DIR/requirements/$os.yml"
+  fi
+  _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
+}
+
 source /etc/os-release
 _task "Loading Setup for detected OS: $ID"
 case $ID in
@@ -178,8 +189,7 @@ else
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 > /dev/null
-_task "Updating Galaxy"
-_cmd "ansible-galaxy install -r requirements.yml"
+update_ansible_galaxy $ID
 
 _task "Running playbook"; _task_done
 if [[ -f $VAULT_SECRET ]]; then

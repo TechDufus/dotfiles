@@ -140,6 +140,8 @@ function arch_setup() {
     _task "Installing OpenSSH"
     _cmd "sudo pacman -S --noconfirm openssh"
   fi
+  _task "Setting Locale"
+  _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
 }
 
 source /etc/os-release

@@ -134,6 +134,12 @@ function arch_setup() {
     _task "Installing Python3 Watchdog"
     _cmd "sudo pacman -S --noconfirm python-watchdog"
   fi
+
+  # openssh if ssh-keygen is not found
+  if ! pacman -Q openssh >/dev/null 2>&1; then
+    _task "Installing OpenSSH"
+    _cmd "sudo pacman -S --noconfirm openssh"
+  fi
 }
 
 source /etc/os-release

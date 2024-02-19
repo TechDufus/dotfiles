@@ -27,7 +27,7 @@ keymap(normal_mode, "<C-l>", "<C-w>l", opts)
 -- keymap(normal_mode, "<A-k>", "<C-w>k", opts)
 -- keymap(normal_mode, "<A-l>", "<C-w>l", opts)
 
-keymap(normal_mode, ";", ":", opts)
+-- keymap(normal_mode, ";", ":", opts)
 
 keymap(normal_mode, "<left>",  ":echohl WarningMsg<Bar>echo 'USE h you SWINE!'<Bar>echohl None<CR>", opts)
 keymap(normal_mode, "<right>", ":echohl WarningMsg<Bar>echo 'USE l you SWINE!'<Bar>echohl None<CR>", opts)

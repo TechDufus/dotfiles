@@ -1,6 +1,13 @@
 return {
   "nvim-treesitter/nvim-treesitter",
   build = ":TSUpdate",
+  event = {"BufReadPre", "BufNewFile"},
+  keymaps = {
+    { "n", "<leader>it", ":InspectTree<CR>" },
+  },
+  dependencies = {
+    "nvim-treesitter/nvim-treesitter-textobjects",
+  },
   config = function()
     require 'nvim-treesitter.configs'.setup {
       -- A list of parser names, or "all"
@@ -23,6 +30,15 @@ return {
         query = 'rainbow-parens',
         -- Highlight the entire buffer all at once
         strategy = require('rainbow-delimiters').strategy.global,
+      },
+      incremental_selection = {
+        enable = true,
+        keymaps = {
+          init_selection = "<C-n>",
+          node_incremental = "<C-n>",
+          scope_incremental = false,
+          node_decremental = "<bs>",
+        },
       }
     }
   end

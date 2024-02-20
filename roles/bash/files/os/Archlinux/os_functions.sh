@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-alias update='sudo pacman -Syu'
+alias update='sudo pacman -Syu --noconfirm'

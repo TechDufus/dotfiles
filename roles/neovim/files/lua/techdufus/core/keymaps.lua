@@ -158,3 +158,6 @@ keymap(normal_mode, "<leader>cpa", "<cmd>Copilot! attach<cr>", opts)
 
 -- reload current file --
 keymap(normal_mode, "<leader>r", "<cmd>e!", opts)
+
+--LazyGit--
+keymap(normal_mode, "<leader>gg", "<cmd>LazyGit<cr>", opts)

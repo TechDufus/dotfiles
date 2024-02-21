@@ -1,0 +1,14 @@
+---
+- name: "Flatpak | Install flatpak packages"
+  community.general.flatpak:
+    name: "md.obsidian.Obsidian"
+    state: present
+  when:
+    - flatpak_packages is defined
+    - ansible_host_environment_is_wsl
+
+- name: "Obsidian | Clone Obsidian Git Repo"
+  ansible.builtin.git:
+    repo: "git@github.com:techdufus/SecondBrain.git"
+    dest: "{{ ansible_user_dir }}/SecondBrain"
+    depth: 1

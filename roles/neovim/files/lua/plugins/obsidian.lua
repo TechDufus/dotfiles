@@ -65,7 +65,8 @@ return {
           suffix = suffix .. string.char(math.random(65, 90))
         end
       end
-      return tostring(os.time()) .. "-" .. suffix
+      -- return tostring(os.time()) .. "-" .. suffix
+      return suffix
     end,
     templates = {
       subdir = "Templates",
@@ -75,15 +76,14 @@ return {
     },
     mappings = {
       -- "Obsidian follow"
-
       ["<leader>of"] = {
         action = function()
           return require("obsidian").util.gf_passthrough()
         end,
         opts = { noremap = false, expr = true, buffer = true },
       },
-      -- Toggle check-boxes "obsidian done"
 
+      -- Toggle check-boxes "obsidian done"
       ["<leader>och"] = {
         action = function()
           return require("obsidian").util.toggle_checkbox()
@@ -91,7 +91,6 @@ return {
         opts = { buffer = true },
       },
     },
-    -- see below for full list of options 👇
   },
   keys = {
         { "<leader>onn", "<cmd>ObsidianNew<cr>", silent = true, desc = "Obsidian New Note" },

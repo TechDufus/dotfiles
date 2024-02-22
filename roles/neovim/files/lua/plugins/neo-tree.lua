@@ -32,6 +32,9 @@ return {
           with_markers = true,
           with_expanders = true,
         },
+        icon = {
+          folder_empty = icons.documents.FolderOpen,
+        },
         git_status = {
           symbols = {
             -- Change type

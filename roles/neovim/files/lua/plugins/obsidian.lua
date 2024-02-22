@@ -65,8 +65,7 @@ return {
           suffix = suffix .. string.char(math.random(65, 90))
         end
       end
-      -- return tostring(os.time()) .. "-" .. suffix
-      return suffix
+      return suffix .. "-" .. tostring(os.time())
     end,
     templates = {
       subdir = "Templates",

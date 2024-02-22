@@ -22,13 +22,21 @@ return {
         name = "personal",
         path = "~/SecondBrain",
       },
+      {
+        name = "buf-parent",
+        path = function()
+          return assert(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
+        end,
+      },
     },
     completion = {
       nvim_cmp = true,
       min_chars = 2,
     },
-    notes_subdir = "UnsortedNotes",
+    notes_subdir = "SecondBrain/UnsortedNotes",
     new_notes_location = "notes_subdir",
+    -- Either 'wiki' or 'markdown'.
+    preferred_link_style = "markdown",
     wiki_link_func = function(opts)
       if opts.id == nil then
         return string.format("[[%s]]", opts.label)
@@ -93,7 +101,6 @@ return {
     },
   },
   keys = {
-        { "<leader>onn", "<cmd>ObsidianNew<cr>", silent = true, desc = "Obsidian New Note" },
-
+    { "<leader>onn", "<cmd>ObsidianNew<cr>", silent = true, desc = "Obsidian New Note" },
   },
 }

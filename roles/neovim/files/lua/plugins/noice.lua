@@ -19,7 +19,7 @@ return {
       },
     },
     messages = {
-      enabled = true,
+      enabled = false,
       view_error = "mini",
       view_warn = "mini",
     },

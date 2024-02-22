@@ -27,7 +27,8 @@ return {
       nvim_cmp = true,
       min_chars = 2,
     },
-    new_notes_location = "current_dir",
+    notes_subdir = "UnsortedNotes",
+    new_notes_location = "notes_subdir",
     wiki_link_func = function(opts)
       if opts.id == nil then
         return string.format("[[%s]]", opts.label)

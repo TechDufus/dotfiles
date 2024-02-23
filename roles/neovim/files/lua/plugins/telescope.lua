@@ -11,8 +11,21 @@ return {
     'nvim-telescope/telescope-ui-select.nvim',
   },
   keys = {
-    { "<leader>osn", "<cmd>lua require('telescope.builtin').live_grep({ cwd = '~/SecondBrain', hidden = true , search_dirs = {'Archive','Areas','Projects','Resources','UnsortedNotes'}})<cr>", silent = true, desc = "File Explorer" },
-    { "<leader>osf", "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/SecondBrain', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>", silent = true, desc = "File Explorer" },
+    { "<leader>/", function()
+      -- You can pass additional configuration to telescope to change theme, layout, etc.
+      require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
+        winblend = 10,
+        previewer = false,
+      })
+    end, { desc = '[/] Fuzzily search in current buffer' }
+    },
+    { "<leader>sh", require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp', silent = true, noremap = true } },
+    { "<leader>ss", require('telescope.builtin').builtin, { desc = '[S]earch [S]elect Telescope', silent = true, noremap = true } },
+    { "<leader>fs", "<cmd>:Neotree close<cr><cmd>lua require('telescope.builtin').find_files({ find_command = { 'rg', '--files', '--hidden', '-g', '!.git' } })<cr>", { desc = '[F]ile [S]earch', silent = true, noremap = true } },
+    { "<leader>b", require('telescope.builtin').buffers, { desc = '[B]uffers', silent = true, noremap = true } },
+    { "<leader>gs", require('telescope.builtin').live_grep, { desc = '[G]rep [S]earch', silent = true, noremap = true } },
+    { "<leader>fr", require('telescope.builtin').oldfiles, { desc = '[F]iles [R]ecent', silent = true, noremap = true } },
+    { "<leader>sd", require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics', silent = true, noremap = true } },
   },
   config = function()
     local telescope = require("telescope")
@@ -190,10 +203,10 @@ return {
       },
       extensions = {
         fzf = {
-          fuzzy = true,               -- false will only do exact matching
+          fuzzy = true,                   -- false will only do exact matching
           override_generic_sorter = true, -- override the generic sorter
-          override_file_sorter = true, -- override the file sorter
-          case_mode = "smart_case",   -- or "ignore_case" or "respect_case"
+          override_file_sorter = true,    -- override the file sorter
+          case_mode = "smart_case",       -- or "ignore_case" or "respect_case"
         },
         ["ui-select"] = {
           require("telescope.themes").get_dropdown({
@@ -234,4 +247,3 @@ return {
     -- return M
   end
 }
-

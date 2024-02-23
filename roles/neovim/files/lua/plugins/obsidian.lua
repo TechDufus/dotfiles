@@ -102,5 +102,7 @@ return {
   },
   keys = {
     { "<leader>onn", "<cmd>ObsidianNew<cr>", silent = true, desc = "Obsidian New Note" },
+    { "<leader>osn", "<cmd>lua require('telescope.builtin').live_grep({ cwd = '~/SecondBrain', hidden = true , search_dirs = {'Archive','Areas','Projects','Resources','UnsortedNotes'}})<cr>", silent = true, desc = "File Explorer" },
+    { "<leader>osf", "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/SecondBrain', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>",                               silent = true, desc = "File Explorer" },
   },
 }

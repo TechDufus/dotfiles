@@ -22,7 +22,7 @@ This repo is heavily influenced by [ALT-F4-LLC](https://github.com/ALT-F4-LLC/do
 
 ## Goals
 
-Provide fully automated `Ubuntu` development environment that is easy to set up and maintain.
+Provide fully automated `Ubuntu|Arch` development environment that is easy to set up and maintain.
 
 ### Why Ansible?
 
@@ -32,14 +32,17 @@ Ansible replicates what we would do to set up a development environment pretty w
 
 ### Operating System
 
-This Ansible playbook only supports `Ubuntu` distribution. This is by design to provide a consistent development experience across hosts.
+This Ansible playbook only supports `Ubuntu|Arch` distribution. This is by design to provide a consistent development experience across hosts.
 
 ### System Upgrade
 
-Verify your `Ubuntu` installation has all latest packages installed before running the playbook.
+Verify your `Ubuntu|Arch` installation has all latest packages installed before running the playbook.
 
 ```
+# Ubuntu
 sudo apt-get update && sudo apt-get upgrade -y
+# Arch
+sudo pacman -Syu
 ```
 
 > NOTE: This will take some time.
@@ -193,7 +196,7 @@ $ cat myfile.conf | ansible-vault encrypt_string --vault-password-file $HOME/.an
 
 This playbook includes a custom shell script located at `bin/dotfiles`. This script is added to your $PATH after installation and can be run multiple times while making sure any Ansible dependencies are installed and updated.
 
-This shell script is also used to initialize your environment after installing `Ubuntu` and performing a full system upgrade as mentioned above.
+This shell script is also used to initialize your environment after installing `Ubuntu|Arch` and performing a full system upgrade as mentioned above.
 
 > NOTE: You must follow required steps before running this command or things may become unusable until fixed.
 

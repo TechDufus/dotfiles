@@ -1,0 +1,6 @@
+---
+- name: "Spotify | {{ ansible_distribution }} | Install Spotify"
+  community.general.pacman:
+    name: spotify-launcher
+    state: present
+  become: true

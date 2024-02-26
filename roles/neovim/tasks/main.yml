@@ -1,3 +1,39 @@
 ---
-- import_tasks: ubuntu.yml
-  when: ansible_os_family == 'Debian'
+- name: "Neovim | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: neovim_distribution_config
+
+- name: "Neovim | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: neovim_distribution_config.stat.exists
+
+- name: "Neovim | Config folder"
+  ansible.builtin.file:
+    mode: "0755"
+    path: "{{ ansible_user_dir }}/.config/nvim"
+    state: directory
+
+- name: "Neovim | Create symlink to role files directory"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files"
+    dest: "{{ ansible_user_dir }}/.config/nvim"
+    state: link
+    force: true
+
+# - name: "Neovim | Copy init.lua"
+#   ansible.builtin.copy:
+#     dest: "{{ ansible_user_dir }}/.config/nvim/init.lua"
+#     src: "init.lua"
+#     mode: "0644"
+#
+# - name: "Neovim | Copy .luarc.json"
+#   ansible.builtin.copy:
+#     dest: "{{ ansible_user_dir }}/.config/nvim/.luarc.json"
+#     src: ".luarc.json"
+#     mode: "0644"
+# - name: "Neovim | Copy modules"
+#   ansible.builtin.copy:
+#     dest: "{{ ansible_user_dir }}/.config/nvim/lua"
+#     src: "lua/"
+#     mode: "0644"

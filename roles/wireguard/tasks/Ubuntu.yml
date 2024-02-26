@@ -1,0 +1,7 @@
+---
+- name: "Wireguard | {{ ansible_distribution }} | Install Wireguard"
+  ansible.builtin.apt:
+    name: wireguard-tools
+    state: present
+    update_cache: true
+  become: true

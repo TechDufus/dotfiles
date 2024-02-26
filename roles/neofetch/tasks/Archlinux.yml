@@ -1,0 +1,6 @@
+---
+- name: "Neofetch | Arch | Install neofetch"
+  ansible.builtin.pacman:
+    name: neofetch
+    state: present
+  become: true

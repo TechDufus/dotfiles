@@ -5,6 +5,7 @@
       "size": 24
     }
   ],
+  "data-root": "{{  ansible_user_dir }}/.local/lib/docker",
   "experimental": true,
   "features": {
     "buildkit": true

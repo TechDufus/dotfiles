@@ -17,29 +17,29 @@ vim.opt.rtp:prepend(lazypath)
 
 -- Install your plugins here
 require('lazy').setup('plugins', {
-    install = {
-		missing = true,
-	},
-	checker = {
-		enabled = true,
-		notify = true,
-	},
-	change_detection = {
-		enabled = true,
-		notify = true,
-	},
-    performance = {
-        rtp = {
-            -- disable some rtp plugins
-            disabled_plugins = {
-                "gzip",
-                "tarPlugin",
-                "tohtml",
-                "tutor",
-                "zipPlugin",
-            },
-        },
+  install = {
+    missing = true,
+  },
+  checker = {
+    enabled = true,
+    notify = true,
+  },
+  change_detection = {
+    enabled = true,
+    notify = true,
+  },
+  performance = {
+    rtp = {
+      -- disable some rtp plugins
+      disabled_plugins = {
+        "gzip",
+        "tarPlugin",
+        "tohtml",
+        "tutor",
+        "zipPlugin",
+      },
     },
+  },
 })
 
 

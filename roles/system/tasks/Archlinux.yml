@@ -1,0 +1,15 @@
+---
+- name: "System | {{ ansible_distribution }} | Update pacman"
+  community.general.pacman:
+    update_cache: true
+    upgrade: true
+    state: latest
+  become: true
+
+- name: "System | {{ ansible_distribution }} | Install"
+  community.general.pacman:
+    name:
+      - jq
+      - open-iscsi
+    state: present
+  become: true

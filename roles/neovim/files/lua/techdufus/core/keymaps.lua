@@ -27,7 +27,7 @@ keymap(normal_mode, "<C-l>", "<C-w>l", opts)
 -- keymap(normal_mode, "<A-k>", "<C-w>k", opts)
 -- keymap(normal_mode, "<A-l>", "<C-w>l", opts)
 
-keymap(normal_mode, ";", ":", opts)
+-- keymap(normal_mode, ";", ":", opts)
 
 keymap(normal_mode, "<left>",  ":echohl WarningMsg<Bar>echo 'USE h you SWINE!'<Bar>echohl None<CR>", opts)
 keymap(normal_mode, "<right>", ":echohl WarningMsg<Bar>echo 'USE l you SWINE!'<Bar>echohl None<CR>", opts)
@@ -38,8 +38,11 @@ keymap(insert_mode, "<right>", "<C-o>:echohl WarningMsg<Bar>echo 'USE l you SWIN
 keymap(insert_mode, "<up>", "<C-o>:echohl WarningMsg<Bar>echo 'USE k you SWINE!'<Bar>echohl None<CR>", opts)
 keymap(insert_mode, "<down>", "<C-o>:echohl WarningMsg<Bar>echo 'USE j you SWINE!'<Bar>echohl None<CR>", opts)
 
+-- Better indenting
+keymap(normal_mode, "<leader>ft", "gg=G<C-o>", opts)
 
-keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
+
+-- keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --
 keymap(normal_mode, "<leader>chl", ":nohl<cr>", opts)
 
@@ -94,6 +97,9 @@ keymap(normal_mode, "<leader>x", ":w !chmod +x %<CR>", opts)
 -- Find / Replace Current Word
 keymap(normal_mode, "<leader>fr", ":%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<left><left><left>", opts)
 
+-- Remap for dealing with word wrap
+keymap(normal_mode, "j", "v:count == 0 ? 'gj' : 'j'", { silent = true, expr = true })
+keymap(normal_mode, "k", "v:count == 0 ? 'gk' : 'k'", { silent = true, expr = true })
 
 -- Move line up/down
 keymap(normal_mode, "<leader>j", "ddp", opts)
@@ -122,17 +128,10 @@ keymap(term_mode, "<C-j>", "<C-\\><C-N><C-w>j", term_opts)
 keymap(term_mode, "<C-k>", "<C-\\><C-N><C-w>k", term_opts)
 keymap(term_mode, "<C-l>", "<C-\\><C-N><C-w>l", term_opts)
 
--- Telescope --
-keymap(normal_mode, "<leader>pf", "<cmd>:Neotree close<cr><cmd>lua require'telescope.builtin'.find_files({find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>", opts)
-keymap(normal_mode, "<leader>ps", "<cmd>lua require('telescope.builtin').live_grep({ hidden = true })<cr>", opts)
-
 -- Telescope find files in nvim config directory
 keymap(normal_mode, "<leader>rc",
     "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/.dotfiles', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>"
     , opts)
-keymap(normal_mode, "<leader>1", "<cmd>lua require'telescope.builtin'.buffers()<cr>", opts)
-keymap(normal_mode, "<Leader>pg", "<CMD>lua require'telescope.builtin'.git_files()<CR>",
-    { noremap = true, silent = true })
 
 -- Harpoon --
 keymap(normal_mode, "<leader>a", "<cmd>lua require'harpoon.mark'.add_file()<cr>", opts)
@@ -155,3 +154,6 @@ keymap(normal_mode, "<leader>cpa", "<cmd>Copilot! attach<cr>", opts)
 
 -- reload current file --
 keymap(normal_mode, "<leader>r", "<cmd>e!", opts)
+
+--LazyGit--
+keymap(normal_mode, "<leader>gg", "<cmd>LazyGit<cr>", opts)

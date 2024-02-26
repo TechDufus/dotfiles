@@ -38,46 +38,46 @@ DOTFILES_LOG="$HOME/.dotfiles.log"
 
 # _header colorize the given argument with spacing
 function _task {
-    # if _task is called while a task was set, complete the previous
-    if [[ $TASK != "" ]]; then
-        printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
-    fi
-    # set new task title and print
-    TASK=$1
-    printf "${LBLACK} [ ]  ${TASK} \n${LRED}"
+  # if _task is called while a task was set, complete the previous
+  if [[ $TASK != "" ]]; then
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  fi
+  # set new task title and print
+  TASK=$1
+  printf "${LBLACK} [ ]  ${TASK} \n${LRED}"
 }
 
 # _cmd performs commands with error checking
 function _cmd {
-    #create log if it doesn't exist
-    if ! [[ -f $DOTFILES_LOG ]]; then
-        touch $DOTFILES_LOG
-    fi
-    # empty conduro.log
-    > $DOTFILES_LOG
-    # hide stdout, on error we print and exit
-    if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
-        return 0 # success
-    fi
-    # read error from log and add spacing
-    printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
-    while read line; do
-        printf "      ${line}\n"
-    done < $DOTFILES_LOG
-    printf "\n"
-    # remove log file
-    rm $DOTFILES_LOG
-    # exit installation
-    exit 1
+  #create log if it doesn't exist
+  if ! [[ -f $DOTFILES_LOG ]]; then
+    touch $DOTFILES_LOG
+  fi
+  # empty conduro.log
+  > $DOTFILES_LOG
+  # hide stdout, on error we print and exit
+  if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
+    return 0 # success
+  fi
+  # read error from log and add spacing
+  printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
+  while read line; do
+    printf "      ${line}\n"
+  done < $DOTFILES_LOG
+  printf "\n"
+  # remove log file
+  rm $DOTFILES_LOG
+  # exit installation
+  exit 1
 }
 
 function _clear_task {
-    TASK=""
+  TASK=""
 }
 
 function _task_done {
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
-    _clear_task
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  _clear_task
 }
 
 
@@ -90,70 +90,120 @@ DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 
-# Install Ansible
-# check lsb_release -si
-if ! dpkg -s ansible >/dev/null 2>&1; then
+function ubuntu_setup() {
+  if ! dpkg -s ansible >/dev/null 2>&1; then
     _task "Installing Ansible"
-        _cmd "sudo apt-get update"
-        _cmd "sudo apt-get install -y software-properties-common"
-        _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
-        _cmd "sudo apt-get update"
-        _cmd "sudo apt-get install -y ansible"
-        _cmd "sudo apt-get install python3-argcomplete"
-        _cmd "sudo activate-global-python-argcomplete3"
-fi
-
-# Check if python3 and pip is installed
-if ! dpkg -s python3 >/dev/null 2>&1; then
+    _cmd "sudo apt-get update"
+    _cmd "sudo apt-get install -y software-properties-common"
+    _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
+    _cmd "sudo apt-get update"
+    _cmd "sudo apt-get install -y ansible"
+    _cmd "sudo apt-get install python3-argcomplete"
+    _cmd "sudo activate-global-python-argcomplete3"
+  fi
+  if ! dpkg -s python3 >/dev/null 2>&1; then
     _task "Installing Python3"
-        _cmd "sudo apt-get install -y python3"
-fi
-if ! dpkg -s python3-pip >/dev/null 2>&1; then
+    _cmd "sudo apt-get install -y python3"
+  fi
+  if ! dpkg -s python3-pip >/dev/null 2>&1; then
     _task "Installing Python3 Pip"
-        _cmd "sudo apt-get install -y python3-pip"
-fi
-# Check if pip module watchdog is installed
-if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+    _cmd "sudo apt-get install -y python3-pip"
+  fi
+  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
     _task "Installing Python3 Watchdog"
-        _cmd "pip3 install watchdog"
-fi
+    _cmd "pip3 install watchdog"
+  fi
+}
+
+function arch_setup() {
+  if ! [ -x "$(command -v ansible)" ]; then
+    _task "Installing Ansible"
+    _cmd "sudo pacman -Sy --noconfirm"
+    _cmd "sudo pacman -S --noconfirm ansible"
+    _cmd "sudo pacman -S --noconfirm python-argcomplete"
+    # _cmd "sudo activate-global-python-argcomplete3"
+  fi
+  if ! pacman -Q python3 >/dev/null 2>&1; then
+    _task "Installing Python3"
+    _cmd "sudo pacman -S --noconfirm python3"
+  fi
+  if ! pacman -Q python-pip >/dev/null 2>&1; then
+    _task "Installing Python3 Pip"
+    _cmd "sudo pacman -S --noconfirm python-pip"
+  fi
+  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+    _task "Installing Python3 Watchdog"
+    _cmd "sudo pacman -S --noconfirm python-watchdog"
+  fi
+
+  if ! pacman -Q openssh >/dev/null 2>&1; then
+    _task "Installing OpenSSH"
+    _cmd "sudo pacman -S --noconfirm openssh"
+  fi
+
+  _task "Setting Locale"
+  _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+}
+
+update_ansible_galaxy() {
+  local os=$1
+  local os_requirements=""
+  _task "Updating Ansible Galaxy"
+  if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
+    _task "${OVERWRITE}Updating Ansible Galaxy with OS Config: $os"
+    os_requirements="$DOTFILES_DIR/requirements/$os.yml"
+  fi
+  _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
+}
+
+source /etc/os-release
+_task "Loading Setup for detected OS: $ID"
+case $ID in
+  ubuntu)
+    ubuntu_setup
+    ;;
+  arch)
+    arch_setup
+    ;;
+  *)
+    _task "Unsupported OS"
+    _cmd "echo 'Unsupported OS'"
+    ;;
+esac
 
 
-# Generate SSH keys
 if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
-    _task "Generating SSH keys"
-        _cmd "mkdir -p $SSH_DIR"
-        _cmd "chmod 700 $SSH_DIR"
-        _cmd "ssh-keygen -b 4096 -t rsa -f $SSH_DIR/id_rsa -N '' -C $USER@$HOSTNAME"
-        _cmd "cat $SSH_DIR/id_rsa.pub >> $SSH_DIR/authorized_keys"
+  _task "Generating SSH keys"
+  _cmd "mkdir -p $SSH_DIR"
+  _cmd "chmod 700 $SSH_DIR"
+  _cmd "ssh-keygen -b 4096 -t rsa -f $SSH_DIR/id_rsa -N '' -C $USER@$HOSTNAME"
+  _cmd "cat $SSH_DIR/id_rsa.pub >> $SSH_DIR/authorized_keys"
 fi
 
-# Clone repository
 if ! [[ -d "$DOTFILES_DIR" ]]; then
-    _task "Cloning repository"
-        _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
+  _task "Cloning repository"
+  _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
 else
-    _task "Updating repository"
-        _cmd "git -C $DOTFILES_DIR pull --quiet"
+  _task "Updating repository"
+  _cmd "git -C $DOTFILES_DIR pull --quiet"
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 > /dev/null
-_task "Updating Galaxy"
-    _cmd "ansible-galaxy install -r requirements.yml"
+update_ansible_galaxy $ID
 
 _task "Running playbook"; _task_done
 if [[ -f $VAULT_SECRET ]]; then
-    ansible-playbook --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
+  ansible-playbook --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
 else
-    ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+  ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 fi
 
 popd 2>&1 > /dev/null
 
 if ! [[ -f "$IS_FIRST_RUN" ]]; then
-    echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"
-    echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
-    touch "$IS_FIRST_RUN"
+  echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"
+  echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
+  touch "$IS_FIRST_RUN"
 fi
 
 # vi:ft=sh:

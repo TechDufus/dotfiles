@@ -1,5 +1,5 @@
 ---
-- name: "Zoxide | Install"
+- name: "Zoxide | {{ ansible_distribution }} | Install Zoxide"
   ansible.builtin.apt:
     name:
       - zoxide

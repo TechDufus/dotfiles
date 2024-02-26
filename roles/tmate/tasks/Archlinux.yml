@@ -1,0 +1,6 @@
+---
+- name: "Tmate | {{ ansible_distribution }} | Install Tmate"
+  community.general.pacman:
+    name: tmate
+    state: present
+  become: true

@@ -6,6 +6,7 @@ default_roles:
   - bash
   - bat
   - docker
+  - flatpak
   - fonts
   - fzf
   - git
@@ -16,9 +17,11 @@ default_roles:
   - lazygit
   - lua
   - nala
+  - neofetch
   - neovim
   - npm
   - nvm
+  - obsidian
   - pwsh
   - python
   - ruby
@@ -71,6 +74,9 @@ bash_private:
     63656232383037663532633861643436643435643631663535376338353736316639326166323162
     62356231373832366665666330366137646239303934343332306233386335653534333038336135
     373962636566626335316536346431393435
+
+flatpak_packages:
+  - md.obsidian.Obsidian
 
 k8s:
   package_versions:

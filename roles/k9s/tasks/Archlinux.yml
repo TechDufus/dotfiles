@@ -1,0 +1,7 @@
+---
+- name: "K9s | Archlinux | Install K9s"
+  ansible.builtin.package:
+    name: k9s
+    state: present
+    update_cache: true
+  become: true

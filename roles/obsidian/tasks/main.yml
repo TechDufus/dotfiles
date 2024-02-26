@@ -1,0 +1,14 @@
+---
+- name: "Obsidian | Install"
+  community.general.flatpak:
+    name: "md.obsidian.Obsidian"
+    state: present
+  when:
+    - flatpak_packages is defined
+    - not ansible_host_environment_is_wsl
+
+- name: "Obsidian | Clone Obsidian Git Repo"
+  ansible.builtin.git:
+    repo: "git@github.com:techdufus/SecondBrain.git"
+    dest: "{{ ansible_user_dir }}/SecondBrain"
+  failed_when: false # This only really needs to be run once, ever.

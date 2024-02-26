@@ -4,3 +4,10 @@
     name: flatpak
     state: present
   become: true
+
+- name: "Flatpak | Add Flathub remote"
+  community.general.flatpak_remote:
+    name: "flathub"
+    flatpakrepo_url: "https://flathub.org/repo/flathub.flatpakrepo"
+    state: present
+  become: true

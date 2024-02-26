@@ -82,6 +82,7 @@ api.nvim_create_autocmd(
     callback = function()
       vim.opt.spell = true
       vim.opt.spelllang = "en"
+      vim.cmd("Copilot! attach")
     end,
   }
 )

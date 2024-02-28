@@ -95,7 +95,7 @@ keymap(normal_mode, "Q", "<nop>", opts)
 keymap(normal_mode, "<leader>x", ":w !chmod +x %<CR>", opts)
 
 -- Find / Replace Current Word
-keymap(normal_mode, "<leader>fr", ":%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<left><left><left>", opts)
+keymap(normal_mode, "<leader>R", ":%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<left><left><left>", opts)
 
 -- Remap for dealing with word wrap
 keymap(normal_mode, "j", "v:count == 0 ? 'gj' : 'j'", { silent = true, expr = true })

@@ -70,6 +70,9 @@ function ktp() {
         kubectl top pods $@
 }
 function kli() {
+  function usage() {
+    echo "Usage: kli [-A] [-n <namespace>] tag"
+  }
   local kubectl_args=""
   local tag=""
   while [[ $# -gt 0 ]]; do
@@ -81,6 +84,10 @@ function kli() {
       -n|--namespace)
         kubectl_args="$kubectl_args $1 $2"
         shift 2
+        ;;
+      -h|--help)
+        usage
+        return
         ;;
       *)
         tag="$tag $1"

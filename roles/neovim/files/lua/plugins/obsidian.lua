@@ -33,6 +33,7 @@ return {
           templates = {
             subdir = vim.NIL,
           },
+          notes_subdir = "SecondBrain/UnsortedNotes",
           disable_frontmatter = true,
         },
       },
@@ -41,7 +42,7 @@ return {
       nvim_cmp = true,
       min_chars = 2,
     },
-    notes_subdir = "SecondBrain/UnsortedNotes",
+    notes_subdir = "UnsortedNotes",
     new_notes_location = "notes_subdir",
     -- Either 'wiki' or 'markdown'.
     preferred_link_style = "markdown",
@@ -91,7 +92,7 @@ return {
       -- "Obsidian follow"
       ["<leader>of"] = {
         action = function()
-          return require("obsidian").util.gf_passthrough()
+          return require("obsidian").util. f_passthrough()
         end,
         opts = { noremap = false, expr = true, buffer = true },
       },
@@ -107,7 +108,7 @@ return {
   },
   keys = {
     { "<leader>onn", "<cmd>ObsidianNew<cr>", silent = true, desc = "Obsidian New Note" },
-    { "<leader>osn", "<cmd>lua require('telescope.builtin').live_grep({ cwd = '~/SecondBrain', hidden = true , search_dirs = {'Archive','Areas','Projects','Resources','UnsortedNotes'}})<cr>", silent = true, desc = "File Explorer" },
-    { "<leader>osf", "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/SecondBrain', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>",                               silent = true, desc = "File Explorer" },
+    { "<leader>ogs", "<cmd>lua require('telescope.builtin').live_grep({ cwd = '~/SecondBrain', hidden = true , search_dirs = {'Archive','Areas','Projects','Resources','UnsortedNotes'}})<cr>", silent = true, desc = "File Explorer" },
+    { "<leader>ofs", "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/SecondBrain', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>",                               silent = true, desc = "File Explorer" },
   },
 }

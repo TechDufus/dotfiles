@@ -73,7 +73,8 @@ return {
       local suffix = ""
       if title ~= nil then
         -- If title is given, transform it into valid file name.
-        suffix = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
+        -- suffix = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
+        suffix = title
       else
         -- If title is nil, just add 4 random uppercase letters to the suffix.
         for _ = 1, 4 do
@@ -92,7 +93,7 @@ return {
       -- "Obsidian follow"
       ["<leader>of"] = {
         action = function()
-          return require("obsidian").util. f_passthrough()
+          return require("obsidian").util.gf_passthrough()
         end,
         opts = { noremap = false, expr = true, buffer = true },
       },

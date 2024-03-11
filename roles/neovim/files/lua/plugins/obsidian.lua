@@ -1,6 +1,6 @@
 return {
   "epwalsh/obsidian.nvim",
-  version = "*",  -- recommended, use latest release instead of latest commit
+  version = "*", -- recommended, use latest release instead of latest commit
   lazy = true,
   ft = "markdown",
   -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
@@ -108,7 +108,7 @@ return {
     },
   },
   keys = {
-    { "<leader>onn", "<cmd>ObsidianNew<cr>", silent = true, desc = "Obsidian New Note" },
+    { "<leader>onn", "<cmd>ObsidianNew<cr>",                                                                                                                                                    silent = true, desc = "Obsidian New Note" },
     { "<leader>ogs", "<cmd>lua require('telescope.builtin').live_grep({ cwd = '~/SecondBrain', hidden = true , search_dirs = {'Archive','Areas','Projects','Resources','UnsortedNotes'}})<cr>", silent = true, desc = "File Explorer" },
     { "<leader>ofs", "<cmd>lua require'telescope.builtin'.find_files({cwd = '~/SecondBrain', find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>",                               silent = true, desc = "File Explorer" },
   },

@@ -6,9 +6,9 @@ return  {
   },
   -- RESEARCH: It appears this plugin does not export functions.
   -- Might have to map directly to :TodoTelescope
-  -- keys = {
-  --   { "<leader>tc", require('todo-comments').Todo, { desc = 'Show all [T]odo [C]omments' } },
-  -- },
+  keys = {
+    { "<leader>td", "<cmd>TodoTelescope<cr>", { desc = 'Show all [T]o[D]o Comments' } },
+  },
   opts = {
     signs = true,           -- show icons in the signs column
     merge_keywords = false, -- use only these

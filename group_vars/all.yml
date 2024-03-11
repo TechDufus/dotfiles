@@ -79,11 +79,7 @@ flatpak_packages:
   - md.obsidian.Obsidian
 
 k8s:
-  package_versions:
-    default:
-      - name: kubectl
-      - name: kubelet
-      - name: kubeadm
+  repo_version: "v1.28"
 
 helm:
   repos:

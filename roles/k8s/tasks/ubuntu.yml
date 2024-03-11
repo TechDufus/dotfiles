@@ -1,29 +1,24 @@
 ---
 - name: K8s | Adding kubernetes apt key
   ansible.builtin.apt_key:
-    url: "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+    url: "https://pkgs.k8s.io/core:/stable:/{{ k8s.repo_version }}/deb/Release.key"
+    state: present
+    keyring: "/etc/apt/keyrings/kubernetes-apt-keyring.gpg"
   become: true
 
 - name: K8s | Adding kubernetes apt repo
   ansible.builtin.apt_repository:
-    repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ k8s.repo_version }}/deb/ /"
   become: true
 
 - name: K8s | Installing Kubernetes
   ansible.builtin.apt:
-    name: "{{ item.name }}={{ item.version | default('*') }}"
+    name: "{{ item }}"
     state: present
     force: true
+  loop:
+    - kubectl
   become: true
-  loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
-
-- name: K8s | Preventing unintended upgrades
-  ansible.builtin.dpkg_selections:
-    name: "{{ item.name }}"
-    selection: hold
-  become: true
-  loop: "{{ k8s.package_versions[ansible_hostname] | default(k8s.package_versions.default) }}"
-  when: item.version is defined
 
 # - name: K8s | Configure .kube/config
 #   block:

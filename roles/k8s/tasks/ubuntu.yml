@@ -9,6 +9,7 @@
 - name: K8s | Adding kubernetes apt repo
   ansible.builtin.apt_repository:
     repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ k8s.repo_version }}/deb/ /"
+    filename: pkgs.k8s.io_core_stable_deb
   become: true
 
 - name: K8s | Installing Kubernetes

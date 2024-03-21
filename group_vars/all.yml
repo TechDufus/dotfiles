@@ -79,7 +79,7 @@ flatpak_packages:
   - md.obsidian.Obsidian
 
 k8s:
-  repo_version: "v1.28"
+  repo_version: "v1.26"
 
 helm:
   repos:

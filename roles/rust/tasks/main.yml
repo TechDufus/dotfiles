@@ -2,3 +2,8 @@
 - name: Run Ubuntu Tasks
   ansible.builtin.import_tasks: ubuntu.yml
   when: ansible_os_family == 'Debian'
+
+- name: Rust | Install LSD
+  ansible.builtin.command: "cargo install lsd --locked"
+  args:
+    creates: "{{ ansible_env.HOME }}/.cargo/bin/lsd"

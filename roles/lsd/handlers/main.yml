@@ -1,0 +1,7 @@
+---
+- name: Cleanup LSD downloaded tar
+  ansible.builtin.file:
+    path: "/tmp/{{ lsd_file }}.deb"
+    state: absent
+  become: true
+

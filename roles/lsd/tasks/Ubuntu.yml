@@ -1,0 +1,68 @@
+---
+- name: "LSD | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/lsd-rs/lsd/releases/latest
+  register: lsd_latest_version_json
+  changed_when: false
+
+- name: "LSD | Registering LSD Latest Release"
+  ansible.builtin.set_fact:
+    lsd_latest_release: "{{ lsd_latest_version_json.json.tag_name }}"
+
+- name: "LSD | Registering LSD Latest Version"
+  ansible.builtin.set_fact:
+    lsd_latest_version: "{{ lsd_latest_release.stdout | default('') }}"
+
+- name: "LSD | Getting version information"
+  ansible.builtin.command:
+    cmd: lsd --version
+  register: current_lsd_version
+  changed_when: false
+  failed_when: false
+
+- name: "LSD | Edit current_lsd_version"
+  ansible.builtin.set_fact:
+    current_lsd_version: "{{ current_lsd_version.stdout.split(' ')[-1] | default('') }}"
+
+- name: "LSD | Show current_lsd_version debug"
+  ansible.builtin.debug:
+    var: current_lsd_version
+
+- name: "LSD | Show lsd_latest_release debug"
+  ansible.builtin.debug:
+    var: lsd_latest_release
+
+- name: "LSD | Install"
+  when: lsd_latest_release | regex_replace('^.', '') not in current_lsd_version|default('')
+  block:
+    - name: "Go-Lang | Define GOARCH"
+      ansible.builtin.set_fact:
+        lsdarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+
+    - name: "LSD | Define lsd_file"
+      ansible.builtin.set_fact:
+        lsd_file: "lsd_{{ lsd_latest_release | replace('v', '') }}_{{ lsdarch }}"
+
+    - name: "LSD | Ensure clean download destination"
+      ansible.builtin.file:
+        path: "/tmp/{{ lsd_file }}.deb"
+        state: absent
+      become: true
+
+    - name: "LSD | Downloading LSD Release"
+      ansible.builtin.get_url:
+        url: "https://github.com/lsd-rs/lsd/releases/download/{{ lsd_latest_release }}/{{ lsd_file }}.deb"
+        dest: /tmp/
+        mode: "0644"
+        force: true
+      notify:
+        - Cleanup LSD downloaded tar
+
+    - name: "LSD | Install LSD"
+      ansible.builtin.apt:
+        deb: "/tmp/{{ lsd_file }}.deb"
+        state: present
+        update_cache: true
+      become: true
+      notify:
+        - Cleanup LSD downloaded tar

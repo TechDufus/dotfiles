@@ -8,3 +8,10 @@
   loop:
     - rustc
     - cargo
+
+# - name: Rust | Install LSD
+#   ansible.builtin.command: "cargo install lsd --locked"
+#   args:
+#     creates: "{{ ansible_env.HOME }}/.cargo/bin/lsd"
+
+

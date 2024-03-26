@@ -1,0 +1,9 @@
+---
+- name: "LSD | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: lsd_distribution_config
+
+- name: "LSD | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: lsd_distribution_config.stat.exists

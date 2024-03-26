@@ -15,6 +15,7 @@ default_roles:
   - k8s
   - k9s
   - lazygit
+  - lsd
   - lua
   - nala
   - neofetch

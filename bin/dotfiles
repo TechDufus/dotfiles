@@ -109,7 +109,7 @@ function ubuntu_setup() {
   fi
   if ! pip3 list | grep watchdog >/dev/null 2>&1; then
     _task "Installing Python3 Watchdog"
-    _cmd "pip3 install watchdog"
+    _cmd "sudo apt-get install python3-watchdog"
   fi
 }
 

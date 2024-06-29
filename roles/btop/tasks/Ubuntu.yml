@@ -1,0 +1,21 @@
+- name: "BTOP | Install"
+  ansible.builtin.apt:
+    name: bpytop
+    state: present
+  become: true
+
+- name: "BTOP | Ensure btop directory structure exists"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0755"
+    state: directory
+  loop:
+    - ~/.config
+    - ~/.config/btop
+
+- name: "BTOP | Copy btop config"
+  ansible.builtin.copy:
+    src: btop.conf
+    dest: ~/.config/btop/btop.conf
+    mode: "0644"
+

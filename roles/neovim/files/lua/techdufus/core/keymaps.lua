@@ -41,6 +41,9 @@ keymap(insert_mode, "<down>", "<C-o>:echohl WarningMsg<Bar>echo 'USE j you SWINE
 -- Better indenting
 keymap(normal_mode, "<leader>ft", "gg=G<C-o>", opts)
 
+-- JSON File Formatting --
+keymap(normal_mode, "<leader>fj", ":%!jq .<CR>", opts)
+
 
 -- keymap(normal_mode, "<leader>b", ":Telescope buffers<cr>", opts)
 -- Unhilight search --

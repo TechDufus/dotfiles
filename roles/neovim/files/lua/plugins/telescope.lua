@@ -13,11 +13,11 @@ return {
     'nvim-telescope/telescope-ui-select.nvim',
   },
   keys = {
-    { "<leader>/", function()
+    { "/", function()
       -- You can pass additional configuration to telescope to change theme, layout, etc.
       require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
         winblend = 10,
-        previewer = false,
+        previewer = true,
       })
     end, { desc = '[/] Fuzzily search in current buffer' }
     },
@@ -50,8 +50,8 @@ return {
           width = 0.95,
           preview_cutoff = 120,
           prompt_position = "top",
-          horizontal = { mirror = false },
-          vertical = { mirror = false },
+          -- horizontal = { mirror = false },
+          -- vertical = { mirror = false },
         },
         vimgrep_arguments = {
           "rg",
@@ -115,7 +115,10 @@ return {
           },
         },
       },
-      file_ignore_patterns = {},
+      file_ignore_patterns = {
+        'node_modules',
+        '.git/',
+      },
       path_display = { shorten = 5 },
       winblend = 0,
       set_env = { ["COLORTERM"] = "truecolor" }, -- default = nil,
@@ -124,22 +127,22 @@ return {
           hidden = true,
           previewer = true,
           layout_config = {
-            vertical = {
-              width = 0.5,
-              height = 0.4,
-              preview_height = 0.5,
-            },
+            -- vertical = {
+            --   width = 0.5,
+            --   height = 0.4,
+            --   preview_height = 0.5,
+            -- },
           },
         },
         git_files = {
           hidden = true,
           previewer = false,
           layout_config = {
-            horizontal = {
-              width = 0.5,
-              height = 0.4,
-              preview_width = 0.6,
-            },
+            -- horizontal = {
+            --   width = 0.5,
+            --   height = 0.4,
+            --   preview_width = 0.6,
+            -- },
           },
         },
         live_grep = {
@@ -147,11 +150,11 @@ return {
           only_sort_text = true,
           previewer = true,
           layout_config = {
-            horizontal = {
-              width = 0.9,
-              height = 0.75,
-              preview_width = 0.6,
-            },
+            -- horizontal = {
+            --   width = 0.9,
+            --   height = 0.75,
+            --   preview_width = 0.6,
+            -- },
           },
         },
         grep_string = {
@@ -159,43 +162,43 @@ return {
           only_sort_text = true,
           previewer = true,
           layout_config = {
-            horizontal = {
-              width = 0.9,
-              height = 0.75,
-              preview_width = 0.6,
-            },
+            -- horizontal = {
+            --   width = 0.9,
+            --   height = 0.75,
+            --   preview_width = 0.6,
+            -- },
           },
         },
         buffers = {
           -- initial_mode = "normal",
           previewer = false,
           layout_config = {
-            horizontal = {
-              width = 0.5,
-              height = 0.4,
-              preview_width = 0.6,
-            },
+            -- horizontal = {
+            --   width = 0.5,
+            --   height = 0.4,
+            --   preview_width = 0.6,
+            -- },
           },
         },
         lsp_reference = {
           show_line = true,
           layout_config = {
-            horizontal = {
-              width = 0.9,
-              height = 0.75,
-              preview_width = 0.6,
-            },
+            -- horizontal = {
+            --   width = 0.9,
+            --   height = 0.75,
+            --   preview_width = 0.6,
+            -- },
           },
         },
         treesitter = {
           show_line = true,
           sorting_strategy = nil,
           layout_config = {
-            horizontal = {
-              width = 0.9,
-              height = 0.75,
-              preview_width = 0.6,
-            },
+            -- horizontal = {
+            --   width = 0.9,
+            --   height = 0.75,
+            --   preview_width = 0.6,
+            -- },
           },
           symbols = {
             "class", "function", "method", "type", "conts",

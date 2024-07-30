@@ -1,7 +1,7 @@
 return {
   {
     'VonHeikemen/lsp-zero.nvim',
-    branch = 'v2.x',
+    branch = 'v3.x',
     lazy = false,
     dependencies = {
       -- LSP Support
@@ -35,23 +35,34 @@ return {
       })
       local lsp = require('lsp-zero').preset("recommended")
 
-      lsp.ensure_installed({
-        'gopls',
-        'ansiblels',
-        'bashls',
-        'dockerls',
-        'jsonls',
-        'powershell_es',
-        'solargraph',
-        'terraformls',
-        'lua_ls',
-        'yamlls',
-        'cssls',
-        'gopls',
-        'jsonls',
-        'lua_ls',
-        'pylsp',
-        'tsserver',
+      require('mason').setup({})
+      require('mason-lspconfig').setup({
+        ensure_installed = {
+          'gopls',
+          'ansiblels',
+          'bashls',
+          'dockerls',
+          'jsonls',
+          'powershell_es',
+          'solargraph',
+          'terraformls',
+          'lua_ls',
+          'yamlls',
+          'cssls',
+          'gopls',
+          'jsonls',
+          'lua_ls',
+          'pylsp',
+          'tsserver',
+          'gh',
+        },
+        handlers = {
+          -- this first function is the "default handler"
+          -- it applies to every language server without a "custom handler"
+          function(server_name)
+            require('lspconfig')[server_name].setup({})
+          end,
+        }
       })
 
       lsp.on_attach(function(client, bufnr)

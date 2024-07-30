@@ -21,11 +21,11 @@ return {
       })
     end, { desc = '[/] Fuzzily search in current buffer' }
     },
-    { "<leader>sh", require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp', silent = true, noremap = true } },
-    { "<leader>ss", require('telescope.builtin').builtin,   { desc = '[S]earch [S]elect Telescope', silent = true, noremap = true } },
-    { "<leader>fs", techdufus.project_files,            { desc = '[F]ile [S]earch', silent = true, noremap = true } },
-    { "<leader>b",  require('telescope.builtin').buffers,   { desc = '[B]uffers', silent = true, noremap = true } },
-    { "<leader>b", require('telescope.builtin').buffers, { desc = '[B]uffers', silent = true, noremap = true } },
+    { "<leader>sh", require('telescope.builtin').help_tags,   { desc = '[S]earch [H]elp', silent = true, noremap = true } },
+    { "<leader>ss", require('telescope.builtin').builtin,     { desc = '[S]earch [S]elect Telescope', silent = true, noremap = true } },
+    { "<leader>fs", techdufus.project_files,                  { desc = '[F]ile [S]earch', silent = true, noremap = true } },
+    { "<leader>b",  require('telescope.builtin').buffers,     { desc = '[B]uffers', silent = true, noremap = true } },
+    { "<leader>b",  require('telescope.builtin').buffers,     { desc = '[B]uffers', silent = true, noremap = true } },
     { "<leader>gs", require('telescope.builtin').live_grep,   { desc = '[G]rep [S]earch', silent = true, noremap = true } },
     { "<leader>fr", require('telescope.builtin').oldfiles,    { desc = '[F]iles [R]ecent', silent = true, noremap = true } },
     { "<leader>sd", require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics', silent = true, noremap = true } },
@@ -145,6 +145,10 @@ return {
             -- },
           },
         },
+        current_buffer_fuzzy_find = {
+          prompt_title = 'Current Buffer Lines',
+          previewer = true,
+        },
         live_grep = {
           --@usage don't include the filename in the search results
           only_sort_text = true,
@@ -178,6 +182,11 @@ return {
             --   height = 0.4,
             --   preview_width = 0.6,
             -- },
+          },
+          mappings = {
+            i = {
+              ["<C-x>"] = "delete_buffer",
+            }
           },
         },
         lsp_reference = {

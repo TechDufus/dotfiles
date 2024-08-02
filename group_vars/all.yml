@@ -89,7 +89,9 @@ helm:
       url: https://helm.traefik.io/traefik
 
 go:
-  # packages:
+  packages:
+    - package: github.com/go-task/task/v3/cmd/task@latest
+      cmd: task
     # - package: github.com/stillmatic/chat@latest
     #   cmd: chat
 

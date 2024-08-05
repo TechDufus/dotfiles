@@ -1,0 +1,26 @@
+---
+- name: TASKFILE | Deploy global Taskfile
+  ansible.builtin.copy:
+    src: Taskfile.yml
+    dest: "{{ ansible_env.HOME }}/Taskfile.yml"
+    mode: "0644"
+
+- name: TASKFILE | Update Bash Completions
+  block:
+    - name: TASKFILE | Ensure .task config dir exists
+      ansible.builtin.file:
+        name: "{{ ansible_env.HOME }}/.task"
+        state: directory
+        mode: "0755"
+
+    - name: TASKFILE | Ensure .task/completions dir exists
+      ansible.builtin.file:
+        name: "{{ ansible_env.HOME }}/.task/completions"
+        state: directory
+        mode: "0755"
+
+    - name: TASKFILE | Pull latest task bash completion
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/go-task/task/main/completion/bash/task.bash"
+        dest: "{{ ansible_env.HOME }}/.task/completions/task.bash"
+        mode: "0644"

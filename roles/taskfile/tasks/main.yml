@@ -1,10 +1,4 @@
 ---
-- name: TASKFILE | Deploy global Taskfile
-  ansible.builtin.copy:
-    src: Taskfile.yml
-    dest: "{{ ansible_env.HOME }}/Taskfile.yml"
-    mode: "0644"
-
 - name: TASKFILE | Update Bash Completions
   block:
     - name: TASKFILE | Ensure .task config dir exists
@@ -24,3 +18,43 @@
         url: "https://raw.githubusercontent.com/go-task/task/main/completion/bash/task.bash"
         dest: "{{ ansible_env.HOME }}/.task/completions/task.bash"
         mode: "0644"
+
+- name: TASKFILE | Load OS-Specific Taskfile
+  block:
+    - name: "TASKFILE | {{ ansible_distribution }} | Identify distribution config"
+      ansible.builtin.stat:
+        path: "{{ role_path }}/files/os/Taskfile_{{ ansible_distribution }}.yml"
+      register: taskfile_os_distribution_config
+
+    - name: "TASKFILE | {{ ansible_os_family }} | Identify os family config"
+      ansible.builtin.stat:
+        path: "{{ role_path }}/files/os/Taskfile_{{ ansible_os_family }}.yml"
+      register: taskfile_os_family_config
+      when: not taskfile_os_distribution_config.stat.exists
+
+    - name: "TASKFILE | Calculate os config src"
+      ansible.builtin.set_fact:
+        taskfile_os_config: "{{ taskfile_os_distribution_config if taskfile_os_distribution_config.stat.exists else taskfile_os_family_config }}"
+
+    - name: "TASKFILE | Copy custom bash config for os: {{ taskfile_os_config.stat.path | basename }}"
+      ansible.builtin.copy:
+        dest: "{{ ansible_user_dir }}/Taskfile.yml"
+        src: "{{ taskfile_os_config.stat.path }}"
+        mode: "0644"
+        force: true
+      when:
+        - taskfile_os_config is defined
+        - taskfile_os_config.stat.exists
+
+    - name: "TASKFILE | Mark Ansible-managed file."
+      ansible.builtin.blockinfile:
+        dest: "{{ ansible_user_dir }}/Taskfile.yml"
+        mode: "0644"
+        insertbefore: 'version:'
+        append_newline: true
+        block: |
+          # Ansible Managed File
+          # Original file: {{ taskfile_os_config.stat.path | basename }}
+      when:
+        - taskfile_os_config is defined
+        - taskfile_os_config.stat.exists

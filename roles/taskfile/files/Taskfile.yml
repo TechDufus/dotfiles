@@ -20,6 +20,6 @@ tasks:
   dist-upgrade:
     desc: Dist-Upgrade system.
     platforms: [linux]
-    deps: [update, upgrade]
+    deps: [upgrade]
     cmds:
       - sudo apt-get dist-upgrade -y

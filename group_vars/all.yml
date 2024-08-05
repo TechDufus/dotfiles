@@ -30,6 +30,7 @@ default_roles:
   - rust
   - ssh
   - sshfs
+  - taskfile
   - terraform
   - tldr
   - tmate

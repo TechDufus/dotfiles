@@ -16,7 +16,7 @@ generate_log() {
 #
 # Usage: _task "installing kubectl"
 # Returns: nothing
-function _task {
+function __task {
     # if _task is called while a task was set, complete the previous
     if [[ $TASK != "" ]]; then
         printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"

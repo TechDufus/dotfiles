@@ -18,4 +18,3 @@
     src: btop.conf
     dest: ~/.config/btop/btop.conf
     mode: "0644"
-

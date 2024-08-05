@@ -93,3 +93,9 @@
     name: gpg.ssh.allowedSignersFile
     scope: global
     value: "{{ ansible_user_dir }}/.config/git/allowed_signers"
+
+- name: "Git | Set undo alias"
+  community.general.git_config:
+    name: alias.undo
+    scope: global
+    value: "reset HEAD~1 --mixed"

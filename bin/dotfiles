@@ -103,14 +103,14 @@ function ubuntu_setup() {
     __task "Installing Python3"
     _cmd "sudo apt-get install -y python3"
   fi
-  if ! dpkg -s python3-pip >/dev/null 2>&1; then
-    __task "Installing Python3 Pip"
-    _cmd "sudo apt-get install -y python3-pip"
-  fi
-  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-    __task "Installing Python3 Watchdog"
-    _cmd "sudo apt-get install -y python3-watchdog"
-  fi
+  # if ! dpkg -s python3-pip >/dev/null 2>&1; then
+  #   __task "Installing Python3 Pip"
+  #   _cmd "sudo apt-get install -y python3-pip"
+  # fi
+  # if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+  #   __task "Installing Python3 Watchdog"
+  #   _cmd "sudo apt-get install -y python3-watchdog"
+  # fi
 }
 
 function arch_setup() {
@@ -191,6 +191,7 @@ update_ansible_galaxy $ID
 
 __task "Running playbook"; _task_done
 if [[ -f $VAULT_SECRET ]]; then
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret${NC}\n"
   ansible-playbook --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
 else
   ansible-playbook "$DOTFILES_DIR/main.yml" "$@"

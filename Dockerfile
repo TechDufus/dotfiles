@@ -5,9 +5,6 @@ LABEL maintainer="TechDufus <https://techdufus.com>"
 ARG USER=techdufus
 ARG group=techdufus
 ARG uid=1000
-ARG dotfiles=dotfiles.git
-ARG vcsprovider=github.com
-ARG vcsowner=techdufus
 ARG DEBIAN_FRONTEND=noninteractive
 
 ENV TZ="America/Chicago"
@@ -39,6 +36,7 @@ RUN mkdir -p /etc/sudoers.d && \
   groupadd docker && \
   usermod -aG docker ${USER}
 
+RUN chown -R ${USER}:${group} /home/${USER}
 USER ${USER}
 
 COPY --chown=${USER}:${group} bin/dotfiles /home/${USER}/dotfiles
@@ -55,6 +53,6 @@ RUN bash -c "/home/${USER}/dotfiles"
 
 RUN rm ~/.ansible-vault/vault.secret
 
-CMD []
-
-ENTRYPOINT ["/usr/bin/env bash"]
+# CMD []
+#
+# ENTRYPOINT ["/bin/bash"]

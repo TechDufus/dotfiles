@@ -10,4 +10,4 @@ tasks:
     env:
       vault_secret: "{{.vault_secret}}"
     cmds:
-      - docker build -t devbox .
+      - docker build -t devbox:latest .

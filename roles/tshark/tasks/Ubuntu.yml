@@ -1,0 +1,6 @@
+---
+- name: TShark | Install TShark
+  ansible.builtin.package:
+    name: tshark
+    state: present
+  become: true

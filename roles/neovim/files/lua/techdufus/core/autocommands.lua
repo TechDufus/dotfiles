@@ -18,6 +18,14 @@ vim.api.nvim_create_autocmd('BufWritePost', {
 })
 local api = vim.api
 
+-- run go tests when saving file
+local go_group = vim.api.nvim_create_augroup("GoSettings", { clear = true })
+vim.api.nvim_create_autocmd("BufWritePost", {
+  group = go_group,
+  pattern = "*test*.go",
+  command = ":silent! GoTestFile",
+})
+
 -- don't auto comment new line
 api.nvim_create_autocmd("BufEnter", { command = [[set formatoptions-=cro]] })
 

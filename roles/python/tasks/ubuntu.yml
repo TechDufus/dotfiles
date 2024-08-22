@@ -9,6 +9,7 @@
   become: true
 
 - name: "Python | Install pip packages"
+  when: ansible_discribution_major_version <= 22
   ansible.builtin.pip:
     name: "{{ item }}"
     state: present

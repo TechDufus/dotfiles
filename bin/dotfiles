@@ -103,14 +103,18 @@ function ubuntu_setup() {
     __task "Installing Python3"
     _cmd "sudo apt-get install -y python3"
   fi
-  # if ! dpkg -s python3-pip >/dev/null 2>&1; then
-  #   __task "Installing Python3 Pip"
-  #   _cmd "sudo apt-get install -y python3-pip"
-  # fi
-  # if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-  #   __task "Installing Python3 Watchdog"
-  #   _cmd "sudo apt-get install -y python3-watchdog"
-  # fi
+
+  local UBUNTU_MAJOR_VERSION=$(echo $VERSION_ID | cut -d. -f1)
+  if [ $UBUNTU_MAJOR_VERSION -le 22 ]; then
+    if ! dpkg -s python3-pip >/dev/null 2>&1; then
+      __task "Installing Python3 Pip"
+      _cmd "sudo apt-get install -y python3-pip"
+    fi
+    if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+      __task "Installing Python3 Watchdog"
+      _cmd "sudo apt-get install -y python3-watchdog"
+    fi
+  fi
 }
 
 function arch_setup() {

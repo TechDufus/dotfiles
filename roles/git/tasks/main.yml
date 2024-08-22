@@ -99,3 +99,15 @@
     name: alias.undo
     scope: global
     value: "reset HEAD~1 --mixed"
+
+- name: "Git | Copy global.commit.template"
+  ansible.builtin.copy:
+    src: global.commit.template
+    dest: "{{ ansible_user_dir }}/.config/git/commit_template"
+    mode: "0644"
+
+- name: "Git | Set commit.template"
+  community.general.git_config:
+    name: commit.template
+    scope: global
+    value: "{{ ansible_user_dir }}/.config/git/commit_template"

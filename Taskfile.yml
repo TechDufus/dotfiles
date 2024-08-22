@@ -1,0 +1,13 @@
+version: 3
+
+vars:
+  vault_secret:
+    sh: cat $HOME/.ansible-vault/vault.secret
+
+tasks:
+  docker-build:
+    desc: Build dotfiles Docker image
+    env:
+      vault_secret: "{{.vault_secret}}"
+    cmds:
+      - docker build -t devbox:latest .

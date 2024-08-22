@@ -14,4 +14,7 @@
 #   args:
 #     creates: "{{ ansible_env.HOME }}/.cargo/bin/lsd"
 
-
+# - name: Rust | Cargo | Install [sshs]
+#   ansible.builtin.command: "cargo install --git https://github.com/quantumsheep/sshs"
+#   args:
+#     creates: "{{ ansible_env.HOME }}/.cargo/bin/sshs"

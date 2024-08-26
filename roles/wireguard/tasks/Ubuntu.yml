@@ -5,3 +5,6 @@
     state: present
     update_cache: true
   become: true
+  loop:
+    - wireguard-tools
+    - wireguard

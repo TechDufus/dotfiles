@@ -5,6 +5,12 @@ return {
   opts = {
     -- add any opts here
     provider = "openai",
+    openai = {
+      model = "gpt-4o-mini",
+    }
+  },
+  mappings = {
+    ask = "<leader>av",
   },
   dependencies = {
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons

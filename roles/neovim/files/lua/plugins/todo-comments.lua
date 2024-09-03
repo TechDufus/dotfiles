@@ -11,7 +11,7 @@ return  {
   },
   opts = {
     signs = true,           -- show icons in the signs column
-    merge_keywords = false, -- use only these
+    merge_keywords = true, -- use only these
     keywords = {
       BECAUSE = { icon = "∵", color = "argumentation" },
       BUG = { icon = "", color = "error" },

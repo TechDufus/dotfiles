@@ -54,7 +54,6 @@ return {
           'lua_ls',
           'pylsp',
           'tsserver',
-          'gh',
         },
         handlers = {
           -- this first function is the "default handler"

@@ -21,6 +21,7 @@ local options = {
   smartindent = true,                        -- make indenting smarter again
   splitbelow = true,                         -- force all horizontal splits to go below current window
   splitright = true,                         -- force all vertical splits to go to the right of current window
+  splitkeep = "screen",                      -- Used for avante.nvim
   swapfile = false,                          -- creates a swapfile
   termguicolors = true,                      -- set term gui colors (most terminals support this)
   scrolloff = 10,                            -- is one of my fav

@@ -1,0 +1,19 @@
+---
+- name: "Neovim | Darwin | Dependencies"
+  community.general.homebrew:
+    name:
+      - cmake
+      - curl
+      - pkg-config
+      - libtool
+      - unzip
+      - ansible-lint
+      - ripgrep
+    state: present
+  become: true
+
+- name: "Neovim | Darwin | Install"
+  community.general.homebrew:
+    name: neovim/neovim
+    state: present
+  become: true

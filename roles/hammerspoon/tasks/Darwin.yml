@@ -1,0 +1,63 @@
+---
+- name: "Hammerspoon | Install Hammerspoon"
+  community.general.homebrew:
+    name: "hammerspoon"
+    state: present
+    install_options: "--cask"
+
+- name: "Hammerspoon | Ensure ~/.hammerspoon exists"
+  ansible.builtin.file:
+    name: "{{ ansible_user_dir }}/.hammerspoon"
+    state: directory
+    mode: "0755"
+
+- name: "Hammerspoon | Copy init.lua"
+  ansible.builtin.copy:
+    src: "init.lua"
+    dest: "{{ ansible_user_dir }}/.hammerspoon/init.lua"
+    mode: "0644"
+
+- name: "Hammerspoon | Detect local instance of GridLayout.spoon"
+  ansible.builtin.stat:
+    name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+  register: hammerspoon_gridlayout_spoon
+
+- name: "Hammerspoon | Detect local version of GridLayout.spoon"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && grep -oP \"version = '.*'\" {{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon/init.lua | cut -d\"'\" -f2"
+  changed_when: false
+  register: hammerspoon_gridlayout_version
+  when: hammerspoon_gridlayout_spoon.stat.exists
+
+- name: "Hammerspoon | Detect latest GridLayout.spoon Github release"
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/jesseleite/GridLayout.spoon/releases/latest"
+    return_content: true
+  register: hammerspoon_gridlayout_release
+
+- name: "Hammerspoon | Extract latest GridLayout.spoon release version"
+  ansible.builtin.set_fact:
+    hammerspoon_gridlayout_latest_version: "{{ hammerspoon_gridlayout_release.json.tag_name }}"
+  when: hammerspoon_gridlayout_release.status == 200
+
+- name: "Hammerspoon | Install latest GridLayout.spoon"
+  when: hammerspoon_gridlayout_version.stdout != hammerspoon_gridlayout_latest_version
+  block:
+    - name: "Hammerspoon | Download latest GridLayout.spoon"
+      ansible.builtin.uri:
+        url: "https://github.com/jesseleite/GridLayout.spoon/releases/download/{{ hammerspoon_gridlayout_latest_version }}/GridLayout.spoon.zip"
+        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
+        return_content: true
+      notify: "Hammerspoon | Cleanup latest GridLayout.spoon zip"
+
+    - name: "Hammerspoon | Unzip latest GridLayout.spoon"
+      ansible.builtin.unarchive:
+        src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
+        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/"
+        creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+
+- name: "Hammerspoon | Deploy Grid Layout Configuration"
+  ansible.builtin.copy:
+    src: "config/"
+    dest: "{{ ansible_user_dir }}/.hammerspoon"
+    mode: "0644"

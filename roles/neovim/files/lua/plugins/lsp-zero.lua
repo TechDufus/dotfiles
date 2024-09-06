@@ -68,7 +68,17 @@ return {
         lsp.default_keymaps({ buffer = bufnr })
       end)
 
-      require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
+      -- require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
+      require('lspconfig').lua_ls.setup({
+        settings = {
+          Lua = {
+              diagnostics = {
+                globals = { 'vim', 'hs', 'spoon' },
+                disable = { 'lowercase-global' },
+              },
+            },
+          },
+      })
 
       -- lsp.skip_server_setup({ 'gopls' })
       -- the function below will be executed whenever

@@ -1,6 +1,6 @@
 ---
 - name: "Go-Lang | Install dependencies"
-  apt:
+  ansible.builtin.apt:
     pkg:
       - 'curl'
       - 'gcc'

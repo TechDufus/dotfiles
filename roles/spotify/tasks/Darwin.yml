@@ -1,0 +1,5 @@
+---
+- name: "Spotify | Darwin | Install Spotify"
+  community.general.homebrew_cask:
+    name: spotify
+    state: present

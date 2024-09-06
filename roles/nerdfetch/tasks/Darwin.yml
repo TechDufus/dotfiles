@@ -1,0 +1,5 @@
+---
+- name: "NerdFetch | Darwin | Install NerdFetch"
+  community.general.homebrew:
+    name: nerdfetch
+    state: latest

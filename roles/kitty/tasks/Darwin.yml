@@ -1,0 +1,5 @@
+---
+- name: "Kitty | Darwin | Install kitty"
+  community.general.homebrew_cask:
+    name: kitty
+    state: latest

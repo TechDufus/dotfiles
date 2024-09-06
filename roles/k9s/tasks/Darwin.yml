@@ -1,0 +1,5 @@
+---
+- name: "K9s | Darwin | Install k9s"
+  community.general.homebrew:
+    name: k9s
+    state: latest

@@ -1,0 +1,12 @@
+---
+- name: "System | Darwin | Update Homebrew"
+  community.general.homebrew:
+    update_homebrew: true
+    upgrade_all: true
+
+- name: "System | Darwin | Install Homebrew Packages"
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - jq

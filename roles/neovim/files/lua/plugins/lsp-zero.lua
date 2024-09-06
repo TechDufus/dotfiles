@@ -72,12 +72,23 @@ return {
       require('lspconfig').lua_ls.setup({
         settings = {
           Lua = {
-              diagnostics = {
-                globals = { 'vim', 'hs', 'spoon' },
-                disable = { 'lowercase-global' },
-              },
+            diagnostics = {
+              globals = { 'vim', 'hs', 'spoon' },
+              disable = { 'lowercase-global' },
             },
           },
+        },
+      })
+
+      -- ansiblels disable settings
+      require('lspconfig').ansiblels.setup({
+        settings = {
+          ansible = {
+            diagnostics = {
+              disable = { 'name[template]' }
+            },
+          },
+        },
       })
 
       -- lsp.skip_server_setup({ 'gopls' })

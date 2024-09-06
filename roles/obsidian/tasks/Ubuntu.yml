@@ -1,0 +1,26 @@
+---
+- name: Obsidian | Detect if Desktop Environment"
+  ansible.builtin.set_fact:
+    ansible_host_is_desktop_environment: "{{ lookup('env', 'XDG_CURRENT_DESKTOP') }}"
+
+- name: "Obsidian | Install"
+  community.general.flatpak:
+    name: "md.obsidian.Obsidian"
+    state: present
+  when:
+    - not ansible_host_environment_is_wsl
+    - ansible_host_is_desktop_environment | bool
+
+- name: "Obsidian | Clone Obsidian Git Repo"
+  ansible.builtin.git:
+    repo: "git@github.com:techdufus/SecondBrain.git"
+    dest: "{{ ansible_user_dir }}/SecondBrain"
+  failed_when: false # This only really needs to be run once, ever.
+
+# - name: "Obsidian | Create Cron Job to Pull, Commit, and Push to Git"
+#   ansible.builtin.cron:
+#     name: "Git Pull, Commit, and Push"
+#     minute: "*"
+#     job: "cd {{ ansible_user_dir }}/SecondBrain && git pull && git add -A && git commit -m 'Auto backup from $HOSTNAME' && git push"
+#   become: true
+

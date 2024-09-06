@@ -1,0 +1,9 @@
+---
+- name: "Lua | Darwin | Install lua"
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: latest
+  loop:
+    - lua
+    - luarocks
+    - luajit

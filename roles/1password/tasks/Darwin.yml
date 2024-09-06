@@ -1,0 +1,8 @@
+---
+- name: "1Password | Darwin | Install 1Password"
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: latest
+  loop:
+    - 1password@beta
+    - 1password-cli@beta

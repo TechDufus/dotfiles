@@ -1,0 +1,5 @@
+---
+- name: "Discord | Darwin | Install Discord"
+  community.general.homebrew_cask:
+    name: discord
+    state: latest

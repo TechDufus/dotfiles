@@ -1,0 +1,5 @@
+---
+- name: "Lazygit | Darwin | Install lazygit"
+  community.general.homebrew:
+    name: lazygit
+    state: latest

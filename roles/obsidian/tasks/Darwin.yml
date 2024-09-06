@@ -1,0 +1,5 @@
+---
+- name: "Obsidian | Darwin | Install Obsidian"
+  community.general.homebrew_cask:
+    name: obsidian
+    state: latest

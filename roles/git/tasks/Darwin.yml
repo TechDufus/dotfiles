@@ -1,0 +1,5 @@
+---
+- name: "Git | Install git"
+  community.general.homebrew:
+    name: git
+    state: latest

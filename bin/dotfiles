@@ -34,13 +34,12 @@ WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
 RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 
-DOTFILES_LOG="$HOME/.dotfiles.log"
 
 set -e
 
 # Paths
-CONFIG_DIR="$HOME/.config/dotfiles"
 VAULT_SECRET="$HOME/.ansible-vault/vault.secret"
+DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
@@ -145,6 +144,29 @@ function arch_setup() {
 
   __task "Setting Locale"
   _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+}
+
+function macos_setup() {
+  if ! [ -x "$(command -v brew)" ]; then
+    __task "Installing Homebrew"
+    _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+  fi
+  if ! [ -x "$(command -v ansible)" ]; then
+    __task "Installing Ansible"
+    _cmd "/opt/homebrew/bin/brew install ansible"
+  fi
+  # if ! [ -x "$(command -v pyenv)" ]; then
+  #   __task "Installing Pyenv"
+  #   _cmd "/opt/homebrew/bin/brew install pyenv"
+  # fi
+  # if ! [ -x "$(command -v pip3)" ]; then
+  #   __task "Installing Python3 Pip"
+  #   _cmd "brew install pip3"
+  # fi
+  # if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+  #   __task "Installing Python3 Watchdog"
+  #   _cmd "pip3 install watchdog"
+  # fi
 }
 
 update_ansible_galaxy() {

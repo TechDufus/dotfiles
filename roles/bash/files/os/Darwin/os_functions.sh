@@ -16,3 +16,5 @@ then
     done
   fi
 fi
+
+addToPath /opt/homebrew/bin

@@ -16,12 +16,14 @@ default_roles:
   - helm
   - k8s
   - k9s
+  - kitty
   - lazygit
   - lsd
   - lua
   - nala
   - neofetch
   - neovim
+  - nerdfetch
   - npm
   - nvm
   - obsidian

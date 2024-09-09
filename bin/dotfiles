@@ -160,6 +160,16 @@ function macos_setup() {
     __task "Installing Ansible"
     _cmd "/opt/homebrew/bin/brew install ansible"
   fi
+  # 1password
+  if ! [ -x "$(command -v op)" ]; then
+    __task "Installing 1Password CLI"
+    _cmd "/opt/homebrew/bin/brew install 1password@beta"
+    _cmd "/opt/homebrew/bin/brew install 1password-cli@beta"
+    __task "Setting up 1Password CLI"
+    # press any key to continue
+    read -n 1 -s -r -p "Press any key to continue"
+    echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}1Password CLI setup complete${NC}" && _clear_task
+  fi
   # if ! [ -x "$(command -v pyenv)" ]; then
   #   __task "Installing Pyenv"
   #   _cmd "/opt/homebrew/bin/brew install pyenv"

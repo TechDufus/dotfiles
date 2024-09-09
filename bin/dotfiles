@@ -38,7 +38,8 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 set -e
 
 # Paths
-VAULT_SECRET="$HOME/.ansible-vault/vault.secret"
+VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
+OP_VAULT_SECRET=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
@@ -151,6 +152,10 @@ function macos_setup() {
     __task "Installing Homebrew"
     _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
   fi
+  if ! [ -x "$(command -v git)"]; then
+    __task "Installing Git"
+    _cmd "/opt/homebrew/bin/brew install git"
+  fi
   if ! [ -x "$(command -v ansible)" ]; then
     __task "Installing Ansible"
     _cmd "/opt/homebrew/bin/brew install ansible"
@@ -178,6 +183,19 @@ update_ansible_galaxy() {
     os_requirements="$DOTFILES_DIR/requirements/$os.yml"
   fi
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
+}
+
+function use_op_vault_if_possible() {
+  __task "Checking for 1Password CLI"
+  if op --version >/dev/null 2>&1; then
+    OP_VAULT_SECRET="$(op read 'op://Personal/Ansible Vault/password')"
+    if [[ -n $OP_VAULT_SECRET ]]; then
+      printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Using vault secret from 1Password${NC}\n"
+      rm -f $VAULT_SECRET_FILE
+    else
+      printf "${OVERWRITE}${LRED} [X]  ${LRED}No vault secret found in 1Password${NC}\n"
+    fi
+  fi
 }
 
 source /etc/os-release
@@ -215,12 +233,20 @@ fi
 pushd "$DOTFILES_DIR" 2>&1 > /dev/null
 update_ansible_galaxy $ID
 
+use_op_vault_if_possible
+
 __task "Running playbook"; _task_done
-if [[ -f $VAULT_SECRET ]]; then
+if [[ -f $VAULT_SECRET_FILE ]]; then
   printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret${NC}\n"
-  ansible-playbook --vault-password-file $VAULT_SECRET "$DOTFILES_DIR/main.yml" "$@"
+  ansible-playbook --vault-password-file $VAULT_SECRET_FILE "$DOTFILES_DIR/main.yml" "$@"
 else
-  ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+  # if we have OP_VAULT_SECRET, we can use it as the vault password
+  if [[ -n $OP_VAULT_SECRET ]]; then
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret from 1Password${NC}\n"
+    ansible-playbook --vault-password-file <(echo $OP_VAULT_SECRET) "$DOTFILES_DIR/main.yml" "$@"
+  else
+    ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+  fi
 fi
 
 popd 2>&1 > /dev/null

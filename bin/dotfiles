@@ -160,7 +160,6 @@ function macos_setup() {
     __task "Installing Ansible"
     _cmd "/opt/homebrew/bin/brew install ansible"
   fi
-  # 1password
   if ! [ -x "$(command -v op)" ]; then
     __task "Installing 1Password CLI"
     _cmd "/opt/homebrew/bin/brew install 1password@beta"

@@ -63,12 +63,12 @@ local layout = hs.loadSpoon('GridLayout')
     :start()
     :setLayouts(layouts)
     :setApps(apps)
-    :setGrid('60x20')
-    :setMargins('15x15')
+    -- :setGrid(positions.full_grid)
+    -- :setMargins('15x15')
 
-if (hs.screen.primaryScreen():name() == 'LG HDR WQHD') then
-  layout:setMargins('30x30')
-end
+-- if (hs.screen.primaryScreen():name() == 'LG HDR WQHD') then
+--   layout:setMargins('30x30')
+-- end
 
 local windowManagementBindings = {
   ['h'] = function() hs.window.focusedWindow():focusWindowWest(nil, true) end,
@@ -76,6 +76,7 @@ local windowManagementBindings = {
   ['k'] = function() hs.window.focusedWindow():focusWindowNorth(nil, true) end,
   ['l'] = function() hs.window.focusedWindow():focusWindowEast(nil, true) end,
   ['a'] = function() hs.application.frontmostApplication():unhide() end,
+  ['b'] = function() hs.window.focussedWindow():sendToBack() end,
   ['p'] = layout.selectLayout,
   ['u'] = layout.bindToCell,
   [';'] = layout.selectNextVariant,
@@ -89,13 +90,13 @@ registerKeyBindings(hyper, hs.fnutils.map(windowManagementBindings, function(fn)
 end))
 
 
---------------------------------------------------------------------------------
--- Screencasting Customizations for 1280x720 HiDPI
---------------------------------------------------------------------------------
-
-if (hs.screen.primaryScreen():name() == '24GL600F') then
-  layout:setMargins('12x12')
-end
+-- --------------------------------------------------------------------------------
+-- -- Screencasting Customizations for 1280x720 HiDPI
+-- --------------------------------------------------------------------------------
+--
+-- if (hs.screen.primaryScreen():name() == '24GL600F') then
+--   layout:setMargins('12x12')
+-- end
 
 
 --------------------------------------------------------------------------------

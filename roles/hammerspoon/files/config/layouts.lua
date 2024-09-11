@@ -2,45 +2,63 @@ return {
   {
     name = 'Standard Dev',
     cells = {
-      { '0,0 7x20', '0,0 7x20' },
-      { '7,0 21x20', '7,0 30x20' },
-      { '28,0 32x20', '37,0 23x20' },
-      { '42,2 16x16', '42,2 16x16' },
-      { '30,3 20x14', '39,3 16x14' },
+      positions.standard.top_left,     -- 1
+      positions.standard.bottom_left,  -- 2
+      positions.standard.left_center,  -- 3
+      positions.standard.center,       -- 4
+      positions.standard.right,        -- 5
+      positions.standard.right_hidden, -- 6
+      positions.standard.left_hidden,  -- 7
     },
     apps = {
-      Ray = { cell = 1, open = true },
-      Brave = { cell = 2, open = true },
-      Obsidian = { cell = 2 },
-      WezTerm = { cell = 3, open = true },
-      Tower = { cell = 3 },
-      Slack = { cell = 4 },
-      Discord = { cell = 5 },
+      MatterMost = { cell = 1, open = true },
+      Spotify    = { cell = 2, open = true },
+      Obsidian   = { cell = 3, open = true },
+      Kitty      = { cell = 4, open = true },
+      Brave      = { cell = 5, open = true },
+      Discord    = { cell = 6, open = true },
+      OnePassword  = { cell = 7, open = true },
     },
   },
   {
-    name = 'No Ray',
+    name = 'Code Research',
     cells = {
-      { '0,0 21x20' },
-      { '21,0 39x20' },
+      positions.standard.full_left, -- 1
+      positions.standard.left_center, -- 2
+      positions.standard.center, -- 3
+      positions.standard.right, -- 4
+      positions.standard.right_hidden, -- 5
+      positions.standard.left_hidden, -- 6
     },
     apps = {
-      Brave = { cell = 1, open = true },
-      WezTerm = { cell = 2, open = true },
-      Tower = { cell = 2 },
+      Brave   = { cell = 1, open = true },
+      Obsidian = { cell = 2, open = true },
+      Kitty    = { cell = 3, open = true },
     },
-  },
-  {
-    name = 'Code Focused',
-    cells = {
-      { '0,0 7x20', positions.sixths.left },
-      { '7,0 53x20', positions.fiveSixths.right },
     },
-    apps = {
-      Ray = { cell = 1, open = true },
-      WezTerm = { cell = 2, open = true },
-      Brave = { cell = 2, open = true },
-      Tower = { cell = 2 },
-    },
-  },
 }
+  -- {
+  --   name = 'No Ray',
+  --   cells = {
+  --     { '0,0 21x20' },
+  --     { '21,0 39x20' },
+  --   },
+  --   apps = {
+  --     Brave   = { cell = 1, open = true },
+  --     WezTerm = { cell = 2, open = true },
+  --     Tower   = { cell = 2 },
+  --   },
+  -- },
+  -- {
+  --   name = 'Code Focused',
+  --   cells = {
+  --     { '0,0 7x20',  positions.sixths.left },
+  --     { '7,0 53x20', positions.fiveSixths.right },
+  --   },
+  --   apps = {
+  --     Ray     = { cell = 1, open = true },
+  --     WezTerm = { cell = 2, open = true },
+  --     Brave   = { cell = 2, open = true },
+  --     Tower   = { cell = 2 },
+  --   },
+  -- },

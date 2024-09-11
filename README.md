@@ -32,11 +32,11 @@ Ansible replicates what we would do to set up a development environment pretty w
 
 ### Operating System
 
-This Ansible playbook only supports `Ubuntu|Arch` distribution. This is by design to provide a consistent development experience across hosts.
+This Ansible playbook only supports `Ubuntu|Arch|MacOS(Darwin)` distribution. This is by design to provide a consistent development experience across hosts.
 
 ### System Upgrade
 
-Verify your `Ubuntu|Arch` installation has all latest packages installed before running the playbook.
+Verify your `Ubuntu|Arch|MacOS(Darwin)` installation has all latest packages installed before running the playbook.
 
 ```
 # Ubuntu
@@ -49,9 +49,9 @@ sudo pacman -Syu
 
 ## Setup
 
-### all.yaml values file
+### all.yml values file
 
-The `all.yaml` file allows you to personalize your setup to your needs. This file will be created in the file located at `~/.dotfiles/group_vars/all.yaml` after you [Install this dotfiles](#install) and include your desired settings.
+The `all.yml` file allows you to personalize your setup to your needs. This file will be created in the file located at `~/.dotfiles/group_vars/all.yaml` after you [Install this dotfiles](#install) and include your desired settings.
 
 Below is a list of all available values. Not all are required but incorrect values will break the playbook if not properly set.
 
@@ -188,7 +188,18 @@ $ ansible-vault encrypt_string --vault-password-file $HOME/.ansible-vault/vault.
 $ cat myfile.conf | ansible-vault encrypt_string --vault-password-file $HOME/.ansible-vault/vault.secret --stdin-name "myfile"
 ```
 
-> NOTE: This file will automatically be detected by the playbook when running `dotfiles` command to decrypt values. Read more on Ansible Vault [here](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
+> [!NOTE]
+> This file will automatically be detected by the playbook when running `dotfiles` command to decrypt values. Read more on Ansible Vault [here](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
+
+### 1Password Integration
+
+I've recently added the ability to pull the `vault.secret` ansible-vault encryption key from 1Password using the `op` CLI tool. If you do not have the `op` CLI tool installed, this dotfiles will operate as expected, checking for the `vault.secret` file and passing it to the playbook.
+
+To use the 1Password integration, you will need to install the `op` CLI tool and authenticate with your 1Password account. You can find the `op` CLI tool [here](https://1password.com/downloads/command-line/).
+
+If `op` is installed, it will attempt to pull the `vault.secret` encryption key from 1Password at the `op://Personal/Ansible Vault/password` path. If you would like to change this path, you can do so by simply editing the dotfiles script.
+
+If `op` is able to read the `vault.secret` encryption key from 1Password, it will ensure that the `vault.secret` file is deleted from the local system. This is to ensure that the encryption key is not stored in plain text on the local system, which is the whole point of using a password manager.
 
 ## Usage
 

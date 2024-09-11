@@ -216,6 +216,9 @@ case $ID in
   arch)
     arch_setup
     ;;
+  darwin)
+    macos_setup
+    ;;
   *)
     __task "Unsupported OS"
     _cmd "echo 'Unsupported OS'"
@@ -244,15 +247,16 @@ update_ansible_galaxy $ID
 
 use_op_vault_if_possible
 
-__task "Running playbook"; _task_done
+__task "Running playbook ☕"; _task_done
 if [[ -f $VAULT_SECRET_FILE ]]; then
-  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret${NC}\n"
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret ☕${NC}\n"
   ansible-playbook --vault-password-file $VAULT_SECRET_FILE "$DOTFILES_DIR/main.yml" "$@"
 else
   # if we have OP_VAULT_SECRET, we can use it as the vault password
   if [[ -n $OP_VAULT_SECRET ]]; then
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret from 1Password${NC}\n"
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret from 1Password ☕${NC}\n"
     ansible-playbook --vault-password-file <(echo $OP_VAULT_SECRET) "$DOTFILES_DIR/main.yml" "$@"
+    unset OP_VAULT_SECRET
   else
     ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
   fi

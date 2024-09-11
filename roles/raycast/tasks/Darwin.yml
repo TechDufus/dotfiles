@@ -1,0 +1,5 @@
+---
+- name: "RayCast | Darwin | Install RayCast"
+  community.general.homebrew_cask:
+    name: raycast
+    state: latest

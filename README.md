@@ -246,3 +246,10 @@ For Example: Running the tmux tag with verbosity
 ```bash
 dotfiles -t tmux -vvv
 ```
+
+As an added bonus, the tags have tab completion!
+```bash
+dotfiles -t <tab><tab>
+dotfiles -t t<tab>
+dotfiles -t ne<tab>
+```

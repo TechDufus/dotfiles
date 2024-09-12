@@ -1,15 +1,4 @@
 ---
-- name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon exists"
-  ansible.builtin.file:
-    name: "{{ ansible_user_dir }}/.hammerspoon"
-    state: directory
-
-- name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon/Spoons exists"
-  ansible.builtin.file:
-    name: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
-    state: directory
-    mode: "0755"
-
 - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Detect local instance of {{ current_spoon }}"
   ansible.builtin.stat:
     name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}"
@@ -23,4 +12,14 @@
         url: "https://github.com/Hammerspoon/Spoons/blob/master/Spoons/{{ current_spoon }}.spoon.zip"
         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
         return_content: true
-      notify: "Hammerspoon | MacOSX | {{ current_spoon }} | Cleanup latest {{ current_spoon }} zip"
+
+    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Unzip latest {{ current_spoon }}"
+      ansible.builtin.unarchive:
+        src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
+        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/"
+        creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon"
+
+    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Cleanup latest {{ current_spoon }} zip"
+      ansible.builtin.file:
+        name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
+        state: absent

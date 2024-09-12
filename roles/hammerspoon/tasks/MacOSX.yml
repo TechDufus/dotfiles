@@ -67,3 +67,10 @@
     src: "config/"
     dest: "{{ ansible_user_dir }}/.hammerspoon"
     mode: "0644"
+
+- name: "Hammerspoon | Install Hammerspoon Spoons"
+  ansible.builtin.include_tasks: spoons.yml
+  loop:
+    - "ReloadConfiguration"
+  loop_control:
+    loop_var: current_spoon

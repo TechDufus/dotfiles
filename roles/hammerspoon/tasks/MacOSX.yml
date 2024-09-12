@@ -12,21 +12,14 @@
 
 - name: "Hammerspoon | Deploy Hammerspoon Configuration"
   ansible.builtin.copy:
-    src: "config"
-    dest: "{{ ansible_user_dir }}/.hammerspoon/"
+    src: "config/"
+    dest: "{{ ansible_user_dir }}/.hammerspoon"
     mode: "0644"
 
 - name: "Hammerspoon | Detect local instance of GridLayout.spoon"
   ansible.builtin.stat:
     name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
   register: hammerspoon_gridlayout_spoon
-
-- name: "Hammerspoon | Detect local version of GridLayout.spoon"
-  ansible.builtin.shell:
-    cmd: "set -o pipefail && grep -oP \"version = '.*'\" {{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon/init.lua | cut -d\"'\" -f2"
-  changed_when: false
-  register: hammerspoon_gridlayout_version
-  when: hammerspoon_gridlayout_spoon.stat.exists
 
 - name: "Hammerspoon | Detect latest GridLayout.spoon Github release"
   ansible.builtin.uri:
@@ -40,8 +33,7 @@
   when: hammerspoon_gridlayout_release.status == 200
 
 - name: "Hammerspoon | Install latest GridLayout.spoon"
-  when: (not hammerspoon_gridlayout_spoon.stat.exists) or
-        (hammerspoon_gridlayout_version != hammerspoon_gridlayout_latest_version)
+  when: not hammerspoon_gridlayout_spoon.stat.exists
   block:
     - name: "Hammerspoon | Ensure ~/.hammerspoon/Spoons exists"
       ansible.builtin.file:

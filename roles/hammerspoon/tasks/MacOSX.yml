@@ -12,8 +12,8 @@
 
 - name: "Hammerspoon | Copy init.lua"
   ansible.builtin.copy:
-    src: "init.lua"
-    dest: "{{ ansible_user_dir }}/.hammerspoon/init.lua"
+    src: "config"
+    dest: "{{ ansible_user_dir }}/.hammerspoon/"
     mode: "0644"
 
 - name: "Hammerspoon | Detect local instance of GridLayout.spoon"

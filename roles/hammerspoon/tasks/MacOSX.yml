@@ -67,12 +67,6 @@
         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
         creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
 
-- name: "Hammerspoon | Deploy Grid Layout Configuration"
-  ansible.builtin.copy:
-    src: "config/"
-    dest: "{{ ansible_user_dir }}/.hammerspoon"
-    mode: "0644"
-
 - name: "Hammerspoon | Install Official Hammerspoon Spoons"
   ansible.builtin.include_tasks: spoons.yml
   loop:

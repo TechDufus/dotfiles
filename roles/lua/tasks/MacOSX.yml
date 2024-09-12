@@ -1,5 +1,5 @@
 ---
-- name: "Lua | Darwin | Install lua"
+- name: "Lua | MacOSX | Install lua"
   community.general.homebrew:
     name: "{{ item }}"
     state: present

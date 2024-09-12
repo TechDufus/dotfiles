@@ -1,5 +1,5 @@
 ---
-- name: "TLDR | Darwin | Install TLDR"
+- name: "TLDR | MacOSX | Install TLDR"
   community.general.homebrew:
     name: tldr
     state: present

@@ -1,5 +1,5 @@
 ---
-- name: "Docker | Darwin | Install Docker"
+- name: "Docker | MacOSX | Install Docker"
   community.general.homebrew:
     name: docker
     state: present

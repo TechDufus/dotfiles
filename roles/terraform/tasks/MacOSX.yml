@@ -1,5 +1,5 @@
 ---
-- name: "Terraform | Darwin | Install Terraform"
+- name: "Terraform | MacOSX | Install Terraform"
   community.general.homebrew:
     name: terraform
     state: present

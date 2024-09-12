@@ -1,5 +1,5 @@
 ---
-- name: "SSHFS | Darwin | Install sshfs"
+- name: "SSHFS | MacOSX | Install sshfs"
   community.general.homebrew:
     name: sshfs
     state: present

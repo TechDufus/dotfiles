@@ -1,5 +1,5 @@
 ---
-- name: "Git | Install git"
+- name: "Git | MacOSX | Install git"
   community.general.homebrew:
     name: git
     state: present

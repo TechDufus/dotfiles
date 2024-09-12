@@ -1,10 +1,10 @@
 ---
-- name: "System | Darwin | Update Homebrew"
+- name: "System | MacOSX | Update Homebrew"
   community.general.homebrew:
     update_homebrew: true
     upgrade_all: true
 
-- name: "System | Darwin | Install Homebrew Packages"
+- name: "System | MacOSX | Install Homebrew Packages"
   community.general.homebrew:
     name: "{{ item }}"
     state: present

@@ -1,5 +1,5 @@
 ---
-- name: "Go | Darwin | Install Go"
+- name: "Go | MacOSX | Install Go"
   community.general.homebrew:
     name: go
     state: present

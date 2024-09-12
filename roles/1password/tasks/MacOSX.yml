@@ -1,5 +1,5 @@
 ---
-- name: "1Password | Darwin | Install 1Password"
+- name: "1Password | MacOSX | Install 1Password"
   community.general.homebrew_cask:
     name: "{{ item }}"
     state: present

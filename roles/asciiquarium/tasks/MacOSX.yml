@@ -1,5 +1,5 @@
 ---
-- name: "Asciiquarium | Darwin | Install asciiquarium"
+- name: "Asciiquarium | MacOSX | Install asciiquarium"
   community.general.homebrew:
     name: asciiquarium
     state: present

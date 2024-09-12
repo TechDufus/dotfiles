@@ -10,10 +10,8 @@
       - ansible-lint
       - ripgrep
     state: present
-  become: true
 
 - name: "Neovim | Darwin | Install"
   community.general.homebrew:
     name: neovim/neovim
     state: present
-  become: true

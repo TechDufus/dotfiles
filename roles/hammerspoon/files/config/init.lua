@@ -63,7 +63,7 @@ local layout = hs.loadSpoon('GridLayout')
     :start()
     :setLayouts(layouts)
     :setApps(apps)
-    -- :setGrid(positions.full_grid)
+    :setGrid(positions.full_grid)
     -- :setMargins('15x15')
 
 -- if (hs.screen.primaryScreen():name() == 'LG HDR WQHD') then

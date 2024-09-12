@@ -40,6 +40,7 @@ set -e
 # Paths
 VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
 OP_VAULT_SECRET=""
+ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 SSH_DIR="$HOME/.ssh"
@@ -152,18 +153,18 @@ function macos_setup() {
     __task "Installing Homebrew"
     _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
   fi
-  if ! [ -x "$(command -v git)"]; then
+  if ! [ -x "$(command -v git)" ]; then
     __task "Installing Git"
-    _cmd "/opt/homebrew/bin/brew install git"
+    _cmd "brew install git"
   fi
   if ! [ -x "$(command -v ansible)" ]; then
     __task "Installing Ansible"
-    _cmd "/opt/homebrew/bin/brew install ansible"
+    _cmd "brew install ansible"
   fi
   if ! [ -x "$(command -v op)" ]; then
     __task "Installing 1Password CLI"
-    _cmd "/opt/homebrew/bin/brew install 1password@beta"
-    _cmd "/opt/homebrew/bin/brew install 1password-cli@beta"
+    _cmd "brew install 1password@beta"
+    _cmd "brew install 1password-cli@beta"
     __task "Setting up 1Password CLI"
     # press any key to continue
     read -n 1 -s -r -p "Press any key to continue"
@@ -171,7 +172,7 @@ function macos_setup() {
   fi
   # if ! [ -x "$(command -v pyenv)" ]; then
   #   __task "Installing Pyenv"
-  #   _cmd "/opt/homebrew/bin/brew install pyenv"
+  #   _cmd "brew install pyenv"
   # fi
   # if ! [ -x "$(command -v pip3)" ]; then
   #   __task "Installing Python3 Pip"
@@ -207,6 +208,13 @@ function use_op_vault_if_possible() {
   fi
 }
 
+if [ -f /etc/os-release ]; then
+  source /etc/os-release
+else
+  if [ -x "$(command -v uname)" ]; then
+    ID=$(uname -s)
+  fi
+fi
 source /etc/os-release
 __task "Loading Setup for detected OS: $ID"
 case $ID in

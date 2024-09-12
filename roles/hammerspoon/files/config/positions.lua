@@ -28,7 +28,7 @@ return {
     center       = '58,0 60x40',
     right        = '118,0 42x40',
     right_hidden = '90,5 60x30', -- This is a full 1920x1080 on a 5120x1440 screen
-    left_hidden  = '20,5 60x30',
+    left_hidden  = '20,5 60x30', -- This is a full 1920x1080 on a 5120x1440 screen
   },
 
   thirds = {

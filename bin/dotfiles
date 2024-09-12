@@ -170,18 +170,6 @@ function macos_setup() {
     read -n 1 -s -r -p "Press any key to continue"
     echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}1Password CLI setup complete${NC}" && _clear_task
   fi
-  # if ! [ -x "$(command -v pyenv)" ]; then
-  #   __task "Installing Pyenv"
-  #   _cmd "brew install pyenv"
-  # fi
-  # if ! [ -x "$(command -v pip3)" ]; then
-  #   __task "Installing Python3 Pip"
-  #   _cmd "brew install pip3"
-  # fi
-  # if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-  #   __task "Installing Python3 Watchdog"
-  #   _cmd "pip3 install watchdog"
-  # fi
 }
 
 update_ansible_galaxy() {

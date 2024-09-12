@@ -30,6 +30,7 @@ default_roles:
   - podman
   - pwsh
   - python
+  - raycast
   - ruby
   - rust
   - ssh

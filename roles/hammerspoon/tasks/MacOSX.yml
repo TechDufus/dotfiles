@@ -1,9 +1,8 @@
 ---
 - name: "Hammerspoon | Install Hammerspoon"
-  community.general.homebrew:
-    name: "hammerspoon"
-    state: present
-    install_options: "--cask"
+  community.general.homebrew_cask:
+    name: hammerspoon
+    state: latest
 
 - name: "Hammerspoon | Ensure ~/.hammerspoon exists"
   ansible.builtin.file:

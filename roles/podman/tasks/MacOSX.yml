@@ -1,0 +1,5 @@
+---
+- name: "{{ role_name }} | MacOSX | Install Podman"
+  community.general.homebrew:
+    name: podman
+    state: latest

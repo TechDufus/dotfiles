@@ -1,7 +1,6 @@
 default_roles:
   - system
   - 1password
-  # - alacritty
   - asciiquarium
   - bash
   - bat
@@ -28,6 +27,7 @@ default_roles:
   - npm
   - nvm
   - obsidian
+  - podman
   - pwsh
   - python
   - ruby
@@ -41,7 +41,7 @@ default_roles:
   - tmux
   - tshark
   - zellij
-  # - spotify
+  - spotify
   - zoxide
 
 git_user_name: "TechDufus"

@@ -55,6 +55,12 @@
         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
       notify: "Hammerspoon | Cleanup latest GridLayout.spoon zip"
 
+    - name: "Hammerspoon | Ensure ~/.hammerspoon/Spoons/GridLayout.spoon exists"
+      ansible.builtin.file:
+        name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+        state: directory
+        mode: "0755"
+
     - name: "Hammerspoon | Unzip latest GridLayout.spoon"
       ansible.builtin.unarchive:
         src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon.zip"

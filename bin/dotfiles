@@ -215,7 +215,7 @@ else
     ID=$(uname -s)
   fi
 fi
-source /etc/os-release
+
 __task "Loading Setup for detected OS: $ID"
 case $ID in
   ubuntu)

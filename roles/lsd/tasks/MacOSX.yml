@@ -2,4 +2,4 @@
 - name: "LSD | Darwin | Install lsd"
   community.general.homebrew:
     name: lsd
-    state: latest
+    state: present

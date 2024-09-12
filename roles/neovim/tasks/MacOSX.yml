@@ -14,4 +14,4 @@
 - name: "Neovim | Darwin | Install"
   community.general.homebrew:
     name: neovim
-    state: latest
+    state: present

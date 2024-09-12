@@ -2,4 +2,4 @@
 - name: "GH | Darwin | Install gh"
   community.general.homebrew:
     name: gh
-    state: latest
+    state: present

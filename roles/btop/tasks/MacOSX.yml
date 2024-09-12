@@ -2,4 +2,4 @@
 - name: "btop | Darwin | Install btop"
   community.general.homebrew:
     name: btop
-    state: latest
+    state: present

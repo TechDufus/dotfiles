@@ -2,4 +2,4 @@
 - name: "Brave | Darwin | Install brave"
   community.general.homebrew_cask:
     name: brave-browser
-    state: latest
+    state: present

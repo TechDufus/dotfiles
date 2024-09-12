@@ -2,4 +2,4 @@
 - name: "NCDU | Darwin | Install ncdu"
   community.general.homebrew:
     name: ncdu
-    state: latest
+    state: present

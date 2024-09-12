@@ -2,7 +2,7 @@
 - name: "Hammerspoon | Install Hammerspoon"
   community.general.homebrew_cask:
     name: hammerspoon
-    state: latest
+    state: present
 
 - name: "Hammerspoon | Ensure ~/.hammerspoon exists"
   ansible.builtin.file:

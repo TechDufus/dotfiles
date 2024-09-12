@@ -2,4 +2,4 @@
 - name: "SSHFS | Darwin | Install sshfs"
   community.general.homebrew:
     name: sshfs
-    state: latest
+    state: present

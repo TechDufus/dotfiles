@@ -1,5 +1,5 @@
 ---
-- name: "Kitty | Darwin | Install kitty"
+- name: "WARP | MacOSX | Install warp"
   community.general.homebrew_cask:
-    name: kitty
+    name: warp
     state: present

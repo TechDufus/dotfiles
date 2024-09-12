@@ -2,4 +2,4 @@
 - name: "Zsh | Darwin | Install zsh"
   community.general.homebrew:
     name: zsh
-    state: latest
+    state: present

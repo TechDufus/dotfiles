@@ -2,7 +2,7 @@
 - name: "Docker | Darwin | Install Docker"
   community.general.homebrew:
     name: docker
-    state: latest
+    state: present
 
 # IF THIS IS NEEDED AS-IS, MOVE IT TO main.yml
 # - name: "Docker | Enable service"

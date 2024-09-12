@@ -7,6 +7,6 @@
 - name: "System | Darwin | Install Homebrew Packages"
   community.general.homebrew:
     name: "{{ item }}"
-    state: latest
+    state: present
   with_items:
     - jq

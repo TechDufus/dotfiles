@@ -2,7 +2,7 @@
 - name: "Lua | Darwin | Install lua"
   community.general.homebrew:
     name: "{{ item }}"
-    state: latest
+    state: present
   loop:
     - lua
     - luarocks

@@ -2,4 +2,4 @@
 - name: "Asciiquarium | Darwin | Install asciiquarium"
   community.general.homebrew:
     name: asciiquarium
-    state: latest
+    state: present

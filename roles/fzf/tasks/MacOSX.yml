@@ -2,4 +2,4 @@
 - name: "FZF | Install fzf"
   community.general.homebrew:
     name: fzf
-    state: latest
+    state: present

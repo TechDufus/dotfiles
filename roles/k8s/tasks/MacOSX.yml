@@ -2,4 +2,4 @@
 - name: "K8s | Darwin | Install kubernetes-cli"
   community.general.homebrew:
     name: kubernetes-cli
-    state: latest
+    state: present

@@ -2,4 +2,4 @@
 - name: "Fonts | Install"
   community.general.homebrew:
     name: font-powerline-symbols
-    state: latest
+    state: present

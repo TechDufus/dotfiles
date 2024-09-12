@@ -1,0 +1,90 @@
+---
+# - name: "Tldr | Checking for Distribution Config: {{ ansible_distribution }}"
+#   ansible.builtin.stat:
+#     path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+#   register: tldr_distribution_config
+#
+# - name: "Tldr | Run Tasks: {{ ansible_distribution }}"
+#   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+
+- name: "Tldr | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/psibi/tldr-hs/releases/latest
+  register: tldr_latest_version_json
+  changed_when: false
+
+- name: "Tldr | Registering Tldr Latest Release"
+  ansible.builtin.set_fact:
+    tldr_latest_release: "{{ tldr_latest_version_json.json.tag_name }}"
+
+- name: "Tldr | Registering Tldr Latest Version"
+  ansible.builtin.set_fact:
+    tldr_latest_version: "{{ tldr_latest_release.stdout|default('') }}"
+
+- name: "Tldr | Getting version information"
+  ansible.builtin.shell:
+    cmd: |
+      echo "v$(/usr/local/bin/tldr -v)"
+  register: current_tldr_version
+  changed_when: false
+  failed_when: false
+
+- name: "Tldr | Show current_tldr_version debug"
+  ansible.builtin.debug:
+    var: current_tldr_version.stdout
+
+- name: "Tldr | Show tldr_latest_release debug"
+  ansible.builtin.debug:
+    var: tldr_latest_release
+
+- name: "Tldr | Install"
+  when: tldr_latest_release not in current_tldr_version.stdout | default('')
+  block:
+    - name: "Tldr | Define tldr_file"
+      ansible.builtin.set_fact:
+        tldr_file: "tldr-musl-linux-{{ tldr_latest_release }}"
+
+    - name: "Tldr | Ensure clean download destination"
+      ansible.builtin.file:
+        path: "/tmp/{{ tldr_file }}.tar.gz"
+        state: absent
+      become: true
+
+    - name: "Tldr | Downloading Tldr Release"
+      ansible.builtin.get_url:
+        url: "https://github.com/psibi/tldr-hs/releases/download/{{ tldr_latest_release }}/{{ tldr_file }}.tar.gz"
+        dest: /tmp/
+        mode: "0644"
+        force: true
+      notify:
+        - Cleanup Tldr downloaded tar
+
+    - name: "Tldr | Ensure clean extraction destination"
+      ansible.builtin.file:
+        path: "/tmp/tldr"
+        state: absent
+      become: true
+
+    - name: "Tldr | Extract Tldr tar file"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ tldr_file }}.tar.gz"
+        dest: /tmp
+
+    - name: "Tldr | Remove any current Tldr installations"
+      ansible.builtin.file:
+        path: /usr/local/bin/tldr
+        state: absent
+      become: true
+
+    - name: "Tldr | Install tldr"
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/tldr
+        dest: /usr/local/bin/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        force: true
+        mode: "0755"
+      become: true
+      notify:
+        - Remove extracted Tldr directory

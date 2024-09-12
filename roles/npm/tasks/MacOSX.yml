@@ -2,4 +2,4 @@
 - name: "NPM | Darwin | Install npm"
   community.general.homebrew:
     name: npm
-    state: latest
+    state: present

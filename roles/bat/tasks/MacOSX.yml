@@ -2,4 +2,4 @@
 - name: "Bat | Darwin | Install bat"
   community.general.homebrew:
     name: bat
-    state: latest
+    state: present

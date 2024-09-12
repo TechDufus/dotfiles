@@ -1,0 +1,5 @@
+---
+- name: "Terraform | Darwin | Install Terraform"
+  community.general.homebrew:
+    name: terraform
+    state: present

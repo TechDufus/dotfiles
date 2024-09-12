@@ -10,7 +10,7 @@
     state: directory
     mode: "0755"
 
-- name: "Hammerspoon | Copy init.lua"
+- name: "Hammerspoon | Deploy Hammerspoon Configuration"
   ansible.builtin.copy:
     src: "config"
     dest: "{{ ansible_user_dir }}/.hammerspoon/"
@@ -40,7 +40,8 @@
   when: hammerspoon_gridlayout_release.status == 200
 
 - name: "Hammerspoon | Install latest GridLayout.spoon"
-  when: hammerspoon_gridlayout_version.stdout != hammerspoon_gridlayout_latest_version
+  when: (not hammerspoon_gridlayout_spoon.stat.exists) or
+        (hammerspoon_gridlayout_version != hammerspoon_gridlayout_latest_version)
   block:
     - name: "Hammerspoon | Download latest GridLayout.spoon"
       ansible.builtin.uri:

@@ -224,7 +224,7 @@ case $ID in
   arch)
     arch_setup
     ;;
-  darwin)
+  Darwin)
     macos_setup
     ;;
   *)

@@ -53,13 +53,12 @@
       ansible.builtin.uri:
         url: "https://github.com/jesseleite/GridLayout.spoon/releases/download/{{ hammerspoon_gridlayout_latest_version }}/GridLayout.spoon.zip"
         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
-        return_content: true
       notify: "Hammerspoon | Cleanup latest GridLayout.spoon zip"
 
     - name: "Hammerspoon | Unzip latest GridLayout.spoon"
       ansible.builtin.unarchive:
         src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
-        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/"
+        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
         creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
 
 - name: "Hammerspoon | Deploy Grid Layout Configuration"
@@ -68,7 +67,7 @@
     dest: "{{ ansible_user_dir }}/.hammerspoon"
     mode: "0644"
 
-- name: "Hammerspoon | Install Hammerspoon Spoons"
+- name: "Hammerspoon | Install Official Hammerspoon Spoons"
   ansible.builtin.include_tasks: spoons.yml
   loop:
     - "ReloadConfiguration"

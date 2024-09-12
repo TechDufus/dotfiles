@@ -11,12 +11,17 @@
       ansible.builtin.uri:
         url: "https://github.com/Hammerspoon/Spoons/blob/master/Spoons/{{ current_spoon }}.spoon.zip"
         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
-        return_content: true
 
-    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Unzip latest {{ current_spoon }}"
-      ansible.builtin.unarchive:
-        src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
-        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/"
+    # - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Unzip latest {{ current_spoon }}"
+    #   ansible.builtin.unarchive:
+    #     src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
+    #     dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon"
+    #     creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon"
+
+    # install
+    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Install latest {{ current_spoon }}"
+      ansible.builtin.command:
+        cmd: "open -a /Applications/Hammerspoon.app {{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
         creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon"
 
     - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Cleanup latest {{ current_spoon }} zip"

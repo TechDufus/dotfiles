@@ -56,12 +56,6 @@
     mode: "0644"
     force: true
 
-- name: "Bash | Set default terminal"
-  ansible.builtin.user:
-    name: "{{ host_user }}"
-    shell: /usr/bin/bash
-  become: true
-
 - name: "Bash | Get private variables from Vault"
   when: op_installed
   ansible.builtin.import_tasks: vault.yml

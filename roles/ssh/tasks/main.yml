@@ -1,6 +1,37 @@
 ---
+- name: "SSH | Deploy SSH keys from Vault"
+  when: op_installed
+  block:
+    - name: "SSH | Get [TechDufus SSH] key from Vault"
+      ansible.builtin.command: "op read 'op://Personal/TechDufus SSH/private key?ssh-format=openssh'"
+      register: op_techdufus_ssh_priv_key
+      changed_when: false
+      no_log: true
+
+    - name: "SSH | Get [TechDufus SSH] public key from Vault"
+      ansible.builtin.command: "op read 'op://Personal/TechDufus/public key'"
+      register: op_techdufus_ssh_pub_key
+      changed_when: false
+      no_log: true
+
+    - name: "SSH | ssh_key_item init"
+      ansible.builtin.set_fact:
+        ssh_key: {}
+      no_log: true
+
+      # NOTE: adding \n to end of priv keys is required when pulling from 1password.
+    - name: "SSH | Set ssh_key"
+      ansible.builtin.set_fact:
+        ssh_key: "{{ ssh_key | combine({item.key: item.value}) }}"
+      no_log: true
+      with_items:
+        - key: id_ed25519
+          value: "{{ op_techdufus_ssh_priv_key.stdout }}\n"
+        - key: id_ed25519.pub
+          value: "{{ op_techdufus_ssh_pub_key.stdout }}"
+
 - name: "SSH | Copy SSH keys"
-  copy:
+  ansible.builtin.copy:
     dest: "{{ ansible_user_dir }}/.ssh/{{ ssh_key_item.key }}"
     content: "{{ ssh_key_item.value }}"
     mode: "0600"

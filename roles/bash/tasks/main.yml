@@ -62,20 +62,16 @@
     shell: /usr/bin/bash
   become: true
 
+- name: "Bash | Get private variables from Vault"
+  when: op_installed
+  ansible.builtin.import_tasks: vault.yml
+
 - name: "Bash | Set private variables"
   ansible.builtin.template:
     dest: "{{ ansible_user_dir }}/.config/bash/.bash_private"
     src: ".bash_private.j2"
     mode: "0644"
   no_log: true
-
-- name: "Bash | Copy Private Files"
-  ansible.builtin.lineinfile:
-    name: "~/.openai.apikey"
-    line: "{{ bash_private.OPENAI_KEY }}"
-    create: true
-    mode: "0600"
-    state: present
 
 - name: "Bash | {{ ansible_distribution }} | Identify distribution config"
   ansible.builtin.stat:

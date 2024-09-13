@@ -1,0 +1,19 @@
+---
+- name: "Bash | Get private variables from Vault"
+  ansible.builtin.command: "op read 'op://Personal/Openai/OPENAI_KEY - Project'"
+  register: op_openai_key
+  changed_when: false
+  no_log: true
+
+- name: "Bash | Set bash_private init"
+  ansible.builtin.set_fact:
+    bash_private: {}
+  no_log: true
+
+- name: "Bash | Set bash_private"
+  ansible.builtin.set_fact:
+    bash_private: "{{ bash_private | combine({ item.key: item.value }) }}"
+  no_log: true
+  with_items:
+    - key: OPENAI_API_KEY
+      value: "{{ op_openai_key.stdout }}"

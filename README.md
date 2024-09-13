@@ -85,6 +85,9 @@ bash_public:
 
 The `bash_private` value allows you to include a dictionary of secure key-value pairs that will be stored in a `~/.bash_private`.
 
+> [!NOTE]
+> See [1Password Integration](#1password-integration) for a more secure way to manage your Ansible secrets.
+
 ```yaml
 
 ---
@@ -101,6 +104,9 @@ bash_private:
 ### SSH Keys
 
 Manage SSH keys by setting the `ssh_key` value in `values.yaml` shown as example below:
+
+> [!NOTE]
+> See [1Password Integration](#1password-integration) for a more secure way to manage your Ansible secrets.
 
 ```yaml
 
@@ -145,6 +151,9 @@ git_user_name: Foo Bar
 #### Advanced
 
 Below is a more advanced example of `values.yaml` file:
+
+> [!NOTE]
+> See [1Password Integration](#1password-integration) for a more secure way to manage your Ansible secrets.
 
 ```yaml
 ---

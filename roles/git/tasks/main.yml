@@ -49,7 +49,7 @@
   when: op_installed
   block:
     - name: "1Password | Get user.email"
-      ansible.builtin.command: "op read '{{ op_git_user_email_path }}'"
+      ansible.builtin.command: "op read '{{ op.git.user.email }}'"
       register: op_git_user_email
       changed_when: false
       # no_log: true
@@ -106,7 +106,7 @@
   when: op_installed
   block:
     - name: "1Password | Get allowed_signers"
-      ansible.builtin.command: "op read 'op://Personal/TechDufus SSH/allowed_signers'"
+      ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
       register: op_git_ssh_allowed_signers
       changed_when: false
       no_log: true

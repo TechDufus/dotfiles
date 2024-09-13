@@ -3,13 +3,13 @@
   when: op_installed
   block:
     - name: "SSH | Get [TechDufus SSH] key from Vault"
-      ansible.builtin.command: "op read 'op://Personal/TechDufus SSH/private key?ssh-format=openssh'"
+      ansible.builtin.command: "op read '{{ op.ssh.github.techdufus.private_key }}'"
       register: op_techdufus_ssh_priv_key
       changed_when: false
       no_log: true
 
     - name: "SSH | Get [TechDufus SSH] public key from Vault"
-      ansible.builtin.command: "op read 'op://Personal/TechDufus/public key'"
+      ansible.builtin.command: "op read '{{ op.ssh.github.techdufus.public_key }}'"
       register: op_techdufus_ssh_pub_key
       changed_when: false
       no_log: true

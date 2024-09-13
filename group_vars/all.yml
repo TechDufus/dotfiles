@@ -35,6 +35,7 @@ default_roles:
   - rust
   - ssh
   - sshfs
+  - starship
   - taskfile
   - terraform
   - tldr
@@ -44,10 +45,22 @@ default_roles:
   - zellij
   - spotify
   - zoxide
+  - zsh
 
 git_user_name: "TechDufus"
 op_git_user_email_path: "op://Personal/TechDufus GitHub/email"
-
+op:
+  git:
+    user:
+      email: "op://Personal/TechDufus GitHub/email"
+    allowed_signers: "op://Personal/TechDufus SSH/allowed_signers"
+  ssh:
+    github:
+      techdufus:
+        private_key: "op://Personal/TechDufus SSH/private key?ssh-format=openssh"
+        public_key: "op://Personal/TechDufus SSH/public key"
+  openai:
+    key: "op://Personal/Openai/OPENAI_KEY - Project"
 
 flatpak_packages:
   - md.obsidian.Obsidian

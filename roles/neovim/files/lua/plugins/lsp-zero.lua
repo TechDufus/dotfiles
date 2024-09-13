@@ -53,7 +53,6 @@ return {
           'jsonls',
           'lua_ls',
           'pylsp',
-          'tsserver',
         },
         handlers = {
           -- this first function is the "default handler"

@@ -17,7 +17,8 @@ return {
       Kitty       = { cell = 4, open = true },
       Brave       = { cell = 5, open = true },
       OnePassword = { cell = 2, open = true },
-      Discord     = { cell = 6, open = true },
+      Discord     = { cell = 7, open = true },
+      Outlook     = { cell = 7, },
     },
   },
   {

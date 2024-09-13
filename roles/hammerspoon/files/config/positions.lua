@@ -15,12 +15,6 @@ return {
   -- 59,0 60x40
   -- 102,0 42x40
   standard = {
-    -- top_left     = '0,0 1356x689',
-    -- bottom_left  = '0,690 1356x751',
-    -- left_center  = '1357,0 504x1440',
-    -- center       = '1860,0 1902x1440',
-    -- right        = '3720,0 1358x1440',
-    -- right_hidden = '3200,200 1920x1040',
     top_left     = '0,0 42x19',
     bottom_left  = '0,9 42x21',
     full_left    = '0,0 42x40',

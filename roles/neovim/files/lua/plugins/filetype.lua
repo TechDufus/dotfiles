@@ -11,6 +11,7 @@ return {
                 sh = "sh",
                 html = "html",
                 bashrc = "sh",
+                zsh = "sh",
             },
         },
     },

@@ -10,7 +10,7 @@ hs.loadSpoon('ReloadConfiguration'):start()
 require('helpers')
 
 positions = require('positions')
-apps = require('apps')
+apps  = require('apps')
 layouts = require('layouts')
 summon = require('summon')
 chain = require('chain')

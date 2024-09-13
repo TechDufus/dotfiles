@@ -1,0 +1,19 @@
+---
+- name: "ZSH | Get private variables from Vault"
+  ansible.builtin.command: "op read '{{ op.openai.key }}'"
+  register: op_openai_key
+  changed_when: false
+  no_log: true
+
+- name: "ZSH | Set zsh_private init"
+  ansible.builtin.set_fact:
+    zsh_private: {}
+  no_log: true
+
+- name: "ZSH | Set zsh_private"
+  ansible.builtin.set_fact:
+    zsh_private: "{{ zsh_private | combine({ item.key: item.value }) }}"
+  no_log: true
+  with_items:
+    - key: OPENAI_API_KEY
+      value: "{{ op_openai_key.stdout }}"

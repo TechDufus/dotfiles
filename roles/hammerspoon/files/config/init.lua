@@ -112,22 +112,22 @@ end))
 local chainX = { 'thirds', 'halves', 'twoThirds', 'fiveSixths', 'sixths' }
 local chainY = { 'full', 'thirds' }
 
-local singleWindowMovements = {
-  ['h'] = chain(getPositions(chainX, 'left')),
-  ['k'] = chain(getPositions(chainY, 'center')),
-  ['j'] = chain({ positions.center.large, positions.center.medium, positions.center.small, positions.center.tiny,
-    positions.center.mini }),
-  ['l'] = chain(getPositions(chainX, 'right')),
-  ['y'] = chain(getPositions(chainX, 'left', 'top')),
-  ['u'] = chain(getPositions(chainX, 'right', 'top')),
-  ['n'] = chain(getPositions(chainX, 'left', 'bottom')),
-  ['m'] = chain(getPositions(chainX, 'right', 'bottom')),
-  -- ['i'] = function() hs.grid.snap(hs.window.focusedWindow()) end, -- seems buggy?
-}
+-- local singleWindowMovements = {
+--   ['h'] = chain(getPositions(chainX, 'left')),
+--   ['k'] = chain(getPositions(chainY, 'center')),
+--   ['j'] = chain({ positions.center.large, positions.center.medium, positions.center.small, positions.center.tiny,
+--     positions.center.mini }),
+--   ['l'] = chain(getPositions(chainX, 'right')),
+--   ['y'] = chain(getPositions(chainX, 'left', 'top')),
+--   ['u'] = chain(getPositions(chainX, 'right', 'top')),
+--   ['n'] = chain(getPositions(chainX, 'left', 'bottom')),
+--   ['m'] = chain(getPositions(chainX, 'right', 'bottom')),
+--   -- ['i'] = function() hs.grid.snap(hs.window.focusedWindow()) end, -- seems buggy?
+-- }
 
-registerKeyBindings(bigHyper, hs.fnutils.map(singleWindowMovements, function(fn)
-  return function() fn() end
-end))
+-- registerKeyBindings(bigHyper, hs.fnutils.map(singleWindowMovements, function(fn)
+--   return function() fn() end
+-- end))
 
 
 --------------------------------------------------------------------------------

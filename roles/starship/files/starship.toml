@@ -24,6 +24,7 @@ $git_status\
 $hg_branch\
 $pijul_channel\
 $docker_context\
+${custom.docker}\
 $package\
 $c\
 $cmake\
@@ -334,6 +335,9 @@ symbol = " "
 
 [memory_usage]
 symbol = "󰍛 "
+threshold = 1
+disabled = true
+format = '$symbol[${ram}( | ${swap})]($style) '
 
 [meson]
 symbol = "󰔷 "
@@ -427,19 +431,21 @@ symbol = "󱘗 "
 [scala]
 symbol = " "
 
-# [shell]
-# disabled = true
-# bash_indicator = ""
-# zsh_indicator = "[](muave)"
+[shell]
+disabled = false
+bash_indicator = " "
+zsh_indicator = " "
 
 [swift]
 symbol = " "
 
 [username]
-format = '[$user]($style) [@](peach)'
+disabled = false
+format = '[$user]($style) '
 
 [zig]
 symbol = " "
+
 
 [custom.giturl]
 description = "Display symbol for remote Git server"
@@ -461,3 +467,10 @@ echo "$GIT_REMOTE_SYMBOL"
 when = 'git rev-parse --is-inside-work-tree 2> /dev/null'
 format = "$output "
 
+[custom.docker]
+description = "Shows the docker symbol if the current directory has Dockerfile or docker-compose.yml files"
+# command = "echo 🐳"
+command = "echo '  '"
+files = ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"]
+when = """ command -v docker &> /dev/null; exit (echo $?); """
+style = "bold blue"

@@ -3,3 +3,16 @@
   community.general.homebrew:
     name: k9s
     state: present
+
+#~/Library/Application Support/k9s
+# - name: "k9s | Ensure k9s config directory exists"
+#   ansible.builtin.file:
+#     path: "{{ ansible_user_dir }}/.config/k9s"
+#     state: directory
+#     mode: "0755"
+#
+# - name: "k9s | Copy skin config"
+#   ansible.builtin.copy:
+#     dest: "{{ ansible_user_dir }}/.config/k9s/skin.yml"
+#     src: "skin.yml"
+#     mode: "0644"

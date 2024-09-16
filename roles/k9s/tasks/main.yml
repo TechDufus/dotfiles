@@ -7,16 +7,3 @@
 - name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
-
-- name: "k9s | Ensure k9s config directory exists"
-  ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/k9s"
-    state: directory
-    mode: "0755"
-
-- name: "k9s | Copy skin config"
-  ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/k9s/skin.yml"
-    src: "skin.yml"
-    mode: "0644"
-

@@ -62,6 +62,10 @@ COMPLETION_WAITING_DOTS="true"
 # see 'man strftime' for details.
 # HIST_STAMPS="mm/dd/yyyy"
 
+# don't put duplicate lines in the history. See bash(1) for more options
+export HISTCONTROL=ignoredups
+
+
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
 
@@ -86,6 +90,7 @@ plugins=(
   podman
   scala
   ssh
+  starship
   terraform
   themes
   timer
@@ -102,11 +107,11 @@ source $ZSH/oh-my-zsh.sh
 # export LANG=en_US.UTF-8
 
 # Preferred editor for local and remote sessions
-# if [[ -n $SSH_CONNECTION ]]; then
-#   export EDITOR='vim'
-# else
-#   export EDITOR='nvim'
-# fi
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR='nvim'
+else
+  export EDITOR='nvim'
+fi
 
 # Compilation flags
 # export ARCHFLAGS="-arch $(uname -m)"
@@ -123,6 +128,7 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+
 if [[ -f "$HOME/.config/zsh/.zsh_private" ]]; then
     source "$HOME/.config/zsh/.zsh_private"
 fi
@@ -130,6 +136,8 @@ fi
 for file in $HOME/.config/zsh/*.zsh; do
   source "$file"
 done
+
+bindkey '^R' history-incremental-search-backward
 
 greetings="neofetch nerdfetch"
 # if greeting bin exists, run it and stop evaluating the rest
@@ -142,4 +150,3 @@ if [[ -z "$TMUX" ]]; then
   done
 fi
 
-eval "$(starship init zsh)"

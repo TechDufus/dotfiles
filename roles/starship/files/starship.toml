@@ -1,6 +1,106 @@
 # Get editor completions based on the config schema
 "$schema" = 'https://starship.rs/config-schema.json'
 
+add_newline = false
+# format = '$all$directory$character'
+
+# GLOBAL FORMAT
+format = """
+$username\
+$hostname\
+$localip\
+$shlvl\
+$singularity\
+$kubernetes\
+$vcsh\
+$fossil_branch\
+$fossil_metrics\
+${custom.giturl}\
+$git_branch\
+$git_commit\
+$git_state\
+$git_metrics\
+$git_status\
+$hg_branch\
+$pijul_channel\
+$docker_context\
+$package\
+$c\
+$cmake\
+$cobol\
+$daml\
+$dart\
+$deno\
+$dotnet\
+$elixir\
+$elm\
+$erlang\
+$fennel\
+$gleam\
+$golang\
+$guix_shell\
+$haskell\
+$haxe\
+$helm\
+$java\
+$julia\
+$kotlin\
+$gradle\
+$lua\
+$nim\
+$nodejs\
+$ocaml\
+$opa\
+$perl\
+$php\
+$pulumi\
+$purescript\
+$python\
+$quarto\
+$raku\
+$rlang\
+$red\
+$ruby\
+$rust\
+$scala\
+$solidity\
+$swift\
+$terraform\
+$typst\
+$vlang\
+$vagrant\
+$zig\
+$buf\
+$nix_shell\
+$conda\
+$meson\
+$spack\
+$memory_usage\
+$aws\
+$gcloud\
+$openstack\
+$azure\
+$nats\
+$direnv\
+$env_var\
+$crystal\
+$sudo\
+$cmd_duration\
+$line_break\
+$jobs\
+$battery\
+$time\
+$status\
+$os\
+$container\
+$shell\
+$directory\
+$character"""
+
+
+# format = """$os$directory$character"""
+# right_format = """$all"""
+
 # Sets user-defined palette
 # Palettes must be defined _after_ this line
 palette = "catppuccin_latte"
@@ -126,7 +226,7 @@ mantle = "#181825"
 crust = "#11111b"
 
 [aws]
-symbol = "  "
+symbol = " "
 
 [buf]
 symbol = " "
@@ -145,7 +245,8 @@ symbol = " "
 
 [directory]
 read_only = " 󰌾"
-truncation_length = 4
+truncation_length = 8
+truncation_symbol = "…/"
 style = "bold lavender"
 
 [docker_context]
@@ -166,27 +267,52 @@ symbol = " "
 [git_branch]
 symbol = " "
 style = "bold mauve"
+format = '[$symbol$branch]($style) '
+
+[git_metrics]
+disabled = false
+
+[git_status]
+disabled = false
+format = '[\($all_status$ahead_behind\)]($style) '
+style = "bold green"
+conflicted = "🏳"
+up_to_date = " "
+untracked = " "
+ahead = "⇡${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+behind = "⇣${count}"
+stashed = " "
+modified = " "
+staged = '[++\($count\)](green)'
+renamed = "襁 "
+deleted = " "
 
 [golang]
-symbol = " "
+format = "[$version]($style) "
 
 [gcloud]
+disabled = true
+symbol = "☁️"
 format = '[$symbol$active]($style) '
 
 [guix_shell]
-symbol = " "
+symbol = ""
 
 [haskell]
-symbol = " "
+symbol = ""
 
 [haxe]
-symbol = " "
+symbol = ""
 
 [hg_branch]
-symbol = " "
+symbol = ""
 
 [hostname]
-ssh_symbol = " "
+ssh_only = false
+ssh_symbol = " "
+format = '[$ssh_symbol(bold blue)[$hostname](bold blue)]($style) '
+disabled = false
 
 [java]
 symbol = " "
@@ -198,8 +324,10 @@ symbol = " "
 symbol = " "
 
 [kubernetes]
-format = '[⛵(($namespace@)$context)]($style) in '
+# format = '[⛵(($namespace@)$context)]($style) in '
+format = '[$symbol$context([\(](peach)$namespace[\)](peach))]($style) '
 disabled = false
+
 
 [lua]
 symbol = " "
@@ -299,8 +427,37 @@ symbol = "󱘗 "
 [scala]
 symbol = " "
 
+# [shell]
+# disabled = true
+# bash_indicator = ""
+# zsh_indicator = "[](muave)"
+
 [swift]
 symbol = " "
 
+[username]
+format = '[$user]($style) [@](peach)'
+
 [zig]
 symbol = " "
+
+[custom.giturl]
+description = "Display symbol for remote Git server"
+command = """
+GIT_REMOTE=$(command git ls-remote --get-url 2> /dev/null)
+if [[ "$GIT_REMOTE" =~ "github" ]]; then
+    GIT_REMOTE_SYMBOL=" "
+elif [[ "$GIT_REMOTE" =~ "gitlab" ]]; then
+    GIT_REMOTE_SYMBOL=" "
+elif [[ "$GIT_REMOTE" =~ "bitbucket" ]]; then
+    GIT_REMOTE_SYMBOL=" "
+elif [[ "$GIT_REMOTE" =~ "git" ]]; then
+    GIT_REMOTE_SYMBOL="󰊢 "
+else
+    GIT_REMOTE_SYMBOL=" "
+fi
+echo "$GIT_REMOTE_SYMBOL"
+"""
+when = 'git rev-parse --is-inside-work-tree 2> /dev/null'
+format = "$output "
+

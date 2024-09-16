@@ -19,7 +19,7 @@ k9s:
     # Set to true to hide K9s header. Default false
     headless: false
     # Set to true to hide the K9S logo Default false
-    logoless: false
+    logoless: true
     # Set to true to hide K9s crumbs. Default false
     crumbsless: false
     noIcons: false

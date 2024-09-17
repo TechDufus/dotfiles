@@ -18,6 +18,6 @@
 #     state: present
 
 - name: "OrbStack | MacOSX | Install OrbStack"
-  ansible.builtin.homebrew_cask:
+  community.general.homebrew_cask:
     name: orbstack
     state: present

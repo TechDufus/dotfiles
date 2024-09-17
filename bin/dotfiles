@@ -40,6 +40,7 @@ set -e
 # Paths
 VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
 OP_INSTALLED=false
+OP_AUTHENTICATED=false
 OP_VAULT_SECRET=""
 ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
@@ -184,10 +185,12 @@ update_ansible_galaxy() {
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
 }
 
-function use_op_vault_if_possible() {
+function confirmVaultAccess() {
   __task "Checking for 1Password CLI"
   if op --version >/dev/null 2>&1; then
     OP_INSTALLED=true
+    _cmd "op vault list"
+    OP_AUTHENTICATED=true
   fi
 }
 
@@ -236,29 +239,15 @@ fi
 pushd "$DOTFILES_DIR" 2>&1 > /dev/null
 update_ansible_galaxy $ID
 
-use_op_vault_if_possible
+confirmVaultAccess
 
-__task "Running playbook ☕"; _task_done
 if [[ -n $OP_INSTALLED ]]; then
-      OP_VAULT_SECRET="$(op read 'op://Personal/Ansible Vault/password')"
-    if [[ -n $OP_VAULT_SECRET ]]; then
-      printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Using vault secret from 1Password${NC}\n"
-      rm -f $VAULT_SECRET_FILE
-    else
-      printf "${OVERWRITE}${LRED} [X]  ${LRED}No vault secret found in 1Password${NC}\n"
-fi
-fi
-if [[ -f $VAULT_SECRET_FILE ]]; then
-  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret ☕${NC}\n"
-  ansible-playbook --vault-password-file $VAULT_SECRET_FILE "$DOTFILES_DIR/main.yml" "$@"
-else
-  # if we have OP_VAULT_SECRET, we can use it as the vault password
-  if [[ -n $OP_VAULT_SECRET ]]; then
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Running playbook with vault secret from 1Password ☕${NC}\n"
-    ansible-playbook --vault-password-file <(echo $OP_VAULT_SECRET) "$DOTFILES_DIR/main.yml" "$@"
-    unset OP_VAULT_SECRET
-  else
+  if [[ -n $OP_AUTHENTICATED ]]; then
+    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Checking for 1Password CLI: 1Password Authentication successful! ☕${NC}\n"
+    rm -f $VAULT_SECRET_FILE
     ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+  else
+    printf "${OVERWRITE}${LRED} [X]  ${LRED}Checking for 1Password CLI: Unable to Authenticate with 1Password.${NC}\n"
   fi
 fi
 

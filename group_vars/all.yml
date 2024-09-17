@@ -10,6 +10,7 @@ default_roles:
   - flatpak
   - fonts
   - fzf
+  - gh
   - git
   - go
   - hammerspoon
@@ -21,6 +22,7 @@ default_roles:
   - lsd
   - lua
   - nala
+  - ncdu
   - neofetch
   - neovim
   - nerdfetch
@@ -31,8 +33,9 @@ default_roles:
   - pwsh
   - python
   - raycast
-  - ruby
-  - rust
+  # - ruby
+  # - rust
+  - spotify
   - ssh
   - sshfs
   - starship
@@ -41,9 +44,9 @@ default_roles:
   - tldr
   - tmate
   - tmux
-  - tshark
-  - zellij
-  - spotify
+  # - tshark
+  - warp
+  # - zellij
   - zoxide
   - zsh
 
@@ -57,10 +60,11 @@ op:
   ssh:
     github:
       techdufus:
-        private_key: "op://Personal/TechDufus SSH/private key?ssh-format=openssh"
-        public_key: "op://Personal/TechDufus SSH/public key"
-  openai:
-    key: "op://Personal/Openai/OPENAI_KEY - Project"
+        - name: id_ed25519
+          vault_path: "op://Personal/TechDufus SSH"
+  shell:
+    - name: OPENAI_API_KEY
+      vault_path: "op://Personal/Openai/OPENAI_KEY - Project"
 
 flatpak_packages:
   - md.obsidian.Obsidian

@@ -36,14 +36,21 @@
     - name: "ZSH | Run the install script"
       ansible.builtin.script:
         cmd: /{{ ansible_user_dir }}/oh-my-zsh.install.sh --unattended
-#
+
+- name: "ZSH | Install zsh-autosuggestions"
+  ansible.builtin.git:
+    repo: https://github.com/zsh-users/zsh-autosuggestions
+    dest: ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+    update: true
+    depth: 1
+
 - name: "ZSH | Copy .zshrc"
   ansible.builtin.copy:
     src: ".zshrc"
     dest: "{{ ansible_user_dir }}/.zshrc"
     mode: "0644"
 #
-# - name: "Bash | Copy .profile"
+# - name: "ZSH | Copy .profile"
 #   ansible.builtin.copy:
 #     src: ".profile"
 #     dest: "{{ ansible_user_dir }}/.profile"
@@ -57,9 +64,17 @@
     directory_mode: "0755"
     force: true
 
+- name: "ZSH | Set zsh_private init"
+  ansible.builtin.set_fact:
+    zsh_private: {}
+  no_log: true
+
 - name: "ZSH | Get private variables from Vault"
   when: op_installed
-  ansible.builtin.import_tasks: vault.yml
+  ansible.builtin.include_tasks: vault.yml
+  with_items: "{{ op.shell }}"
+  loop_control:
+    loop_var: secret
 
 - name: "ZSH | Set private variables"
   ansible.builtin.template:

@@ -99,8 +99,9 @@ $directory\
 $character"""
 
 
-# format = """$os$directory$character"""
-# right_format = """$all"""
+# format = """$all$os$shell$directory$character"""
+# right_format = '${custom.giturl}${custom.docker}'
+# continuation_prompt = '▶▶ '
 
 # Sets user-defined palette
 # Palettes must be defined _after_ this line
@@ -438,6 +439,9 @@ zsh_indicator = " "
 
 [swift]
 symbol = " "
+
+[time]
+disabled = true
 
 [username]
 disabled = false

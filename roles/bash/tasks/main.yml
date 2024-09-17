@@ -56,9 +56,17 @@
     mode: "0644"
     force: true
 
+- name: "Bash | Set bash_private init"
+  ansible.builtin.set_fact:
+    bash_private: {}
+  no_log: true
+
 - name: "Bash | Get private variables from Vault"
   when: op_installed
-  ansible.builtin.import_tasks: vault.yml
+  ansible.builtin.include_tasks: vault.yml
+  with_items: "{{ op.shell }}"
+  loop_control:
+    loop_var: secret
 
 - name: "Bash | Set private variables"
   ansible.builtin.template:

@@ -80,7 +80,6 @@ plugins=(
   command-not-found
   docker
   fzf
-  git
   gh
   golang
   helm
@@ -93,8 +92,8 @@ plugins=(
   starship
   terraform
   themes
-  timer
   zoxide
+  zsh-autosuggestions
 )
 
 source $ZSH/oh-my-zsh.sh

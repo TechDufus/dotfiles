@@ -436,6 +436,9 @@ symbol = " "
 disabled = false
 bash_indicator = " "
 zsh_indicator = " "
+powershell_indicator = "󰨊 "
+fish_indicator = '󰈺 '
+style = 'sky'
 
 [swift]
 symbol = " "

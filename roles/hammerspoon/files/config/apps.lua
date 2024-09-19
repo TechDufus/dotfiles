@@ -1,6 +1,10 @@
 return {
-  Brave       = {
-    id = 'com.brave.Browser',
+  -- Brave       = {
+  --   id = 'com.brave.Browser',
+  --   summon = 'b', -- [B]rowser
+  -- },
+  Chrome     = {
+    id = 'com.google.Chrome',
     summon = 'b', -- [B]rowser
   },
   MatterMost  = {
@@ -28,7 +32,7 @@ return {
     summon = 'f', -- [F]inder
   },
   Spotify     = {
-    id = 'spotify-id-here',
+    id = 'com.spotify.client',
     summon = 'm', -- [M]usic
   },
   Obsidian    = {
@@ -48,7 +52,7 @@ return {
     summon = 's', -- [S]lack
   },
   Kitty       = {
-    id = 'SOME.ID.Kitty',
+    id = 'net.kovidgoyal.kitty',
     summon = 't', -- [T]erminal
   },
 }

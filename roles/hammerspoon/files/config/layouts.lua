@@ -15,7 +15,7 @@ return {
       Spotify     = { cell = 2, open = true },
       Obsidian    = { cell = 3, open = true },
       Kitty       = { cell = 4, open = true },
-      Brave       = { cell = 5, open = true },
+      Browser       = { cell = 5, open = true },
       OnePassword = { cell = 2, open = true },
       Discord     = { cell = 7, open = true },
       Outlook     = { cell = 7, },
@@ -32,7 +32,7 @@ return {
       positions.standard.right_hidden, -- 6
     },
     apps = {
-      Brave    = { cell = 1, open = true },
+      Browser    = { cell = 1, open = true },
       Obsidian = { cell = 2, open = true },
       Kitty    = { cell = 3, open = true },
     },

@@ -16,7 +16,7 @@ return {
       Obsidian    = { cell = 3, open = true },
       Kitty       = { cell = 4, open = true },
       Browser       = { cell = 5, open = true },
-      OnePassword = { cell = 2, open = true },
+      OnePassword = { cell = 6, open = true },
       Discord     = { cell = 7, open = true },
       Outlook     = { cell = 7, },
     },

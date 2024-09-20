@@ -43,7 +43,7 @@ local macros = {
   x = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'x') end,   -- color picker eye dropper
 }
 
-registerModalBindings(nil, 'f14', macros, true)
+registerModalBindings(nil, 'f16', macros, true)
 
 
 --------------------------------------------------------------------------------
@@ -76,7 +76,6 @@ local windowManagementBindings = {
   ['k'] = function() hs.window.focusedWindow():focusWindowNorth(nil, true) end,
   ['l'] = function() hs.window.focusedWindow():focusWindowEast(nil, true) end,
   ['a'] = function() hs.application.frontmostApplication():unhide() end,
-  ['b'] = function() hs.window.focussedWindow():sendToBack() end,
   ['p'] = layout.selectLayout,
   ['u'] = layout.bindToCell,
   [';'] = layout.selectNextVariant,
@@ -85,7 +84,7 @@ local windowManagementBindings = {
   -- ['n'] = focusNextCellWindow, -- Re-implement in GridLayout?
 }
 
-registerKeyBindings(hyper, hs.fnutils.map(windowManagementBindings, function(fn)
+registerKeyBindings(bigHyper, hs.fnutils.map(windowManagementBindings, function(fn)
   return function() fn() end
 end))
 

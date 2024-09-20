@@ -3,7 +3,7 @@ return {
   --   id = 'com.brave.Browser',
   --   summon = 'b', -- [B]rowser
   -- },
-  Chrome     = {
+  Browser     = {
     id = 'com.google.Chrome',
     summon = 'b', -- [B]rowser
   },
@@ -40,12 +40,8 @@ return {
     summon = 'n', -- [N]otes
   },
   OnePassword = {
-    id = 'com.agilebits.onepassword7',
+    id = 'com.1password.1password',
     summon = 'o', -- [O]nePassword
-  },
-  RayCast     = {
-    id = 'com.raycast.app',
-    summon = 'r', -- [R]ayCast
   },
   Slack       = {
     id = 'com.tinyspeck.slackmacgap',

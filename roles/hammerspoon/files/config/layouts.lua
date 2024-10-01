@@ -2,13 +2,13 @@ return {
   {
     name = 'Standard Dev',
     cells = {
-      positions.standard.top_left,     -- 1
-      positions.standard.bottom_left,  -- 2
-      positions.standard.left_center,  -- 3
-      positions.standard.center,       -- 4
-      positions.standard.right,        -- 5
-      positions.standard.left_hidden,  -- 6
-      positions.standard.right_hidden, -- 7
+      { positions.standard.top_left },
+      { positions.standard.bottom_left },
+      { positions.standard.left_center },
+      { positions.standard.center },
+      { positions.standard.right },
+      { positions.standard.left_hidden },
+      { positions.standard.right_hidden },
     },
     apps = {
       MatterMost  = { cell = 1, open = true },

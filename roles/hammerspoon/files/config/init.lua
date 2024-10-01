@@ -41,6 +41,7 @@ local macros = {
   a = function() hs.eventtap.keyStroke({ 'cmd' }, '`') end,           -- next window of focused app
   c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app
   x = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'x') end,   -- color picker eye dropper
+  b = function() hs.eventtap.keyStroke({ 'cmd', 'shift', 'ctrl', 'alt'}, 'b') end, -- browser bookmark search
 }
 
 registerModalBindings(nil, 'f16', macros, true)
@@ -66,9 +67,9 @@ local layout = hs.loadSpoon('GridLayout')
     :setGrid(positions.full_grid)
     -- :setMargins('15x15')
 
--- if (hs.screen.primaryScreen():name() == 'LG HDR WQHD') then
---   layout:setMargins('30x30')
--- end
+if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
+  layout.selectLayout('Standard Dev')
+end
 
 local windowManagementBindings = {
   ['h'] = function() hs.window.focusedWindow():focusWindowWest(nil, true) end,

@@ -1,5 +1,6 @@
 #!/usr/bin/env zsh
 
+addToPath /opt/homebrew/bin
 addToPath /usr/local/go/bin
 addToPath $GOPATH/bin
 addToPath $HOME/go/bin

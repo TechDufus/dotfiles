@@ -4,5 +4,5 @@
     name: "{{ item }}"
     state: present
   loop:
-    - 1password@beta
+    - 1password
     - 1password-cli@beta

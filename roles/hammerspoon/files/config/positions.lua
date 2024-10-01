@@ -1,6 +1,6 @@
 return {
-  full_grid = '160x40',
-  full = '0,0 160x40',
+  full_grid = '80x40',
+  full = '0,0 80x40',
 
   -- EXACT PIXELS
   -- 0,0 1356x689
@@ -15,14 +15,14 @@ return {
   -- 59,0 60x40
   -- 102,0 42x40
   standard = {
-    top_left     = '0,0 42x19',
-    bottom_left  = '0,9 42x21',
-    full_left    = '0,0 42x40',
-    left_center  = '42,0 16x40',
-    center       = '58,0 60x40',
-    right        = '118,0 42x40',
-    right_hidden = '90,5 60x30', -- This is a full 1920x1080 on a 5120x1440 screen
-    left_hidden  = '20,5 60x30', -- This is a full 1920x1080 on a 5120x1440 screen
+    top_left     = '0,0 21x19',
+    bottom_left  = '0,19 21x21',
+    full_left    = '0,0 21x40',
+    left_center  = '21,0 8x40',
+    center       = '29,0 30x40',
+    right        = '59,0 21x40',
+    right_hidden = '45,5 30x30', -- This is a full 1920x1080 on a 5120x1440 screen
+    left_hidden  = '10,5 30x30', -- This is a full 1920x1080 on a 5120x1440 screen
   },
 
   thirds = {

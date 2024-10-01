@@ -1,28 +1,20 @@
 return {
-  -- Brave       = {
-  --   id = 'com.brave.Browser',
-  --   summon = 'b', -- [B]rowser
-  -- },
+  Agenda      = {
+    id = 'com.apple.iCal',
+    summon = 'a', -- [A]genda
+  },
   Browser     = {
     id = 'com.google.Chrome',
     summon = 'b', -- [B]rowser
   },
   MatterMost  = {
-    id = 'com.mattermost.desktop',
+    id = 'Mattermost.Desktop',
     summon = 'c', -- [C]hat
   },
   Discord     = {
     id = 'com.hnc.Discord',
     summon = 'd', -- [D]iscord
   },
-  -- Messages = {
-  --   id = 'com.apple.MobileSMS',
-  --   summon = 'i', -- imessage
-  -- },
-  -- Ray = {
-  --   id = 'be.spatie.ray',
-  --   summon = 'r',
-  -- },
   Outlook     = {
     id = 'com.microsoft.Outlook',
     summon = 'e', -- [E]mail
@@ -33,7 +25,7 @@ return {
   },
   Spotify     = {
     id = 'com.spotify.client',
-    summon = 'm', -- [M]usic
+    summon = 's', -- [M]usic
   },
   Obsidian    = {
     id = 'md.obsidian',
@@ -43,11 +35,11 @@ return {
     id = 'com.1password.1password',
     summon = 'o', -- [O]nePassword
   },
-  Slack       = {
-    id = 'com.tinyspeck.slackmacgap',
-    summon = 's', -- [S]lack
+  Teams       = {
+    id = 'com.microsoft.teams2',
+    summon = 'm', -- [M]eetings
   },
-  Kitty       = {
+  Terminal       = {
     id = 'net.kovidgoyal.kitty',
     summon = 't', -- [T]erminal
   },

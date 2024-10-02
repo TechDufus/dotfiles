@@ -39,8 +39,8 @@ local macros = {
   s = function() hs.eventtap.keyStroke({ 'cmd', 'shift' }, '4') end,  -- screenshot
   e = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'space') end, -- emoji picker
   a = function() hs.eventtap.keyStroke({ 'cmd' }, '`') end,           -- next window of focused app
-  c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app
-  x = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'x') end,   -- color picker eye dropper
+  -- c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app
+  -- x = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'x') end,   -- color picker eye dropper
   b = function() hs.eventtap.keyStroke(Hyper, 'b') end, -- browser bookmark search
   t = function() hs.eventtap.keyStroke(Hyper, 't') end, -- browser bookmark search
 }
@@ -68,10 +68,9 @@ local layout = hs.loadSpoon('GridLayout')
     :setGrid(positions.full_grid)
     :setMargins('0x0')
 
--- BUG: JESSE FIX THIS
--- if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
---   layout.selectLayout(0)
--- end
+if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
+  layout:selectLayout(1)
+end
 
 local windowManagementBindings = {
   ['h'] = function() hs.window.focusedWindow():focusWindowWest(nil, true) end,

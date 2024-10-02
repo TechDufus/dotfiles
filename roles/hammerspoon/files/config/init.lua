@@ -2,8 +2,8 @@
 -- Setup
 --------------------------------------------------------------------------------
 
-hyper = { 'cmd', 'alt', 'ctrl' }             -- or D+F 🤘
-bigHyper = { 'shift', 'cmd', 'alt', 'ctrl' } -- or S+D+F 😅
+lilHyper = { 'cmd', 'alt', 'ctrl' }             -- or D+F 🤘
+Hyper = { 'shift', 'cmd', 'alt', 'ctrl' } -- or S+D+F 😅
 
 hs.loadSpoon('ReloadConfiguration'):start()
 
@@ -41,7 +41,8 @@ local macros = {
   a = function() hs.eventtap.keyStroke({ 'cmd' }, '`') end,           -- next window of focused app
   c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app
   x = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'x') end,   -- color picker eye dropper
-  b = function() hs.eventtap.keyStroke({ 'cmd', 'shift', 'ctrl', 'alt'}, 'b') end, -- browser bookmark search
+  b = function() hs.eventtap.keyStroke(Hyper, 'b') end, -- browser bookmark search
+  t = function() hs.eventtap.keyStroke(Hyper, 't') end, -- browser bookmark search
 }
 
 registerModalBindings(nil, 'f16', macros, true)
@@ -65,11 +66,12 @@ local layout = hs.loadSpoon('GridLayout')
     :setLayouts(layouts)
     :setApps(apps)
     :setGrid(positions.full_grid)
-    -- :setMargins('15x15')
+    :setMargins('0x0')
 
-if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
-  layout.selectLayout('Standard Dev')
-end
+-- BUG: JESSE FIX THIS
+-- if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
+--   layout.selectLayout(0)
+-- end
 
 local windowManagementBindings = {
   ['h'] = function() hs.window.focusedWindow():focusWindowWest(nil, true) end,
@@ -85,7 +87,7 @@ local windowManagementBindings = {
   -- ['n'] = focusNextCellWindow, -- Re-implement in GridLayout?
 }
 
-registerKeyBindings(bigHyper, hs.fnutils.map(windowManagementBindings, function(fn)
+registerKeyBindings(Hyper, hs.fnutils.map(windowManagementBindings, function(fn)
   return function() fn() end
 end))
 

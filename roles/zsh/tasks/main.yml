@@ -64,25 +64,6 @@
     directory_mode: "0755"
     force: true
 
-- name: "ZSH | Set zsh_private init"
-  ansible.builtin.set_fact:
-    zsh_private: {}
-  no_log: true
-
-- name: "ZSH | Get private variables from Vault"
-  when: op_installed
-  ansible.builtin.include_tasks: vault.yml
-  with_items: "{{ op.shell }}"
-  loop_control:
-    loop_var: secret
-
-- name: "ZSH | Set private variables"
-  ansible.builtin.template:
-    dest: "{{ ansible_user_dir }}/.config/zsh/.zsh_private"
-    src: ".zsh_private.j2"
-    mode: "0644"
-  no_log: true
-
 - name: "ZSH | {{ ansible_distribution }} | Identify distribution config"
   ansible.builtin.stat:
     path: "{{ role_path }}/files/os/{{ ansible_distribution }}"

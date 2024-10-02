@@ -1,5 +1,0 @@
-{% if zsh_private is defined %}
-{% for key, value in zsh_private.items() %}
-export {{ key }}="{{ value | trim }}"
-{% endfor %}
-{% endif %}

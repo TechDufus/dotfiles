@@ -3,6 +3,8 @@
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time Oh My Zsh is loaded, in which case,
@@ -89,7 +91,7 @@ plugins=(
   podman
   scala
   ssh
-  starship
+  # starship
   terraform
   zoxide
   zsh-autosuggestions
@@ -136,6 +138,8 @@ for file in $HOME/.config/zsh/*.zsh; do
 done
 
 bindkey '^R' history-incremental-search-backward
+
+eval "$(starship init zsh)"
 
 greetings="neofetch nerdfetch"
 # if greeting bin exists, run it and stop evaluating the rest

@@ -189,7 +189,7 @@ function confirmVaultAccess() {
   __task "Checking for 1Password CLI"
   if op --version >/dev/null 2>&1; then
     OP_INSTALLED=true
-    _cmd "op vault list"
+    _cmd "op --account my.1password.com vault list"
     OP_AUTHENTICATED=true
   fi
 }

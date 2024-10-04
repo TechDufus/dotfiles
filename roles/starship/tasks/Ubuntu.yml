@@ -4,6 +4,7 @@
     cmd: which starship
   register: starship_installed
   changed_when: false
+  failed_when: false
 
 - name: "Starship | {{ ansible_distribution }} | Install Starship"
   when: starship_installed.rc != 0

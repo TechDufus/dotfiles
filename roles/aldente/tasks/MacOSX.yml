@@ -1,0 +1,5 @@
+---
+- name: "Aldente | MacOSX | Install Aldente"
+  community.general.homebrew:
+    name: aldente
+    state: present

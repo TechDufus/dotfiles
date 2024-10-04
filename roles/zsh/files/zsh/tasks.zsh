@@ -4,7 +4,7 @@
 #   Usage: LOG=$(generate_log)
 #   Returns: the log file name as a string
 generate_log() {
-    mktemp -t "shell._task_"
+    mktemp -t "shell._task_XXXXXXXX"
 }
 
 

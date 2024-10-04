@@ -14,6 +14,7 @@ return {
       MatterMost  = { cell = 1, open = true },
       Spotify     = { cell = 2, open = true },
       Outlook     = { cell = 2, open = true },
+      Finder      = { cell = 2 },
       Obsidian    = { cell = 3, open = true },
       Terminal    = { cell = 4, open = true },
       Browser     = { cell = 5, open = true },

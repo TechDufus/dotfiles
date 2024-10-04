@@ -8,6 +8,11 @@ function secret() {
         clear_env=true
         shift
         ;;
+      -r|--reload)
+        __task "${ARROW} ${YELLOW}Reloading secrets...";_task_done
+        secret --clear && secret
+        return
+        ;;
       *)
         echo "Unknown option: $1"
         return 1
@@ -17,7 +22,7 @@ function secret() {
 
   # set -c but already unloaded
   if [[ "$clear_env" == true ]] && [ -z "$SECRETS_ALREADY_LOADED" ]; then
-    echo -e "${GREEN}[${CHECK_MARK}${GREEN}] Secrets already unloaded."
+    echo -e " ${GREEN}[${CHECK_MARK}${GREEN}] Secrets already unloaded."
     return
   fi
 
@@ -36,7 +41,7 @@ function secret() {
 
   # loading when already loaded (skip)
   if [ -n "$SECRETS_ALREADY_LOADED" ] && [ "$SECRETS_ALREADY_LOADED" = true ]; then
-    echo -e "${GREEN}[${CHECK_MARK}${GREEN}] Secrets already loaded."
+    echo -e " ${GREEN}[${CHECK_MARK}${GREEN}] Secrets already loaded."
     return
   fi
 

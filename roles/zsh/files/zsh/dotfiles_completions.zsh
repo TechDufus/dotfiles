@@ -5,13 +5,20 @@ DOTFILES_ROLES_DIR="$HOME/.dotfiles/roles"
 # Function to handle tab completion
 _complete_tags() {
     local cur_word tags_list
-    cur_word="${COMP_WORDS[COMP_CWORD]}"
-    tags_list=$(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -printf "%f\n")
+    cur_word="${words[CURRENT]}"
 
-    COMPREPLY=($(compgen -W "${tags_list}" -- "${cur_word}"))
+    # Find directories in the specified directory and store them in tags_list
+    tags_list=($(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -exec basename {} \;))
+
+    # Add -t and --skip-tags as options
+    if [[ "${cur_word}" == -* ]]; then
+        compadd -W "-t --skip-tags"
+    else
+        # Add directories as completion options
+        compadd "${tags_list[@]}"
+    fi
 }
 
-# Register the completion function for the -t flag
-# This isn't perfect, as -t and --skip-tags show up in the completion list
-complete -F _complete_tags -o nospace -W "-t --skip-tags" dotfiles
+# Register the completion function with compdef
+compdef _complete_tags dotfiles
 

@@ -15,3 +15,16 @@
     mode: "0644"
   become: true
   when: not ansible_host_environment_is_wsl
+
+- name: "System | Get Host from Vault"
+  ansible.builtin.command:
+    cmd: op --account my.1password.com read op://Raft/rdp-demo-local-ingress/notesPlain
+  register: rdp_demo_local_ingress_hosts
+  changed_when: false
+
+- name: "System | Add Vault Hosts to /etc/hosts"
+  when: rdp_demo_local_ingress_hosts is defined
+  ansible.builtin.lineinfile:
+    line: "{{ rdp_demo_local_ingress_hosts.stdout }}"
+    path: /etc/hosts
+  become: true

@@ -41,8 +41,9 @@ local macros = {
   a = function() hs.eventtap.keyStroke({ 'cmd' }, '`') end,           -- next window of focused app
   -- c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app
   -- x = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'x') end,   -- color picker eye dropper
-  b = function() hs.eventtap.keyStroke(Hyper, 'b') end, -- browser bookmark search
-  t = function() hs.eventtap.keyStroke(Hyper, 't') end, -- browser bookmark search
+  b = function() hs.eventtap.keyStroke(Hyper, 'b') end, -- browser bookmark search (raycast)
+  t = function() hs.eventtap.keyStroke(Hyper, 't') end, -- browser current tab search (raycast)
+  g = function() hs.eventtap.keyStroke(Hyper, 'g') end, -- gif search (raycast)
 }
 
 registerModalBindings(nil, 'f16', macros, true)

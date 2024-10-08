@@ -42,6 +42,7 @@ default_roles:
   - starship
   - taskfile
   - terraform
+  - terragrunt
   - tldr
   - tmate
   - tmux

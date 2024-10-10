@@ -53,7 +53,6 @@ default_roles:
   - zsh
 
 git_user_name: "TechDufus"
-op_git_user_email_path: "op://Personal/TechDufus GitHub/email"
 op:
   git:
     user:

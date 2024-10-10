@@ -74,11 +74,9 @@ op:
   #     - item: op://Raft/rdp-demo-local-ingress/notesPlain
   #       account: my.1password.com
 
-flatpak_packages:
-  - md.obsidian.Obsidian
-
 k8s:
-  repo_version: "v1.26"
+  repo:
+    version: "v1.26"
 
 helm:
   repos:

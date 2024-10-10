@@ -154,8 +154,7 @@ This variable stores a list of items containing `name:<string> vault_path:<strin
 EXAMPLE: If `name: dufus` is provided, it will extract the values from the `vault_path` and create the `~/.ssh/dufus.pub` and `~/ssh/dufus` ssh keys.
 
 > [!NOTE]
->
-This variable can be called anything. Currently it is called `techdufus` just for my brain to know these are associated with my `techdufus` github user account. But if you were in multiple github orgs/users and you wanted a key associated ONLY with your account for that org/user, you would create another `op.ssh.github.some_org_user_here` and list your keys in that var, promoting organizational awareness at a glance of the config.
+> This variable can be called anything. Currently it is called `techdufus` just for my brain to know these are associated with my `techdufus` github user account. But if you were in multiple github orgs/users and you wanted a key associated ONLY with your account for that org/user, you would create another `op.ssh.github.some_org_user_here` and list your keys in that var, promoting organizational awareness at a glance of the config.
 
 Example `op.ssh.github.techdufus` config:
 ```yaml
@@ -211,7 +210,8 @@ This playbook includes a custom shell script located at `bin/dotfiles`. This scr
 
 This shell script is also used to initialize your environment after bootstrapping your `supported-OS` and performing a full system upgrade as mentioned above.
 
-> NOTE: You must follow required steps before running this command or things may become unusable until fixed.
+> [!NOTE]
+> You must follow required steps before running this command or things may become unusable until fixed.
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"

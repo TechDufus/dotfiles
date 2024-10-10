@@ -1,4 +1,5 @@
 
+
 ![dotfiles-logo](https://github.com/TechDufus/dotfiles/assets/46715299/6c1d626d-28d2-41e3-bde5-981d9bf93462)
 <p align="center">
     <a href="https://github.com/TechDufus/dotfiles/actions/workflows/ansible-lint.yml"><img align="center" src="https://github.com/TechDufus/dotfiles/actions/workflows/ansible-lint.yml/badge.svg"/></a>
@@ -11,7 +12,7 @@
 ---
 Fully automated development environment for [TechDufus](https://www.twitch.tv/TechDufus) on Twitch.
 
-You can watch a quick 'tour' here on YouTube:
+You can watch a quick 'tour' (pre-1Password integration) here on YouTube:
 
 <a href="https://youtu.be/hPPIScBt4Gw">
     <img src="https://github.com/TechDufus/dotfiles/assets/46715299/b114ea0c-b67b-437b-87d3-7c7732aeccf8" alt="Automating your Dotfiles with Ansible: A Showcase" style="width:60%;"/>
@@ -19,10 +20,9 @@ You can watch a quick 'tour' here on YouTube:
 
 This repo is heavily influenced by [ALT-F4-LLC](https://github.com/ALT-F4-LLC/dotfiles)'s repo. Go check it out!
 
-
 ## Goals
 
-Provide fully automated `Ubuntu|Arch` development environment that is easy to set up and maintain.
+Provide fully automated multiple-OS development environment that is easy to set up and maintain.
 
 ### Why Ansible?
 
@@ -32,20 +32,48 @@ Ansible replicates what we would do to set up a development environment pretty w
 
 ### Operating System
 
-This Ansible playbook only supports `Ubuntu|Arch|MacOS(Darwin)` distribution. This is by design to provide a consistent development experience across hosts.
+This Ansible playbook only supports multiple OS's on a per-role basis. This gives a high level of flexibility to each role.
+
+This means that you can run a role, and it will only run if your current OS is configured for that role.
+
+This is accomplished with this `template` `main.yml` task in each role:
+```yaml
+---
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: distribution_config.stat.exists
+```
+The first task checks for the existence of a `roles/<target role>/tasks/<current_distro>.yml` file. If that file exists (example `current_distro:MacOSX` and a `MacOSX.yml` file exists) it will be run automatically. This keeps roles from breaking if you run a role that isn't yet supported or configured for the system you are running `dotfiles` on.
+
+Currently configured 'bootstrap-able' OS's:
+- Ubuntu
+- Archlinux (btw)
+- MacOSX (darwin)
+
+`bootstrap-able` means the pre-dotfiles setup is configured and performed automatically by this project. For example, before we can run this ansible project, we must first install ansible on each OS type.
+
+To see details, see the `__task "Loading Setup for detected OS: $ID"` section of the `bin/dotfiles` script to see how each OS type is being handled.
 
 ### System Upgrade
 
-Verify your `Ubuntu|Arch|MacOS(Darwin)` installation has all latest packages installed before running the playbook.
+Verify your `supported OS` installation has all latest packages installed before running the playbook.
 
 ```
 # Ubuntu
 sudo apt-get update && sudo apt-get upgrade -y
 # Arch
 sudo pacman -Syu
+# MacOSX (brew)
+brew update && brew upgrade
 ```
 
-> NOTE: This will take some time.
+> [!NOTE]
+> This may take some time...
 
 ## Setup
 
@@ -55,160 +83,125 @@ The `all.yml` file allows you to personalize your setup to your needs. This file
 
 Below is a list of all available values. Not all are required but incorrect values will break the playbook if not properly set.
 
-| Name                  | Type                                | Required |
-| --------------------- | ----------------------------------- | -------- |
-| git_user_email        | string                              | yes      |
-| git_user_name         | string                              | yes      |
-| exclude_roles         | array `(see group_vars/all)`        | no       |
-| ssh_key               | dict `(see SSH Keys below)`         | no       |
-| system_host           | dict `(see System Hosts below)`     | no       |
-| bash_public           | dict `(see Environment below)`      | no       |
-| bash_private          | dict `(see Environment below)`      | no       |
-
-
-#### Environment
-
-Manage environment variables by configuring the `bash_public` and `bash_private` values in `values.yaml`. See both values usecase below.
-
-##### bash_public
-
-The `bash_public` value allows you to include a dictionary of generic and unsecure key-value pairs that will be stored in a `~/.bash_public`.
-
-```yaml
-
----
-bash_public:
-  MY_ENV_VAR: something
-```
-
-#### bash_private
-
-The `bash_private` value allows you to include a dictionary of secure key-value pairs that will be stored in a `~/.bash_private`.
-
-> [!NOTE]
-> See [1Password Integration](#1password-integration) for a more secure way to manage your Ansible secrets.
-
-```yaml
-
----
-bash_private:
-  MY_ENV_VAR_SECRET: !vault |
-    $ANSIBLE_VAULT;1.1;AES256
-    62333533626436313366316235626561626635396233303730343332666466393561346462303163
-    3666636638613437353663356563656537323136646137630a336332303030323031376164316562
-    65333963633339323382938472963766303966643035303234376163616239663539366564396166
-    3830376265316231630a623834333061393138306331653164626437623337366165636163306237
-    3437
-```
-
-### SSH Keys
-
-Manage SSH keys by setting the `ssh_key` value in `values.yaml` shown as example below:
-
-> [!NOTE]
-> See [1Password Integration](#1password-integration) for a more secure way to manage your Ansible secrets.
-
-```yaml
-
----
-ssh_key:
-  <filename>: !vault |
-    $ANSIBLE_VAULT;1.1;AES256
-    62333533626436313366316235626561626635396233303730343332666466393561346462303163
-    3666636638613437483928376563656537323136646137630a336332303030323031376164316562
-    65333963633339323762663865363766303966643035303234376163616239663539366564396166
-    3830376265316231630a623834333061393138306331653164626437623337366165636163306237
-    3437
-```
-
-> NOTE: All ssh keys will be stored at `$HOME/.ssh/<filename>`.
-
-### System Hosts
-
-Manage `/etc/hosts` by setting the `system_host` value in `values.yaml`.
-
-```yaml
-
----
-system_host:
-  127.0.0.1: foobar.localhost
-```
-
-### Examples
-
-Below includes minimal and advanced configuration examples. If you would like to see a more real world example take a look at [blackglasses public configuration](https://github.com/TechDufus/dotfiles-erikreinert) repository.
-
-#### Minimal
-
-Below is a minimal example of `values.yaml` file:
-
-```yaml
----
-git_user_email: foo@bar.com
-git_user_name: Foo Bar
-```
-
-#### Advanced
-
-Below is a more advanced example of `values.yaml` file:
-
-> [!NOTE]
-> See [1Password Integration](#1password-integration) for a more secure way to manage your Ansible secrets.
-
-```yaml
----
-git_user_email: foo@bar.com
-git_user_name: Foo Bar
-exclude_roles:
-  - slack
-ssh_key: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  62333533626436313366316235626561626635396233303730343332666466393561346462303163
-  3666636638613437353663356563656537323136646137630a336332303030323031376164316562
-  65333963633339323762663865363766303966643035303234376163616239663539366564396166
-  3830376265316231630a623834333061393138306331653164626437623337366165636163306237
-  3437
-system_host:
-  127.0.0.1: foobar.localhost
-bash_public:
-  MY_PUBLIC_VAR: foobar
-bash_private:
-  MY_SECRET_VAR: !vault |
-    $ANSIBLE_VAULT;1.1;AES256
-    62333533626436313366316235626561626635396233303730343332666466393561346462303163
-    3666636638613437353663356563656537323136646137630a336332303030323031376164316562
-    65333963633339323762663865363766303966643035303234376163616239663539366564396166
-    3830376265316231630a623834333061393138306331653164626437623337366165636163306237
-    3437
-```
-
-### vault.secret
-
-The `vault.secret` file allows you to encrypt values with `Ansible vault` and store them securely in source control. Create a file located at `~/.config/dotfiles/vault.secret` with a secure password in it.
-
-```bash
-vim ~/.ansible-vault/vault.secret
-```
-
-To then encrypt values with your vault password use the following:
-
-```bash
-$ ansible-vault encrypt_string --vault-password-file $HOME/.ansible-vault/vault.secret "mynewsecret" --name "MY_SECRET_VAR"
-$ cat myfile.conf | ansible-vault encrypt_string --vault-password-file $HOME/.ansible-vault/vault.secret --stdin-name "myfile"
-```
-
-> [!NOTE]
-> This file will automatically be detected by the playbook when running `dotfiles` command to decrypt values. Read more on Ansible Vault [here](https://docs.ansible.com/ansible/latest/user_guide/vault.html).
-
+| Name             | Type                                   | Required |
+| ---------------- | -------------------------------------- | -------- |
+| git_user_name    | string                                 | yes      |
+| op               | object `(see OP Variable below)`       | yes      |
+| go.packages      | list `(for extra go bin installs)`     | no       |
+| helm.repos       | list `(add extra helm repos)`          | no       |
+| k8s.repo.version | string `(specify kubectl bin version)` | no       |
 ### 1Password Integration
 
-I've recently added the ability to pull the `vault.secret` ansible-vault encryption key from 1Password using the `op` CLI tool. If you do not have the `op` CLI tool installed, this dotfiles will operate as expected, checking for the `vault.secret` file and passing it to the playbook.
+This project depends on a 1Password vault. This means you must have a setup and authenticated `op-cli` for CLI access to your vault. This can be done by installing the 1Password desktop application **OR** can be setup with the `op` cli only, but it a bit more annoying that way since the CLI tool can directly integrate with the Desktop application.
 
-To use the 1Password integration, you will need to install the `op` CLI tool and authenticate with your 1Password account. You can find the `op` CLI tool [here](https://1password.com/downloads/command-line/).
+The initial run of `dotfiles` on a new system **should** error without 1Password being setup and having access to a vault (currently defaults to `my.1password.com`)
 
-If `op` is installed, it will attempt to pull the `vault.secret` encryption key from 1Password at the `op://Personal/Ansible Vault/password` path. If you would like to change this path, you can do so by simply editing the dotfiles script.
+##### Deprecated `vault.secret` / `ansible-vault` method
 
-If `op` is able to read the `vault.secret` encryption key from 1Password, it will ensure that the `vault.secret` file is deleted from the local system. This is to ensure that the encryption key is not stored in plain text on the local system, which is the whole point of using a password manager.
+The original method for deploying secrets was to create `ansible-vault` encrypted strings, which would be decrypted by the secret in `~/.ansible-vault/vault.secret`. This method no longer is supported, in favor of a more secure and flexible 1Password vault.
+
+It is more flexible in the sense that rotating secrets is just updating the 1Password item, instead of needing to re-encrypt a string and commit it to github. The more you mess with encrypting / decrypting / commiting to Github, the higher the risk of a real secret being exposed.
+
+Additionally, if the original `vault.secret` value was ever discovered, even though it's no longer being used by this project, could still be used to get the encrypted strings via the git history of this project and decrypted. That `vault.secret` password has been scorched from the earth. 🔥
+#### OP (1Password) Variable
+
+Manage environment-critical items without needing `ansible-vault`, by using your `1Password` vault.
+
+> [!NOTE]
+> Currently, unless an `account` value is specified, the following `op` vaults assume `my.1password.com` vault.
+##### op.git
+
+`op.git` is where you will store any git-related vault paths. All values must be paths to vault.
+
+###### op.git.user
+This variable stores `email` which is as `string` of your vault path to you github account email.
+
+Example `op.git.user` config:
+```yaml
+op:
+  git:
+    user:
+      email: "op://Personal/Github/email"
+```
+
+###### op.git.allowed_signers
+This variable stores the `string` to your allowed signers value. This value should be in the following format:
+```
+<email> namespaces="git" <algo-type[ssh-ed25519]> <ssh public key>
+```
+
+Example `op.git.allowed_signers` config:
+```yaml
+op:
+  git:
+    allowed_signers: "op://Personal/Github/allowed_signers"
+```
+
+Example full `op.git` config:
+```yaml
+op:
+  git:
+    user:
+      email: "op://Personal/Github/email"
+	allowed_signers: "op://Personal/Github/allowed_signers"
+```
+##### op.ssh
+`op.ssh` stores references to ssh keys that will be deployed to your local `~/.ssh` directory.
+
+###### op.ssh.github.techdufus
+This variable stores a list of items containing `name:<string> vault_path:<string>`. This list will be looped over and the accompanying ssh pub/private keys will be created with the `name` value you provide.
+
+EXAMPLE: If `name: dufus` is provided, it will extract the values from the `vault_path` and create the `~/.ssh/dufus.pub` and `~/ssh/dufus` ssh keys.
+
+> [!NOTE]
+>
+This variable can be called anything. Currently it is called `techdufus` just for my brain to know these are associated with my `techdufus` github user account. But if you were in multiple github orgs/users and you wanted a key associated ONLY with your account for that org/user, you would create another `op.ssh.github.some_org_user_here` and list your keys in that var, promoting organizational awareness at a glance of the config.
+
+Example `op.ssh.github.techdufus` config:
+```yaml
+op:
+  ssh:
+    github:
+      techdufus:
+        - name: github_key
+          vault_path: "op://Personal/github_key SSH"
+```
+##### op.system.hosts
+
+> [!WARNING]
+> `op.system.hosts` is not implemented yet, but the information is the target implementation structure.
+
+`op.system.hosts` is a list of vault `<string>` entries that will become a single line in your `/etc/hosts` file.
+
+Example `op.system.hosts` config:
+```yaml
+op:
+  system:
+    hosts:
+      - vault_path: op://Hosts/k8s-ingress
+        account: some-other-account.1password.com
+      - vault_path: op://Hosts/k8s-api
+        account: some-other-account.1password.com
+```
+
+Example full `op` config:
+```yaml
+op:
+  git:
+    user:
+      email: "op://Personal/Github/email"
+  ssh:
+    github:
+      techdufus:
+        - name: github_key
+          vault_path: "op://Personal/github_key SSH"
+  system:
+    hosts:
+      - vault_path: op://Hosts/k8s-ingress
+        account: some-other-account.1password.com
+      - vault_path: op://Hosts/k8s-api
+        account: some-other-account.1password.com
+```
 
 ## Usage
 
@@ -216,7 +209,7 @@ If `op` is able to read the `vault.secret` encryption key from 1Password, it wil
 
 This playbook includes a custom shell script located at `bin/dotfiles`. This script is added to your $PATH after installation and can be run multiple times while making sure any Ansible dependencies are installed and updated.
 
-This shell script is also used to initialize your environment after installing `Ubuntu|Arch` and performing a full system upgrade as mentioned above.
+This shell script is also used to initialize your environment after bootstrapping your `supported-OS` and performing a full system upgrade as mentioned above.
 
 > NOTE: You must follow required steps before running this command or things may become unusable until fixed.
 
@@ -242,7 +235,6 @@ dotfiles
 This will handle the following tasks:
 
 - Verify Ansible is up-to-date
-- Generate SSH keys and add to `~/.ssh/authorized_keys`
 - Clone this repository locally to `~/.dotfiles`
 - Verify any `ansible-galaxy` plugins are updated
 - Run this playbook with the values in `~/.config/dotfiles/group_vars/all.yaml`
@@ -262,3 +254,4 @@ dotfiles -t <tab><tab>
 dotfiles -t t<tab>
 dotfiles -t ne<tab>
 ```
+

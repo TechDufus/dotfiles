@@ -1,0 +1,5 @@
+---
+- name: "RayCast | MacOSX | Install RayCast"
+  community.general.homebrew_cask:
+    name: raycast
+    state: present

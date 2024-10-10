@@ -1,0 +1,23 @@
+---
+- name: "Hammerspoon | MacOSX | {{ current_spoon }} | Detect local instance of {{ current_spoon }}"
+  ansible.builtin.stat:
+    name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}"
+  register: hammerspoon_current_spoon
+
+- name: "Hammerspoon | MacOSX | {{ current_spoon }} | Download latest {{ current_spoon }}"
+  when: not hammerspoon_current_spoon.stat.exists
+  block:
+    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Download latest {{ current_spoon }}"
+      ansible.builtin.uri:
+        url: "https://github.com/Hammerspoon/Spoons/blob/master/Spoons/{{ current_spoon }}.spoon.zip"
+        dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
+
+    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Install latest {{ current_spoon }}"
+      ansible.builtin.command:
+        cmd: "open -a /Applications/Hammerspoon.app {{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
+        creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon"
+
+    - name: "Hammerspoon | MacOSX | {{ current_spoon }} | Cleanup latest {{ current_spoon }} zip"
+      ansible.builtin.file:
+        name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/{{ current_spoon }}.spoon.zip"
+        state: absent

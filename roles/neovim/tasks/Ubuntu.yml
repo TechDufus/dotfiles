@@ -16,4 +16,5 @@
   ansible.builtin.apt_repository:
     repo: ppa:neovim-ppa/unstable
     state: present
+    mode: "0644"
   become: true

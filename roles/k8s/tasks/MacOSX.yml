@@ -1,0 +1,5 @@
+---
+- name: "K8s | MacOSX | Install kubernetes-cli"
+  community.general.homebrew:
+    name: kubernetes-cli
+    state: present

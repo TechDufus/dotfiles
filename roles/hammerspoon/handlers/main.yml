@@ -1,0 +1,5 @@
+---
+- name: "Hammerspoon | MacOSX | Cleanup latest GridLayout.spoon zip"
+  ansible.builtin.file:
+    name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
+    state: absent

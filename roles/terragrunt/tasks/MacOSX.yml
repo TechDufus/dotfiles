@@ -1,0 +1,5 @@
+---
+- name: "Terragrunt | MacOSX | Install Terragrunt"
+  ansible.builtin.homebrew:
+    name: terragrunt
+    state: present

@@ -1,0 +1,14 @@
+---
+- name: "Starship | {{ ansible_distribution }} | Install Starship"
+  ansible.builtin.command:
+    cmd: which starship
+  register: starship_installed
+  changed_when: false
+  failed_when: false
+
+- name: "Starship | {{ ansible_distribution }} | Install Starship"
+  when: starship_installed.rc != 0
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://starship.rs/install.sh | sudo sh -s -- --force
+  args:
+    creates: /usr/local/bin/starship

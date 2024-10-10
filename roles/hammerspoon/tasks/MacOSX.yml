@@ -1,0 +1,67 @@
+---
+- name: "Hammerspoon | MacOSX | Install Hammerspoon"
+  community.general.homebrew_cask:
+    name: hammerspoon
+    state: present
+
+- name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon exists"
+  ansible.builtin.file:
+    name: "{{ ansible_user_dir }}/.hammerspoon"
+    state: directory
+    mode: "0755"
+
+- name: "Hammerspoon | MacOSX | Deploy Hammerspoon Configuration"
+  ansible.builtin.copy:
+    src: "config/"
+    dest: "{{ ansible_user_dir }}/.hammerspoon"
+    mode: "0644"
+
+# - name: "Hammerspoon | MacOSX | Detect local instance of GridLayout.spoon"
+#   ansible.builtin.stat:
+#     name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+#   register: hammerspoon_gridlayout_spoon
+#
+# - name: "Hammerspoon | MacOSX | Detect latest GridLayout.spoon Github release"
+#   ansible.builtin.uri:
+#     url: "https://api.github.com/repos/jesseleite/GridLayout.spoon/releases/latest"
+#     return_content: true
+#   register: hammerspoon_gridlayout_release
+#
+# - name: "Hammerspoon | MacOSX | Extract latest GridLayout.spoon release version"
+#   ansible.builtin.set_fact:
+#     hammerspoon_gridlayout_latest_version: "{{ hammerspoon_gridlayout_release.json.tag_name }}"
+#   when: hammerspoon_gridlayout_release.status == 200
+#
+# - name: "Hammerspoon | MacOSX | Install latest GridLayout.spoon"
+#   when: not hammerspoon_gridlayout_spoon.stat.exists
+#   block:
+#     - name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon/Spoons exists"
+#       ansible.builtin.file:
+#         name: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
+#         state: directory
+#         mode: "0755"
+#
+#     - name: "Hammerspoon | MacOSX | Download latest GridLayout.spoon"
+#       ansible.builtin.uri:
+#         url: "https://github.com/jesseleite/GridLayout.spoon/releases/download/{{ hammerspoon_gridlayout_latest_version }}/GridLayout.spoon.zip"
+#         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons"
+#       notify: "Hammerspoon | MacOSX | Cleanup latest GridLayout.spoon zip"
+#
+#     - name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon/Spoons/GridLayout.spoon exists"
+#       ansible.builtin.file:
+#         name: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+#         state: directory
+#         mode: "0755"
+#
+#     - name: "Hammerspoon | MacOSX | Unzip latest GridLayout.spoon"
+#       ansible.builtin.unarchive:
+#         src: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
+#         dest: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+#         creates: "{{ ansible_user_dir }}/.hammerspoon/Spoons/GridLayout.spoon"
+#
+# - name: "Hammerspoon | MacOSX | Install Official Hammerspoon Spoons"
+#   ansible.builtin.include_tasks: spoons.yml
+#   loop:
+#     - "ReloadConfiguration"
+#   loop_control:
+#     loop_var: current_spoon

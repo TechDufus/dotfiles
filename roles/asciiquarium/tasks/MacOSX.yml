@@ -1,0 +1,5 @@
+---
+- name: "Asciiquarium | MacOSX | Install asciiquarium"
+  community.general.homebrew:
+    name: asciiquarium
+    state: present

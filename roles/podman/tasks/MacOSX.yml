@@ -1,0 +1,6 @@
+---
+- name: "{{ role_name }} | MacOSX | Install Podman"
+  community.general.homebrew:
+    name: podman
+    state: present
+  when: ansible_distribution_major_version | int >= 13

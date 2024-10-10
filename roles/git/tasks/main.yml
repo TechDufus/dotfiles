@@ -1,6 +1,12 @@
 ---
-- name: "Git | Run Tasks: {{ ansible_distribution }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: distribution_config.stat.exists
 
 - name: "Git | Set diff.colorMoved"
   community.general.git_config:
@@ -38,6 +44,20 @@
     name: rebase.autoStash
     scope: global
     value: true
+
+- name: "Git | Read user.email secret from 1Password"
+  when: op_installed
+  block:
+    - name: "1Password | Get user.email"
+      ansible.builtin.command: "op --account my.1password.com read '{{ op.git.user.email }}'"
+      register: op_git_user_email
+      changed_when: false
+      # no_log: true
+
+    - name: "1Password | Set git_user_email"
+      ansible.builtin.set_fact:
+        git_user_email: "{{ op_git_user_email.stdout }}"
+      no_log: true
 
 - name: "Git | Set user.email"
   community.general.git_config:
@@ -82,7 +102,25 @@
     state: directory
     mode: "0755"
 
+- name: "Git | Read allowed_signers secret from 1Password"
+  when: op_installed
+  block:
+    - name: "1Password | Get allowed_signers"
+      ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
+      register: op_git_ssh_allowed_signers
+      changed_when: false
+      no_log: true
+
+    - name: "1Password | Configure ~/.config/git/allowed_signers"
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_user_dir }}/.config/git/allowed_signers"
+        line: "{{ op_git_ssh_allowed_signers.stdout }}"
+        mode: "0600"
+        create: true
+      no_log: true
+
 - name: "Git | Configure ~/.config/git/allowed_signers"
+  when: not op_installed
   ansible.builtin.copy:
     src: allowed_signers
     dest: "{{ ansible_user_dir }}/.config/git/allowed_signers"

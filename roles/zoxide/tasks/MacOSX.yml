@@ -1,0 +1,5 @@
+---
+- name: "Zoxide | MacOSX | Install Zoxide"
+  community.general.homebrew:
+    name: zoxide
+    state: present

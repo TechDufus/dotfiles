@@ -1,0 +1,5 @@
+---
+- name: "GH | MacOSX | Install gh"
+  community.general.homebrew:
+    name: gh
+    state: present

@@ -1,13 +1,8 @@
 ---
-- name: "SSH | Copy SSH keys"
-  copy:
-    dest: "{{ ansible_user_dir }}/.ssh/{{ ssh_key_item.key }}"
-    content: "{{ ssh_key_item.value }}"
-    mode: "0600"
-  no_log: true
-  loop_control:
-    loop_var: ssh_key_item
-  with_items: "{{ ssh_key | default({}) | dict2items }}"
+- name: "SSH | Deploy SSH keys from Vault"
+  when: op_installed
+  ansible.builtin.include_tasks: ssh_keys.yml
+  with_items: "{{ op.ssh.github.techdufus }}"
 
 # - name: Copy config
 #   ansible.builtin.template:

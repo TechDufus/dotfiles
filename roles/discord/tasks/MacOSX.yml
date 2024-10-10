@@ -1,0 +1,5 @@
+---
+- name: "Discord | MacOSX | Install Discord"
+  community.general.homebrew_cask:
+    name: discord
+    state: present

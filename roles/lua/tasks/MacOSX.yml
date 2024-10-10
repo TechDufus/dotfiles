@@ -1,0 +1,9 @@
+---
+- name: "Lua | MacOSX | Install lua"
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - lua
+    - luarocks
+    - luajit

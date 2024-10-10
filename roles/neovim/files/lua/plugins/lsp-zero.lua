@@ -53,7 +53,6 @@ return {
           'jsonls',
           'lua_ls',
           'pylsp',
-          'tsserver',
         },
         handlers = {
           -- this first function is the "default handler"
@@ -68,7 +67,28 @@ return {
         lsp.default_keymaps({ buffer = bufnr })
       end)
 
-      require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
+      -- require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
+      require('lspconfig').lua_ls.setup({
+        settings = {
+          Lua = {
+            diagnostics = {
+              globals = { 'vim', 'hs', 'spoon' },
+              disable = { 'lowercase-global' },
+            },
+          },
+        },
+      })
+
+      -- ansiblels disable settings
+      require('lspconfig').ansiblels.setup({
+        settings = {
+          ansible = {
+            diagnostics = {
+              disable = { 'name[template]' }
+            },
+          },
+        },
+      })
 
       -- lsp.skip_server_setup({ 'gopls' })
       -- the function below will be executed whenever

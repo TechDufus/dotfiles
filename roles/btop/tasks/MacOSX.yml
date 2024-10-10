@@ -1,0 +1,5 @@
+---
+- name: "btop | MacOSX | Install btop"
+  community.general.homebrew:
+    name: btop
+    state: present

@@ -9,7 +9,7 @@ export OSH="$HOME/.oh-my-bash"
 
 # Set name of the theme to load. Optionally, if you set this to "random"
 # it'll load a random theme each time that oh-my-bash is loaded.
-OSH_THEME="axin"
+# OSH_THEME="axin"
 
 # Uncomment the following line to use case-sensitive completion.
 # CASE_SENSITIVE="true"
@@ -167,9 +167,17 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# if neofetch exists, run it
+
+greetings="neofetch nerdfetch"
+# if greeting bin exists, run it and stop evaluating the rest
 if [[ -z "$TMUX" ]]; then
-  if command -v neofetch &> /dev/null; then neofetch; fi
+  for greeting in $greetings; do
+    if command -v $greeting &> /dev/null; then
+      $greeting
+      break
+    fi
+  done
 fi
 #toilet "TechDufus" -F border:gay -f emboss2
 
+eval "$(starship init bash)"

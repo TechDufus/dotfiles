@@ -1,0 +1,27 @@
+- name: "SSH | Get [{{ item.name }}] key from Vault"
+  ansible.builtin.command: "op read --account my.1password.com '{{ item.vault_path }}/private_key?ssh-format=openssh'"
+  register: op_private_key
+  changed_when: false
+  no_log: true
+
+- name: "SSH | Get [{{ item.name }}] public key from Vault"
+  ansible.builtin.command: "op read --account my.1password.com '{{ item.vault_path }}/public_key'"
+  register: op_public_key
+  changed_when: false
+  no_log: true
+
+- name: "SSH | Copy SSH keys"
+  block:
+    - name: "SSH | Deploy [{{ item.name }}] private key"
+      ansible.builtin.copy:
+        dest: "{{ ansible_user_dir }}/.ssh/{{ item.name }}"
+        content: "{{ op_private_key.stdout }}\n"
+        mode: "0600"
+      no_log: true
+
+    - name: "SSH | Deploy [{{ item.name }}] public key"
+      ansible.builtin.copy:
+        dest: "{{ ansible_user_dir }}/.ssh/{{ item.name }}.pub"
+        content: "{{ op_public_key.stdout }}"
+        mode: "0644"
+      no_log: true

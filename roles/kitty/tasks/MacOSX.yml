@@ -1,0 +1,17 @@
+---
+- name: "Kitty | MacOSX | Install kitty"
+  community.general.homebrew_cask:
+    name: kitty
+    state: present
+
+- name: "Kitty | MacOSX | Deploy Kitty Config"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/kitty"
+    mode: "0755"
+    state: directory
+
+- name: "Kitty | MacOSX | Deploy Kitty Config"
+  ansible.builtin.copy:
+    src: kitty.conf
+    dest: "{{ ansible_user_dir }}/.config/kitty/kitty.conf"
+    mode: "0644"

@@ -65,9 +65,6 @@ op:
           vault_path: "op://Personal/TechDufus SSH"
         - name: raft-infra
           vault_path: "op://Raft/Raft-SSH"
-  shell:
-    - name: OPENAI_API_KEY
-      vault_path: "op://Personal/Openai/OPENAI_KEY - Project"
 # FIXME: See `system/tasks/main.yml` for how to structure this var looping.
   # system:
   #   hosts:

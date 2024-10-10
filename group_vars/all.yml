@@ -68,6 +68,11 @@ op:
   shell:
     - name: OPENAI_API_KEY
       vault_path: "op://Personal/Openai/OPENAI_KEY - Project"
+# FIXME: See `system/tasks/main.yml` for how to structure this var looping.
+  # system:
+  #   hosts:
+  #     - item: op://Raft/rdp-demo-local-ingress/notesPlain
+  #       account: my.1password.com
 
 flatpak_packages:
   - md.obsidian.Obsidian

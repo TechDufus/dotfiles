@@ -16,12 +16,16 @@
   become: true
   when: not ansible_host_environment_is_wsl
 
+# FIXME: Follow the SSH vault.yml structure of looping over op keys
+# and adding them to etc-hosts after the above template is laid down.
 - name: "System | Get Host from Vault"
   ansible.builtin.command:
     cmd: op --account my.1password.com read op://Raft/rdp-demo-local-ingress/notesPlain
   register: rdp_demo_local_ingress_hosts
   changed_when: false
 
+# FIXME: This needs to more dynamically apply op host entries.
+# See above `fixme:` for more info
 - name: "System | Add Vault Hosts to /etc/hosts"
   when: rdp_demo_local_ingress_hosts is defined
   ansible.builtin.lineinfile:

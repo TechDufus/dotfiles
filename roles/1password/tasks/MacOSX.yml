@@ -5,4 +5,4 @@
     state: present
   loop:
     - 1password
-    - 1password-cli@beta
+    - 1password-cli

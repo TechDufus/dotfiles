@@ -15,14 +15,14 @@ return {
   -- 59,0 60x40
   -- 102,0 42x40
   standard = {
-    top_left     = '0,0 21x19',
-    bottom_left  = '0,19 21x21',
+    top_left     = '0,0 21x21',
+    bottom_left  = '0,21 21x19',
     full_left    = '0,0 21x40',
     left_center  = '21,0 8x40',
     center       = '29,0 30x40',
     right        = '59,0 21x40',
     right_hidden = '45,5 30x30', -- This is a full 1920x1080 on a 5120x1440 screen
-    left_hidden  = '10,5 30x30', -- This is a full 1920x1080 on a 5120x1440 screen
+    left_hidden  = '5,5 30x30', -- This is a full 1920x1080 on a 5120x1440 screen
   },
 
   thirds = {

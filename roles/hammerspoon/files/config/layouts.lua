@@ -2,12 +2,12 @@ return {
   {
     name = 'Standard Dev',
     cells = {
-      { positions.standard.top_left, positions.standard.full_left },
-      { positions.standard.bottom_left, positions.standard.full_left },
-      { positions.standard.left_center, positions.standard.left_center },
-      { positions.standard.center, positions.standard.center },
-      { positions.standard.right, positions.standard.right },
-      { positions.standard.left_hidden, positions.standard.left_hidden },
+      { positions.standard.top_left,     positions.standard.full_left },
+      { positions.standard.bottom_left,  positions.standard.full_left },
+      { positions.standard.left_center,  positions.standard.left_center },
+      { positions.standard.center,       positions.standard.center },
+      { positions.standard.right,        positions.standard.right },
+      { positions.standard.left_hidden,  positions.standard.left_hidden },
       { positions.standard.right_hidden, positions.standard.right_hidden },
     },
     apps = {

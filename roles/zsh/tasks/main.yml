@@ -37,12 +37,17 @@
       ansible.builtin.script:
         cmd: /{{ ansible_user_dir }}/oh-my-zsh.install.sh --unattended
 
-- name: "ZSH | Install zsh-autosuggestions"
+- name: "ZSH | Install Custom Plugins"
   ansible.builtin.git:
-    repo: https://github.com/zsh-users/zsh-autosuggestions
-    dest: ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+    repo: "{{ item.repo }}"
+    dest: "~/.oh-my-zsh/custom/plugins/{{ item.name }}"
     update: true
     depth: 1
+  loop:
+    - repo: https://github.com/zsh-users/zsh-autosuggestions
+      name: zsh-autosuggestions
+    # - repo: https://github.com/joshskidmore/zsh-fzf-history-search
+    #   name: zsh-fzf-history-search
 
 - name: "ZSH | Copy .zshrc"
   ansible.builtin.copy:

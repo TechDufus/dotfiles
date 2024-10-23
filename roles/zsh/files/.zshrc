@@ -98,6 +98,7 @@ plugins=(
   terraform
   zoxide
   zsh-autosuggestions
+  # zsh-fzf-history-search
 )
 
 source $ZSH/oh-my-zsh.sh

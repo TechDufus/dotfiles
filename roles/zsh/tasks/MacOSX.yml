@@ -1,8 +1,11 @@
 ---
-- name: "Zsh | MacOSX | Install zsh"
+- name: "Zsh | MacOSX | Install"
   community.general.homebrew:
-    name: zsh
+    name: "{{ item }}"
     state: present
+  loop:
+    - atuin # Putting here instead of new role. Replaces fzf for command history.
+    - zsh
 
 - name: "Zsh | Set default terminal"
   ansible.builtin.user:

@@ -36,6 +36,7 @@ default_roles:
   - raycast
   # - ruby
   # - rust
+  - slides
   - spotify
   - ssh
   - sshfs
@@ -48,6 +49,7 @@ default_roles:
   - tmux
   # - tshark
   - warp
+  - whalebrew
   # - zellij
   - zoxide
   - zsh

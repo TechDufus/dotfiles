@@ -4,7 +4,7 @@ return {
     summon = 'a', -- [A]genda
   },
   Browser     = {
-    id = 'com.google.Chrome',
+    id = 'com.brave.Browser',
     summon = 'b', -- [B]rowser
   },
   MatterMost  = {

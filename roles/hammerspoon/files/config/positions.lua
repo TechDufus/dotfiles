@@ -3,8 +3,8 @@ return {
   full = '0,0 80x40',
 
   standard = {
-    top_left     = '0,0 19x21',
-    bottom_left  = '0,20 19x19',
+    top_left     = '0,0 19x22',
+    bottom_left  = '0,21 19x19',
     full_left    = '0,0 19x40',
     left_center  = '19,0 8x40',
     center       = '27,0 31x40',

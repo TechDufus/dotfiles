@@ -39,8 +39,12 @@ return {
     id = 'com.microsoft.teams2',
     summon = 'm', -- [M]eetings
   },
-  Terminal       = {
+  Terminal    = {
     id = 'net.kovidgoyal.kitty',
     summon = 't', -- [T]erminal
   },
+  Windows     = {
+    id = 'Windows App',
+    summon = 'w', -- [W]indows RDP
+  }
 }

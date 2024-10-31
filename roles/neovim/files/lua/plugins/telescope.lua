@@ -29,6 +29,7 @@ return {
     { "<leader>fr", require('telescope.builtin').oldfiles,    { desc = '[F]iles [R]ecent', silent = true, noremap = true } },
     { "<leader>sd", require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics', silent = true, noremap = true } },
     { "<leader>sk", require('telescope.builtin').keymaps,     { desc = '[S]earch [K]eymaps', silent = true, noremap = true } },
+    { "<leader>sm",  require('telescope').extensions.macroni.saved_macros, { desc = '[S]earch [M]acros', silent = true, noremap = true } },
   },
   config = function()
     local telescope = require("telescope")

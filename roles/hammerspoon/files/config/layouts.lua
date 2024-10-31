@@ -17,6 +17,7 @@ return {
       Finder      = { cell = 2 },
       Obsidian    = { cell = 3, open = true },
       Terminal    = { cell = 4, open = true },
+      Windows     = { cell = 4 },
       Browser     = { cell = 5, open = true },
       OnePassword = { cell = 6, open = true },
       Teams       = { cell = 6 },

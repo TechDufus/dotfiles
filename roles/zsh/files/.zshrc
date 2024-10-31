@@ -144,7 +144,7 @@ done
 bindkey '^R' history-incremental-search-backward
 
 eval "$(starship init zsh)"
-eval "$(atuin init zsh)"
+eval "$(atuin init zsh --disable-up-arrow)"
 
 greetings="neofetch nerdfetch"
 # if greeting bin exists, run it and stop evaluating the rest

@@ -143,7 +143,7 @@ op:
   git:
     user:
       email: "op://Personal/Github/email"
-	allowed_signers: "op://Personal/Github/allowed_signers"
+      allowed_signers: "op://Personal/Github/allowed_signers"
 ```
 ##### op.ssh
 `op.ssh` stores references to ssh keys that will be deployed to your local `~/.ssh` directory.

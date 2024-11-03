@@ -241,14 +241,12 @@ update_ansible_galaxy $ID
 
 confirmVaultAccess
 
-if [[ "$OP_INSTALLED" = true ]]; then
-  if [[ "$OP_AUTHENTICATED" = true ]]; then
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Checking for 1Password CLI: 1Password Authentication successful! ☕${NC}\n"
-    rm -f $VAULT_SECRET_FILE
-    ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
-  else
-    printf "${OVERWRITE}${LRED} [X]  ${LRED}Checking for 1Password CLI: Unable to Authenticate with 1Password.${NC}\n"
-  fi
+if [[ "$OP_INSTALLED" = true && "$OP_AUTHENTICATED" = true ]]; then
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Checking for 1Password CLI: 1Password Authentication successful! ☕${NC}\n"
+  rm -f $VAULT_SECRET_FILE
+  ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+else
+  printf "${OVERWRITE}${LRED} [X]  ${LRED}Checking for 1Password CLI: Unable to Authenticate with 1Password.${NC}\n"
 fi
 
 popd 2>&1 > /dev/null

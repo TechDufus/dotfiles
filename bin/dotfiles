@@ -241,8 +241,8 @@ update_ansible_galaxy $ID
 
 confirmVaultAccess
 
-if [[ -n $OP_INSTALLED ]]; then
-  if [[ -n $OP_AUTHENTICATED ]]; then
+if [[ "$OP_INSTALLED" = true ]]; then
+  if [[ "$OP_AUTHENTICATED" = true ]]; then
     printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Checking for 1Password CLI: 1Password Authentication successful! ☕${NC}\n"
     rm -f $VAULT_SECRET_FILE
     ansible-playbook "$DOTFILES_DIR/main.yml" "$@"

@@ -8,10 +8,6 @@ return {
   "leoluz/nvim-dap-go",
   "sharkdp/fd",
   {
-    "christoomey/vim-tmux-navigator",
-    lazy = false,
-  },
-  {
     "sbdchd/neoformat",
   },
   -- {

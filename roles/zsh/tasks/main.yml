@@ -13,7 +13,7 @@
     src: ".zshrc"
     dest: "{{ ansible_user_dir }}/.zshrc"
     mode: "0644"
-#
+
 - name: "ZSH | Copy .p10k.zsh"
   ansible.builtin.copy:
     src: ".p10k.zsh"

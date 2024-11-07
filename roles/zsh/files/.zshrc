@@ -60,7 +60,7 @@ bindkey '^[w' kill-region
 bindkey '^ ' forward-word # auto-accept partial suggestion from zsh-autosuggestion
 
 # History
-HISTSIZE=5000
+HISTSIZE=10000
 HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
 HISTDUP=erase

@@ -36,6 +36,7 @@ zinit light Aloxaf/fzf-tab
 zinit snippet OMZP::git
 zinit snippet OMZP::sudo
 zinit snippet OMZP::aliases
+zinit snippet OMZP::globalias
 zinit snippet OMZP::archlinux
 zinit snippet OMZP::aws
 zinit snippet OMZP::kubectl
@@ -56,6 +57,7 @@ bindkey -e
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 bindkey '^[w' kill-region
+bindkey '^ ' forward-word # auto-accept partial suggestion from zsh-autosuggestion
 
 # History
 HISTSIZE=5000

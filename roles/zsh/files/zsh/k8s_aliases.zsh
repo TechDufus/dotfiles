@@ -1,4 +1,7 @@
 #!/usr/bin/env zsh
 
 alias k=kubectl
-# complete -F __start_kubectl k
+alias kc='kubectl config use-context'
+alias kns='kubectl config set-context --current --namespace'
+alias kgns='kubectl get namespaces'
+alias kgn='kubectl get nodes'

@@ -6,15 +6,15 @@ function kga() {
 function kgs() {
         kubectl get service $@
 }
-function kgn() {
-        kubectl get nodes -o wide $@
-}
-function kns() {
-    kubectl config set-context --current --namespace $1
-}
-function kgns() {
-    kubectl get namespaces
-}
+# function kgn() {
+#         kubectl get nodes -o wide $@
+# }
+# function kns() {
+#     kubectl config set-context --current --namespace $1
+# }
+# function kgns() {
+#     kubectl get namespaces
+# }
 function kgnsonly() {
     kubectl get namespaces | awk 'NR!=1 {print $1}'
 }
@@ -101,9 +101,9 @@ function kli() {
 function kexec() {
     kubectl exec -it -- $@
 }
-function kc() {
-    kubectl config use-context $1
-}
+# function kc() {
+#     kubectl config use-context $1
+# }
 function __refresh_kubecontexts() {
     complete -W "$(kubectl config get-contexts -o=name)" kc
 }

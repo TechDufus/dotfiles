@@ -1,7 +1,0 @@
-## DOCS: at https://docs.atuin.sh/configuration/config
-inline_height=25
-style='compact'
-store_failed=true
-enter_accept=true
-show_tabs=false
-# invert=false

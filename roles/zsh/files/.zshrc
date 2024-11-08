@@ -15,8 +15,8 @@ ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
 # Download Zinit, if it's not there yet
 if [ ! -d "$ZINIT_HOME" ]; then
-   mkdir -p "$(dirname $ZINIT_HOME)"
-   git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+  mkdir -p "$(dirname $ZINIT_HOME)"
+  git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
 fi
 
 # Source/Load zinit
@@ -32,7 +32,9 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
 
 # Add in snippets
-# zinit snippet OMZL::git.zsh
+# Needed for loading next git.zsh without [_defer_async_git_register:4: command not found: _omz_register_handler errors]
+zinit snippet OMZL::async_prompt.zsh
+zinit snippet OMZL::git.zsh
 zinit snippet OMZP::git
 zinit snippet OMZP::sudo
 zinit snippet OMZP::aliases
@@ -58,6 +60,9 @@ bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 bindkey '^[w' kill-region
 bindkey '^ ' forward-word # auto-accept partial suggestion from zsh-autosuggestion
+
+# Set vi mode (fixes HOME|END|DELETE etc..)
+# set -o vi
 
 # History
 HISTSIZE=10000

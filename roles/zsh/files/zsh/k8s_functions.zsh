@@ -1,20 +1,5 @@
 #!/usr/bin/env zsh
 
-function kga() {
-        kubectl get all $@
-}
-function kgs() {
-        kubectl get service $@
-}
-# function kgn() {
-#         kubectl get nodes -o wide $@
-# }
-# function kns() {
-#     kubectl config set-context --current --namespace $1
-# }
-# function kgns() {
-#     kubectl get namespaces
-# }
 function kgnsonly() {
     kubectl get namespaces | awk 'NR!=1 {print $1}'
 }
@@ -54,18 +39,6 @@ function kgnonly.allCluster() {
     done
     kubectl config use-context $originalContext > /dev/null 1>&1
 }
-function kd() {
-        kubectl describe $@
-}
-function kl() {
-        kubectl logs $@
-}
-function ka() {
-        kubectl apply $@
-}
-function ktp() {
-        kubectl top pods $@
-}
 function kli() {
   function usage() {
     echo "Usage: kli [-A] [-n <namespace>] tag"
@@ -97,9 +70,6 @@ function kli() {
     return
   fi
   kubectl get pods $kubectl_args -o=custom-columns=NAMESPACE:metadata.namespace,POD:metadata.name,IMAGE:spec.containers[*].image
-}
-function kexec() {
-    kubectl exec -it -- $@
 }
 # function kc() {
 #     kubectl config use-context $1
@@ -149,8 +119,8 @@ function k.togglePromptInfo() {
 }
 
 
-complete -o nospace -F __kc_complete kc
+# complete -o nospace -F __kc_complete kc
 complete -o nospace -F __kgnonly_complete k.node.debug k.node.exec
-complete -o nospace -F __kgnsonly_complete kns
+# complete -o nospace -F __kgnsonly_complete kns
 complete -W "master worker etcd control-plane" kgnonly kgnonly.allCluster
 

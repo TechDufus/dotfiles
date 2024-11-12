@@ -30,6 +30,7 @@ zinit light zsh-users/zsh-syntax-highlighting
 zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
+# zinit ice depth=1; zinit light jeffreytse/zsh-vi-mode
 
 # Add in snippets
 # Needed for loading next git.zsh without [_defer_async_git_register:4: command not found: _omz_register_handler errors]
@@ -59,10 +60,8 @@ bindkey -e
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 bindkey '^[w' kill-region
-bindkey '^ ' forward-word # auto-accept partial suggestion from zsh-autosuggestion
+bindkey '^n' forward-word # auto-accept partial suggestion from zsh-autosuggestion
 
-# Set vi mode (fixes HOME|END|DELETE etc..)
-# set -o vi
 
 # History
 HISTSIZE=10000

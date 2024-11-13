@@ -196,7 +196,7 @@ function confirmVaultAccess() {
   op_version=$(op --version)
   __task "1Password CLI found: [$op_version] -- Authenticating..."
   if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
-  _task_done && printf "${GREEN}[✓] Successfully authenticated with 1Password CLI! ☕\n"
+  _task_done && printf "${GREEN} [✓] Successfully authenticated with 1Password CLI! ☕\n"
   return
 }
 

@@ -187,10 +187,24 @@ update_ansible_galaxy() {
 
 function confirmVaultAccess() {
   __task "Checking for 1Password CLI"
-  if op --version >/dev/null 2>&1; then
+  if command -v op >/dev/null 2>&1; then
     OP_INSTALLED=true
-    _cmd "op --account my.1password.com vault list"
+    local op_version
+    op_version=$(op --version)
+    _task_done && printf "${GREEN}      ${RIGHT_ANGLE}${YELLOW} 1Password CLI found: $op_version${NC}\n"
+
+    if ! _cmd "op --account my.1password.com vault list"; then
+      printf "${LRED} [X]  Authentication failed with 1Password CLI.${NC}\n"
+      OP_AUTHENTICATED=false
+      exit 1
+    fi
+
+    printf "${GREEN}[✓] Successfully authenticated with 1Password CLI! ☕\n"
     OP_AUTHENTICATED=true
+  else
+    printf "${OVERWRITE} ${RED}[X]  Checking for 1Password CLI\n"
+    printf " ${WARNING}${RED}   [X]  1Password CLI is not installed.${NC}\n"
+    exit 1
   fi
 }
 
@@ -241,13 +255,8 @@ update_ansible_galaxy $ID
 
 confirmVaultAccess
 
-if [[ "$OP_INSTALLED" = true && "$OP_AUTHENTICATED" = true ]]; then
-  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}Checking for 1Password CLI: 1Password Authentication successful! ☕${NC}\n"
-  rm -f $VAULT_SECRET_FILE
-  ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
-else
-  printf "${OVERWRITE}${LRED} [X]  ${LRED}Checking for 1Password CLI: Unable to Authenticate with 1Password.${NC}\n"
-fi
+rm -f $VAULT_SECRET_FILE
+ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 
 popd 2>&1 > /dev/null
 

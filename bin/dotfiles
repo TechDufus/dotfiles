@@ -187,25 +187,17 @@ update_ansible_galaxy() {
 
 function confirmVaultAccess() {
   __task "Checking for 1Password CLI"
-  if command -v op >/dev/null 2>&1; then
-    OP_INSTALLED=true
-    local op_version
-    op_version=$(op --version)
-    _task_done && printf "${GREEN}      ${RIGHT_ANGLE}${YELLOW} 1Password CLI found: $op_version${NC}\n"
-
-    if ! _cmd "op --account my.1password.com vault list"; then
-      printf "${LRED} [X]  Authentication failed with 1Password CLI.${NC}\n"
-      OP_AUTHENTICATED=false
-      exit 1
-    fi
-
-    printf "${GREEN}[✓] Successfully authenticated with 1Password CLI! ☕\n"
-    OP_AUTHENTICATED=true
-  else
+  if ! command -v op >/dev/null 2>&1; then
     printf "${OVERWRITE} ${RED}[X]  Checking for 1Password CLI\n"
-    printf " ${WARNING}${RED}   [X]  1Password CLI is not installed.${NC}\n"
+    printf " ${WARNING}${RED}   1Password CLI is not installed.${NC}\n"
     exit 1
   fi
+  local op_version
+  op_version=$(op --version)
+  __task "1Password CLI found: [$op_version] -- Authenticating..."
+  if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
+  _task_done && printf "${GREEN}[✓] Successfully authenticated with 1Password CLI! ☕\n"
+  return
 }
 
 if [ -f /etc/os-release ]; then

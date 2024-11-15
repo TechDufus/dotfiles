@@ -254,4 +254,10 @@ dotfiles -t <tab><tab>
 dotfiles -t t<tab>
 dotfiles -t ne<tab>
 ```
-
+<a href="https://github.com/techdufus/dotfiles/stargazers" target="_blank" style="display: block" align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=techdufus/dotfiles&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=techdufus/dotfiles&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=techdufus/dotfiles&type=Date" />
+  </picture>
+</a>

@@ -95,5 +95,8 @@ done
 
 
 # Shell integrations
+if [[ -f ~/.fzf.zsh ]]; then
+  source ~/.fzf.zsh
+fi
 eval "$(fzf --zsh)"
 eval "$(zoxide init --cmd cd zsh)"

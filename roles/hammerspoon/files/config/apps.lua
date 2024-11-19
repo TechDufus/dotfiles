@@ -23,6 +23,10 @@ return {
     id = 'com.apple.finder',
     summon = 'f', -- [F]inder
   },
+  ScreenSharing = {
+    id = 'com.apple.ScreenSharing',
+    summon = 'h', -- Screen S[h]aring
+  },
   Spotify     = {
     id = 'com.spotify.client',
     summon = 's', -- [M]usic

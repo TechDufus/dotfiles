@@ -203,9 +203,7 @@ function confirmVaultAccess() {
 if [ -f /etc/os-release ]; then
   source /etc/os-release
 else
-  if [ -x "$(command -v uname)" ]; then
-    ID=$(uname -s)
-  fi
+  ID=$(uname -s | tr '[:upper:]' '[:lower:]')
 fi
 
 __task "Loading Setup for detected OS: $ID"
@@ -216,7 +214,7 @@ case $ID in
   arch)
     arch_setup
     ;;
-  Darwin)
+  darwin)
     macos_setup
     ;;
   *)

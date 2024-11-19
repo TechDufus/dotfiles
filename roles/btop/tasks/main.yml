@@ -20,5 +20,5 @@
 - name: "BTOP | Copy btop config"
   ansible.builtin.copy:
     src: btop.conf
-    dest: ~/.config/btop/btop.con
+    dest: ~/.config/btop/btop.conf
     mode: "0644"

@@ -86,7 +86,6 @@ zstyle ':completion:*' menu no
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
 zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
 
-alias z='cd'
 
 # All custom functions
 for file in $HOME/.config/zsh/*.zsh; do
@@ -99,4 +98,7 @@ if [[ -f ~/.fzf.zsh ]]; then
   source ~/.fzf.zsh
 fi
 eval "$(fzf --zsh)"
-eval "$(zoxide init --cmd cd zsh)"
+# zi is defined by zinit as alias zi='zinit'. Unalias it to use with zoxide
+unalias zi
+eval "$(zoxide init zsh)"
+eval "$(gh copilot alias -- zsh)"

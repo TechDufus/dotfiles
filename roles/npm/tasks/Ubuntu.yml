@@ -86,10 +86,10 @@
         remote_src: true
         mode: "0644"
 
-- name: "NPM | Install NPM Packages"
-  community.general.npm:
-    name: "{{ item }}"
-    global: true
-  with_items:
-    - bun
-    - blitz
+# - name: "NPM | Install NPM Packages"
+#   community.general.npm:
+#     name: "{{ item }}"
+#     global: true
+#   with_items:
+#     - bun
+#     - blitz

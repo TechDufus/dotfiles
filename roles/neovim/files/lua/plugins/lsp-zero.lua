@@ -154,7 +154,7 @@ return {
               buffer = "[Buffer]",
               tmux = "[Tmux]",
               nvim_lua = "[Lua]",
-              copilot = "[Copilot]",
+              -- copilot = "[Copilot]",
               treesitter = "[Treesitter]",
             })[entry.source.name]
             vim_item.dup = ({
@@ -176,7 +176,7 @@ return {
           documentation = require('cmp.config.window').bordered(),
         },
         sources = cmp.config.sources({
-          { name = "copilot" },
+          -- { name = "copilot" },
           {
             name = "nvim_lsp",
             entry_filter = function(entry, ctx)

@@ -44,12 +44,6 @@
       tags:
         - always
 
-    - name: Display roles
-      ansible.builtin.debug:
-        var: run_roles
-      tags:
-        - always
-
     - name: Run roles
       ansible.builtin.include_role:
         apply:

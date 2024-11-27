@@ -39,6 +39,12 @@
     scope: global
     value: true
 
+- name: "Git | Set pull.ff"
+  community.general.git_config:
+    name: pull.ff
+    scope: global
+    value: only
+
 - name: "Git | Set pull.rebase"
   community.general.git_config:
     name: pull.rebase

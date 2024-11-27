@@ -33,6 +33,12 @@
     scope: global
     value: main
 
+- name: "Git | Set rerere.enabled"
+  community.general.git_config:
+    name: rerere.enabled
+    scope: global
+    value: true
+
 - name: "Git | Set pull.rebase"
   community.general.git_config:
     name: pull.rebase

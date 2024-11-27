@@ -200,14 +200,18 @@ function confirmVaultAccess() {
   return
 }
 
-if [ -f /etc/os-release ]; then
-  source /etc/os-release
-else
-  ID=$(uname -s | tr '[:upper:]' '[:lower:]')
-fi
+detect_os() {
+  if [ -f /etc/os-release ]; then
+    source /etc/os-release
+    echo $ID
+  else
+    echo $(uname -s | tr '[:upper:]' '[:lower:]')
+  fi
+}
 
-__task "Loading Setup for detected OS: $ID"
-case $ID in
+dotfiles_os=$(detect_os)
+__task "Loading Setup for detected OS: $dotfiles_os"
+case $dotfiles_os in
   ubuntu)
     ubuntu_setup
     ;;

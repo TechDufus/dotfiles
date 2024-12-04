@@ -3,6 +3,7 @@
 # color codes
 export RESTORE='\033[0m'
 export NC='\033[0m'
+export BOLD='\033[1m'
 export BLACK='\033[00;30m'
 export RED='\033[00;31m'
 export GREEN='\033[00;32m'
@@ -22,6 +23,9 @@ export LCYAN='\033[01;36m'
 export WHITE='\033[01;37m'
 export OVERWRITE='\e[1A\e[K'
 
+export COLOR_ESC=$(printf '\033')
+export COLOR_BOLD=${COLOR_ESC}$(printf '[1m')
+
 #emoji codes
 export CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
 export X_MARK="${RED}\xE2\x9C\x96${NC}"
@@ -36,4 +40,4 @@ export RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 export DF_HOME="$HOME/dev/raft/data-fabric"
 export DFDEV_GIT_PROTOCOL="ssh"
-
+export AWS_PROFILE="Raft"

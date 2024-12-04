@@ -4,49 +4,39 @@ return {
   lazy = false,
   version = false, -- set this if you want to always pull the latest change
   opts = {
-    -- add any opts here
     provider = "copilot",
-    -- auto_suggestions_provider = "copilot",
-    -- openai = {
-    --   model = "gpt-4o-mini",
-    -- }
+    auto_suggestions_provider = "copilot",
     windows = {
       input = {
         prefix = "》"
       },
     },
   },
-  -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
-  build = "make",
-  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+  build = "make", -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
-    --- The below dependencies are optional,
+    -- The below dependencies are optional
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua",      -- for providers='copilot'
     {
-      -- support for image pasting
-      "HakonHarnes/img-clip.nvim",
+      "HakonHarnes/img-clip.nvim", -- support for image pasting
       event = "VeryLazy",
       opts = {
-        -- recommended settings
         default = {
           embed_image_as_base64 = false,
           prompt_for_file_name = false,
           drag_and_drop = {
             insert_mode = true,
           },
-          -- required for Windows users
-          use_absolute_path = true,
+          use_absolute_path = true, -- required for Windows users
         },
       },
     },
     {
-      -- Make sure to set this up properly if you have lazy=true
-      'MeanderingProgrammer/render-markdown.nvim',
+      'MeanderingProgrammer/render-markdown.nvim', -- Make sure to set this up properly if you have lazy=true
       opts = {
         file_types = { "markdown", "Avante" },
       },

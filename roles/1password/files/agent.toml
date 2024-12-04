@@ -33,3 +33,6 @@ vault = "Personal"
 
 [[ssh-keys]]
 vault = "Raft"
+
+[[ssh-keys]]
+vault = "StarSage"

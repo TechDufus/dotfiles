@@ -12,6 +12,7 @@ return {
                 html = "html",
                 bashrc = "sh",
                 zsh = "sh",
+                yml = "ansible",
             },
         },
     },

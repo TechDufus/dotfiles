@@ -14,6 +14,27 @@
     scope: global
     value: zebra
 
+- name: "Git | Set [delta] config"
+  block:
+    - name: "Git | Set core.pager"
+      community.general.git_config:
+        name: core.pager
+        scope: global
+        value: "delta"
+
+    - name: "Git | Set delta interactive.diffFilter"
+      community.general.git_config:
+        name: delta.interactive.diffFilter
+        scope: global
+        value: "delta --color-only --features=interactive"
+
+    - name: "Git | Set Delta Negative"
+      community.general.git_config:
+        name: delta.negative
+        scope: global
+        value: true
+
+
 - name: "Git | Set fetch.prune"
   community.general.git_config:
     name: fetch.prune

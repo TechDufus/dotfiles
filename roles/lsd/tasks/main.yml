@@ -7,3 +7,21 @@
 - name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
+
+- name: "LSD | Ensure ~/.config/lsd exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/lsd"
+    state: directory
+    mode: "0755"
+
+- name: "LSD | Copy lsd config"
+  ansible.builtin.copy:
+    src: "config.yaml"
+    dest: "{{ ansible_user_dir }}/.config/lsd/config.yaml"
+    mode: "0644"
+
+- name: "LSD | Copy colors.yaml"
+  ansible.builtin.copy:
+    src: "colors.yaml"
+    dest: "{{ ansible_user_dir }}/.config/lsd/colors.yaml"
+    mode: "0644"

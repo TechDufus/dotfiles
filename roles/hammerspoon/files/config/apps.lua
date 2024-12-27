@@ -44,7 +44,7 @@ return {
     summon = 'm', -- [M]eetings
   },
   Terminal    = {
-    id = 'net.kovidgoyal.kitty',
+    id = 'com.mitchellh.ghostty',
     summon = 't', -- [T]erminal
   },
   Windows     = {

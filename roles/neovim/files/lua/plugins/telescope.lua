@@ -238,6 +238,7 @@ return {
             },
           })
         },
+        telescope.load_extension('makefile_targets'),
       },
     }
     -- local M = {}

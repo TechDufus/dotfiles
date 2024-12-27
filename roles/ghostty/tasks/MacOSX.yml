@@ -1,0 +1,12 @@
+---
+- name: "👻 Ghossty | Install Ghostty"
+  community.general.homebrew_cask:
+    name: ghostty
+    state: present
+    update_homebrew: true
+
+- name: "👻 Ghossty | Deploy Configuration"
+  ansible.builtin.copy:
+    src: config.ini
+    dest: "~/Library/Application\ Support/com.mitchellh.ghostty/config"
+    mode: "0600"

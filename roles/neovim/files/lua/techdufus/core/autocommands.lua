@@ -10,6 +10,7 @@ vim.api.nvim_create_augroup('bufcheck', { clear = true })
 vim.cmd 'autocmd BufRead,BufNewFile *.yml set filetype=yaml.ansible'
 vim.cmd 'autocmd BufRead,BufNewFile .bashrc set filetype=sh'
 vim.cmd 'autocmd BufRead,BufNewFile *.hcl set filetype=terraform'
+vim.cmd 'autocmd BufRead,BufNewFile .justfile set filetype=just'
 -- reload config file on change
 vim.api.nvim_create_autocmd('BufWritePost', {
   group   = 'bufcheck',

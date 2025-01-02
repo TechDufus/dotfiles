@@ -13,6 +13,7 @@ return {
                 bashrc = "sh",
                 zsh = "sh",
                 yml = "ansible",
+                justfile = "just",
             },
         },
     },

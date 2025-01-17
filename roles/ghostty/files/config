@@ -6,7 +6,8 @@ background-blur-radius = 20
 
 # Font
 font-size = 15
-font-family = "BerkeleyMono Nerd Font"
+font-family = BerkeleyMono Nerd Font
+font-thicken = true
 bold-is-bright = true
 
 # Window Config

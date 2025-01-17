@@ -15,7 +15,8 @@ k9s:
   #UI settings
   ui:
     # Enable mouse support. Default false
-    enableMouse: true
+    # Disabling this allows for highlighting text / logs for copying.
+    enableMouse: false
     # Set to true to hide K9s header. Default false
     headless: false
     # Set to true to hide the K9S logo Default false

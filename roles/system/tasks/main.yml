@@ -32,3 +32,20 @@
     line: "{{ rdp_demo_local_ingress_hosts.stdout }}"
     path: /etc/hosts
   become: true
+
+# FIXME: Follow the SSH vault.yml structure of looping over op keys
+# and adding them to etc-hosts after the above template is laid down.
+- name: "System | Get updm-rdp-ingress Host from Vault"
+  ansible.builtin.command:
+    cmd: op --account my.1password.com read op://Raft/updm-rdp-ingress/notesPlain
+  register: updm_rdp_ingress_hosts
+  changed_when: false
+
+# FIXME: This needs to more dynamically apply op host entries.
+# See above `fixme:` for more info
+- name: "System | Add updm-rdp-ingress Vault Hosts to /etc/hosts"
+  when: updm_rdp_ingress_hosts is defined
+  ansible.builtin.lineinfile:
+    line: "{{ updm_rdp_ingress_hosts.stdout }}"
+    path: /etc/hosts
+  become: true

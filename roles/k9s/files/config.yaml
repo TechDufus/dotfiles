@@ -1,11 +1,11 @@
 # $XDG_CONFIG_HOME/k9s/config.yaml
 k9s:
   # Enable periodic refresh of resource browser windows. Default false
-  liveViewAutoRefresh: false
+  liveViewAutoRefresh: true
   # The path to screen dump. Default: '%temp_dir%/k9s-screens-%username%' (k9s info)
   screenDumpDir: /tmp/dumps
   # Represents ui poll intervals. Default 2secs
-  refreshRate: 2
+  refreshRate: 1
   # Number of retries once the connection to the api-server is lost. Default 15.
   maxConnRetry: 5
   # Indicates whether modification commands like delete/kill/edit are disabled. Default is false
@@ -24,7 +24,7 @@ k9s:
     crumbsless: false
     noIcons: false
     # Toggles reactive UI. This option provide for watching on disk artifacts changes and update the UI live Defaults to false.
-    reactive: false
+    reactive: true
     # By default all contexts wil use the dracula skin unless explicitly overridden in the context config file.
     skin: skin # => assumes the file skins/dracula.yaml is present in the  $XDG_DATA_HOME/k9s/skins directory
     # Allows to set certain views default fullscreen mode. (yaml, helm history, describe, value_extender, details, logs) Default false

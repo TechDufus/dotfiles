@@ -19,6 +19,7 @@ return {
       Terminal    = { cell = 4, open = true },
       Windows     = { cell = 4 },
       Browser     = { cell = 5, open = true },
+      Gpt         = { cell = 3 },
       OnePassword = { cell = 6, open = true },
       Teams       = { cell = 6 },
       Agenda      = { cell = 6 },

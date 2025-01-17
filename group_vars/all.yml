@@ -58,7 +58,7 @@ git_user_name: "TechDufus"
 op:
   git:
     user:
-      email: "op://Personal/TechDufus GitHub/email"
+      email: "op://Personal/GitHub/email"
     allowed_signers: "op://Personal/TechDufus SSH/allowed_signers"
   ssh:
     github:

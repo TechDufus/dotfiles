@@ -39,5 +39,6 @@ export RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 
 export DF_HOME="$HOME/dev/raft/data-fabric"
+export DF_INFRA_HOME="$HOME/dev/raft/df-infra"
 export DFDEV_GIT_PROTOCOL="ssh"
 export AWS_PROFILE="Raft"

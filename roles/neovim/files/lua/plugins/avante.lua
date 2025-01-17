@@ -4,8 +4,8 @@ return {
   lazy = false,
   version = false, -- set this if you want to always pull the latest change
   opts = {
-    provider = "copilot",
-    auto_suggestions_provider = "copilot",
+    provider = "openai",
+    auto_suggestions_provider = "openai",
     hints = { enabled = false },
     windows = {
       input = {

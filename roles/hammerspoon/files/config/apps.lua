@@ -23,6 +23,10 @@ return {
     id = 'com.apple.finder',
     summon = 'f', -- [F]inder
   },
+  Gpt         = {
+    id = 'com.openai.chat',
+    summon = 'g', -- [G]PT
+  },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',
     summon = 'h', -- Screen S[h]aring

@@ -150,6 +150,12 @@
     scope: global
     value: "reset HEAD~1 --mixed"
 
+- name: "Git | Set br alias"
+  community.general.git_config:
+    name: alias.br
+    scope: global
+    value: "branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate"
+
 - name: "Git | Copy global.commit.template"
   ansible.builtin.copy:
     src: global.commit.template

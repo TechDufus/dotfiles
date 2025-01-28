@@ -1,4 +1,13 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+is_ssh_session() {
+  [[ -n "$SSH_CONNECTION" || -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]
+}
+
+if is_ssh_session; then
+  # REASON: When sshing via ghostty, the remote terminal borks,
+  # so we need to set TERM to xterm-256color
+  export TERM=xterm-256color
+fi
+
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then

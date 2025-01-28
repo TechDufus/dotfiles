@@ -1,0 +1,36 @@
+plugins:
+
+  # View user-supplied values when the helm chart was created
+  helm-values:
+    shortCut: v
+    confirm: false
+    description: Values
+    scopes:
+      - helm
+    command: sh
+    background: false
+    args:
+      - -c
+      - "helm get values $COL-NAME -n $NAMESPACE --kube-context $CONTEXT | less -K"
+
+  # Use HolmesGPT to ask questions
+  holmesgpt:
+    shortCut: Shift-H
+    description: Ask HolmesGPT
+    scopes:
+      - all
+    command: bash
+    background: false
+    confirm: false
+    args:
+      - -c
+      - |
+        holmes ask "why is $NAME of $RESOURCE_NAME in -n $NAMESPACE not working as expected"
+        echo "Press 'q' to exit"
+        while : ; do
+        read -n 1 k <&1
+        if [[ $k = q ]] ; then
+        break
+        fi
+        done
+

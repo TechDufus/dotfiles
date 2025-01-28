@@ -4,14 +4,20 @@
     name: k9s
     state: present
 
-- name: "k9s | Copy config"
+- name: "K9s | Copy config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/Library/Application Support/k9s/config.yaml"
-    src: "config.yaml"
+    dest: "{{ ansible_user_dir }}/Library/Application Support/k9s/{{ item }}"
+    src: "{{ item }}"
     mode: "0644"
+  loop:
+    - config.yaml
+    - plugins.yaml
+    - aliases.yaml
 
-- name: "k9s | Copy skin config"
+- name: "K9s | Copy skin config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/Library/Application Support/k9s/skins/skin.yaml"
-    src: "skin.yaml"
+    dest: "{{ ansible_user_dir }}/Library/Application Support/k9s/skins/{{ item }}"
+    src: "{{ item }}"
     mode: "0644"
+  loop:
+    - catppuccin_mocha.yaml

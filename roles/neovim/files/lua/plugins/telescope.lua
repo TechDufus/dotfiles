@@ -3,7 +3,7 @@ local techdufus = require_on_exported_call('techdufus.telescope.pickers')
 return {
   "nvim-telescope/telescope.nvim",
   cmd = 'Telescope',
-  version = false,
+  tag = '0.1.8',
   lazy = true,
   dependencies = {
     "nvim-lua/plenary.nvim",
@@ -238,7 +238,6 @@ return {
             },
           })
         },
-        telescope.load_extension('makefile_targets'),
       },
     }
     -- local M = {}

@@ -12,9 +12,14 @@
     state: present
   become: true
 
-- name: "Neovim | {{ ansible_distribution }} | Install"
+- name: "Neovim | {{ ansible_distribution }} | Add APT Repository"
   ansible.builtin.apt_repository:
     repo: ppa:neovim-ppa/unstable
     state: present
     mode: "0644"
+  become: true
+
+- name: "Neovim | {{ ansible_distribution }} | Install"
+  ansible.builtin.apt:
+    update_cache: yes
   become: true

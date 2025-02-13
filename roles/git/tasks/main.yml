@@ -114,29 +114,19 @@
     state: directory
     mode: "0755"
 
-- name: "Git | Read allowed_signers secret from 1Password"
-  when: op_installed
-  block:
-    - name: "1Password | Get allowed_signers"
-      ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
-      register: op_git_ssh_allowed_signers
-      changed_when: false
-      no_log: true
+- name: "1Password | Get allowed_signers"
+  ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
+  register: op_git_ssh_allowed_signers
+  changed_when: false
+  no_log: true
 
-    - name: "1Password | Configure ~/.config/git/allowed_signers"
-      ansible.builtin.lineinfile:
-        path: "{{ ansible_user_dir }}/.config/git/allowed_signers"
-        line: "{{ op_git_ssh_allowed_signers.stdout }}"
-        mode: "0600"
-        create: true
-      no_log: true
-
-- name: "Git | Configure ~/.config/git/allowed_signers"
-  when: not op_installed
-  ansible.builtin.copy:
-    src: allowed_signers
-    dest: "{{ ansible_user_dir }}/.config/git/allowed_signers"
+- name: "1Password | Configure ~/.config/git/allowed_signers"
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_user_dir }}/.config/git/allowed_signers"
+    block: "{{ op_git_ssh_allowed_signers.stdout }}"
     mode: "0600"
+    create: true
+  no_log: true
 
 - name: "Git | Set gpg.ssh.allowedSignersFile"
   community.general.git_config:

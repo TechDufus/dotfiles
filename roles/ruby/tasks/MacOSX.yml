@@ -1,0 +1,5 @@
+---
+- name: "Ruby | MacOSX | Install Ruby"
+  community.general.homebrew:
+    name: ruby
+    state: present

@@ -48,7 +48,6 @@ local macros = {
 
 registerModalBindings(nil, 'f16', macros, true)
 
-
 --------------------------------------------------------------------------------
 -- Multi Window Management
 --------------------------------------------------------------------------------
@@ -78,7 +77,7 @@ local windowManagementBindings = {
   ['j'] = function() hs.window.focusedWindow():focusWindowSouth(nil, true) end,
   ['k'] = function() hs.window.focusedWindow():focusWindowNorth(nil, true) end,
   ['l'] = function() hs.window.focusedWindow():focusWindowEast(nil, true) end,
-  ['a'] = function() hs.application.frontmostApplication():unhide() end,
+  ['a'] = function() hs.application.frontmostApplication():focus() end,
   ['p'] = layout.selectLayout,
   ['u'] = layout.bindToCell,
   [';'] = layout.selectNextVariant,

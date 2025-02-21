@@ -10,3 +10,4 @@ addToPath /opt/whalebrew/bin
 addToPathFront $HOME/.local/bin
 # ccache
 addToPathFront /usr/lib/ccache
+addToPathFront /opt/homebrew/opt/ruby/bin

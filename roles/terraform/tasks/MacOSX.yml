@@ -3,3 +3,8 @@
   community.general.homebrew:
     name: terraform
     state: present
+  loop:
+    - terraform
+    - tfsec
+    - terraform-docs
+    - terragrunt

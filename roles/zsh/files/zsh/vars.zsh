@@ -37,8 +37,8 @@ export HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
 export WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
 export RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
-
 export DF_HOME="$HOME/dev/raft/data-fabric"
+export RDP_HOME="$HOME/dev/raft/rdp-operator"
 export DF_INFRA_HOME="$HOME/dev/raft/df-infra"
 export DFDEV_GIT_PROTOCOL="ssh"
 export AWS_PROFILE="Raft"

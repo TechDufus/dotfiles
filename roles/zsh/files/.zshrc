@@ -102,6 +102,8 @@ for file in $HOME/.config/zsh/*.zsh; do
   source "$file"
 done
 
+if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
+
 
 # Shell integrations
 if [[ -f ~/.fzf.zsh ]]; then

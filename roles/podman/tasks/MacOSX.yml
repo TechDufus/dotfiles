@@ -1,6 +1,18 @@
 ---
 - name: "{{ role_name }} | MacOSX | Install Podman"
-  community.general.homebrew:
-    name: podman
-    state: present
   when: ansible_distribution_major_version | int >= 13
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - podman
+    - podman-compose
+    # Helm requires this to be installed when only using podman
+    - docker-credential-helper
+
+
+- name: "{{ role_name }} | MacOSX | Install Podman Desktop"
+  when: ansible_distribution_major_version | int >= 13
+  community.general.homebrew_cask:
+    name: podman-desktop
+    state: present

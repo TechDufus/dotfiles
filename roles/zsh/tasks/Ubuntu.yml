@@ -1,4 +1,10 @@
 ---
+- name: "Zsh | Install Zsh"
+  ansible.builtin.package:
+    name: zsh
+    state: present
+  become: true
+
 - name: "Zsh | Set default terminal"
   ansible.builtin.user:
     name: "{{ host_user }}"

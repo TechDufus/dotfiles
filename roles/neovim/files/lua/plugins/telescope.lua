@@ -4,7 +4,7 @@ return {
   "nvim-telescope/telescope.nvim",
   cmd = 'Telescope',
   tag = '0.1.8',
-  lazy = true,
+  lazy = false,
   dependencies = {
     "nvim-lua/plenary.nvim",
     "jvgrootveld/telescope-zoxide",
@@ -30,8 +30,8 @@ return {
     { "<leader>sd", require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics', silent = true, noremap = true } },
     { "<leader>sk", require('telescope.builtin').keymaps,     { desc = '[S]earch [K]eymaps', silent = true, noremap = true } },
     -- { "<leader>sm", require('telescope').extensions.macroni.saved_macros, { desc = '[S]earch [M]acros', silent = true, noremap = true } },
-    { "<leader>ct", require('telescope').extensions.git_worktree.create_git_worktree, { desc = '[C]reate [W]orktree', silent = true, noremap = true } },
-    { "<leader>st", require('telescope').extensions.git_worktree.git_worktree,       { desc = '[S]earch [W]orktrees', silent = true, noremap = true } },
+    -- { "<leader>ct", require('telescope').extensions.git_worktree.create_git_worktree, { desc = '[C]reate [W]orktree', silent = true, noremap = true } },
+    -- { "<leader>st", require('telescope').extensions.git_worktree.git_worktree,       { desc = '[S]earch [W]orktrees', silent = true, noremap = true } },
   },
   config = function()
     local telescope = require("telescope")
@@ -240,7 +240,7 @@ return {
             },
           })
         },
-        telescope.load_extension('git_worktree'),
+        -- telescope.load_extension('git_worktree'),
       },
     }
     -- local M = {}

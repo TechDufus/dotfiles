@@ -1,6 +1,9 @@
 #!/usr/bin/env zsh
 
-addToPath /opt/homebrew/bin
+if [ -x $(command -v brew) ]; then
+  addToPath /opt/homebrew/bin
+fi
+
 addToPath /usr/local/go/bin
 addToPath $GOPATH/bin
 addToPath $HOME/go/bin
@@ -10,4 +13,7 @@ addToPath /opt/whalebrew/bin
 addToPathFront $HOME/.local/bin
 # ccache
 addToPathFront /usr/lib/ccache
-addToPathFront /opt/homebrew/opt/ruby/bin
+
+if [ -x $(command -v rbenv) ]; then
+  addToPathFront /opt/homebrew/opt/ruby/bin
+fi

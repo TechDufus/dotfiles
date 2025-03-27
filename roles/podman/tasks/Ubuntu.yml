@@ -1,0 +1,20 @@
+---
+- name: "Podman | Install Podman"
+  ansible.builtin.apt:
+    name:
+      - "{{ item }}"
+    state: present
+  become: true
+  loop:
+    - podman
+
+# install if WSL
+- name: "Podman | Install Podman WSL Dependencies"
+  when: ansible_host_environment_is_wsl
+  ansible.builtin.apt:
+    name:
+      - "{{ item }}"
+    state: present
+  loop:
+    - qemu-system-x86
+  become: true

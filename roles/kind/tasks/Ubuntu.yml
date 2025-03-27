@@ -1,0 +1,12 @@
+---
+- name: kind | Install kind with Go
+  ansible.builtin.command:
+    cmd: "go install {{ item.package }}"
+    creates: "~/go/bin/{{ item.cmd }}"
+  register: go_install
+  changed_when: go_install.rc != 0
+  loop_control:
+    label: "{{ item.package }}"
+  loop:
+    - { package: sigs.k8s.io/kind@latest, cmd: kind }
+

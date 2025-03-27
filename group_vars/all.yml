@@ -7,7 +7,7 @@ default_roles:
   - bat
   - btop
   - discord
-  - docker
+  # - docker
   - flatpak
   - fonts
   - fzf

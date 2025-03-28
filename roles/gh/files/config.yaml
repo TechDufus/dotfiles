@@ -1,0 +1,18 @@
+# catppuccin-mocha-green.yml
+# https://github.com/catppuccin/gh-dash/blob/main/themes/mocha/catppuccin-mocha-green.yml
+theme:
+  colors:
+    text:
+      primary: "#cdd6f4"
+      secondary: "#a6e3a1"
+      inverted: "#11111b"
+      faint: "#bac2de"
+      warning: "#f9e2af"
+      success: "#a6e3a1"
+      error: "#f38ba8"
+    background:
+      selected: "#313244"
+    border:
+      primary: "#a6e3a1"
+      secondary: "#45475a"
+      faint: "#313244"

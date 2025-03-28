@@ -25,3 +25,7 @@
     dest: "{{ ansible_env.HOME }}/.config/gh-dash/config.yaml"
     mode: '0644'
     owner: "{{ ansible_env.USER }}"
+
+- name: "{{ role_name }} | Upgrade gh extensions"
+  ansible.builtin.command:
+    cmd: gh extension upgrade --all

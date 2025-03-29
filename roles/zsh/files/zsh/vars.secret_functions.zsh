@@ -1,5 +1,22 @@
 #!/usr/bin/env zsh
 
+function __secret_usage() {
+  echo -e "${YELLOW}Usage: ${CYAN}secret [options]${NC}"
+  echo ""
+  echo -e "${YELLOW}Description:${NC}"
+  echo -e "  Load or unload secret environment variables."
+  echo ""
+  echo -e "${YELLOW}Options:${NC}"
+  echo -e "  ${CYAN}-c, --clear${NC}   Clear secret vars"
+  echo -e "  ${CYAN}-r, --reload${NC}  Reload secret vars"
+  echo -e "  ${CYAN}-h, --help${NC}    Display this help message"
+  echo ""
+  echo -e "${YELLOW}Examples:${NC}"
+  echo -e "  ${CYAN}secret${NC}        # Load secret vars"
+  echo -e "  ${CYAN}secret -c${NC}     # Clear secret vars"
+  echo -e "  ${CYAN}secret -r${NC}     # Reload secret vars"
+}
+
 function secret() {
   clear_env=false
   while [[ "$#" -gt 0 ]]; do
@@ -11,6 +28,10 @@ function secret() {
       -r|--reload)
         __task "${ARROW} ${YELLOW}Reloading secrets...";_task_done
         secret --clear && secret
+        return
+        ;;
+      -h|--help)
+        __secret_usage
         return
         ;;
       *)

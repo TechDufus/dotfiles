@@ -1,5 +1,8 @@
 return {
   "lukas-reineke/indent-blankline.nvim",
-  main = 'ibl',
-  opts = {},
+  enabled = true,
+  tag = "v2.20.8",
+  opts = {
+    --scope = { enabled = true },
+  },
 }

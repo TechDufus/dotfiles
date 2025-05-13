@@ -1,0 +1,96 @@
+{
+  "Mockito Add Static Import *": {
+    "prefix": "testmockimport",
+    "body": [
+      "import static org.mockito.Mockito.*;",
+      "import org.junit.jupiter.api.Assertions.*;"
+    ],
+    "description": "Mockito Helper for mocking methods"
+  },
+  "Mockito Mocking a Method": {
+    "prefix": "testmock",
+    "body": [
+      "doReturn($1).when($2).$3;",
+      "",
+      "verify($2, times(1)).$3;",
+      "verifyNoMoreInteractions($2);"
+    ],
+    "description": "Mockito Helper for mocking methods"
+  },
+  "Mockito AssertDoesNotThrow": {
+    "prefix": "testnothrow",
+    "body": [
+      "Assertions.assertDoesNotThrow(() -> {",
+      "${TM_SELECTED_TEXT}",
+      "}, \"Should not throw $2\");"
+    ],
+    "description": "Mockito Helper"
+  },
+  "Mockito AssertThrows": {
+    "prefix": "testthrow",
+    "body": [
+      "$1 exception = Assertions.assertThrows($1.class, () -> {",
+      "${TM_SELECTED_TEXT}",
+      "}, \"Should throw because $2\");"
+    ],
+    "description": "Mockito Helper"
+  },
+  "Mockito Static Method": {
+    "prefix": "testmockstatic",
+    "body": [
+      "try (MockedStatic<$1> mock$1 = mockStatic($1.class)) {",
+      "mock$1.when(() -> $1$3).thenReturn($4);",
+      "}"
+    ],
+    "description": "Mockito helper to create and test a static method with parameters"
+  },
+  "Mockito Static Method Return Null": {
+    "prefix": "testmockstaticreturnnull",
+    "body": [
+      "try (MockedStatic<$1> mock$1 = mockStatic($1.class)) {",
+      "mock$1.when(() -> $1.$2).thenAnswer((Answer<Void>) invocation -> null);",
+      "mock$1.verify(() -> $1.$2);",
+      "}"
+    ],
+    "description": "Mockito helper to create and test a static method with parameters"
+  },
+  "Mockito - Mock a property/value": {
+    "prefix": "testmockvalue",
+    "body": ["$1 mock$1 = mock($1.class);"],
+    "description": "Mockito helper to create and test a static method with parameters"
+  },
+  "Blank Test": {
+    "prefix": "test",
+    "body": ["@Test", "void $1Test() {", "$2", "}"]
+  },
+  "Test Mockito Setup": {
+    "prefix": "testmocksetup",
+    "body": [
+      "@InjectMocks",
+      "private ${TM_FILENAME_BASE/^(.*)Test$/${1}/} ${TM_FILENAME_BASE/^(.)(.*)Test$/${1:/downcase}${2}/};",
+      "@BeforeEach",
+      "void setup() {",
+      "MockitoAnnotations.openMocks(this);",
+      "${TM_FILENAME_BASE/^(.)(.*)Test$/${1:/downcase}${2}/} = Mockito.spy(${TM_FILENAME_BASE/^(.)(.*)Test$/${1:/downcase}${2}/});",
+      "}"
+    ]
+  },
+  "Argument Captor": {
+    "prefix": "testargcaptor",
+    "body": [
+      "ArgumentCaptor<$1> argCaptor$1 = ArgumentCaptor.forClass($1.class);",
+      "argCaptor$1.capture()",
+      "$1 arg$1Value = argCaptor$1.getValue();"
+    ]
+  },
+  "Awaitility Wait for Time": {
+    "prefix": "testawait",
+    "body": [
+      "Awaitility.await().pollDelay(1, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(true));"
+    ]
+  },
+  "Reflection SetField": {
+    "prefix": "testsetfield",
+    "body": ["ReflectionTestUtils.setField($1, $2, $3);"]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "Jest Describe": {
+    "prefix": "testdescribe",
+    "body": [
+      "describe(\"$1\", () => {",
+      "   it(\"should $2\", () => {",
+      "      $3",
+      "   });",
+      "});"
+    ],
+    "description": "Jest helper for creating describes"
+  },
+  "Jest it": {
+    "prefix": "testit",
+    "body": ["it(\"should $1\", () => {", "  $2", "});"],
+    "description": "Jest helper for creating it"
+  }
+}

@@ -1,77 +1,77 @@
 default_roles:
   - system
-  # - 1password
-  - aldente
-  - asciiquarium
+  # - aldente
+  # - asciiquarium
   - bash
   - bat
-  - btop
+  - bitwarden
+  # - btop
   # - discord
   # - docker
-  - flatpak
+  # - flatpak
   - fonts
   - fzf
-  - gh
+  # - gh
   - git
   - go
-  - hammerspoon
+  # - hammerspoon
   - helm
   # - k8s
-  - k9s
-  - kitty
-  - lazygit
-  - lsd
-  - lua
-  - nala
-  - ncdu
-  - neofetch
+  # - k9s
+  # - kitty
+  # - lazygit
+  # - lsd
+  # - lua
+  # - nala
+  # - ncdu
+  # - neofetch
   - neovim
-  - nerdfetch
+  # - nerdfetch
   - npm
   - nvm
-  - obsidian
-  - podman
-  - pwsh
+  # - obsidian
+  # - podman
+  # - pwsh
   - python
-  - raycast
+  # - raycast
   # - ruby
   # - rust
-  - slides
-  - spotify
-  - ssh
-  - sshfs
-  - starship
-  - taskfile
-  - terraform
-  - terragrunt
-  - tldr
-  - tmate
+  # - slides
+  # - spotify
+  # - ssh
+  # - sshfs
+  # - starship
+  # - taskfile
+  # - terraform
+  # - terragrunt
+  # - tldr
+  # - tmate
   - tmux
   # - tshark
-  - warp
-  - whalebrew
+  # - warp
+  # - whalebrew
   # - zellij
-  - zoxide
-  - zsh
+  # - zoxide
+  # - zsh
 
-git_user_name: "TechDufus"
-op:
-  git:
-    user:
-      email: "op://Personal/GitHub/email"
-    allowed_signers: "op://Personal/TechDufus SSH/allowed_signers"
-  ssh:
-    github:
-      techdufus:
-        - name: id_ed25519
-          vault_path: "op://Personal/TechDufus SSH"
-        - name: raft-infra
-          vault_path: "op://Raft/Raft-SSH"
+git_user_name: "noneel"
+# op:
+#   git:
+#     user:
+#       email: "op://Personal/GitHub/email"
+#     allowed_signers: "op://Personal/TechDufus SSH/allowed_signers"
+#   ssh:
+#     github:
+#       techdufus:
+#         - name: id_ed25519
+#           vault_path: "op://Personal/TechDufus SSH"
+#         - name: raft-infra
+#           vault_path: "op://Raft/Raft-SSH"
 # FIXME: See `system/tasks/main.yml` for how to structure this var looping.
-  # system:
-  #   hosts:
-  #     - item: op://Raft/rdp-demo-local-ingress/notesPlain
-  #       account: my.1password.com
+# system:
+#   hosts:
+#     - item: op://Raft/rdp-demo-local-ingress/notesPlain
+#       account: my.1password.com
 
 k8s:
   repo:

@@ -1,21 +1,21 @@
 # Theme Config
-theme = catppuccin-mocha
-background = #030304
-background-opacity = 1
-background-blur-radius = 20
+theme = catppuccin-frappe
+# background = #030304
+# background-opacity = 1
+# background-blur-radius = 20
 
 # Font
-font-size = 15
-font-family = "BerkeleyMono Nerd Font"
+# font-size = 15
+font-family = Fira Code
 font-thicken = true
 bold-is-bright = true
 
 # Window Config
-macos-titlebar-style = hidden
+# macos-titlebar-style = hidden
 macos-option-as-alt = true
 window-decoration = true
-window-padding-x = 10
-window-padding-y = 10
+# window-padding-x = 10
+# window-padding-y = 10
 window-padding-balance = true
 
 # Cursor style

@@ -33,15 +33,13 @@ HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
 WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
 RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
-
-
 set -e
 
 # Paths
-VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
-OP_INSTALLED=false
-OP_AUTHENTICATED=false
-OP_VAULT_SECRET=""
+# VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
+BW_INSTALLED=false
+# OP_AUTHENTICATED=false
+# OP_VAULT_SECRET=""
 ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
@@ -65,16 +63,16 @@ function _cmd {
     touch $DOTFILES_LOG
   fi
   # empty conduro.log
-  > $DOTFILES_LOG
+  >$DOTFILES_LOG
   # hide stdout, on error we print and exit
-  if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
+  if eval "$1" 1>/dev/null 2>$DOTFILES_LOG; then
     return 0 # success
   fi
   # read error from log and add spacing
   printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
   while read line; do
     printf "      ${line}\n"
-  done < $DOTFILES_LOG
+  done <$DOTFILES_LOG
   printf "\n"
   # remove log file
   rm $DOTFILES_LOG
@@ -163,15 +161,25 @@ function macos_setup() {
     __task "Installing Ansible"
     _cmd "brew install ansible"
   fi
-  if ! [ -x "$(command -v op)" ]; then
-    __task "Installing 1Password CLI"
-    _cmd "brew install 1password@beta"
-    _cmd "brew install 1password-cli@beta"
-    __task "Setting up 1Password CLI"
+
+  if ! [ -x "$(command -v bw)" ]; then
+    __task "Installing Bitwarden CLI"
+    _cmd "brew install bitwarden-cli"
+    __task "Setting up Bitwarden CLI"
     # press any key to continue
     read -n 1 -s -r -p "Press any key to continue"
-    echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}1Password CLI setup complete${NC}" && _clear_task
+    echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}Bitwarden CLI setup complete${NC}" && _clear_task
   fi
+
+  # if ! [ -x "$(command -v op)" ]; then
+  #   __task "Installing 1Password CLI"
+  #   _cmd "brew install 1password@beta"
+  #   _cmd "brew install 1password-cli@beta"
+  #   __task "Setting up 1Password CLI"
+  #   # press any key to continue
+  #   read -n 1 -s -r -p "Press any key to continue"
+  #   echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}1Password CLI setup complete${NC}" && _clear_task
+  # fi
 }
 
 update_ansible_galaxy() {
@@ -183,21 +191,6 @@ update_ansible_galaxy() {
     os_requirements="$DOTFILES_DIR/requirements/$os.yml"
   fi
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
-}
-
-function confirmVaultAccess() {
-  __task "Checking for 1Password CLI"
-  if ! command -v op >/dev/null 2>&1; then
-    printf "${OVERWRITE} ${RED}[X]  Checking for 1Password CLI\n"
-    printf " ${WARNING}${RED}   1Password CLI is not installed.${NC}\n"
-    exit 1
-  fi
-  local op_version
-  op_version=$(op --version)
-  __task "1Password CLI found: [$op_version] -- Authenticating..."
-  if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
-  _task_done && printf "${GREEN} [✓] Successfully authenticated with 1Password CLI! ☕\n"
-  return
 }
 
 detect_os() {
@@ -212,21 +205,20 @@ detect_os() {
 dotfiles_os=$(detect_os)
 __task "Loading Setup for detected OS: $dotfiles_os"
 case $dotfiles_os in
-  ubuntu)
-    ubuntu_setup
-    ;;
-  arch)
-    arch_setup
-    ;;
-  darwin)
-    macos_setup
-    ;;
-  *)
-    __task "Unsupported OS"
-    _cmd "echo 'Unsupported OS'"
-    ;;
+ubuntu)
+  ubuntu_setup
+  ;;
+arch)
+  arch_setup
+  ;;
+darwin)
+  macos_setup
+  ;;
+*)
+  __task "Unsupported OS"
+  _cmd "echo 'Unsupported OS'"
+  ;;
 esac
-
 
 if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
   __task "Generating SSH keys"
@@ -238,21 +230,19 @@ fi
 
 if ! [[ -d "$DOTFILES_DIR" ]]; then
   __task "Cloning repository"
-  _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
+  _cmd "git clone --quiet https://github.com/noneel/dotfiles.git $DOTFILES_DIR"
 else
   __task "Updating repository"
   _cmd "git -C $DOTFILES_DIR pull --quiet"
 fi
 
-pushd "$DOTFILES_DIR" 2>&1 > /dev/null
+pushd "$DOTFILES_DIR" 2>&1 >/dev/null
 update_ansible_galaxy $ID
 
-# confirmVaultAccess
-
-rm -f $VAULT_SECRET_FILE
+# rm -f $VAULT_SECRET_FILE
 ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 
-popd 2>&1 > /dev/null
+popd 2>&1 >/dev/null
 
 if ! [[ -f "$IS_FIRST_RUN" ]]; then
   echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"

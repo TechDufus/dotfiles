@@ -4,14 +4,14 @@ function secret() {
   clear_env=false
   while [[ "$#" -gt 0 ]]; do
     case "$1" in
-      -c|--clear)
-        clear_env=true
-        shift
-        ;;
-      *)
-        echo "Unknown option: $1"
-        return 1
-        ;;
+    -c | --clear)
+      clear_env=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      return 1
+      ;;
     esac
   done
 

@@ -11,9 +11,9 @@
   with_items:
     - jq
 
-- name: "System | MacOSX | Enable Passwordless Sudo"
-  ansible.builtin.template:
-    src: user-sudo.j2
-    dest: /private/etc/sudoers.d/{{ ansible_env['USER'] }}
-    mode: "0440"
-  become: true
+# - name: "System | MacOSX | Enable Passwordless Sudo"
+#   ansible.builtin.template:
+#     src: user-sudo.j2
+#     dest: /private/etc/sudoers.d/{{ ansible_env['USER'] }}
+#     mode: "0440"
+#   become: true

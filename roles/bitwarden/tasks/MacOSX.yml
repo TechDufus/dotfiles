@@ -1,7 +1,7 @@
 ---
 - name: "Bitwarden | MacOSX | Install Bitwarden"
-  community.general.homebrew_cask:
+  community.general.homebrew:
     name: "{{ item }}"
     state: present
   loop:
-    - bitwarden-cli
+    - bitwarden

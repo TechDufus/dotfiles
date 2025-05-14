@@ -101,7 +101,7 @@ function install_bitwarden_linux() {
     if command -v bw >/dev/null; then
         bw_version=$(/usr/local/bin/bw --version)
         __task "🎉 Bitwarden CLI installed: $bw_version"
-        __task_done
+        _task_done
     else
         __task "❌ Failed to install Bitwarden CLI" >&2
         _cmd "exit 1"

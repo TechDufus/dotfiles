@@ -1,0 +1,8 @@
+---
+- name: "Bash | Ubuntu | Install"
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - bash
+    - oh-my-posh

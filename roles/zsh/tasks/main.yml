@@ -52,3 +52,11 @@
   when:
     - zsh_os_config is defined
     - zsh_os_config.stat.exists
+
+- name: "ZSH | Copy custom zsh theme"
+  ansible.builtin.copy:
+    dest: "{{ ansible_user_dir }}/.config/oh-my-posh"
+    src: "themes"
+    directory_mode: "0755"
+    mode: "0644"
+    force: true

@@ -8,11 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
 
-- name: "{{ role_name }} | Ensure config dir exists"
-  ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config"
-    state: directory
-    mode: "0755"
+# - name: "{{ role_name }} | Ensure config dir exists"
+#   ansible.builtin.file:
+#     path: "{{ ansible_user_dir }}/.config"
+#     state: directory
+#     mode: "0755"
 # - name: "{{ role_name }} | Ensure 1Password config dir exists"
 #   ansible.builtin.file:
 #     path: "{{ ansible_user_dir }}/.config/1Password"

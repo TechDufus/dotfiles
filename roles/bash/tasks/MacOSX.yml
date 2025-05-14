@@ -1,8 +1,8 @@
 ---
-- name: "Fonts | MacOSX | Install"
+- name: "Bash | MacOSX | Install"
   community.general.homebrew:
     name: "{{ item }}"
     state: present
   loop:
-    - font-powerline-symbols
-    - font-fira-code
+    - bash
+    - oh-my-posh

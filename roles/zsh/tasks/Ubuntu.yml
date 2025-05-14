@@ -1,9 +1,11 @@
 ---
-- name: "Zsh | Install Zsh"
+- name: "Zsh | Ubuntu | Install"
   ansible.builtin.package:
-    name: zsh
+    name: "{{ item }}"
     state: present
-  become: true
+  loop:
+    - zsh
+    - oh-my-posh
 
 - name: "Zsh | Set default terminal"
   ansible.builtin.user:

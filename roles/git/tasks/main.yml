@@ -58,10 +58,11 @@
     value: true
 
 - name: "Git | Read user.email from Bitwarden"
-  when: op_installed
+  when: bw_installed
   block:
     - name: "Bitwarden | Get user.email"
-      ansible.builtin.command: "bw status | jq -r .userEmail" # This works because it is the same, no guarantee that the email is in bitwarden
+      # This requires that there is a custom field in the github entry that is set to the name of "email"
+      ansible.builtin.shell: bw get item github | jq -r '.fields[] | select(.name == "email") | .value'
       register: bw_git_user_email
       changed_when: false
       no_log: true

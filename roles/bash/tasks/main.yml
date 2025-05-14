@@ -1,32 +1,41 @@
 ---
-- name: "Bash | Detect oh-my-bash"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
   ansible.builtin.stat:
-    path: "{{ ansible_user_dir }}/.oh-my-bash"
-  register: ohmybash
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: distribution_config
 
-- name: "Bash | Register oh-my-bash state"
-  ansible.builtin.set_fact:
-    ohmybash_is_installed: "{{ ohmybash.stat.exists }}"
+- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: distribution_config.stat.exists
 
-- name: "Bash | Debug ohmybash_is_installed"
-  ansible.builtin.debug:
-    var: ohmybash_is_installed
+# - name: "Bash | Detect oh-my-posh"
+#   ansible.builtin.stat:
+#     path: "{{ ansible_user_dir }}/.oh-my-posh"
+#   register: ohmyposh
 
-- name: "Bash | Install oh-my-bash"
-  when: not ohmybash_is_installed
-  block:
-    - name: "Bash | Download oh-my-bash Install Script"
-      ansible.builtin.get_url:
-        url: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
-        dest: /{{ ansible_user_dir }}/oh-my-bash.install.sh
-        force: true
-        mode: "0755"
-      notify:
-        - "Bash | Cleanup oh-my-bash install script"
+# - name: "Bash | Register oh-my-posh state"
+#   ansible.builtin.set_fact:
+#     ohmyposh_is_installed: "{{ ohmyposh.stat.exists }}"
 
-    - name: "Bash | Run the install script"
-      ansible.builtin.script:
-        cmd: /{{ ansible_user_dir }}/oh-my-bash.install.sh
+# - name: "Bash | Debug ohmyposh_is_installed"
+#   ansible.builtin.debug:
+#     var: ohmyposh_is_installed
+
+# - name: "Bash | Install oh-my-posh"
+#   when: not ohmyposh_is_installed
+#   block:
+#     - name: "Bash | Download oh-my-posh Install Script"
+#       ansible.builtin.get_url:
+#         url: https://ohmyposh.dev/install.sh
+#         dest: /{{ ansible_user_dir }}/oh-my-posh.install.sh
+#         force: true
+#         mode: "0755"
+#       notify:
+#         - "Bash | Cleanup oh-my-posh install script"
+
+#     - name: "Bash | Run the install script"
+#       ansible.builtin.script:
+#         cmd: /{{ ansible_user_dir }}/oh-my-posh.install.sh
 
 - name: "Bash | Copy .bashrc"
   ansible.builtin.copy:
@@ -50,7 +59,7 @@
 
 - name: "Bash | Copy custom bash theme"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
+    dest: "{{ ansible_user_dir }}/.config/oh-my-posh"
     src: "themes"
     directory_mode: "0755"
     mode: "0644"

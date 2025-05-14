@@ -82,7 +82,7 @@ function _clear_task {
 }
 
 function _task_done {
-  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n${RESTORE}"
   _clear_task
 }
 
@@ -179,12 +179,19 @@ function arch_setup() {
 function bitwarden_login() {
   # Ensure bitwarden is unlocked or login
   STATUS="$(bw status | jq -r .status)"
-  if [ "$STATUS" != 'unlocked' ]; then
-    echo "Login to Bitwarden"
-    bw login
+  if [ "$STATUS" == 'unauthenticated' ]; then
+    __task "Login to Bitwarden"
+    export BW_SESSION="$(bw login --raw)"
+  elif [ "$STATUS" == 'locked' ]; then
+    __task "Unlock Bitwarden"
+    export BW_SESSION="$(bw unlock --raw)"
   else
-    echo "Bitwarden is already logged in!"
+    __task "Bitwarden is already logged in!"
+    _task_done
   fi
+  __task "Sync Bitwarden"
+  _cmd "bw sync"
+  _task_done
 }
 
 function macos_setup() {
@@ -219,6 +226,7 @@ update_ansible_galaxy() {
     os_requirements="$DOTFILES_DIR/requirements/$os.yml"
   fi
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
+  _task_done
 }
 
 detect_os() {

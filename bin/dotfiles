@@ -36,10 +36,7 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 set -e
 
 # Paths
-# VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
 BW_INSTALLED=false
-# OP_AUTHENTICATED=false
-# OP_VAULT_SECRET=""
 ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
@@ -159,11 +156,10 @@ function bitwarden_login() {
   # Ensure bitwarden is unlocked or login
   STATUS="$(bw status | jq -r .status)"
   if [ "$STATUS" != 'unlocked' ]; then
-    __task "Login to Bitwarden"
+    echo "Login to Bitwarden"
     bw login
   else
-    __task "Bitwarden is already logged in!"
-    _task_done
+    echo "Bitwarden is already logged in!"
   fi
 }
 
@@ -183,7 +179,6 @@ function macos_setup() {
 
   if ! [ -x "$(command -v bw)" ]; then
     __task "Installing Bitwarden CLI"
-    # _cmd "brew install --cask bitwarden"
     _cmd "brew install bitwarden-cli"
     echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}Bitwarden CLI setup complete${NC}" && _clear_task
   fi
@@ -242,7 +237,7 @@ if ! [[ -d "$DOTFILES_DIR" ]]; then
   _cmd "git clone --quiet https://github.com/noneel/dotfiles.git $DOTFILES_DIR"
 else
   __task "Updating repository"
-#   _cmd "git -C $DOTFILES_DIR pull --quiet"
+  _cmd "git -C $DOTFILES_DIR pull --quiet"
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null

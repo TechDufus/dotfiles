@@ -164,7 +164,8 @@ function macos_setup() {
 
   if ! [ -x "$(command -v bw)" ]; then
     __task "Installing Bitwarden CLI"
-    _cmd "brew install --cask bitwarden"
+    # _cmd "brew install --cask bitwarden"
+    _cmd "brew install bitwarden-cli"
     __task "Setting up Bitwarden CLI"
 
     __task "Login to Bitwarden"

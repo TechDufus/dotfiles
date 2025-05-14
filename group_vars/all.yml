@@ -30,6 +30,7 @@ default_roles:
   - npm
   - nvm
   # - obsidian
+  # - ohmyposh
   # - podman
   # - pwsh
   - python
@@ -40,7 +41,7 @@ default_roles:
   # - spotify
   # - ssh
   # - sshfs
-  # - starship
+  - starship
   # - taskfile
   # - terraform
   # - terragrunt

@@ -1,0 +1,28 @@
+---
+- name: "Oh-My-Posh | Ubuntu | Detect oh-my-posh"
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.oh-my-posh"
+  register: ohmyposh
+
+- name: "Oh-My-Posh | Register oh-my-posh state"
+  ansible.builtin.set_fact:
+    ohmyposh_is_installed: "{{ ohmyposh.stat.exists }}"
+
+- name: "Oh-My-Posh | Debug ohmyposh_is_installed"
+  ansible.builtin.debug:
+    var: ohmyposh_is_installed
+
+- name: "Oh-My-Posh | Install oh-my-posh"
+  when: not ohmyposh_is_installed
+  block:
+    - name: "Oh-My-Posh | Download oh-my-posh Install Script"
+      ansible.builtin.get_url:
+        url: https://ohmyposh.dev/install.sh
+        dest: /{{ ansible_user_dir }}/oh-my-posh.install.sh
+        force: true
+        mode: "0755"
+      notify:
+        - "Oh-My-Posh | Cleanup oh-my-posh install script"
+    - name: "Oh-My-Posh | Run the install script"
+      ansible.builtin.script:
+        cmd: /{{ ansible_user_dir }}/oh-my-posh.install.sh

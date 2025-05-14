@@ -40,7 +40,8 @@ fi
 
 if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 
-eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/themes/craver.json)"
+# eval "$(oh-my-posh init bash --config ~/.config/oh-my-posh/themes/craver.json)"
+eval "$(starship init bash)"
 
 # If ssh'ing then automatically attach to the tmux session if it exists
 if [[ $- =~ i ]] && [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]]; then

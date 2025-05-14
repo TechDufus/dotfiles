@@ -5,7 +5,6 @@
     state: present
   loop:
     - zsh
-    - oh-my-posh
     - gh
     - zoxide
 

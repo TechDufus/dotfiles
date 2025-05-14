@@ -115,5 +115,6 @@ eval "$(fzf --zsh)"
 # eval "$(zoxide init zsh)"
 # eval "$(gh copilot alias -- zsh)"
 
-export OMP_DECORATE_ALIASES=0
-eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/themes/craver.json)"
+# export OMP_DECORATE_ALIASES=0
+# eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/themes/craver.json)"
+eval "$(starship init bash)"

@@ -117,4 +117,4 @@ eval "$(fzf --zsh)"
 
 # export OMP_DECORATE_ALIASES=0
 # eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/themes/craver.json)"
-eval "$(starship init bash)"
+eval "$(starship init zsh)"

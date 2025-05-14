@@ -86,6 +86,28 @@ function _task_done {
   _clear_task
 }
 
+function install_bitwarden_linux() {
+    __task "📥 Downloading Bitwarden CLI..."
+    _cmd "curl -fsSL 'https://vault.bitwarden.com/download/?app=cli&platform=linux' -o /tmp/bw.zip"
+
+    __task "📦 Unzipping Bitwarden CLI..."
+    _cmd "unzip -o /tmp/bw.zip -d /tmp"
+
+    __task "🚚 Moving Bitwarden CLI to /usr/local/bin (requires sudo)..."
+    _cmd "sudo mv /tmp/bw /usr/local/bin/bw"
+    _cmd "sudo chmod 755 /usr/local/bin/bw"
+
+    __task "✅ Verifying installation..."
+    if command -v bw >/dev/null; then
+        bw_version=$(/usr/local/bin/bw --version)
+        __task "🎉 Bitwarden CLI installed: $bw_version"
+        __task_done
+    else
+        __task "❌ Failed to install Bitwarden CLI" >&2
+        _cmd "exit 1"
+    fi
+}
+
 function ubuntu_setup() {
   if ! dpkg -s ansible >/dev/null 2>&1; then
     __task "Installing Ansible"
@@ -120,6 +142,7 @@ function ubuntu_setup() {
       _cmd "sudo apt-get install -y python3-watchdog"
     fi
   fi
+  install_bitwarden_linux
 }
 
 function arch_setup() {
@@ -150,6 +173,7 @@ function arch_setup() {
 
   __task "Setting Locale"
   _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+  install_bitwarden_linux
 }
 
 function bitwarden_login() {

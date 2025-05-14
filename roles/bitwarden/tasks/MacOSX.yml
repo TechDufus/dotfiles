@@ -1,7 +1,0 @@
----
-- name: "Bitwarden | MacOSX | Install Bitwarden"
-  community.general.homebrew:
-    name: "{{ item }}"
-    state: present
-  loop:
-    - bitwarden

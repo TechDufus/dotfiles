@@ -4,7 +4,6 @@ default_roles:
   # - asciiquarium
   - bash
   - bat
-  - bitwarden
   # - btop
   # - discord
   # - docker

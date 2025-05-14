@@ -5,7 +5,6 @@
     state: present
   loop:
     - bash
-    # - oh-my-posh
 
 - name: "Bash | Ubuntu | Detect oh-my-posh"
   ansible.builtin.stat:
@@ -35,3 +34,4 @@
     - name: "Bash | Run the install script"
       ansible.builtin.script:
         cmd: /{{ ansible_user_dir }}/oh-my-posh.install.sh
+

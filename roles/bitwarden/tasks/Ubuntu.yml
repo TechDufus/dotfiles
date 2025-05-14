@@ -1,47 +1,39 @@
-# ---
-# - name: "1Password | Add APT Key"
-#   ansible.builtin.apt_key:
-#     url: https://downloads.1password.com/linux/keys/1password.asc
-#     keyring: /usr/share/keyrings/1password-archive-keyring.gpg
+---
+# - name: "Bitwarden | Install Bitwarden"
+#   ansible.builtin.apt:
+#     name: bitwarden-cli
 #     state: present
+#     update_cache: true
 #   become: true
-#
-# - name: "1Password | Add APT Repo"
-#   ansible.builtin.apt_repository:
-#     repo: "deb [arch={{ ansible_machine | replace('x86_64', 'amd64') }} signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/{{ ansible_machine | replace('x86_64', 'amd64') }} stable main"
+
+# - name: "Bash | Ubuntu | Install"
+#   ansible.builtin.package:
+#     name: "{{ item }}"
 #     state: present
-#     mode: "0644"
-#   become: true
-#
-# - name: "1Password | Add debsig-verify policy"
-#   become: true
-#   block:
-#     - name: "1Password | Ensure policy directory exists"
-#       ansible.builtin.file:
-#         name: /etc/debsig/policies/AC2D62742012EA22
-#         state: directory
-#         mode: "0755"
-#
-#     - name: "1Password | Copy debsig-verify policy"
-#       ansible.builtin.get_url:
-#         url: https://downloads.1password.com/linux/debian/debsig/1password.pol
-#         dest: /etc/debsig/policies/AC2D62742012EA22/1password.pol
-#         mode: "0644"
-#
-#     - name: "1Password | Ensure debsig keyring directory exists"
-#       ansible.builtin.file:
-#         name: /usr/share/debsig/keyrings/AC2D62742012EA22
-#         state: directory
-#         mode: "0755"
-#
-#     - name: "1Password | Add debsig keyring"
-#       ansible.builtin.apt_key:
-#         url: https://downloads.1password.com/linux/keys/1password.asc
-#         keyring: /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg
-#
-- name: "Bitwarden | Install Bitwarden"
-  ansible.builtin.apt:
-    name: bitwarden-cli
-    state: present
-    update_cache: true
+#   loop:
+#     - bash
+
+- name: Download Bitwarden CLI zip file
+  ansible.builtin.get_url:
+    url: "https://vault.bitwarden.com/download/?app=cli&platform=linux"
+    dest: "/tmp/bw.zip"
+    mode: "0644"
+- name: Unarchive Bitwarden CLI
+  ansible.builtin.unarchive:
+    src: "/tmp/bw.zip"
+    dest: "/tmp"
+
+- name: Move Bitwarden CLI to /usr/local/bin
+  copy:
+    src: "/tmp/bw"
+    dest: "/usr/local/bin/bw"
+    mode: "0755"
   become: true
+
+- name: Verify Bitwarden CLI is installed
+  command: "/usr/local/bin/bw --version"
+  register: bw_version_output
+
+- name: Show Bitwarden CLI version
+  debug:
+    msg: "Bitwarden CLI installed: {{ bw_version_output.stdout }}"

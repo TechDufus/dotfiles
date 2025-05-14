@@ -14,7 +14,7 @@
 
 - name: "Neovim | {{ ansible_distribution }} | Add APT Repository"
   ansible.builtin.apt_repository:
-    repo: ppa:neovim-ppa/unstable
+    repo: ppa:neovim-ppa/stable
     state: present
     mode: "0644"
   become: true

@@ -5,7 +5,6 @@
     state: present
   loop:
     - zsh
-    - oh-my-posh
 
 - name: "Zsh | Set default terminal"
   ansible.builtin.user:

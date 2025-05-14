@@ -148,6 +148,17 @@ function arch_setup() {
   _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
 }
 
+function bitwarden_login() {
+  # Ensure bitwarden is unlocked or login
+  if [ "$(bw status | jq -r .status)" != 'unlocked' ]; then
+    __task "Login to Bitwarden"
+    _cmd "bw install"
+  else
+    __task "Bitwarden is already logged in!"
+    _task_done
+  fi
+}
+
 function macos_setup() {
   if ! [ -x "$(command -v brew)" ]; then
     __task "Installing Homebrew"
@@ -166,24 +177,10 @@ function macos_setup() {
     __task "Installing Bitwarden CLI"
     # _cmd "brew install --cask bitwarden"
     _cmd "brew install bitwarden-cli"
-    __task "Setting up Bitwarden CLI"
-
-    __task "Login to Bitwarden"
-    bw login
-    # press any key to continue
-    # read -n 1 -s -r -p "Press any key to continue"
     echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}Bitwarden CLI setup complete${NC}" && _clear_task
   fi
 
-  # if ! [ -x "$(command -v op)" ]; then
-  #   __task "Installing 1Password CLI"
-  #   _cmd "brew install 1password@beta"
-  #   _cmd "brew install 1password-cli@beta"
-  #   __task "Setting up 1Password CLI"
-  #   # press any key to continue
-  #   read -n 1 -s -r -p "Press any key to continue"
-  #   echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}1Password CLI setup complete${NC}" && _clear_task
-  # fi
+  bitwarden_login
 }
 
 update_ansible_galaxy() {

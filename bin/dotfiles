@@ -98,7 +98,15 @@ function ubuntu_setup() {
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y ansible"
     _cmd "sudo apt-get install python3-argcomplete"
-    _cmd "sudo activate-global-python-argcomplete3"
+    # _cmd "sudo activate-global-python-argcomplete"
+
+    if command -v activate-global-python-argcomplete3 &>/dev/null; then
+        _cmd "sudo activate-global-python-argcomplete3"
+    elif command -v activate-global-python-argcomplete &>/dev/null; then
+        _cmd "sudo activate-global-python-argcomplete"
+    else
+        _cmd "echo 'unable to find activate-global-python-argcomplete' && exit 1"
+    fi
   fi
   if ! dpkg -s python3 >/dev/null 2>&1; then
     __task "Installing Python3"
@@ -151,18 +159,13 @@ function arch_setup() {
 function bitwarden_login() {
   # Ensure bitwarden is unlocked or login
   STATUS="$(bw status | jq -r .status)"
-  if [ "$STATUS" == 'unauthenticated' ]; then
+  if [ "$STATUS" != 'unlocked' ]; then
     __task "Login to Bitwarden"
-    export BW_SESSION="$(bw login --raw)"
-  elif [ "$STATUS" == 'locked' ]; then
-    __task "Unlock Bitwarden"
-    export BW_SESSION="$(bw unlock --raw)"
+    bw login
   else
     __task "Bitwarden is already logged in!"
     _task_done
   fi
-  __task "Sync Bitwarden"
-  _cmd "bw sync"
 }
 
 function macos_setup() {

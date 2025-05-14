@@ -152,7 +152,7 @@ function bitwarden_login() {
   # Ensure bitwarden is unlocked or login
   if [ "$(bw status | jq -r .status)" != 'unlocked' ]; then
     __task "Login to Bitwarden"
-    _cmd "bw install"
+    _cmd "bw login"
   else
     __task "Bitwarden is already logged in!"
     _task_done

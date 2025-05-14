@@ -98,7 +98,6 @@ function ubuntu_setup() {
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y ansible"
     _cmd "sudo apt-get install python3-argcomplete"
-    # _cmd "sudo activate-global-python-argcomplete"
 
     if command -v activate-global-python-argcomplete3 &>/dev/null; then
         _cmd "sudo activate-global-python-argcomplete3"

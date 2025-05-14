@@ -5,4 +5,33 @@
     state: present
   loop:
     - bash
-    - oh-my-posh
+    # - oh-my-posh
+
+- name: "Bash | Ubuntu | Detect oh-my-posh"
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.oh-my-posh"
+  register: ohmyposh
+
+- name: "Bash | Register oh-my-posh state"
+  ansible.builtin.set_fact:
+    ohmyposh_is_installed: "{{ ohmyposh.stat.exists }}"
+
+- name: "Bash | Debug ohmyposh_is_installed"
+  ansible.builtin.debug:
+    var: ohmyposh_is_installed
+
+- name: "Bash | Install oh-my-posh"
+  when: not ohmyposh_is_installed
+  block:
+    - name: "Bash | Download oh-my-posh Install Script"
+      ansible.builtin.get_url:
+        url: https://ohmyposh.dev/install.sh
+        dest: /{{ ansible_user_dir }}/oh-my-posh.install.sh
+        force: true
+        mode: "0755"
+      notify:
+        - "Bash | Cleanup oh-my-posh install script"
+
+    - name: "Bash | Run the install script"
+      ansible.builtin.script:
+        cmd: /{{ ansible_user_dir }}/oh-my-posh.install.sh

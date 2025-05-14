@@ -232,7 +232,7 @@ This shell script is also used to initialize your environment after bootstrappin
 > You must follow required steps before running this command or things may become unusable until fixed.
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles)"
+curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles | bash -s -- --ask-become-pass
 ```
 
 If you want to run only a specific role, you can specify the following bash command:

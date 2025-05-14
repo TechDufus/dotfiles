@@ -150,13 +150,19 @@ function arch_setup() {
 
 function bitwarden_login() {
   # Ensure bitwarden is unlocked or login
-  if [ "$(bw status | jq -r .status)" != 'unlocked' ]; then
+  STATUS="$(bw status | jq -r .status)"
+  if [ "$STATUS" == 'unauthenticated' ]; then
     __task "Login to Bitwarden"
-    _cmd "bw login"
+    export BW_SESSION="$(bw login --raw)"
+  elif [ "$STATUS" == 'locked' ]; then
+    __task "Unlock Bitwarden"
+    export BW_SESSION="$(bw unlock --raw)"
   else
     __task "Bitwarden is already logged in!"
     _task_done
   fi
+  __task "Sync Bitwarden"
+  _cmd "bw sync"
 }
 
 function macos_setup() {
@@ -234,7 +240,7 @@ if ! [[ -d "$DOTFILES_DIR" ]]; then
   _cmd "git clone --quiet https://github.com/noneel/dotfiles.git $DOTFILES_DIR"
 else
   __task "Updating repository"
-  _cmd "git -C $DOTFILES_DIR pull --quiet"
+#   _cmd "git -C $DOTFILES_DIR pull --quiet"
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 >/dev/null

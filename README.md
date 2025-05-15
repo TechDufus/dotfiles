@@ -236,6 +236,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin
 
 # To allow bitwarden login and become pass
 bash -c 'curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles -o /tmp/run.sh && trap "rm -f /tmp/run.sh" EXIT && bash /tmp/run.sh --ask-become-pass'
+
+bash -c 'curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles -o /tmp/run.sh && trap "rm -f /tmp/run.sh" EXIT && bash /tmp/run.sh'
 ```
 
 If you want to run only a specific role, you can specify the following bash command:

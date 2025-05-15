@@ -37,6 +37,7 @@ return {
             dismiss = "<C-e>",
           },
         },
+        copilot_model = "gpt-4o-copilot",
       })
     end
   },

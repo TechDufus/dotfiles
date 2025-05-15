@@ -1,5 +1,6 @@
 return {
   -- Quickly switch between angular files faster
+  enabled = false,
   "softoika/ngswitcher.vim",
   keys = {
     { "<leader>at", "<cmd>NgSwitchTS<CR>", desc = "[ANGULAR] Go to TypeScript file" },

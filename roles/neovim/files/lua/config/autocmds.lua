@@ -14,6 +14,16 @@ vim.api.nvim_create_autocmd("BufReadPre", {
   command = "setfiletype groovy",
 })
 
+vim.api.nvim_create_user_command("W", function()
+  -- Temporarily disable autoformat
+  vim.b.autoformat = false
+  vim.cmd("w")
+  -- Re-enable after save
+  vim.defer_fn(function()
+    vim.b.autoformat = true
+  end, 100)
+end, {})
+
 -- local Format = vim.api.nvim_create_augroup("Format", { clear = true })
 -- vim.api.nvim_create_autocmd("BufWritePre", {
 -- group = Format,

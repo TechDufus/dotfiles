@@ -1,0 +1,153 @@
+---
+# TEMPLATE: Role with intelligent sudo fallback
+# Copy this template when updating roles to handle non-sudo scenarios
+
+# 1. Check if tool is already installed
+- name: "{{ role_name }} | Check if {{ tool_name }} is already installed"
+  ansible.builtin.command: which {{ tool_command }}
+  register: tool_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+# 2. System-wide installation (requires sudo)
+- name: "{{ role_name }} | System installation"
+  when: 
+    - can_install_packages | default(false)
+    - tool_check.rc != 0
+  block:
+    - name: "{{ role_name }} | Install via package manager"
+      ansible.builtin.package:
+        name: "{{ package_name }}"
+        state: present
+      become: true
+      register: system_install
+
+    # Add any system-wide configuration here
+    - name: "{{ role_name }} | System configuration"
+      ansible.builtin.copy:
+        src: "system.conf"
+        dest: "/etc/{{ tool_name }}/config"
+        mode: '0644'
+      become: true
+      when: system_install is succeeded
+
+# 3. User-local installation (no sudo)
+- name: "{{ role_name }} | User-local installation"
+  when: 
+    - not (can_install_packages | default(false))
+    - tool_check.rc != 0
+  block:
+    # Option A: Download pre-built binary
+    - name: "{{ role_name }} | Download binary"
+      ansible.builtin.get_url:
+        url: "https://github.com/org/{{ tool_name }}/releases/download/{{ version }}/{{ tool_name }}-linux-amd64"
+        dest: "{{ ansible_env.HOME }}/.local/bin/{{ tool_name }}"
+        mode: '0755'
+      register: binary_install
+
+    # Option B: Build from source
+    - name: "{{ role_name }} | Alternative: Build from source"
+      when: binary_install is failed
+      block:
+        - name: "{{ role_name }} | Download source"
+          ansible.builtin.git:
+            repo: "https://github.com/org/{{ tool_name }}.git"
+            dest: "{{ ansible_env.HOME }}/.local/src/{{ tool_name }}"
+            version: "{{ version }}"
+
+        - name: "{{ role_name }} | Build and install"
+          ansible.builtin.shell: |
+            cd {{ ansible_env.HOME }}/.local/src/{{ tool_name }}
+            ./configure --prefix={{ ansible_env.HOME }}/.local
+            make && make install
+          args:
+            creates: "{{ ansible_env.HOME }}/.local/bin/{{ tool_name }}"
+
+    # Option C: Manual installation instructions
+    - name: "{{ role_name }} | Manual installation required"
+      when: 
+        - binary_install is failed or not defined
+        - tool_check.rc != 0
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  {{ tool_name }} is not installed and automatic installation failed.
+          
+          To install {{ tool_name }} manually:
+          1. Download from: {{ download_url }}
+          2. Extract to: ~/.local/bin/
+          3. Or ask your system administrator to install {{ tool_name }}
+
+# 4. Configure tool (works for both installation methods)
+- name: "{{ role_name }} | Configure {{ tool_name }}"
+  when: tool_check.rc == 0 or system_install is succeeded or binary_install is succeeded
+  block:
+    - name: "{{ role_name }} | Create config directory"
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.config/{{ tool_name }}"
+        state: directory
+        mode: '0755'
+
+    - name: "{{ role_name }} | Deploy user configuration"
+      ansible.builtin.copy:
+        src: "{{ tool_name }}.conf"
+        dest: "{{ ansible_env.HOME }}/.config/{{ tool_name }}/config"
+        mode: '0644'
+
+    - name: "{{ role_name }} | Ensure ~/.local/bin is in PATH"
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_env.HOME }}/.{{ ansible_env.SHELL | basename }}rc"
+        line: 'export PATH="${HOME}/.local/bin:${PATH}"'
+        state: present
+      when: not (can_install_packages | default(false))
+
+# 5. Report installation status
+- name: "{{ role_name }} | Report status"
+  ansible.builtin.debug:
+    msg: |
+      {{ tool_name }} installation status:
+      - Previously installed: {{ '✓' if tool_check.rc == 0 else '✗' }}
+      - System installation: {{ '✓' if system_install is defined and system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}
+      - User installation: {{ '✓' if binary_install is defined and binary_install is succeeded else 'N/A' }}
+      - Configuration: ✓ Deployed to ~/.config/{{ tool_name }}
+      
+      {% if not can_install_packages and tool_check.rc != 0 %}
+      Note: Add ~/.local/bin to your PATH to use {{ tool_name }}
+      {% endif %}
+
+# PATTERNS FOR SPECIFIC SCENARIOS:
+
+# For tools that absolutely require sudo (like Docker):
+# - name: "{{ role_name }} | Check sudo requirement"
+#   ansible.builtin.debug:
+#     msg: |
+#       ⚠️  {{ tool_name }} requires sudo/admin access for:
+#       - System service management
+#       - Kernel module loading
+#       - Network configuration
+#       
+#       ALTERNATIVES:
+#       1. Use rootless alternative (e.g., Podman instead of Docker)
+#       2. Request installation from your system administrator
+#       3. Use cloud-based development environment
+#   when: not (has_sudo | default(false))
+#
+# - name: "{{ role_name }} | Skip if no sudo"
+#   meta: end_play
+#   when: not (has_sudo | default(false))
+
+# For package managers (npm, pip, gem):
+# - name: "{{ role_name }} | Configure for user-local packages"
+#   ansible.builtin.shell: |
+#     {{ tool_name }} config set prefix '{{ ansible_env.HOME }}/.{{ tool_name }}-global'
+#   when: not (can_install_packages | default(false))
+
+# For shell tools that only need config files:
+# - name: "{{ role_name }} | Deploy configuration"
+#   ansible.builtin.copy:
+#     src: "{{ item }}"
+#     dest: "{{ ansible_env.HOME }}/.{{ item }}"
+#     mode: '0644'
+#   loop:
+#     - ".{{ tool_name }}rc"
+#     - ".config/{{ tool_name }}/config.yml"

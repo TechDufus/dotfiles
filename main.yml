@@ -32,6 +32,11 @@
       tags:
         - always
 
+    - name: Detect Sudo
+      ansible.builtin.import_tasks: pre_tasks/detect_sudo.yml
+      tags:
+        - always
+
     - name: Detect 1Password
       ansible.builtin.import_tasks: pre_tasks/detect_1password.yml
       tags:

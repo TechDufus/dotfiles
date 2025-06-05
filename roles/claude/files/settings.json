@@ -129,7 +129,9 @@
       "Bash(yes:*)",
       "Bash(true:*)",
       "Bash(false:*)",
-      "Bash(exit:*)"
+      "Bash(exit:*)",
+      "Bash(pbcopy:*)",
+      "Bash(pbpaste:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

@@ -32,4 +32,4 @@ Use native parent/child relationships for better organization:
 - Check if new issues should be children of existing Epic/Story
 - Use API calls for full hierarchical views, not just `gh` CLI
 - Update parent issues when children complete
-- Use labels: `type/epic`, `type/story`, `type/task`
+- Use `type/epic`, `type/story`, `type/task` labels only if task types don't exist (org repos only, not personal)

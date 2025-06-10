@@ -18,15 +18,17 @@ jobs:
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './bin'
-          severity: warning
+          severity: error
           format: gcc
+          disable_matcher: true
 
       - name: Run ShellCheck on shell scripts
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: '.'
-          severity: warning
+          severity: error
           format: gcc
+          disable_matcher: true
           ignore_paths: |
             .git
             .github

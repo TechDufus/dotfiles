@@ -261,7 +261,6 @@ If you're still stuck, [create an issue](https://github.com/TechDufus/dotfiles/i
 ### Community Support
 
 - 💬 **Discord**: [Join our community](https://discord.gg/5M4hjfyRBj)
-- 📖 **Discussions**: [GitHub Discussions](https://github.com/TechDufus/dotfiles/discussions)
 - 🐛 **Issues**: [Report bugs](https://github.com/TechDufus/dotfiles/issues)
 
 ## 🔄 Recovery Options

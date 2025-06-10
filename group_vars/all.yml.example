@@ -1,0 +1,288 @@
+# ====================================================================
+# TechDufus Dotfiles Configuration Example
+# ====================================================================
+# 
+# This file contains all available configuration options with examples
+# and documentation. Copy this to `all.yml` in the same directory and
+# customize for your setup.
+#
+# Quick Start:
+# 1. Copy: cp all.yml.example all.yml
+# 2. Edit: nano all.yml
+# 3. Run: dotfiles
+#
+# For more examples, see: docs/EXAMPLES.md
+# ====================================================================
+
+# --------------------------------------------------------------------
+# ROLES CONFIGURATION
+# --------------------------------------------------------------------
+# Choose which tools to install. Set to true/include to install,
+# comment out or remove to skip. Start with a minimal setup and
+# add more tools as needed.
+
+default_roles:
+  # === Core System Tools (Recommended) ===
+  - system         # Essential system configurations and tools
+  - fonts          # Developer-friendly fonts (Nerd Fonts)
+  
+  # === Development Core ===
+  - git            # Version control system
+  - neovim         # Modern text editor (or use 'vim')
+  - tmux           # Terminal multiplexer for session management
+  
+  # === Shell Environment ===
+  - zsh            # Modern shell with oh-my-zsh
+  - starship       # Beautiful shell prompt
+  - fzf            # Fuzzy finder for files and commands
+  
+  # === File Management ===
+  - bat            # Better 'cat' with syntax highlighting
+  - lsd            # Better 'ls' with icons and colors
+  - zoxide         # Smart 'cd' command that learns your habits
+  
+  # === Development Languages ===
+  - python         # Python programming language
+  - nvm            # Node Version Manager
+  - npm            # Node Package Manager
+  - go             # Go programming language
+  # - rust         # Rust programming language
+  # - ruby         # Ruby programming language
+  # - lua          # Lua programming language
+  
+  # === DevOps & Cloud Tools ===
+  # - docker       # Container platform
+  # - podman       # Alternative container platform
+  # - terraform    # Infrastructure as Code
+  # - terragrunt   # Terraform wrapper for DRY configurations
+  # - helm         # Kubernetes package manager
+  # - k8s          # Kubernetes command-line tools
+  # - k9s          # Kubernetes cluster management UI
+  
+  # === GitHub Integration ===
+  - gh             # GitHub CLI for repo management
+  - lazygit        # Terminal UI for git operations
+  
+  # === System Monitoring ===
+  # - btop         # Modern system monitor (better than htop)
+  # - neofetch     # System information display
+  # - nerdfetch    # Alternative system info with ASCII art
+  # - ncdu         # Disk usage analyzer
+  
+  # === Terminal Emulators ===
+  # - kitty        # GPU-accelerated terminal
+  # - warp         # Modern terminal with AI features
+  
+  # === Productivity Tools ===
+  # - obsidian     # Knowledge management and note-taking
+  # - raycast      # macOS launcher and productivity tool
+  # - hammerspoon  # macOS automation and window management
+  # - taskfile     # Modern task runner (alternative to make)
+  # - tldr         # Simplified command documentation
+  # - slides       # Terminal-based presentation tool
+  
+  # === Communication & Media ===
+  # - discord      # Team communication
+  # - spotify      # Music streaming
+  
+  # === Network & Remote Access ===
+  # - ssh          # SSH client configuration
+  # - sshfs        # Mount remote filesystems via SSH
+  # - tmate        # Terminal sharing for pair programming
+  
+  # === macOS Specific ===
+  # - aldente      # Battery charge limiter for macOS
+  
+  # === Linux Specific ===
+  # - flatpak      # Universal Linux package manager
+  # - nala         # Better apt frontend for Ubuntu/Debian
+  
+  # === Browser Tools ===
+  # - brave        # Privacy-focused web browser
+  
+  # === Cloud & Infrastructure CLIs ===
+  # - aws          # Amazon Web Services CLI
+  # - azure        # Microsoft Azure CLI
+  # - nomad        # HashiCorp Nomad (alternative to Kubernetes)
+  
+  # === Container Alternatives ===
+  # - orbstack     # Docker Desktop alternative for macOS
+  
+  # === Additional Terminal Emulators ===
+  # - alacritty    # Cross-platform GPU-accelerated terminal
+  # - ghostty      # Fast, feature-rich terminal emulator
+  
+  # === Development Tools ===
+  # - just         # Command runner (modern alternative to make)
+  # - goreleaser   # Go application release automation
+  
+  # === Kubernetes Ecosystem ===
+  # - kind         # Kubernetes in Docker for local testing
+  # - kwctl        # Kubernetes policy engine management
+  
+  # === Network & VPN Tools ===
+  # - wireguard    # Modern VPN solution
+  
+  # === Alternative Shells ===
+  # - bash         # Traditional bash shell configuration
+  # - pwsh         # PowerShell for cross-platform scripting
+  # - zellij       # Terminal workspace manager (alternative to tmux)
+  
+  # === Package Managers ===
+  # - whalebrew    # Homebrew but with Docker images
+  
+  # === Windows Specific ===
+  # - winget       # Windows package manager (Windows only)
+  
+  # === Fun Stuff ===
+  # - asciiquarium # Animated ASCII aquarium for your terminal
+  
+  # === Security & Authentication ===
+  # - 1password    # 1Password CLI integration
+  
+  # === Network Analysis ===
+  # - tshark       # Command-line network protocol analyzer
+
+# --------------------------------------------------------------------
+# USER CONFIGURATION
+# --------------------------------------------------------------------
+
+# REQUIRED: Your name for git commits and configurations
+# This will be used for git config user.name
+git_user_name: "Your Full Name"
+
+# --------------------------------------------------------------------
+# 1PASSWORD INTEGRATION (Optional but Recommended)
+# --------------------------------------------------------------------
+# Securely manage secrets using 1Password CLI instead of storing
+# them in plain text. Requires 1Password CLI to be installed and
+# authenticated. See docs for setup instructions.
+
+# Uncomment and configure if you want to use 1Password:
+# op:
+#   git:
+#     user:
+#       # Your git email stored in 1Password
+#       # Format: "op://VaultName/ItemName/FieldName"
+#       email: "op://Personal/GitHub/email"
+#     
+#     # SSH allowed signers for git commit verification
+#     allowed_signers: "op://Personal/GitHub SSH/allowed_signers"
+#   
+#   ssh:
+#     github:
+#       # Personal GitHub SSH keys
+#       personal:
+#         - name: id_ed25519              # Key name (creates ~/.ssh/id_ed25519)
+#           vault_path: "op://Personal/GitHub SSH"
+#       
+#       # Work GitHub SSH keys (if you have multiple accounts)
+#       # work:
+#       #   - name: work_key
+#       #     vault_path: "op://Work/Work GitHub SSH"
+
+# --------------------------------------------------------------------
+# LANGUAGE-SPECIFIC CONFIGURATIONS
+# --------------------------------------------------------------------
+
+# === Kubernetes Configuration ===
+# Uncomment if you enabled k8s role
+# k8s:
+#   repo:
+#     version: "v1.28"    # Kubernetes version to install
+
+# === Helm Configuration ===
+# Uncomment if you enabled helm role
+# helm:
+#   repos:
+#     - name: traefik
+#       url: https://helm.traefik.io/traefik
+#     - name: prometheus
+#       url: https://prometheus-community.github.io/helm-charts
+#     - name: grafana
+#       url: https://grafana.github.io/helm-charts
+
+# === Go Packages ===
+# Uncomment if you enabled go role and want additional tools
+# go:
+#   packages:
+#     - package: github.com/go-task/task/v3/cmd/task@latest
+#       cmd: task                    # Command name to install
+#     - package: github.com/stern/stern@latest
+#       cmd: stern                   # Kubernetes log viewer
+#     - package: github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+#       cmd: golangci-lint          # Go linter
+
+# === Python Packages ===
+# Uncomment if you enabled python role and want additional packages
+# python:
+#   packages:
+#     - virtualenv                   # Virtual environment management
+#     - pipenv                       # Package and dependency management
+#     - black                        # Code formatter
+#     - flake8                       # Linting tool
+#     - pytest                       # Testing framework
+
+# === Node.js Configuration ===
+# Uncomment if you enabled nvm/npm roles
+# node:
+#   default_version: "18"            # Default Node.js version to install
+#   packages:
+#     - yarn                         # Alternative package manager
+#     - typescript                   # TypeScript compiler
+#     - eslint                       # JavaScript linter
+#     - prettier                     # Code formatter
+
+# --------------------------------------------------------------------
+# SYSTEM-SPECIFIC CONFIGURATIONS
+# --------------------------------------------------------------------
+
+# === System Hosts (1Password) ===
+# Uncomment if you want to manage /etc/hosts entries via 1Password
+# WARNING: This feature is experimental
+# op:
+#   system:
+#     hosts:
+#       - vault_path: "op://DevOps/Internal Services/hosts_entry"
+#         account: my.1password.com
+
+# --------------------------------------------------------------------
+# EXAMPLES BY USE CASE
+# --------------------------------------------------------------------
+# For complete configuration examples, see docs/EXAMPLES.md:
+#
+# - Minimal Developer Setup (10 roles)
+# - Web Developer Setup (20 roles)  
+# - DevOps Engineer Setup (30 roles)
+# - Content Creator Setup (50+ roles)
+#
+# Quick setups:
+# 
+# Minimal: system, git, zsh, neovim, tmux, fzf, bat, lsd, starship, fonts
+# Web Dev: Add nvm, npm, python, docker, gh, lazygit
+# DevOps: Add terraform, helm, k8s, k9s, btop, taskfile
+# Full:    Enable most/all roles for complete development environment
+
+# --------------------------------------------------------------------
+# TROUBLESHOOTING
+# --------------------------------------------------------------------
+# Common issues:
+# 
+# 1. "Role not found" - Check spelling in default_roles list
+# 2. "1Password authentication failed" - Run: op signin
+# 3. "Permission denied" - Make sure you can run sudo commands
+# 4. "Ansible not found" - The bootstrap script should install it
+#
+# For detailed troubleshooting: docs/TROUBLESHOOTING.md
+# For help: https://discord.gg/5M4hjfyRBj
+
+# --------------------------------------------------------------------
+# GETTING STARTED
+# --------------------------------------------------------------------
+# 1. Save this file as 'all.yml' in the same directory
+# 2. Edit the git_user_name field above
+# 3. Choose your roles by uncommenting lines in default_roles
+# 4. Run: dotfiles
+# 5. Customize as needed and re-run dotfiles to apply changes
+#
+# Happy coding! 🚀

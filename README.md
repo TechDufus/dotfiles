@@ -20,7 +20,39 @@ You can watch a quick 'tour' (pre-1Password integration) here on YouTube:
 
 This repo is heavily influenced by [ALT-F4-LLC](https://github.com/ALT-F4-LLC/dotfiles)'s repo. Go check it out!
 
-## Goals
+## 📋 Table of Contents
+
+- [🚀 Quick Start](#-quick-start)
+- [🎯 Goals](#goals)
+- [⚙️ Requirements](#requirements)
+- [🔧 Setup](#setup)
+- [📖 Usage](#usage)
+- [📚 Documentation](#documentation)
+- [⭐ Star History](#-star-history)
+
+## 🚀 Quick Start
+
+**New to dotfiles?** → [Complete Beginner Guide](docs/QUICKSTART.md)
+
+**Want it fast?** Run this one command (5-10 minutes):
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
+```
+
+**What happens:**
+1. **Prerequisites** - Installs Ansible and dependencies for your OS
+2. **Bootstrap** - Downloads and runs the dotfiles automation
+3. **Configure** - Edit `~/.dotfiles/group_vars/all.yml` for your preferences
+
+**Next steps:**
+- Set up [1Password CLI integration](#1password-integration) for secure secrets (CLI auto-installed on macOS)
+- Customize your setup by editing `~/.dotfiles/group_vars/all.yml`
+- Run `dotfiles` anytime to update your environment
+
+---
+
+## 🎯 Goals
 
 Provide fully automated multiple-OS development environment that is easy to set up and maintain.
 
@@ -28,7 +60,7 @@ Provide fully automated multiple-OS development environment that is easy to set 
 
 Ansible replicates what we would do to set up a development environment pretty well. There are many automation solutions out there - I happen to enjoy using Ansible.
 
-## Requirements
+## ⚙️ Requirements
 
 ### Operating System
 
@@ -75,11 +107,11 @@ brew update && brew upgrade
 > [!NOTE]
 > This may take some time...
 
-## Setup
+## 🔧 Setup
 
 ### all.yml values file
 
-The `all.yml` file allows you to personalize your setup to your needs. This file will be created in the file located at `~/.dotfiles/group_vars/all.yaml` after you [Install this dotfiles](#install) and include your desired settings.
+The `all.yml` file allows you to personalize your setup to your needs. This file will be created in the file located at `~/.dotfiles/group_vars/all.yml` after you [Install this dotfiles](#install) and include your desired settings.
 
 Below is a list of all available values. Not all are required but incorrect values will break the playbook if not properly set.
 
@@ -202,7 +234,7 @@ op:
         account: some-other-account.1password.com
 ```
 
-## Usage
+## 📖 Usage
 
 ### Install
 
@@ -237,7 +269,7 @@ This will handle the following tasks:
 - Verify Ansible is up-to-date
 - Clone this repository locally to `~/.dotfiles`
 - Verify any `ansible-galaxy` plugins are updated
-- Run this playbook with the values in `~/.config/dotfiles/group_vars/all.yaml`
+- Run this playbook with the values in `~/.dotfiles/group_vars/all.yml`
 
 This `dotfiles` command is available to you after the first use of this repo, as it adds this repo's `bin` directory to your path, allowing you to call `dotfiles` from anywhere.
 
@@ -254,6 +286,12 @@ dotfiles -t <tab><tab>
 dotfiles -t t<tab>
 dotfiles -t ne<tab>
 ```
+
+## 📚 Documentation
+
+- [📖 Complete Beginner Guide](docs/QUICKSTART.md) - Step-by-step setup for new users
+- [🔧 Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [📋 Configuration Examples](docs/EXAMPLES.md) - Sample setups for different use cases
 
 ## 🌟 Star History
 

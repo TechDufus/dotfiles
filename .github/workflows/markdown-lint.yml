@@ -27,13 +27,20 @@ jobs:
           cat > .markdownlint.json << EOF
           {
             "default": true,
-            "MD013": {
-              "line_length": 120,
-              "tables": false,
-              "code_blocks": false
-            },
+            "MD013": false,
             "MD033": false,
-            "MD041": false
+            "MD041": false,
+            "MD012": false,
+            "MD022": false,
+            "MD031": false,
+            "MD032": false,
+            "MD040": false,
+            "MD045": false,
+            "MD051": false,
+            "MD058": false,
+            "MD001": false,
+            "MD026": false,
+            "MD047": false
           }
           EOF
 

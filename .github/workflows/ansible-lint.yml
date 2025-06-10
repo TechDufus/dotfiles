@@ -34,4 +34,4 @@ jobs:
         run: ansible-galaxy install -r requirements/common.yml
 
       - name: Run ansible-lint
-        run: ansible-lint main.yml --format=github
+        run: ansible-lint main.yml

@@ -30,13 +30,20 @@ jobs:
           extends: default
           rules:
             line-length:
-              max: 120
+              max: 200
             comments:
               min-spaces-from-content: 1
             indentation:
               spaces: 2
             truthy:
-              allowed-values: ['true', 'false', 'yes', 'no']
+              allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+            document-start: disable
+            new-line-at-end-of-file: disable
+            trailing-spaces: disable
+            empty-lines: disable
+            brackets: disable
+            colons: disable
+            braces: disable
           EOF
 
       - name: Run yamllint

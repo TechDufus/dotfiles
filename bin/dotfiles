@@ -279,7 +279,7 @@ if ! [[ -f "$IS_FIRST_RUN" ]]; then
   echo -e "${CHECK_MARK} ${GREEN}🎉 Dotfiles installation complete!${NC}"
   echo ""
   echo -e "${ARROW} ${CYAN}Next steps:${NC}"
-  echo -e "   1. Customize your setup: ${LBLUE}nano ~/.dotfiles/group_vars/all.yml${NC}"
+  echo -e "   1. Customize your setup: ${LBLUE}nvim ~/.dotfiles/group_vars/all.yml${NC}"
   echo -e "   2. Apply changes anytime: ${LBLUE}dotfiles${NC}"
   echo -e "   3. Get help: ${LBLUE}https://discord.gg/5M4hjfyRBj${NC}"
   echo ""

@@ -416,7 +416,7 @@ dotfiles -vvv
 
 ```bash
 # Edit your configuration
-nano ~/.dotfiles/group_vars/all.yml
+nvim ~/.dotfiles/group_vars/all.yml
 
 # Apply changes
 dotfiles

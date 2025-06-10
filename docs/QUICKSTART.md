@@ -88,7 +88,7 @@ After installation, you'll have a default configuration. Let's personalize it:
 ```bash
 # Open your config file
 cd ~/.dotfiles
-nano group_vars/all.yml  # or use your preferred editor
+nvim group_vars/all.yml  # or vim if you prefer
 ```
 
 ### Essential Settings

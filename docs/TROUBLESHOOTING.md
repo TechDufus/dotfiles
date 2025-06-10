@@ -290,7 +290,7 @@ If a specific role is causing issues:
 
 ```bash
 # Edit your config
-nano ~/.dotfiles/group_vars/all.yml
+nvim ~/.dotfiles/group_vars/all.yml
 
 # Comment out the problematic role
 # - role: problematic-role  # disabled for now

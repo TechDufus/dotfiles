@@ -8,7 +8,7 @@
 #
 # Quick Start:
 # 1. Copy: cp all.yml.example all.yml
-# 2. Edit: nano all.yml
+# 2. Edit: nvim all.yml
 # 3. Run: dotfiles
 #
 # For more examples, see: docs/EXAMPLES.md

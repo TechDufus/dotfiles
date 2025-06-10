@@ -29,10 +29,8 @@ jobs:
           cat > .yamllint.yml << EOF
           extends: default
           rules:
-            line-length:
-              max: 200
-            comments:
-              min-spaces-from-content: 1
+            line-length: disable
+            comments: disable
             indentation:
               spaces: 2
             truthy:

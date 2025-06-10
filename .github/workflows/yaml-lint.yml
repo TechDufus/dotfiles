@@ -1,0 +1,44 @@
+name: YAML Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    paths: ['**/*.yml', '**/*.yaml']
+
+jobs:
+  yaml-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install yamllint
+        run: |
+          python -m pip install --upgrade pip
+          pip install yamllint
+
+      - name: Create yamllint config
+        run: |
+          cat > .yamllint.yml << EOF
+          extends: default
+          rules:
+            line-length:
+              max: 120
+            comments:
+              min-spaces-from-content: 1
+            indentation:
+              spaces: 2
+            truthy:
+              allowed-values: ['true', 'false', 'yes', 'no']
+          EOF
+
+      - name: Run yamllint
+        run: yamllint -f github .

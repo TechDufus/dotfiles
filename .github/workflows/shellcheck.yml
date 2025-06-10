@@ -1,0 +1,34 @@
+name: Shell Script Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    paths: ['**/*.sh', 'bin/*']
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './bin'
+          severity: warning
+          format: gcc
+
+      - name: Run ShellCheck on shell scripts
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: warning
+          format: gcc
+          ignore_paths: |
+            .git
+            .github
+            roles
+            docs

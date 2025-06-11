@@ -18,7 +18,7 @@
 
 - name: "NVM | Set fallback version if in check mode and API call was skipped"
   ansible.builtin.set_fact:
-    nvm_latest_release: "v0.39.7"  # Fallback to a known stable version
+    nvm_latest_release: "{{ nvm_fallback_version }}"
   when: 
     - nvm_latest_version_json.skipped | default(false)
     - ansible_check_mode

@@ -28,6 +28,16 @@ This works on:
 uname -a
 ```
 
+### Install Package Manager (macOS Only)
+
+**macOS users need to install Homebrew first:**
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+> 📖 **What is Homebrew?** It's the missing package manager for macOS. [Learn more](https://brew.sh/)
+
 ### Update Your System
 
 **IMPORTANT**: Update your system packages first:

@@ -22,6 +22,7 @@ This repo is heavily influenced by [ALT-F4-LLC](https://github.com/ALT-F4-LLC/do
 
 ## 📋 Table of Contents
 
+- [📋 Prerequisites](#-prerequisites)
 - [🚀 Quick Start](#-quick-start)
 - [🎯 Goals](#goals)
 - [⚙️ Requirements](#requirements)
@@ -29,6 +30,18 @@ This repo is heavily influenced by [ALT-F4-LLC](https://github.com/ALT-F4-LLC/do
 - [📖 Usage](#usage)
 - [📚 Documentation](#documentation)
 - [⭐ Star History](#-star-history)
+
+## 📋 Prerequisites
+
+### macOS Users
+Before starting, install [Homebrew](https://brew.sh/) (macOS package manager):
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+### Other Operating Systems
+No prerequisites needed - the bootstrap script handles everything automatically.
 
 ## 🚀 Quick Start
 

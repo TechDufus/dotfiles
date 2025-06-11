@@ -2,16 +2,33 @@
 - name: "NVM | Download Latest Version JSON"
   ansible.builtin.uri:
     url: https://api.github.com/repos/nvm-sh/nvm/releases/latest
+    headers:
+      Accept: application/vnd.github.v3+json
   register: nvm_latest_version_json
   changed_when: false
+  failed_when: false
+  check_mode: false  # Always run this task even in check mode
 
-- name: "NVM | Registering NVM Latest Release"
+- name: "NVM | Check if API request succeeded"
+  ansible.builtin.fail:
+    msg: "Failed to fetch NVM latest version from GitHub API. Status: {{ nvm_latest_version_json.status | default('unknown') }}. You may be rate limited or have network issues."
+  when: 
+    - nvm_latest_version_json.json is not defined or nvm_latest_version_json.status != 200
+    - not (nvm_latest_version_json.skipped | default(false))  # Don't fail if task was skipped
+
+- name: "NVM | Set fallback version if in check mode and API call was skipped"
+  ansible.builtin.set_fact:
+    nvm_latest_release: "{{ nvm_fallback_version }}"
+  when: 
+    - nvm_latest_version_json.skipped | default(false)
+    - ansible_check_mode
+
+- name: "NVM | Registering NVM Latest Release from API"
   ansible.builtin.set_fact:
     nvm_latest_release: "{{ nvm_latest_version_json.json.tag_name }}"
-
-- name: "NVM | Registering NVM Latest Version"
-  ansible.builtin.set_fact:
-    nvm_latest_version: "{{ nvm_latest_release.stdout | default('') }}"
+  when: 
+    - nvm_latest_version_json.json is defined
+    - nvm_latest_version_json.status == 200
 
 - name: NVM | Show nvm_latest_release debug
   ansible.builtin.debug:
@@ -23,3 +40,4 @@
   args:
     creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
     executable: /bin/bash
+  when: nvm_latest_release is defined

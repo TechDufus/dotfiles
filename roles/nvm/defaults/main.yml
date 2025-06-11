@@ -1,0 +1,5 @@
+---
+# NVM Role Default Variables
+
+# Fallback version to use when GitHub API is unavailable
+nvm_fallback_version: "v0.40.3"

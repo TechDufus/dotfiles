@@ -1,14 +1,37 @@
 name: Ansible CI
-on: push
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install ansible-lint
-        run: pip install ansible-lint
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache Ansible Galaxy modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/collections
+          key: ${{ runner.os }}-ansible-${{ hashFiles('requirements/common.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ansible-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-lint ansible-core
+
       - name: Install Galaxy Modules
         run: ansible-galaxy install -r requirements/common.yml
-      - name: Linting with ansible-lint
+
+      - name: Run ansible-lint
         run: ansible-lint main.yml

@@ -93,7 +93,7 @@ function _task_done {
 
 function ubuntu_setup() {
   if ! dpkg -s ansible >/dev/null 2>&1; then
-    __task "Installing Ansible"
+    __task "Installing Ansible (This may take a few minutes)"
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y software-properties-common"
     _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
@@ -122,7 +122,7 @@ function ubuntu_setup() {
 
 function arch_setup() {
   if ! [ -x "$(command -v ansible)" ]; then
-    __task "Installing Ansible"
+    __task "Installing Ansible (This may take a few minutes)"
     _cmd "sudo pacman -Sy --noconfirm"
     _cmd "sudo pacman -S --noconfirm ansible"
     _cmd "sudo pacman -S --noconfirm python-argcomplete"
@@ -152,7 +152,7 @@ function arch_setup() {
 
 function macos_setup() {
   if ! [ -x "$(command -v brew)" ]; then
-    __task "Installing Homebrew"
+    __task "Installing Homebrew (This may take 5-10 minutes)"
     _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
   fi
   if ! [ -x "$(command -v git)" ]; then
@@ -177,9 +177,9 @@ function macos_setup() {
 update_ansible_galaxy() {
   local os=$1
   local os_requirements=""
-  __task "Updating Ansible Galaxy"
+  __task "Installing Ansible dependencies (This may take a few minutes)"
   if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
-    __task "${OVERWRITE}Updating Ansible Galaxy with OS Config: $os"
+    __task "${OVERWRITE}Installing Ansible dependencies for $os"
     os_requirements="$DOTFILES_DIR/requirements/$os.yml"
   fi
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
@@ -257,10 +257,10 @@ if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
 fi
 
 if ! [[ -d "$DOTFILES_DIR" ]]; then
-  __task "Cloning repository"
+  __task "Downloading dotfiles repository (This may take a minute)"
   _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
 else
-  __task "Updating repository"
+  __task "Updating dotfiles repository"
   _cmd "git -C $DOTFILES_DIR pull --quiet"
 fi
 
@@ -275,8 +275,16 @@ ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 popd 2>&1 > /dev/null
 
 if ! [[ -f "$IS_FIRST_RUN" ]]; then
-  echo -e "${CHECK_MARK} ${GREEN}First run complete!${NC}"
+  echo ""
+  echo -e "${CHECK_MARK} ${GREEN}🎉 Dotfiles installation complete!${NC}"
+  echo ""
+  echo -e "${ARROW} ${CYAN}Next steps:${NC}"
+  echo -e "   1. Customize your setup: ${LBLUE}nvim ~/.dotfiles/group_vars/all.yml${NC}"
+  echo -e "   2. Apply changes anytime: ${LBLUE}dotfiles${NC}"
+  echo -e "   3. Get help: ${LBLUE}https://discord.gg/5M4hjfyRBj${NC}"
+  echo ""
   echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
+  echo ""
   touch "$IS_FIRST_RUN"
 fi
 

@@ -8,6 +8,12 @@
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
 
+- name: "Git | Set color.ui"
+  community.general.git_config:
+    name: color.ui
+    scope: global
+    value: auto
+
 - name: "Git | Set diff.colorMoved"
   community.general.git_config:
     name: diff.colorMoved
@@ -145,6 +151,7 @@
     name: alias.br
     scope: global
     value: "branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate"
+
 
 - name: "Git | Copy global.commit.template"
   ansible.builtin.copy:

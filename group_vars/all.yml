@@ -17,6 +17,7 @@ default_roles:
   - go
   - hammerspoon
   - helm
+  - jj
   # - k8s
   - k9s
   - kitty

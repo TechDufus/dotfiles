@@ -28,6 +28,19 @@ vim.api.nvim_create_autocmd("BufWritePost", {
   command = ":silent! GoTestFile",
 })
 
+--------------------------------------------------------------------------------
+-- Automatically Watch for External File Changes
+--------------------------------------------------------------------------------
+
+vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter', 'CursorHold', 'CursorHoldI' }, {
+  group = vim.api.nvim_create_augroup('check_for_external_changes', { clear = true }),
+  callback = function ()
+    if vim.fn.bufname('%') ~= '' and vim.fn.filereadable(vim.fn.bufname('%')) then
+      vim.cmd.checktime()
+    end
+  end
+})
+
 -- don't auto comment new line
 api.nvim_create_autocmd("BufEnter", { command = [[set formatoptions-=cro]] })
 

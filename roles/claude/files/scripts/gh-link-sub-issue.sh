@@ -72,7 +72,8 @@ fi
 echo "🔗 Creating parent/sub-issue relationship..."
 if gh api repos/$REPO/issues/$PARENT_ISSUE/sub_issues \
     -X POST \
-    -F sub_issue_id=$CHILD_DB_ID 2>/dev/null; then
+    -F sub_issue_id=$CHILD_DB_ID \
+    --silent 2>/dev/null; then
     echo "✅ Successfully linked issue #$CHILD_ISSUE as sub-issue of #$PARENT_ISSUE"
 else
     # If it fails, try to provide helpful error message
@@ -94,6 +95,3 @@ else
         exit 1
     fi
 fi
-echo ""
-echo "View parent issue: https://github.com/$REPO/issues/$PARENT_ISSUE"
-echo "View child issue: https://github.com/$REPO/issues/$CHILD_ISSUE"

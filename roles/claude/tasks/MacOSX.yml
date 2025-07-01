@@ -55,3 +55,21 @@
     dest: "{{ ansible_env.HOME }}/.claude/scripts"
     state: link
     force: true
+
+- name: "{{ role_name }} | Check if ~/.claude/commands exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.claude/commands"
+  register: commands_dir
+
+- name: "{{ role_name }} | Remove existing commands directory if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.claude/commands"
+    state: absent
+  when: commands_dir.stat.exists and not commands_dir.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to Claude commands"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/commands"
+    dest: "{{ ansible_env.HOME }}/.claude/commands"
+    state: link
+    force: true

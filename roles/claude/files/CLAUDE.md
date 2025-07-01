@@ -28,10 +28,10 @@ Scripts I must use when performing these tasks:
 - These scripts are in `~/.claude/scripts/`
 - Always use these instead of raw commands when applicable
 
-### GitHub Scripts (ALWAYS USE FOR GITHUB TASKS)
-- **`~/.claude/scripts/gh-create-task.sh`** - When creating child tasks
-  - Auto-detects current repo, creates issues with proper parent linking
-  - Usage: `~/.claude/scripts/gh-create-task.sh <parent> <title> [priority] [labels]`
+### GitHub Scripts (ALWAYS USE FOR GITHUB ISSUES)
+- **`~/.claude/scripts/gh-create-issue.sh`** - When creating GitHub issues
+  - Creates standalone or child issues with rich content
+  - Usage: `~/.claude/scripts/gh-create-issue.sh "<title>" --body "<content>" [--parent <num>] [--labels <labels>]`
 - **`~/.claude/scripts/gh-link-sub-issue.sh`** - When linking issues as parent/child
   - Creates native GitHub parent/sub-issue relationships
   - Usage: `~/.claude/scripts/gh-link-sub-issue.sh <parent> <child> [--force]`
@@ -57,7 +57,7 @@ Use native parent/child relationships for better organization:
 3. Task (Child) - Specific implementation work
 
 **Workflow:**
-- When creating child tasks: Use `~/.claude/scripts/gh-create-task.sh`
+- When creating issues: Use `~/.claude/scripts/gh-create-issue.sh`
 - When linking existing issues: Use `~/.claude/scripts/gh-link-sub-issue.sh`
 - Check if new issues should be children of existing Epic/Story
 - Use API calls for full hierarchical views, not just `gh` CLI

@@ -909,7 +909,10 @@
       "Bash(zaraz:*)",
       "Bash(web3:*)",
       "Bash(ipfs:*)",
-      "Bash(gateway:*)"
+      "Bash(gateway:*)",
+      "Bash(~/.claude/scripts/git-commit-helper.sh:*)",
+      "Bash(~/.claude/scripts/gh-create-issue.sh:*)",
+      "Bash(~/.claude/scripts/gh-link-sub-issue.sh:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

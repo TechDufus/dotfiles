@@ -37,3 +37,21 @@
     dest: "{{ ansible_env.HOME }}/.claude/settings.json"
     state: link
     force: true
+
+- name: "{{ role_name }} | Check if ~/.claude/scripts exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.claude/scripts"
+  register: scripts_dir
+
+- name: "{{ role_name }} | Remove existing scripts directory if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.claude/scripts"
+    state: absent
+  when: scripts_dir.stat.exists and not scripts_dir.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to Claude scripts"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/scripts"
+    dest: "{{ ansible_env.HOME }}/.claude/scripts"
+    state: link
+    force: true

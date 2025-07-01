@@ -45,3 +45,13 @@ export DF_INFRA_HOME="$HOME/dev/raft/df-infra"
 export DFDEV_GIT_PROTOCOL="ssh"
 export AWS_PROFILE="Raft"
 
+# User
+export DOTFILES="$HOME/.dotfiles"
+export GOBIN="$HOME/.local/bin"
+export BIN="$HOME/.local/bin"
+
+# Claude
+export CLAUDE_HOME="$HOME/.claude"
+export CLAUDE_SETTINGS="$CLAUDE_HOME/settings.json"
+export CLAUDE_MEMORY="$CLAUDE_HOME/CLAUDE.md"
+

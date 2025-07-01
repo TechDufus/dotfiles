@@ -2,23 +2,41 @@
 
 DOTFILES_ROLES_DIR="$HOME/.dotfiles/roles"
 
-# Function to handle tab completion
-_complete_tags() {
-    local cur_word tags_list
-    cur_word="${words[CURRENT]}"
+# Function to handle tab completion for dotfiles command
+_dotfiles() {
+    local -a roles
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
 
-    # Find directories in the specified directory and store them in tags_list
-    tags_list=($(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -exec basename {} \;))
+    # Define the command line options
+    _arguments -C \
+        '-t[Run specific roles]:role:->roles' \
+        '--skip-tags[Skip specific roles]:role:->roles' \
+        '--check[Run in check mode (dry run)]' \
+        '--list-tags[List all available tags]' \
+        '-v[Verbose mode (can be specified multiple times)]' \
+        '-vv[More verbose output]' \
+        '-vvv[Most verbose output]' \
+        '*:argument:->args'
 
-    # Add -t and --skip-tags as options
-    if [[ "${cur_word}" == -* ]]; then
-        compadd -W "-t --skip-tags"
-    else
-        # Add directories as completion options
-        compadd "${tags_list[@]}"
-    fi
+    case $state in
+        roles)
+            # Get list of roles from the roles directory
+            roles=(${(f)"$(find $DOTFILES_ROLES_DIR -maxdepth 1 -type d -exec basename {} \; | grep -v '^roles$' | sort)"})
+
+            # Support comma-separated values
+            if [[ -n "${words[CURRENT]}" && "${words[CURRENT]}" == *,* ]]; then
+                # Handle comma-separated completions
+                local prefix="${words[CURRENT]%,*},"
+                local suffix="${words[CURRENT]##*,}"
+                _describe -t roles 'role' roles -P "$prefix" -S ','
+            else
+                _describe -t roles 'role' roles -S ','
+            fi
+            ;;
+    esac
 }
 
 # Register the completion function with compdef
-compdef _complete_tags dotfiles
+compdef _dotfiles dotfiles
 

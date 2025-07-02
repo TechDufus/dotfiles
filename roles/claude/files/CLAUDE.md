@@ -35,6 +35,12 @@ Scripts I must use when performing these tasks:
 - **`~/.claude/scripts/gh-link-sub-issue.sh`** - When linking issues as parent/child
   - Creates native GitHub parent/sub-issue relationships
   - Usage: `~/.claude/scripts/gh-link-sub-issue.sh <parent> <child> [--force]`
+- **`~/.claude/scripts/gh-work-issue.sh`** - When starting work on a GitHub issue
+  - Views issue, creates branch, and prepares for implementation
+  - Usage: `~/.claude/scripts/gh-work-issue.sh <issue-number> [branch-name]`
+- **`~/.claude/scripts/gh-complete-fix.sh`** - After fixing an issue (auto-called by Claude)
+  - Validates, commits, pushes, and creates PR that closes the issue
+  - Usage: Automatically called after implementing fixes
 
 ### Git Scripts (USE BEFORE COMMITTING)
 - **`git-commit-helper.sh`** - Validate ALL commit messages before committing

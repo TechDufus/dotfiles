@@ -20,18 +20,30 @@
       - "{{ github_release_binary_name }}*"
     file_type: file
     recurse: true
+    excludes:
+      - "*.1"  # Exclude man pages
+      - "*.md"
+      - "*.txt"
+      - "*.yaml"
+      - "*.yml"
   register: _github_release_binary_search
+
+- name: Find executable files only
+  ansible.builtin.shell:
+    cmd: |
+      find {{ github_release_temp_dir }}/extract -name "{{ github_release_binary_name }}*" -type f -perm +111 ! -name "*.sh" ! -name "*.1" | grep -E "({{ github_release_binary_name }}$|{{ github_release_binary_name }}_)" | head -1
+  register: _github_release_executable_search
+  changed_when: false
+  failed_when: false
 
 - name: Identify binary file
   ansible.builtin.set_fact:
     _github_release_binary_path: >-
       {{
-        _github_release_binary_search.files |
-        selectattr('path', 'match', '.*/?' + github_release_binary_name + '$') |
-        map(attribute='path') |
-        first |
+        _github_release_executable_search.stdout |
         default(
           _github_release_binary_search.files |
+          selectattr('path', 'match', '.*/?' + github_release_binary_name + '$') |
           map(attribute='path') |
           first |
           default('')

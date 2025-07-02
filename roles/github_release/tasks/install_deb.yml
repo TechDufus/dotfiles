@@ -1,0 +1,15 @@
+---
+# Install from .deb package
+
+- name: Ensure dpkg is available
+  ansible.builtin.command:
+    cmd: which dpkg
+  register: _github_release_dpkg_check
+  changed_when: false
+  failed_when: _github_release_dpkg_check.rc != 0
+
+- name: Install .deb package
+  ansible.builtin.apt:
+    deb: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
+    state: present
+  become: "{{ github_release_become }}"

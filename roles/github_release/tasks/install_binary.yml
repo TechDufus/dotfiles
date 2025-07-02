@@ -1,0 +1,12 @@
+---
+# Install direct binary file
+
+- name: Install binary directly
+  ansible.builtin.copy:
+    src: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
+    dest: "{{ github_release_install_path }}/{{ github_release_binary_name }}"
+    mode: "{{ github_release_install_mode }}"
+    owner: "{{ github_release_owner }}"
+    group: "{{ github_release_group }}"
+    remote_src: true
+  become: "{{ github_release_become }}"

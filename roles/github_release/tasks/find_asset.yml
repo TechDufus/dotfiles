@@ -1,0 +1,134 @@
+---
+# Find matching asset from release
+
+- name: Use provided asset name pattern if specified
+  when: github_release_asset_name_pattern != ""
+  block:
+    - name: Find asset by pattern
+      ansible.builtin.set_fact:
+        _github_release_matching_assets: >-
+          {{
+            _github_release.assets |
+            selectattr('name', 'match', github_release_asset_name_pattern) |
+            list
+          }}
+
+    - name: Fail if no matching asset found
+      when: _github_release_matching_assets | length == 0
+      ansible.builtin.fail:
+        msg: "No asset matching pattern '{{ github_release_asset_name_pattern }}' found in release"
+
+    - name: Select first matching asset
+      ansible.builtin.set_fact:
+        _github_release_asset: "{{ _github_release_matching_assets[0] }}"
+
+- name: Auto-detect asset based on OS and architecture
+  when: github_release_asset_name_pattern == ""
+  block:
+    - name: Build OS patterns
+      ansible.builtin.set_fact:
+        _github_os_patterns: "{{ github_release_os_map[github_release_os] | default([github_release_os]) }}"
+
+    - name: Build architecture patterns
+      ansible.builtin.set_fact:
+        _github_arch_patterns: "{{ github_release_arch_map[github_release_arch] | default([github_release_arch]) }}"
+
+    - name: Find assets matching OS and architecture
+      ansible.builtin.set_fact:
+        _github_release_candidate_assets: >-
+          {{
+            _github_release.assets |
+            selectattr('name', 'search', '(' + _github_os_patterns | join('|') + ')') |
+            selectattr('name', 'search', '(' + _github_arch_patterns | join('|') + ')') |
+            list
+          }}
+
+    - name: Handle no matching assets
+      when: _github_release_candidate_assets | length == 0
+      block:
+        - name: Try binary name only
+          ansible.builtin.set_fact:
+            _github_release_candidate_assets: >-
+              {{
+                _github_release.assets |
+                selectattr('name', 'match', '^' + github_release_binary_name + '$') |
+                list
+              }}
+
+        - name: Fail if still no matches
+          when: _github_release_candidate_assets | length == 0
+          ansible.builtin.fail:
+            msg: >
+              No assets found matching OS '{{ github_release_os }}' and architecture '{{ github_release_arch }}'.
+              Available assets: {{ _github_release.assets | map(attribute='name') | join(', ') }}
+
+    - name: Prefer specific asset types
+      when: github_release_asset_type == "auto"
+      block:
+        - name: Check for tar.gz
+          ansible.builtin.set_fact:
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.tar\\.gz$') | list | first | default(None) }}"
+
+        - name: Check for zip if no tar.gz
+          when: _github_release_asset is none
+          ansible.builtin.set_fact:
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.zip$') | list | first | default(None) }}"
+
+        - name: Check for deb if no archives
+          when: _github_release_asset is none and github_release_os == "linux"
+          ansible.builtin.set_fact:
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.deb$') | list | first | default(None) }}"
+
+        - name: Check for AppImage if no other formats
+          when: _github_release_asset is none and github_release_os == "linux"
+          ansible.builtin.set_fact:
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.AppImage$') | list | first | default(None) }}"
+
+        - name: Use first candidate if no preferred type
+          when: _github_release_asset is none
+          ansible.builtin.set_fact:
+            _github_release_asset: "{{ _github_release_candidate_assets[0] }}"
+
+    - name: Select asset by specific type
+      when: github_release_asset_type != "auto"
+      block:
+        - name: Find asset by type
+          ansible.builtin.set_fact:
+            _github_release_typed_assets: >-
+              {{
+                _github_release_candidate_assets |
+                selectattr('name', 'match', '.*\\.' + github_release_asset_type + '$') |
+                list
+              }}
+
+        - name: Fail if type not found
+          when: _github_release_typed_assets | length == 0
+          ansible.builtin.fail:
+            msg: "No {{ github_release_asset_type }} asset found for {{ github_release_os }}/{{ github_release_arch }}"
+
+        - name: Use typed asset
+          ansible.builtin.set_fact:
+            _github_release_asset: "{{ _github_release_typed_assets[0] }}"
+
+- name: Set asset details
+  ansible.builtin.set_fact:
+    _github_release_asset_name: "{{ _github_release_asset.name }}"
+    _github_release_asset_url: "{{ _github_release_asset.browser_download_url }}"
+
+- name: Determine asset type
+  ansible.builtin.set_fact:
+    _github_release_asset_type: >-
+      {%- if _github_release_asset_name.endswith('.tar.gz') -%}tar.gz
+      {%- elif _github_release_asset_name.endswith('.zip') -%}zip
+      {%- elif _github_release_asset_name.endswith('.deb') -%}deb
+      {%- elif _github_release_asset_name.endswith('.rpm') -%}rpm
+      {%- elif _github_release_asset_name.endswith('.AppImage') -%}AppImage
+      {%- else -%}binary
+      {%- endif -%}
+
+- name: Display selected asset
+  ansible.builtin.debug:
+    msg:
+      - "Selected asset: {{ _github_release_asset_name }}"
+      - "Asset type: {{ _github_release_asset_type }}"
+      - "Download URL: {{ _github_release_asset_url }}"

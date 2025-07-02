@@ -10,7 +10,7 @@ if [ -n "${GITHUB_REPOSITORY:-}" ]; then
     REPO="$GITHUB_REPOSITORY"
 else
     # Try to detect from git remote
-    REPO=$(gh repo view --json owner,name --jq '"$(.owner.login)/$(.name)"' 2>/dev/null || echo "")
+    REPO=$(gh repo view --json owner,name --jq '.owner.login + "/" + .name' 2>/dev/null || echo "")
 fi
 
 # Usage function
@@ -116,8 +116,19 @@ fi
 
 # Check for uncommitted changes
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-    echo "⚠️  You have uncommitted changes. Please commit or stash them first."
-    exit 1
+    echo "⚠️  You have uncommitted changes:"
+    echo ""
+    git status --short
+    echo ""
+    read -p "Would you like to stash these changes? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        git stash push -m "Auto-stash before working on issue #$ISSUE_NUMBER"
+        echo "✅ Changes stashed. Run 'git stash pop' after finishing to restore them."
+    else
+        echo "❌ Cannot proceed with uncommitted changes. Please commit or stash them first."
+        exit 1
+    fi
 fi
 
 # Create and checkout branch

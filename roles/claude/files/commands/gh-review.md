@@ -21,11 +21,39 @@ Provides intelligent, AI-powered code review for GitHub pull requests with speci
 
 ## Examples
 
+### Basic Review
 ```
 /gh-review 42
 /gh-review TechDufus/dotfiles#100
 /gh-review "org/repo#123"
 /gh-review https://github.com/org/repo/pull/123
+```
+
+### Generate Review Comments for Posting
+```
+# Get formatted review template
+/gh-review 136 --format-comments
+
+# Example: Post a review comment after AI analysis
+gh pr review 136 --comment --body "### 📊 Summary
+This PR successfully implements the gh-review command with AI-powered analysis.
+
+### ✅ Positive Aspects
+- Clean implementation following established patterns
+- Good error handling throughout
+- Comprehensive documentation
+
+### 🔍 Code Review Findings
+#### 🎯 Suggestions
+- Consider adding timeout handling for large PRs
+- Could benefit from caching for repeated reviews
+
+### 📝 Recommended Actions
+1. Add timeout protection for diff fetching
+2. Consider implementing PR size warnings"
+
+# Example: Post inline comment on specific file
+gh pr comment 136 --body "Good use of error handling here! Consider also checking for empty PR_REPO earlier in the script."
 ```
 
 ## What This Command Does
@@ -61,6 +89,21 @@ I'll provide:
   - ❓ Questions for clarification
 - 🚦 **CI/CD Analysis** - GitHub Actions status and failure reasons
 - 📝 **Recommended Actions** - Specific next steps
+
+### Review Comment Format
+
+To get review comments formatted for posting to GitHub:
+
+```
+/gh-review 136 --format-comments
+```
+
+This will output:
+1. A structured review template with AI placeholders
+2. Instructions for posting comments using `gh pr comment` or `gh pr review`
+3. Line-specific comment format for inline code reviews
+
+You can then fill in the AI placeholders with actual review feedback and post directly to the PR.
 
 ## Features
 
@@ -116,7 +159,9 @@ Then I'll analyze the output to provide:
 1. Parses PR reference (number, #number, org/repo#number, or URL)
 2. Fetches PR metadata and full diff
 3. Gets existing review comments to avoid duplicates
-4. Outputs structured data for AI analysis
+4. Checks GitHub Actions status and analyzes failures
+5. Outputs structured data for AI analysis
+6. Optionally formats output as GitHub review comments (with --format-comments)
 
 ### My Analysis Process
 1. Parse the diff to understand each change

@@ -941,8 +941,10 @@
       "Bash(git:revert*)",
       "Bash(git:cherry-pick*)",
       "Bash(git:tag*)"
-    ]
+    ],
+    "defaultMode": "allowEdits"
   },
+  "includeCoAuthoredBy": false,
   "theme": "dark",
   "fontSize": 14,
   "fontFamily": "BerkleyMono Nerd Font",

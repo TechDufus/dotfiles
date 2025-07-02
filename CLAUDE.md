@@ -48,6 +48,10 @@ npm update -g
 
 # Update Homebrew packages (macOS)
 brew update && brew upgrade
+
+# Review GitHub pull requests
+~/.claude/scripts/gh-review-pr.sh 123
+~/.claude/scripts/gh-review-pr.sh "org/repo#123" --approve
 ```
 
 ## Architecture and Key Concepts

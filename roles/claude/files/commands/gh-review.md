@@ -1,15 +1,15 @@
 ---
-description: "Review GitHub PRs: /gh-review <pr-reference> [options]"
+description: "AI-powered GitHub PR review: /gh-review <pr-reference>"
 ---
 
 # /gh-review
 
-Review GitHub pull requests with detailed diff viewing and interactive review actions.
+Provides intelligent, AI-powered code review for GitHub pull requests with specific, actionable feedback.
 
 ## Usage
 
 ```
-/gh-review <pr-reference> [options]
+/gh-review <pr-reference>
 ```
 
 ## PR Reference Formats
@@ -19,44 +19,54 @@ Review GitHub pull requests with detailed diff viewing and interactive review ac
 - `org/repo#123` - PR in specific repository
 - `https://github.com/org/repo/pull/123` - Full PR URL
 
-## Options
-
-- `--diff-only` - Show diff only, skip review prompt
-- `--approve` - Auto-approve without prompting
-- `--comment <text>` - Add comment without prompting
-
 ## Examples
 
-### Interactive Review
 ```
 /gh-review 42
 /gh-review TechDufus/dotfiles#100
+/gh-review "org/repo#123"
 /gh-review https://github.com/org/repo/pull/123
 ```
 
-### Quick Actions
-```
-/gh-review 42 --approve
-/gh-review 42 --comment "Nice work on the refactoring!"
-/gh-review 42 --diff-only
-```
+## What This Command Does
+
+When you run `/gh-review`, I will:
+
+1. **Fetch PR Details** - Get the complete diff, metadata, and existing comments
+2. **Analyze Code Changes** - Review the code for:
+   - **Code Quality**: Style consistency, naming conventions, code organization
+   - **Potential Bugs**: Logic errors, edge cases, null checks, error handling
+   - **Security Issues**: Input validation, authentication, authorization concerns
+   - **Performance**: Inefficient algorithms, unnecessary loops, resource usage
+   - **Best Practices**: Design patterns, SOLID principles, DRY violations
+   - **Testing**: Missing tests, test coverage, test quality
+   - **Documentation**: Missing or outdated comments, API docs
+
+3. **Generate Specific Feedback** including:
+   - **Summary**: High-level overview of the changes
+   - **Strengths**: What's done well
+   - **Issues**: Specific problems with severity levels
+   - **Suggestions**: Concrete improvements with code examples
+   - **Questions**: Clarifications needed from the author
+
+## Review Output Format
+
+I'll provide:
+- 📊 **Change Summary** - Overview of what the PR does
+- ✅ **Positive Aspects** - What's implemented well
+- 🔍 **Code Review Findings** organized by:
+  - 🐛 Bugs/Issues (with severity)
+  - 🎯 Suggestions (with examples)
+  - ❓ Questions for clarification
+- 📝 **Recommended Actions** - Specific next steps
 
 ## Features
 
-- **Smart PR detection**: Supports multiple reference formats
-- **Comprehensive PR info**: Shows title, author, files changed, merge status
-- **Syntax-highlighted diff**: Full PR diff with color highlighting
-- **Interactive review flow**: Choose to approve, comment, request changes, or skip
-- **Cross-repository support**: Review PRs in any accessible repository
-- **Quick actions**: Approve or comment without interactive prompts
-
-## Interactive Review Actions
-
-When reviewing interactively, you'll be prompted to:
-- **[a] Approve**: Approve the PR with optional comment
-- **[c] Comment**: Add a review comment
-- **[r] Request changes**: Request changes with explanation
-- **[s] Skip**: View without taking action
+- **Intelligent Analysis**: Goes beyond syntax to understand intent and impact
+- **Context-Aware**: Considers the broader codebase and patterns
+- **Actionable Feedback**: Provides specific line numbers and code suggestions
+- **Severity Levels**: Prioritizes issues (Critical/High/Medium/Low)
+- **Learning**: Recognizes patterns from your codebase
 
 ## Environment Variables
 
@@ -64,40 +74,56 @@ When reviewing interactively, you'll be prompted to:
 
 ## Implementation
 
-Execute the following command with the provided arguments:
+I'll execute the following command to fetch PR data:
 
 ```bash
-~/.claude/scripts/gh-review-pr.sh "<pr-reference>" [options]
+~/.claude/scripts/gh-ai-review.sh "<pr-reference>"
 ```
 
-**Important:** Always quote PR references containing `#` to prevent shell interpretation as comments:
-- ✅ `~/.claude/scripts/gh-review-pr.sh "org/repo#123"`
-- ❌ `~/.claude/scripts/gh-review-pr.sh org/repo#123` (# will be treated as comment)
+Then I'll analyze the output to provide:
+
+1. **Code Quality Assessment**
+   - Identify style inconsistencies
+   - Flag naming convention violations
+   - Suggest better code organization
+
+2. **Bug Detection**
+   - Find potential null pointer exceptions
+   - Identify missing error handling
+   - Detect logic errors and edge cases
+
+3. **Security Analysis**
+   - Check for input validation issues
+   - Identify authentication/authorization problems
+   - Flag potential injection vulnerabilities
+
+4. **Performance Review**
+   - Identify inefficient algorithms
+   - Find unnecessary database queries
+   - Suggest caching opportunities
+
+5. **Best Practices Check**
+   - SOLID principle violations
+   - DRY (Don't Repeat Yourself) issues
+   - Missing abstractions
 
 ### Script Location
-`~/.claude/scripts/gh-review-pr.sh`
+`~/.claude/scripts/gh-ai-review.sh`
 
 ### What the script does
 1. Parses PR reference (number, #number, org/repo#number, or URL)
-2. Fetches PR metadata (title, author, state, files, etc.)
-3. Displays PR summary in a formatted box
-4. Shows list of changed files with additions/deletions
-5. Displays full diff with syntax highlighting
-6. Prompts for review action (unless using quick options)
-7. Executes chosen action via GitHub API
+2. Fetches PR metadata and full diff
+3. Gets existing review comments to avoid duplicates
+4. Outputs structured data for AI analysis
 
-### PR Information Displayed
-- Title and PR number
-- Author
-- State (open/closed/merged) and draft status
-- Source and target branches
-- Mergeable status
-- Number of files changed
-- PR description
-- File-by-file changes with line counts
+### My Analysis Process
+1. Parse the diff to understand each change
+2. Analyze the context and impact
+3. Check against best practices and patterns
+4. Generate specific, actionable feedback
+5. Prioritize findings by severity
+6. Provide code examples for improvements
 
-### Error Handling
-- Validates PR exists before attempting review
-- Handles large PRs that might timeout
-- Provides clear error messages for invalid references
-- Gracefully handles missing PR descriptions
+**Important:** Always quote PR references containing `#`:
+- ✅ `/gh-review "org/repo#123"`
+- ❌ `/gh-review org/repo#123` (# treated as comment)

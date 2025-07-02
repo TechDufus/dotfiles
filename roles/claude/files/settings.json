@@ -914,7 +914,8 @@
       "Bash(~/.claude/scripts/gh-create-issue.sh:*)",
       "Bash(~/.claude/scripts/gh-link-sub-issue.sh:*)",
       "Bash(~/.claude/scripts/gh-work-issue.sh:*)",
-      "Bash(~/.claude/scripts/gh-complete-fix.sh:*)"
+      "Bash(~/.claude/scripts/gh-complete-fix.sh:*)",
+      "Bash(~/.claude/scripts/gh-ai-review.sh:*)"
     ],
     "deny": [
       "Bash(sudo:*)",

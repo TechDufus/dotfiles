@@ -109,3 +109,32 @@ echo ""
 # Get review status
 echo "=== REVIEW STATUS ==="
 gh pr view $PR_NUMBER --repo $PR_REPO --json reviews --jq '.reviews[] | "\(.author.login): \(.state)"' 2>/dev/null || echo "No reviews yet"
+echo ""
+
+# Get GitHub Actions check runs status
+echo "=== GITHUB ACTIONS STATUS ==="
+CHECK_RUNS=$(gh pr checks $PR_NUMBER --repo $PR_REPO --json name,status,conclusion,detailsUrl 2>/dev/null || echo "[]")
+if [ "$CHECK_RUNS" = "[]" ]; then
+    echo "No checks found"
+else
+    echo "$CHECK_RUNS" | jq -r '.[] | "\(.name): \(.status) - \(.conclusion // "pending")"'
+fi
+echo ""
+
+# Get details of any failed checks
+echo "=== FAILED CHECK DETAILS ==="
+FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .detailsUrl' 2>/dev/null)
+if [ -z "$FAILED_CHECKS" ]; then
+    echo "No failed checks"
+else
+    for CHECK_URL in $FAILED_CHECKS; do
+        # Extract run ID from URL
+        RUN_ID=$(echo "$CHECK_URL" | grep -oE '[0-9]+$')
+        if [ -n "$RUN_ID" ]; then
+            echo "=== Failed Run: $CHECK_URL ==="
+            # Get the workflow run logs summary
+            gh run view $RUN_ID --repo $PR_REPO --json jobs --jq '.jobs[] | select(.conclusion == "failure") | "Job: \(.name)\nSteps failed: \(.steps[] | select(.conclusion == "failure") | "  - \(.name): \(.conclusion)")"' 2>/dev/null || echo "Could not fetch run details"
+            echo ""
+        fi
+    done
+fi

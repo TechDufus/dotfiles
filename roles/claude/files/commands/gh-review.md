@@ -41,6 +41,7 @@ When you run `/gh-review`, I will:
    - **Best Practices**: Design patterns, SOLID principles, DRY violations
    - **Testing**: Missing tests, test coverage, test quality
    - **Documentation**: Missing or outdated comments, API docs
+   - **CI/CD Status**: Check GitHub Actions for failures and analyze why
 
 3. **Generate Specific Feedback** including:
    - **Summary**: High-level overview of the changes
@@ -58,6 +59,7 @@ I'll provide:
   - 🐛 Bugs/Issues (with severity)
   - 🎯 Suggestions (with examples)
   - ❓ Questions for clarification
+- 🚦 **CI/CD Analysis** - GitHub Actions status and failure reasons
 - 📝 **Recommended Actions** - Specific next steps
 
 ## Features

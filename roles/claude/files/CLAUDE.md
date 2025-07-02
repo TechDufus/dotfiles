@@ -41,6 +41,9 @@ Scripts I must use when performing these tasks:
 - **`~/.claude/scripts/gh-complete-fix.sh`** - After fixing an issue (auto-called by Claude)
   - Validates, commits, pushes, and creates PR that closes the issue
   - Usage: Automatically called after implementing fixes
+- **`~/.claude/scripts/gh-ai-review.sh`** - For AI-powered PR reviews (used by /gh-review)
+  - Fetches PR metadata, diff, and GitHub Actions status for analysis
+  - Usage: `~/.claude/scripts/gh-ai-review.sh <pr-reference>`
 
 ### Git Scripts (USE BEFORE COMMITTING)
 - **`git-commit-helper.sh`** - Validate ALL commit messages before committing

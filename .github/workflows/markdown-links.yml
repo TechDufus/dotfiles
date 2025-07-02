@@ -1,0 +1,32 @@
+name: Validate Markdown Links
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    paths: ['**/*.md']
+
+jobs:
+  markdown-link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'yes'
+          config-file: '.github/workflows/markdown-link-config.json'
+          folder-path: '.'
+          file-path: './README.md'
+
+      - name: Check docs folder
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes' 
+          use-verbose-mode: 'yes'
+          config-file: '.github/workflows/markdown-link-config.json'
+          folder-path: './docs'

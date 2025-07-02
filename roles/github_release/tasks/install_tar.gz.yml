@@ -1,18 +1,20 @@
 ---
 # Install from tar.gz archive
 
+- name: Create extraction directory
+  ansible.builtin.file:
+    path: "{{ github_release_temp_dir }}/extract"
+    state: directory
+    mode: "0755"
+
 - name: Extract tar.gz archive
-  ansible.builtin.unarchive:
-    src: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
-    dest: "{{ github_release_temp_dir }}"
-    remote_src: true
-    extra_opts:
-      - "--strip-components={{ github_release_strip_components }}"
+  ansible.builtin.shell:
+    cmd: "tar -xzf {{ github_release_temp_dir }}/{{ _github_release_asset_name }} -C {{ github_release_temp_dir }}/extract"
   register: _github_release_extract
 
 - name: Find binary in extracted files
   ansible.builtin.find:
-    paths: "{{ github_release_temp_dir }}"
+    paths: "{{ github_release_temp_dir }}/extract"
     patterns:
       - "{{ github_release_binary_name }}"
       - "{{ github_release_binary_name }}*"
@@ -54,7 +56,6 @@
 - name: Cleanup extracted files
   when: github_release_cleanup
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ github_release_temp_dir }}/extract"
     state: absent
-  loop: "{{ _github_release_binary_search.files | map(attribute='path') | list }}"
   failed_when: false

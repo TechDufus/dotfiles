@@ -113,7 +113,9 @@
 
   always:
     - name: Cleanup downloaded files
-      when: github_release_cleanup
+      when: 
+        - github_release_cleanup
+        - _github_release_asset_name is defined
       ansible.builtin.file:
         path: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
         state: absent

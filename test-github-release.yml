@@ -7,6 +7,12 @@
     host_user: "{{ ansible_user_id }}"
   
   tasks:
+    - name: Create test directory
+      ansible.builtin.file:
+        path: /tmp/test-bin
+        state: directory
+        mode: "0755"
+
     - name: Test 1 - Install lazygit (tar.gz)
       ansible.builtin.include_role:
         name: github_release
@@ -14,9 +20,11 @@
         github_release_repo: "jesseduffield/lazygit"
         github_release_binary_name: "lazygit"
         github_release_install_path: "/tmp/test-bin"
+        github_release_check_command: "/tmp/test-bin/lazygit --version"
+        github_release_force_install: true  # Force install to test location
         github_release_become: false
         github_release_owner: "{{ ansible_user_id }}"
-        github_release_group: "{{ ansible_user_id }}"
+        github_release_group: "{{ ansible_real_group_id }}"
 
     - name: Verify lazygit installation
       ansible.builtin.command:
@@ -38,7 +46,7 @@
         github_release_install_path: "/tmp/test-bin"
         github_release_become: false
         github_release_owner: "{{ ansible_user_id }}"
-        github_release_group: "{{ ansible_user_id }}"
+        github_release_group: "{{ ansible_real_group_id }}"
 
     - name: Verify gh installation
       ansible.builtin.command:
@@ -50,7 +58,8 @@
       ansible.builtin.debug:
         msg: "GitHub CLI installed: {{ gh_version.stdout }}"
 
-    - name: Cleanup test directory
-      ansible.builtin.file:
-        path: /tmp/test-bin
-        state: absent
+    # Skip cleanup to allow manual testing
+    # - name: Cleanup test directory
+    #   ansible.builtin.file:
+    #     path: /tmp/test-bin
+    #     state: absent

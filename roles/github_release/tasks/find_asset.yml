@@ -67,46 +67,22 @@
       block:
         - name: Check for tar.gz
           ansible.builtin.set_fact:
-            _github_release_asset: >-
-              {{
-                _github_release_candidate_assets |
-                selectattr('name', 'match', '.*\\.tar\\.gz$') |
-                first |
-                default(None)
-              }}
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.tar\\.gz$') | list | first | default(None) }}"
 
         - name: Check for zip if no tar.gz
           when: _github_release_asset is none
           ansible.builtin.set_fact:
-            _github_release_asset: >-
-              {{
-                _github_release_candidate_assets |
-                selectattr('name', 'match', '.*\\.zip$') |
-                first |
-                default(None)
-              }}
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.zip$') | list | first | default(None) }}"
 
         - name: Check for deb if no archives
           when: _github_release_asset is none and github_release_os == "linux"
           ansible.builtin.set_fact:
-            _github_release_asset: >-
-              {{
-                _github_release_candidate_assets |
-                selectattr('name', 'match', '.*\\.deb$') |
-                first |
-                default(None)
-              }}
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.deb$') | list | first | default(None) }}"
 
         - name: Check for AppImage if no other formats
           when: _github_release_asset is none and github_release_os == "linux"
           ansible.builtin.set_fact:
-            _github_release_asset: >-
-              {{
-                _github_release_candidate_assets |
-                selectattr('name', 'match', '.*\\.AppImage$') |
-                first |
-                default(None)
-              }}
+            _github_release_asset: "{{ _github_release_candidate_assets | selectattr('name', 'match', '.*\\.AppImage$') | list | first | default(None) }}"
 
         - name: Use first candidate if no preferred type
           when: _github_release_asset is none

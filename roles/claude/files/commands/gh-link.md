@@ -14,21 +14,28 @@ Link two existing GitHub issues in a parent/child relationship.
 
 ## Parameters
 
-- `parent-issue`: Issue number to become the parent
-- `child-issue`: Issue number to become the child
+- `parent-issue`: Parent issue reference (formats: `123`, `#123`, or `org/repo#123`)
+- `child-issue`: Child issue reference (formats: `123`, `#123`, or `org/repo#123`)
 - `--force`: Optional - Remove existing parent relationship and reassign
 
 ## Examples
 
 ```
+# Link issues in same repository
 /gh-link 5 12
 /gh-link 10 25 --force
+
+# Link issues across repositories
+/gh-link TechDufus/dotfiles#42 27
+/gh-link 19 org/other-repo#55
+/gh-link org/repo1#100 org/repo2#200 --force
 ```
 
 ## Features
 
 - Creates native GitHub parent/sub-issue relationships
-- Auto-detects current repository
+- Supports cross-repository linking within the same organization
+- Auto-detects current repository for relative issue numbers
 - Force flag to reassign existing relationships
 - Validates both issues exist before linking
 
@@ -47,8 +54,12 @@ Link two existing GitHub issues in a parent/child relationship.
 Execute the following command with the provided arguments:
 
 ```bash
-~/.claude/scripts/gh-link-sub-issue.sh <parent-issue> <child-issue> [--force]
+~/.claude/scripts/gh-link-sub-issue.sh "<parent-issue>" "<child-issue>" [--force]
 ```
+
+**Important:** Always quote issue references containing `#` to prevent shell interpretation as comments:
+- ✅ `~/.claude/scripts/gh-link-sub-issue.sh "org/repo#123" "27"`
+- ❌ `~/.claude/scripts/gh-link-sub-issue.sh org/repo#123 27` (# will be treated as comment)
 
 ### Script Location
 `~/.claude/scripts/gh-link-sub-issue.sh`

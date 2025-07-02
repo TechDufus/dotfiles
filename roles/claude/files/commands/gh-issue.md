@@ -15,8 +15,9 @@ Create a GitHub issue, optionally linked to a parent.
 
 ## Intelligent Parsing
 
-The command detects if the first argument is a parent issue number:
-- If it's a number → treats it as parent issue
+The command detects if the first argument is a parent issue reference:
+- If it's a number → treats it as parent issue in current repo
+- If it's `org/repo#123` format → treats it as parent issue in another repo
 - If it's not a number → treats entire input as the title
 
 ## Examples
@@ -30,14 +31,19 @@ The command detects if the first argument is a parent issue number:
 
 ### Child Issues (with parent)
 ```
+# Parent in same repository
 /gh-issue 5 "Implement login form"
 /gh-issue 10 "Fix memory leak" high "bug,backend"
 /gh-issue 23 "Add unit tests" medium "testing"
+
+# Parent in different repository
+/gh-issue TechDufus/dotfiles#42 "Implement related feature"
+/gh-issue org/main-repo#100 "Add integration tests" high "testing"
 ```
 
 ## Parameters
 
-- `parent`: Optional - Parent issue number (if provided, creates child task)
+- `parent`: Optional - Parent issue reference (formats: `123`, `#123`, or `org/repo#123`)
 - `title`: The issue title
 - `priority`: Optional - critical|high|medium|low (defaults to medium)
 - `labels`: Optional - comma-separated labels
@@ -61,6 +67,7 @@ The command intelligently routes to the appropriate action:
 
 1. **Parse the input to determine intent**
    - If first arg is a number → Parent issue number
+   - If first arg matches `org/repo#123` → Cross-repo parent reference
    - Otherwise → Description of what needs to be done
 
 2. **Generate title and body based on context**
@@ -77,10 +84,14 @@ The command intelligently routes to the appropriate action:
    ```bash
    ~/.claude/scripts/gh-create-issue.sh "<generated-title>" \
      --body "<generated-body>" \
-     [--parent <parent-number>] \
+     [--parent "<parent-reference>"] \
      [--labels "<detected-labels>"] \
      [--priority <priority>]
    ```
+   
+   **Important:** Always quote parent references containing `#` to prevent shell interpretation as comments:
+   - ✅ `--parent "org/repo#123"`
+   - ❌ `--parent org/repo#123` (# will be treated as comment)
 
 ### Body Generation Template
 

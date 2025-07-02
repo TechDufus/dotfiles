@@ -19,7 +19,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --body <text>      Issue body content (required)"
-    echo "  --parent <number>  Parent issue to link to (optional)"
+    echo "  --parent <issue>   Parent issue: 123, #123, or org/repo#123 (optional)"
     echo "  --labels <labels>  Comma-separated labels (optional)"
     echo "  --priority <level> Priority level (optional)"
     echo "  --assignee <user>  Assignee (defaults to @me)"
@@ -30,6 +30,7 @@ usage() {
     echo "Examples:"
     echo "  $0 \"Fix login bug\" --body \"Users report timeout...\" --labels \"bug,auth\""
     echo "  $0 \"Add tests\" --body \"Coverage needed...\" --parent 5"
+    echo "  $0 \"Implement API\" --body \"Details...\" --parent org/other-repo#42"
     echo ""
     exit 1
 }
@@ -130,20 +131,40 @@ NEW_ISSUE_NUMBER=$(echo "$NEW_ISSUE_URL" | grep -o '[0-9]*$')
 
 # Link to parent if specified
 if [ -n "$PARENT_ISSUE" ]; then
+    # Parse parent issue format (supports: 123, #123, or org/repo#123)
+    if [[ "$PARENT_ISSUE" =~ ^([^/#]+/[^/#]+)#([0-9]+)$ ]]; then
+        # Cross-repo format: org/repo#123
+        PARENT_REPO="${BASH_REMATCH[1]}"
+        PARENT_NUM="${BASH_REMATCH[2]}"
+    elif [[ "$PARENT_ISSUE" =~ ^#?([0-9]+)$ ]]; then
+        # Same repo format: 123 or #123
+        PARENT_REPO="$REPO"
+        PARENT_NUM="${BASH_REMATCH[1]}"
+    else
+        echo "❌ Invalid parent issue format: $PARENT_ISSUE"
+        echo "   Use: 123, #123, or org/repo#123"
+        exit 1
+    fi
+    
     # Validate parent exists
-    if ! gh issue view $PARENT_ISSUE --repo $REPO >/dev/null 2>&1; then
-        echo "⚠️  Warning: Parent issue #$PARENT_ISSUE not found"
+    if ! gh issue view $PARENT_NUM --repo $PARENT_REPO >/dev/null 2>&1; then
+        echo "⚠️  Warning: Parent issue $PARENT_REPO#$PARENT_NUM not found"
     else
         LINK_SCRIPT="$(dirname "$0")/gh-link-sub-issue.sh"
         if [ -f "$LINK_SCRIPT" ]; then
-            "$LINK_SCRIPT" $PARENT_ISSUE $NEW_ISSUE_NUMBER >/dev/null 2>&1 || echo "⚠️  Linking failed"
+            # Pass full parent reference to linking script
+            "$LINK_SCRIPT" "$PARENT_REPO#$PARENT_NUM" "$REPO#$NEW_ISSUE_NUMBER" >/dev/null 2>&1 || echo "⚠️  Linking failed"
         else
             # Fallback: Add parent reference in issue body
-            gh issue comment $NEW_ISSUE_NUMBER --repo $REPO --body "Parent issue: #$PARENT_ISSUE" --silent
+            gh issue comment $NEW_ISSUE_NUMBER --repo $REPO --body "Parent issue: $PARENT_REPO#$PARENT_NUM" --silent
         fi
     fi
 fi
 
 echo ""
-echo "✅ Created issue #$NEW_ISSUE_NUMBER${PARENT_ISSUE:+ (child of #$PARENT_ISSUE)}"
+if [ -n "$PARENT_ISSUE" ]; then
+    echo "✅ Created issue #$NEW_ISSUE_NUMBER (child of $PARENT_REPO#$PARENT_NUM)"
+else
+    echo "✅ Created issue #$NEW_ISSUE_NUMBER"
+fi
 echo "📍 $NEW_ISSUE_URL"

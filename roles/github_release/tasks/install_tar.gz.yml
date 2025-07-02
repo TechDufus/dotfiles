@@ -1,0 +1,60 @@
+---
+# Install from tar.gz archive
+
+- name: Extract tar.gz archive
+  ansible.builtin.unarchive:
+    src: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
+    dest: "{{ github_release_temp_dir }}"
+    remote_src: true
+    extra_opts:
+      - "--strip-components={{ github_release_strip_components }}"
+  register: _github_release_extract
+
+- name: Find binary in extracted files
+  ansible.builtin.find:
+    paths: "{{ github_release_temp_dir }}"
+    patterns:
+      - "{{ github_release_binary_name }}"
+      - "{{ github_release_binary_name }}*"
+    file_type: file
+    recurse: true
+  register: _github_release_binary_search
+
+- name: Identify binary file
+  ansible.builtin.set_fact:
+    _github_release_binary_path: >-
+      {{
+        _github_release_binary_search.files |
+        selectattr('path', 'match', '.*/?' + github_release_binary_name + '$') |
+        map(attribute='path') |
+        first |
+        default(
+          _github_release_binary_search.files |
+          map(attribute='path') |
+          first |
+          default('')
+        )
+      }}
+
+- name: Fail if binary not found
+  when: _github_release_binary_path == ""
+  ansible.builtin.fail:
+    msg: "Could not find binary '{{ github_release_binary_name }}' in extracted archive"
+
+- name: Install binary
+  ansible.builtin.copy:
+    src: "{{ _github_release_binary_path }}"
+    dest: "{{ github_release_install_path }}/{{ github_release_binary_name }}"
+    mode: "{{ github_release_install_mode }}"
+    owner: "{{ github_release_owner }}"
+    group: "{{ github_release_group }}"
+    remote_src: true
+  become: "{{ github_release_become }}"
+
+- name: Cleanup extracted files
+  when: github_release_cleanup
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ _github_release_binary_search.files | map(attribute='path') | list }}"
+  failed_when: false

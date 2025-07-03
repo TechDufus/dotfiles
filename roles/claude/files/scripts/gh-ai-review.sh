@@ -17,16 +17,13 @@ fi
 
 # Usage function
 usage() {
-    echo "Usage: $0 <pr-reference> [--format-comments]"
+    echo "Usage: $0 <pr-reference>"
     echo ""
     echo "PR Reference formats:"
     echo "  123                    - PR in current repository"
     echo "  #123                   - PR in current repository"
     echo "  org/repo#123           - PR in specific repository"
     echo "  https://github.com/... - Full PR URL"
-    echo ""
-    echo "Options:"
-    echo "  --format-comments      Output review in GitHub comment format"
     echo ""
     echo "Environment:"
     echo "  GITHUB_REPOSITORY: Override auto-detected repository (format: owner/repo)"
@@ -41,22 +38,6 @@ fi
 
 # Parse PR reference
 PR_ARG="$1"
-shift
-
-# Check for format flag
-FORMAT_COMMENTS=false
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --format-comments)
-            FORMAT_COMMENTS=true
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1"
-            usage
-            ;;
-    esac
-done
 
 # Parse PR reference format
 if [[ "$PR_ARG" =~ ^https://github.com/([^/]+/[^/]+)/pull/([0-9]+) ]]; then
@@ -157,52 +138,4 @@ else
             echo ""
         fi
     done
-fi
-
-# If format-comments flag is set, output template for review comments
-if [ "$FORMAT_COMMENTS" = "true" ]; then
-    echo ""
-    echo "=== GITHUB REVIEW COMMENT FORMAT ==="
-    echo "# AI Code Review Comments for PR #$PR_NUMBER"
-    echo ""
-    echo "## How to post these comments:"
-    echo "# 1. Review the AI-generated comments below"
-    echo "# 2. Edit/remove any comments as needed"
-    echo "# 3. Post individual comments using:"
-    echo "#    gh pr comment $PR_NUMBER --repo $PR_REPO --body '<comment>'"
-    echo "# 4. Or create a full review:"
-    echo "#    gh pr review $PR_NUMBER --repo $PR_REPO --comment --body '<review>'"
-    echo ""
-    echo "## Review Comments Template:"
-    echo ""
-    echo "### 📊 Summary"
-    echo "<!-- AI: Provide high-level summary of changes -->"
-    echo ""
-    echo "### ✅ Positive Aspects"
-    echo "<!-- AI: List what's done well -->"
-    echo ""
-    echo "### 🔍 Code Review Findings"
-    echo ""
-    echo "#### 🐛 Issues (if any)"
-    echo "<!-- AI: List bugs/issues with severity and file:line references -->"
-    echo ""
-    echo "#### 🎯 Suggestions"
-    echo "<!-- AI: List improvements with specific examples -->"
-    echo ""
-    echo "#### ❓ Questions"
-    echo "<!-- AI: List clarification questions -->"
-    echo ""
-    echo "### 🚦 CI/CD Status"
-    echo "<!-- AI: Analyze any failing checks -->"
-    echo ""
-    echo "### 📝 Recommended Actions"
-    echo "<!-- AI: Prioritized next steps -->"
-    echo ""
-    echo "## Line-specific comments (for inline review):"
-    echo "<!-- AI: Generate specific comments in this format:"
-    echo "File: path/to/file.ext"
-    echo "Line: 42"
-    echo "Comment: Specific feedback about this line"
-    echo "Suggestion: Optional code suggestion"
-    echo "-->"
 fi

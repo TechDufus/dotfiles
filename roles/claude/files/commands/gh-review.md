@@ -29,31 +29,20 @@ Provides intelligent, AI-powered code review for GitHub pull requests with speci
 /gh-review https://github.com/org/repo/pull/123
 ```
 
-### Generate Review Comments for Posting
+### Review and Post Comments
 ```
-# Get formatted review template
-/gh-review 136 --format-comments
+# Run the review - get both analysis and ready-to-post commands
+/gh-review 136
 
-# Example: Post a review comment after AI analysis
+# The output will include:
+# 1. Full code analysis with findings
+# 2. Ready-to-copy gh commands like:
+
 gh pr review 136 --comment --body "### 📊 Summary
-This PR successfully implements the gh-review command with AI-powered analysis.
+[AI-generated review content here]"
 
-### ✅ Positive Aspects
-- Clean implementation following established patterns
-- Good error handling throughout
-- Comprehensive documentation
-
-### 🔍 Code Review Findings
-#### 🎯 Suggestions
-- Consider adding timeout handling for large PRs
-- Could benefit from caching for repeated reviews
-
-### 📝 Recommended Actions
-1. Add timeout protection for diff fetching
-2. Consider implementing PR size warnings"
-
-# Example: Post inline comment on specific file
-gh pr comment 136 --body "Good use of error handling here! Consider also checking for empty PR_REPO earlier in the script."
+# And line-specific comments:
+gh pr comment 136 --body "File: script.sh, Line 42: [specific feedback]"
 ```
 
 ## What This Command Does
@@ -80,7 +69,9 @@ When you run `/gh-review`, I will:
 
 ## Review Output Format
 
-I'll provide:
+I'll provide two sections:
+
+### 1. Code Analysis
 - 📊 **Change Summary** - Overview of what the PR does
 - ✅ **Positive Aspects** - What's implemented well
 - 🔍 **Code Review Findings** organized by:
@@ -90,20 +81,13 @@ I'll provide:
 - 🚦 **CI/CD Analysis** - GitHub Actions status and failure reasons
 - 📝 **Recommended Actions** - Specific next steps
 
-### Review Comment Format
+### 2. Ready-to-Post GitHub Comments
+I'll also provide formatted comments ready to post:
+- A complete review comment with all findings
+- Individual line-specific comments for inline feedback
+- Copy-paste ready `gh` commands to post the review
 
-To get review comments formatted for posting to GitHub:
-
-```
-/gh-review 136 --format-comments
-```
-
-This will output:
-1. A structured review template with AI placeholders
-2. Instructions for posting comments using `gh pr comment` or `gh pr review`
-3. Line-specific comment format for inline code reviews
-
-You can then fill in the AI placeholders with actual review feedback and post directly to the PR.
+No additional flags needed - I'll automatically provide both the analysis and the formatted comments!
 
 ## Features
 
@@ -161,7 +145,6 @@ Then I'll analyze the output to provide:
 3. Gets existing review comments to avoid duplicates
 4. Checks GitHub Actions status and analyzes failures
 5. Outputs structured data for AI analysis
-6. Optionally formats output as GitHub review comments (with --format-comments)
 
 ### My Analysis Process
 1. Parse the diff to understand each change

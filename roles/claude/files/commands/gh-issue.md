@@ -88,7 +88,7 @@ The command intelligently routes to the appropriate action:
      [--labels "<detected-labels>"] \
      [--priority <priority>]
    ```
-   
+
    **Important:** Always quote parent references containing `#` to prevent shell interpretation as comments:
    - ✅ `--parent "org/repo#123"`
    - ❌ `--parent org/repo#123` (# will be treated as comment)

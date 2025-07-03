@@ -4,11 +4,12 @@ description: "AI-powered GitHub PR review: /gh-review <pr-reference>"
 
 # /gh-review
 
-Provides intelligent, AI-powered code review for GitHub pull requests with specific, actionable feedback.
+Provides intelligent, AI-powered code review for GitHub pull requests with
+specific, actionable feedback.
 
 ## Usage
 
-```
+```bash
 /gh-review <pr-reference>
 ```
 
@@ -22,7 +23,8 @@ Provides intelligent, AI-powered code review for GitHub pull requests with speci
 ## Examples
 
 ### Basic Review
-```
+
+```bash
 /gh-review 42
 /gh-review TechDufus/dotfiles#100
 /gh-review "org/repo#123"
@@ -30,7 +32,8 @@ Provides intelligent, AI-powered code review for GitHub pull requests with speci
 ```
 
 ### Review a PR
-```
+
+```bash
 # Run the review to get comprehensive analysis
 /gh-review 136
 
@@ -78,7 +81,8 @@ I'll provide comprehensive code analysis including:
 - 🚦 **CI/CD Analysis** - GitHub Actions status and failure reasons
 - 📝 **Recommended Actions** - Specific next steps
 
-The review focuses on providing actionable feedback with specific line references and code examples where appropriate.
+The review focuses on providing actionable feedback with specific line
+references and code examples where appropriate.
 
 ## Features
 
@@ -128,9 +132,11 @@ Then I'll analyze the output to provide:
    - Missing abstractions
 
 ### Script Location
+
 `~/.claude/scripts/gh-ai-review.sh`
 
 ### What the script does
+
 1. Parses PR reference (number, #number, org/repo#number, or URL)
 2. Fetches PR metadata and full diff
 3. Gets existing review comments to avoid duplicates
@@ -138,6 +144,7 @@ Then I'll analyze the output to provide:
 5. Outputs structured data for AI analysis
 
 ### My Analysis Process
+
 1. Parse the diff to understand each change
 2. Analyze the context and impact
 3. Check against best practices and patterns
@@ -146,5 +153,6 @@ Then I'll analyze the output to provide:
 6. Provide code examples for improvements
 
 **Important:** Always quote PR references containing `#`:
+
 - ✅ `/gh-review "org/repo#123"`
 - ❌ `/gh-review org/repo#123` (# treated as comment)

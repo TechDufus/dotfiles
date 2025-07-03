@@ -29,20 +29,18 @@ Provides intelligent, AI-powered code review for GitHub pull requests with speci
 /gh-review https://github.com/org/repo/pull/123
 ```
 
-### Review and Post Comments
+### Review a PR
 ```
-# Run the review - get both analysis and ready-to-post commands
+# Run the review to get comprehensive analysis
 /gh-review 136
 
-# The output will include:
-# 1. Full code analysis with findings
-# 2. Ready-to-copy gh commands like:
-
-gh pr review 136 --comment --body "### 📊 Summary
-[AI-generated review content here]"
-
-# And line-specific comments:
-gh pr comment 136 --body "File: script.sh, Line 42: [specific feedback]"
+# Claude will analyze the code and provide:
+# - Summary of changes
+# - Code quality assessment
+# - Bug detection
+# - Security concerns
+# - Performance suggestions
+# - Best practices feedback
 ```
 
 ## What This Command Does
@@ -69,9 +67,8 @@ When you run `/gh-review`, I will:
 
 ## Review Output Format
 
-I'll provide two sections:
+I'll provide comprehensive code analysis including:
 
-### 1. Code Analysis
 - 📊 **Change Summary** - Overview of what the PR does
 - ✅ **Positive Aspects** - What's implemented well
 - 🔍 **Code Review Findings** organized by:
@@ -81,13 +78,7 @@ I'll provide two sections:
 - 🚦 **CI/CD Analysis** - GitHub Actions status and failure reasons
 - 📝 **Recommended Actions** - Specific next steps
 
-### 2. Ready-to-Post GitHub Comments
-I'll also provide formatted comments ready to post:
-- A complete review comment with all findings
-- Individual line-specific comments for inline feedback
-- Copy-paste ready `gh` commands to post the review
-
-No additional flags needed - I'll automatically provide both the analysis and the formatted comments!
+The review focuses on providing actionable feedback with specific line references and code examples where appropriate.
 
 ## Features
 

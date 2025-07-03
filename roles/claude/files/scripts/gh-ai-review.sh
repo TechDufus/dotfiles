@@ -7,12 +7,15 @@
 
 set -euo pipefail
 
+# Timeout for API calls (30 seconds)
+GH_TIMEOUT="--request-timeout 30"
+
 # Get current repository or use provided one
 if [ -n "${GITHUB_REPOSITORY:-}" ]; then
     REPO="$GITHUB_REPOSITORY"
 else
     # Try to detect from git remote
-    REPO=$(gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' 2>/dev/null || echo "")
+    REPO=$(gh repo view $GH_TIMEOUT --json owner,name --jq '"\(.owner.login)/\(.name)"' 2>/dev/null || echo "")
 fi
 
 # Usage function
@@ -64,7 +67,7 @@ if [ -z "$PR_REPO" ]; then
 fi
 
 # Get PR metadata
-PR_INFO=$(gh pr view $PR_NUMBER --repo $PR_REPO --json title,author,state,body,headRefName,baseRefName,files,url,additions,deletions 2>/dev/null) || {
+PR_INFO=$(gh pr view $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT --json title,author,state,body,headRefName,baseRefName,files,url,additions,deletions 2>/dev/null) || {
     echo "ERROR: Failed to fetch PR #$PR_NUMBER from $PR_REPO" >&2
     exit 1
 }
@@ -96,7 +99,7 @@ echo ""
 
 # Get the full diff with context
 echo "=== FULL DIFF ==="
-gh pr diff $PR_NUMBER --repo $PR_REPO || {
+gh pr diff $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT || {
     echo "ERROR: Could not fetch diff" >&2
     exit 1
 }
@@ -104,37 +107,38 @@ echo ""
 
 # Get existing comments to avoid duplicate feedback
 echo "=== EXISTING REVIEW COMMENTS ==="
-gh pr view $PR_NUMBER --repo $PR_REPO --comments --json comments --jq '.comments[] | "[\(.author.login)]: \(.body)"' 2>/dev/null || echo "No existing comments"
+gh pr view $PR_NUMBER --repo $PR_REPO --comments $GH_TIMEOUT --json comments --jq '.comments[] | "[\(.author.login)]: \(.body)"' 2>/dev/null || echo "No existing comments"
 echo ""
 
 # Get review status
 echo "=== REVIEW STATUS ==="
-gh pr view $PR_NUMBER --repo $PR_REPO --json reviews --jq '.reviews[] | "\(.author.login): \(.state)"' 2>/dev/null || echo "No reviews yet"
+gh pr view $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT --json reviews --jq '.reviews[] | "\(.author.login): \(.state)"' 2>/dev/null || echo "No reviews yet"
 echo ""
 
 # Get GitHub Actions check runs status
 echo "=== GITHUB ACTIONS STATUS ==="
-CHECK_RUNS=$(gh pr checks $PR_NUMBER --repo $PR_REPO --json name,status,conclusion,detailsUrl 2>/dev/null || echo "[]")
+CHECK_RUNS=$(gh pr checks $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT --json name,state,link 2>/dev/null || echo "[]")
 if [ "$CHECK_RUNS" = "[]" ]; then
     echo "No checks found"
 else
-    echo "$CHECK_RUNS" | jq -r '.[] | "\(.name): \(.status) - \(.conclusion // "pending")"'
+    echo "$CHECK_RUNS" | jq -r '.[] | "\(.name): \(.state)"'
 fi
 echo ""
 
 # Get details of any failed checks
 echo "=== FAILED CHECK DETAILS ==="
-FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .detailsUrl' 2>/dev/null)
+FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.[] | select(.state == "FAILURE") | .link' 2>/dev/null)
 if [ -z "$FAILED_CHECKS" ]; then
     echo "No failed checks"
 else
     for CHECK_URL in $FAILED_CHECKS; do
-        # Extract run ID from URL
-        RUN_ID=$(echo "$CHECK_URL" | grep -oE '[0-9]+$')
-        if [ -n "$RUN_ID" ]; then
-            echo "=== Failed Run: $CHECK_URL ==="
+        # Extract run ID and job ID from URL (format: .../actions/runs/{run_id}/job/{job_id})
+        if [[ "$CHECK_URL" =~ /actions/runs/([0-9]+)/job/([0-9]+) ]]; then
+            RUN_ID="${BASH_REMATCH[1]}"
+            JOB_ID="${BASH_REMATCH[2]}"
+            echo "=== Failed Check: $CHECK_URL ==="
             # Get the workflow run logs summary
-            gh run view $RUN_ID --repo $PR_REPO --json jobs --jq '.jobs[] | select(.conclusion == "failure") | "Job: \(.name)\nSteps failed: \(.steps[] | select(.conclusion == "failure") | "  - \(.name): \(.conclusion)")"' 2>/dev/null || echo "Could not fetch run details"
+            gh run view $RUN_ID --repo $PR_REPO $GH_TIMEOUT --json jobs --jq ".jobs[] | select(.databaseId == $JOB_ID) | \"Job: \(.name)\nConclusion: \(.conclusion)\nSteps:\n\(.steps[] | \"  - \(.name): \(.conclusion)\")\"" 2>/dev/null || echo "Could not fetch run details"
             echo ""
         fi
     done

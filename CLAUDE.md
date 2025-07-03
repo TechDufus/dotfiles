@@ -48,6 +48,10 @@ npm update -g
 
 # Update Homebrew packages (macOS)
 brew update && brew upgrade
+
+# AI-powered GitHub PR review (use /gh-review command)
+~/.claude/scripts/gh-ai-review.sh 123
+~/.claude/scripts/gh-ai-review.sh "org/repo#123"
 ```
 
 ## Architecture and Key Concepts

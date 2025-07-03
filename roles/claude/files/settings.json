@@ -914,7 +914,8 @@
       "Bash(~/.claude/scripts/gh-create-issue.sh:*)",
       "Bash(~/.claude/scripts/gh-link-sub-issue.sh:*)",
       "Bash(~/.claude/scripts/gh-work-issue.sh:*)",
-      "Bash(~/.claude/scripts/gh-complete-fix.sh:*)"
+      "Bash(~/.claude/scripts/gh-complete-fix.sh:*)",
+      "Bash(~/.claude/scripts/gh-ai-review.sh:*)"
     ],
     "deny": [
       "Bash(sudo:*)",
@@ -941,8 +942,10 @@
       "Bash(git:revert*)",
       "Bash(git:cherry-pick*)",
       "Bash(git:tag*)"
-    ]
+    ],
+    "defaultMode": "allowEdits"
   },
+  "includeCoAuthoredBy": false,
   "theme": "dark",
   "fontSize": 14,
   "fontFamily": "BerkleyMono Nerd Font",

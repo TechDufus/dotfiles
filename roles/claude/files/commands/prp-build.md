@@ -55,7 +55,7 @@ uv run pytest tests/ -v
 ```
 
 > ⚠️ **CRITICAL**: After you are done researching and exploring the codebase, before you start building the PRP:
-> 
+>
 > **ULTRATHINK** about the PRP and plan your approach, then start building the PRP.
 
 ## Output

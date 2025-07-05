@@ -8,6 +8,8 @@
 set -euo pipefail
 
 # Timeout for API calls (30 seconds)
+# Note: Not all gh commands support --request-timeout
+# We'll only use it where supported
 GH_TIMEOUT="--request-timeout 30"
 
 # Get current repository or use provided one
@@ -15,7 +17,14 @@ if [ -n "${GITHUB_REPOSITORY:-}" ]; then
     REPO="$GITHUB_REPOSITORY"
 else
     # Try to detect from git remote
-    REPO=$(gh repo view $GH_TIMEOUT --json owner,name --jq '"\(.owner.login)/\(.name)"' 2>/dev/null || echo "")
+    # Note: gh repo view doesn't support --request-timeout flag
+    REPO=$(gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' 2>/dev/null || echo "")
+    
+    # If gh repo view fails (e.g., in some environments), try git remote
+    if [ -z "$REPO" ]; then
+        # This works in both regular repos and git worktrees
+        REPO=$(git remote get-url origin 2>/dev/null | sed -E 's|.*github.com[:/]([^/]+/[^/.]+)(\.git)?$|\1|' || echo "")
+    fi
 fi
 
 # Usage function
@@ -63,11 +72,13 @@ fi
 # Validate we have a repo
 if [ -z "$PR_REPO" ]; then
     echo "ERROR: Could not determine repository" >&2
+    echo "Please run from a git repository or set GITHUB_REPOSITORY=owner/repo" >&2
+    echo "Current directory: $(pwd)" >&2
     exit 1
 fi
 
 # Get PR metadata
-PR_INFO=$(gh pr view $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT --json title,author,state,body,headRefName,baseRefName,files,url,additions,deletions 2>/dev/null) || {
+PR_INFO=$(gh pr view $PR_NUMBER --repo $PR_REPO --json title,author,state,body,headRefName,baseRefName,files,url,additions,deletions 2>/dev/null) || {
     echo "ERROR: Failed to fetch PR #$PR_NUMBER from $PR_REPO" >&2
     exit 1
 }
@@ -99,7 +110,7 @@ echo ""
 
 # Get the full diff with context
 echo "=== FULL DIFF ==="
-gh pr diff $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT || {
+gh pr diff $PR_NUMBER --repo $PR_REPO || {
     echo "ERROR: Could not fetch diff" >&2
     exit 1
 }
@@ -107,17 +118,17 @@ echo ""
 
 # Get existing comments to avoid duplicate feedback
 echo "=== EXISTING REVIEW COMMENTS ==="
-gh pr view $PR_NUMBER --repo $PR_REPO --comments $GH_TIMEOUT --json comments --jq '.comments[] | "[\(.author.login)]: \(.body)"' 2>/dev/null || echo "No existing comments"
+gh pr view $PR_NUMBER --repo $PR_REPO --comments --json comments --jq '.comments[] | "[\(.author.login)]: \(.body)"' 2>/dev/null || echo "No existing comments"
 echo ""
 
 # Get review status
 echo "=== REVIEW STATUS ==="
-gh pr view $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT --json reviews --jq '.reviews[] | "\(.author.login): \(.state)"' 2>/dev/null || echo "No reviews yet"
+gh pr view $PR_NUMBER --repo $PR_REPO --json reviews --jq '.reviews[] | "\(.author.login): \(.state)"' 2>/dev/null || echo "No reviews yet"
 echo ""
 
 # Get GitHub Actions check runs status
 echo "=== GITHUB ACTIONS STATUS ==="
-CHECK_RUNS=$(gh pr checks $PR_NUMBER --repo $PR_REPO $GH_TIMEOUT --json name,state,link 2>/dev/null || echo "[]")
+CHECK_RUNS=$(gh pr checks $PR_NUMBER --repo $PR_REPO --json name,state,link 2>/dev/null || echo "[]")
 if [ "$CHECK_RUNS" = "[]" ]; then
     echo "No checks found"
 else
@@ -138,7 +149,7 @@ else
             JOB_ID="${BASH_REMATCH[2]}"
             echo "=== Failed Check: $CHECK_URL ==="
             # Get the workflow run logs summary
-            gh run view $RUN_ID --repo $PR_REPO $GH_TIMEOUT --json jobs --jq ".jobs[] | select(.databaseId == $JOB_ID) | \"Job: \(.name)\nConclusion: \(.conclusion)\nSteps:\n\(.steps[] | \"  - \(.name): \(.conclusion)\")\"" 2>/dev/null || echo "Could not fetch run details"
+            gh run view $RUN_ID --repo $PR_REPO --json jobs --jq ".jobs[] | select(.databaseId == $JOB_ID) | \"Job: \(.name)\nConclusion: \(.conclusion)\nSteps:\n\(.steps[] | \"  - \(.name): \(.conclusion)\")\"" 2>/dev/null || echo "Could not fetch run details"
             echo ""
         fi
     done

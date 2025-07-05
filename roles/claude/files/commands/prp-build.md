@@ -54,9 +54,9 @@ uv run pytest tests/ -v
 
 ```
 
-**CRITICAL AFTER YOU ARE DONE RESEARCHING AND EXPLORING THE CODEBASE BEFORE YOU START BUILDING THE PRP**
-
-**ULTRATHINK ABOUT THE PRP AND PLAN YOUR APPROACH THEN START BUILDING THE PRP**
+> ⚠️ **CRITICAL**: After you are done researching and exploring the codebase, before you start building the PRP:
+> 
+> **ULTRATHINK** about the PRP and plan your approach, then start building the PRP.
 
 ## Output
 Save as: `PRPs/{feature-name}.md`

@@ -1,5 +1,32 @@
 return {
   'kevinhwang91/nvim-ufo',
+  keys = {
+    { 'zR', function() require('ufo').openAllFolds() end, desc = 'Open all folds' },
+    { 'zM', function() require('ufo').closeAllFolds() end, desc = 'Close all folds' },
+    { 'zr', function() require('ufo').openFoldsExceptKinds() end, desc = 'Open folds except kinds' },
+    { 'zm', function() require('ufo').closeFoldsWith() end, desc = 'Close folds with' },
+    { 'zK', function() require('ufo').peekFoldedLinesUnderCursor() end, desc = 'Peek fold contents' },
+    {
+      '<leader>zf',
+      function()
+        require('ufo').closeAllFolds()
+        require('ufo').openFoldsExceptKinds()
+      end,
+      desc = 'Focus on current fold'
+    },
+    {
+      '<leader>zc',
+      function()
+        local fold_count = require('ufo').getFolds(0)
+        if fold_count and #fold_count > 0 then
+          vim.notify("Found " .. #fold_count .. " folds in this buffer", vim.log.levels.INFO)
+        else
+          vim.notify("No folds found. Check if Treesitter parser is installed for this filetype.", vim.log.levels.WARN)
+        end
+      end,
+      desc = 'Show fold count'
+    },
+  },
   dependencies = {
     'kevinhwang91/promise-async',
     {
@@ -76,36 +103,5 @@ return {
     vim.o.foldenable = true
 
     require('ufo').setup(opts)
-    
-    -- Using ufo provider need remap `zR` and `zM`
-    vim.keymap.set('n', 'zR', require('ufo').openAllFolds)
-    vim.keymap.set('n', 'zM', require('ufo').closeAllFolds)
-    vim.keymap.set('n', 'zr', require('ufo').openFoldsExceptKinds)
-    vim.keymap.set('n', 'zm', require('ufo').closeFoldsWith)
-    
-    -- Preview fold
-    vim.keymap.set('n', 'K', function()
-      local winid = require('ufo').peekFoldedLinesUnderCursor()
-      if not winid then
-        vim.lsp.buf.hover()
-      end
-    end)
-    
-    -- Additional fold commands
-    vim.keymap.set('n', '<leader>zf', function()
-      -- Close all folds then open just enough to see cursor
-      require('ufo').closeAllFolds()
-      require('ufo').openFoldsExceptKinds()
-    end, { desc = "Focus on current fold" })
-    
-    -- Show fold count
-    vim.keymap.set('n', '<leader>zc', function()
-      local fold_count = require('ufo').getFolds(0)
-      if fold_count and #fold_count > 0 then
-        vim.notify("Found " .. #fold_count .. " folds in this buffer", vim.log.levels.INFO)
-      else
-        vim.notify("No folds found. Check if Treesitter parser is installed for this filetype.", vim.log.levels.WARN)
-      end
-    end, { desc = "Show fold count" })
   end
 }

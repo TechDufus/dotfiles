@@ -1,159 +1,322 @@
 ---
-# NPM/Node.js installation with user-local fallback for Ubuntu/Debian
+# NPM/Node.js installation with nvm detection and user-local fallback for Ubuntu/Debian
 
-- name: "NPM | {{ ansible_distribution }} | Get latest STABLE NodeJS version"
-  ansible.builtin.shell:
-    cmd: curl -sL https://nodejs.org/dist/index.json | jq -r '.[] | select(.lts) | .version' | head -n 1
-  register: nodejs_latest_version
-  changed_when: false
+- name: "NPM | {{ ansible_distribution }} | Check for nvm installation"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+  register: nvm_check
 
-- name: "NPM | {{ ansible_distribution }} | Check if NodeJS is installed"
-  ansible.builtin.command: node --version
-  register: nodejs_installed
-  failed_when: false
-  changed_when: false
+- name: "NPM | {{ ansible_distribution }} | Determine Node.js source"
+  ansible.builtin.set_fact:
+    use_nvm: "{{ (npm_node_source == 'nvm') or (npm_node_source == 'auto' and nvm_check.stat.exists) }}"
+    require_nvm: "{{ npm_node_source == 'nvm' }}"
 
-- name: "NPM | {{ ansible_distribution }} | Show NodeJS versions"
-  ansible.builtin.debug:
-    msg: |
-      Current NodeJS: {{ nodejs_installed.stdout if nodejs_installed.rc == 0 else 'Not installed' }}
-      Latest LTS: {{ nodejs_latest_version.stdout }}
-      Installation needed: {{ nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout }}
-
-# System-wide installation with sudo
-- name: "NPM | {{ ansible_distribution }} | System installation"
+- name: "NPM | {{ ansible_distribution }} | Fail if nvm required but not found"
+  ansible.builtin.fail:
+    msg: "nvm is required but not installed. Please run the nvm role first."
   when:
-    - can_install_packages | default(false)
-    - nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout
-  become: true
+    - require_nvm
+    - not nvm_check.stat.exists
+
+# NVM-based installation
+- name: "NPM | {{ ansible_distribution }} | Configure npm via nvm"
+  when: use_nvm
   block:
-    - name: "NPM | Get System Arch"
-      ansible.builtin.set_fact:
-        nodejs_arch: "{{ ansible_machine | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
-
-    - name: "NPM | Register Package Name"
-      ansible.builtin.set_fact:
-        nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_system | lower }}-{{ nodejs_arch }}"
-
-    - name: "NPM | Download NodeJS"
-      ansible.builtin.get_url:
-        url: "https://nodejs.org/dist/{{ nodejs_latest_version.stdout }}/{{ nodejs_package_name }}.tar.xz"
-        dest: /tmp/{{ nodejs_package_name }}.tar.xz
-        mode: "0644"
-
-    - name: "NPM | Extract and install NodeJS (system-wide)"
-      ansible.builtin.unarchive:
-        src: /tmp/{{ nodejs_package_name }}.tar.xz
-        dest: /usr/local
-        remote_src: true
-        extra_opts: "--strip-components=1"
-      register: npm_system_install
-
-# User-local installation without sudo
-- name: "NPM | {{ ansible_distribution }} | User-local installation"
-  when:
-    - not (can_install_packages | default(false))
-    - nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout
-  block:
-    - name: "NPM | Create local directories"
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: '0755'
-      loop:
-        - "{{ ansible_env.HOME }}/.local"
-        - "{{ ansible_env.HOME }}/.local/bin"
-        - "{{ ansible_env.HOME }}/.local/lib"
-        - "{{ ansible_env.HOME }}/.npm-global"
-
-    - name: "NPM | Get System Arch"
-      ansible.builtin.set_fact:
-        nodejs_arch: "{{ ansible_machine | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
-
-    - name: "NPM | Register Package Name"
-      ansible.builtin.set_fact:
-        nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_system | lower }}-{{ nodejs_arch }}"
-
-    - name: "NPM | Download NodeJS"
-      ansible.builtin.get_url:
-        url: "https://nodejs.org/dist/{{ nodejs_latest_version.stdout }}/{{ nodejs_package_name }}.tar.xz"
-        dest: /tmp/{{ nodejs_package_name }}.tar.xz
-        mode: "0644"
-
-    - name: "NPM | Extract NodeJS to user directory"
-      ansible.builtin.unarchive:
-        src: /tmp/{{ nodejs_package_name }}.tar.xz
-        dest: "{{ ansible_env.HOME }}/.local"
-        remote_src: true
-        extra_opts: "--strip-components=1"
-      register: npm_user_install
-
-    - name: "NPM | Configure npm for user-local packages"
+    - name: "NPM | Check Node.js installation via nvm"
       ansible.builtin.shell: |
-        export PATH="${HOME}/.local/bin:${PATH}"
-        npm config set prefix '{{ ansible_env.HOME }}/.npm-global'
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        node --version 2>/dev/null || echo "not-installed"
       args:
         executable: /bin/bash
-      when: npm_user_install is succeeded
+      register: nvm_node_check
+      changed_when: false
 
-# Configure NPM regardless of installation method
-- name: "NPM | {{ ansible_distribution }} | Configure NPM"
-  when: nodejs_installed.rc == 0 or npm_system_install is defined or npm_user_install is defined
+    - name: "NPM | Display nvm Node.js status"
+      ansible.builtin.debug:
+        msg: "Node.js via nvm: {{ nvm_node_check.stdout }}"
+
+    - name: "NPM | Check current npm version"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm --version 2>/dev/null || echo "not-installed"
+      args:
+        executable: /bin/bash
+      register: current_npm_version
+      changed_when: false
+      when: nvm_node_check.stdout != "not-installed"
+
+    - name: "NPM | Get latest npm version"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm view npm version 2>/dev/null || echo "unknown"
+      args:
+        executable: /bin/bash
+      register: latest_npm_version
+      changed_when: false
+      when: 
+        - npm_update_npm
+        - nvm_node_check.stdout != "not-installed"
+
+    - name: "NPM | Update npm to latest version (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm install -g npm@latest
+      args:
+        executable: /bin/bash
+      when: 
+        - npm_update_npm
+        - nvm_node_check.stdout != "not-installed"
+        - current_npm_version.stdout != latest_npm_version.stdout
+      register: npm_update_result
+      changed_when: current_npm_version.stdout != latest_npm_version.stdout
+
+# System/Direct installation
+- name: "NPM | {{ ansible_distribution }} | System/Direct installation"
+  when: not use_nvm
   block:
+    - name: "NPM | Get latest STABLE NodeJS version"
+      ansible.builtin.shell:
+        cmd: curl -sL https://nodejs.org/dist/index.json | jq -r '.[] | select(.lts) | .version' | head -n 1
+      register: nodejs_latest_version
+      changed_when: false
+
+    - name: "NPM | Check if NodeJS is installed"
+      ansible.builtin.command: node --version
+      register: nodejs_installed
+      failed_when: false
+      changed_when: false
+
+    - name: "NPM | Show NodeJS versions"
+      ansible.builtin.debug:
+        msg: |
+          Current NodeJS: {{ nodejs_installed.stdout if nodejs_installed.rc == 0 else 'Not installed' }}
+          Latest LTS: {{ nodejs_latest_version.stdout }}
+          Installation needed: {{ nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout }}
+
+    # System-wide installation with sudo
+    - name: "NPM | System installation"
+      when:
+        - can_install_packages | default(false)
+        - nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout
+      become: true
+      block:
+        - name: "NPM | Get System Arch"
+          ansible.builtin.set_fact:
+            nodejs_arch: "{{ ansible_machine | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
+
+        - name: "NPM | Register Package Name"
+          ansible.builtin.set_fact:
+            nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_system | lower }}-{{ nodejs_arch }}"
+
+        - name: "NPM | Download NodeJS"
+          ansible.builtin.get_url:
+            url: "https://nodejs.org/dist/{{ nodejs_latest_version.stdout }}/{{ nodejs_package_name }}.tar.xz"
+            dest: /tmp/{{ nodejs_package_name }}.tar.xz
+            mode: "0644"
+
+        - name: "NPM | Extract and install NodeJS (system-wide)"
+          ansible.builtin.unarchive:
+            src: /tmp/{{ nodejs_package_name }}.tar.xz
+            dest: /usr/local
+            remote_src: true
+            extra_opts: "--strip-components=1"
+          register: npm_system_install
+
+    # User-local installation without sudo
+    - name: "NPM | User-local installation"
+      when:
+        - not (can_install_packages | default(false))
+        - nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout
+      block:
+        - name: "NPM | Create local directories"
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - "{{ ansible_env.HOME }}/.local"
+            - "{{ ansible_env.HOME }}/.local/bin"
+            - "{{ ansible_env.HOME }}/.local/lib"
+            - "{{ ansible_env.HOME }}/.npm-global"
+
+        - name: "NPM | Get System Arch"
+          ansible.builtin.set_fact:
+            nodejs_arch: "{{ ansible_machine | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
+
+        - name: "NPM | Register Package Name"
+          ansible.builtin.set_fact:
+            nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_system | lower }}-{{ nodejs_arch }}"
+
+        - name: "NPM | Download NodeJS"
+          ansible.builtin.get_url:
+            url: "https://nodejs.org/dist/{{ nodejs_latest_version.stdout }}/{{ nodejs_package_name }}.tar.xz"
+            dest: /tmp/{{ nodejs_package_name }}.tar.xz
+            mode: "0644"
+
+        - name: "NPM | Extract NodeJS to user directory"
+          ansible.builtin.unarchive:
+            src: /tmp/{{ nodejs_package_name }}.tar.xz
+            dest: "{{ ansible_env.HOME }}/.local"
+            remote_src: true
+            extra_opts: "--strip-components=1"
+          register: npm_user_install
+
+        - name: "NPM | Configure npm for user-local packages"
+          ansible.builtin.shell: |
+            export PATH="${HOME}/.local/bin:${PATH}"
+            npm config set prefix '{{ ansible_env.HOME }}/.npm-global'
+          args:
+            executable: /bin/bash
+          when: npm_user_install is succeeded
+
+# Configure NPM (common for all installation methods)
+- name: "NPM | {{ ansible_distribution }} | Configure NPM"
+  block:
+    - name: "NPM | Check global package directory setting"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        npm config get prefix 2>/dev/null || echo ""
+      args:
+        executable: /bin/bash
+      register: npm_prefix_current
+      changed_when: false
+      when:
+        - not (can_install_packages | default(false))
+        - not use_nvm
+
     - name: "NPM | Set global package directory for non-sudo"
       ansible.builtin.command: npm config set prefix '{{ ansible_env.HOME }}/.npm-global'
-      when: not (can_install_packages | default(false))
+      when: 
+        - not (can_install_packages | default(false))
+        - not use_nvm
+        - npm_prefix_current.stdout != (ansible_env.HOME + '/.npm-global')
+      changed_when: true
 
-    - name: "NPM | Create .npmrc with useful defaults"
-      ansible.builtin.copy:
-        content: |
-          # NPM Configuration
-          {% if not can_install_packages | default(false) %}
-          prefix={{ ansible_env.HOME }}/.npm-global
-          {% endif %}
-          init-author-name={{ git_user_name | default('') }}
-          init-license=MIT
-          save-exact=true
-        dest: "{{ ansible_env.HOME }}/.npmrc"
-        mode: '0644'
-
-# Install global packages with appropriate method
-- name: "NPM | {{ ansible_distribution }} | Install global packages"
-  when: nodejs_installed.rc == 0 or npm_system_install is defined or npm_user_install is defined
-  block:
-    - name: "NPM | Install global packages (with sudo)"
+    - name: "NPM | Check and apply npm configuration settings"
       ansible.builtin.shell: |
-        npm install -g {{ item }}
-      with_items:
-        - yarn
-        - pnpm
-        - npm-check-updates
-      when: can_install_packages | default(false)
-      become: true
-
-    - name: "NPM | Install global packages (user-local)"
-      ansible.builtin.shell: |
-        export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
-        npm install -g {{ item }}
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        current_value=$(npm config get {{ item.key }} 2>/dev/null || echo "undefined")
+        if [ "$current_value" != "{{ item.value }}" ]; then
+          npm config set {{ item.key }} '{{ item.value }}'
+          echo "changed"
+        else
+          echo "unchanged"
+        fi
       args:
         executable: /bin/bash
-      with_items:
-        - yarn
-        - pnpm
-        - npm-check-updates
-      when: not (can_install_packages | default(false))
+      register: npm_config_result
+      changed_when: "'changed' in npm_config_result.stdout"
+      loop: "{{ npm_config | dict2items }}"
+      when: npm_config is defined
+
+    - name: "NPM | Ensure .npmrc file with proper configuration"
+      ansible.builtin.template:
+        src: npmrc.j2
+        dest: "{{ ansible_env.HOME }}/.npmrc"
+        mode: '0644'
+        backup: yes
+
+# Install global packages
+- name: "NPM | {{ ansible_distribution }} | Install global packages"
+  block:
+    - name: "NPM | Combine package lists"
+      ansible.builtin.set_fact:
+        all_npm_packages: "{{ npm_global_packages + (npm_extra_packages | default([])) }}"
+
+    - name: "NPM | Get list of installed global packages"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% else %}
+        export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+        {% endif %}
+        npm list -g --depth=0 --json 2>/dev/null | jq -r '.dependencies | keys[]' 2>/dev/null || echo ""
+      args:
+        executable: /bin/bash
+      register: installed_global_packages
+      changed_when: false
+
+    - name: "NPM | Install missing global packages (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        if echo "{{ installed_global_packages.stdout_lines | join(' ') }}" | grep -qw "{{ item }}"; then
+          echo "already installed"
+        else
+          npm install -g {{ item }}
+          echo "installed"
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ all_npm_packages }}"
+      when: use_nvm
+      register: nvm_install_result
+      changed_when: "'already installed' not in nvm_install_result.stdout"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "NPM | Install missing global packages (system with sudo)"
+      ansible.builtin.shell: |
+        if npm list -g --depth=0 {{ item }} >/dev/null 2>&1; then
+          echo "already installed"
+        else
+          npm install -g {{ item }}
+          echo "installed"
+        fi
+      loop: "{{ all_npm_packages }}"
+      when: 
+        - not use_nvm
+        - can_install_packages | default(false)
+      become: true
+      register: system_install_result
+      changed_when: "'already installed' not in system_install_result.stdout"
+
+    - name: "NPM | Install missing global packages (user-local)"
+      ansible.builtin.shell: |
+        export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+        if npm list -g --depth=0 {{ item }} >/dev/null 2>&1; then
+          echo "already installed"
+        else
+          npm install -g {{ item }}
+          echo "installed"
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ all_npm_packages }}"
+      when: 
+        - not use_nvm
+        - not (can_install_packages | default(false))
+      register: user_install_result
+      changed_when: "'already installed' not in user_install_result.stdout"
 
 # Report installation status
 - name: "NPM | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
     msg: |
       NPM/Node.js installation status:
-      - Previously installed: {{ '✓' if nodejs_installed.rc == 0 else '✗' }}
-      - System installation: {{ '✓' if npm_system_install is defined and npm_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}
-      - User installation: {{ '✓' if npm_user_install is defined and npm_user_install is succeeded else 'N/A' }}
+      - Installation method: {{ 'nvm' if use_nvm else ('system-wide' if can_install_packages else 'user-local') }}
+      - Node.js installed: {{ '✓' if (use_nvm and nvm_node_check.stdout != "not-installed") or (not use_nvm and nodejs_installed.rc == 0) else '✗' }}
+      {% if use_nvm %}
+      - Using nvm for Node.js management
+      - Run 'nvm list' to see installed versions
+      {% else %}
       - NPM prefix: {{ '~/.npm-global' if not can_install_packages else '/usr/local (system-wide)' }}
-
-      {% if not can_install_packages %}
+      {% endif %}
+      - Global packages configured: {{ all_npm_packages | join(', ') }}
+      - Global packages installed: {{ installed_global_packages.stdout_lines | join(', ') if installed_global_packages.stdout_lines else 'None' }}
+      
+      {% if not can_install_packages and not use_nvm %}
       ⚠️  User-local installation notes:
       1. Add to your PATH: export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
       2. Global packages will be installed to: ~/.npm-global

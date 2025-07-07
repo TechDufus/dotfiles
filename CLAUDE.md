@@ -85,7 +85,8 @@ brew update && brew upgrade
 - Integration with fzf for fuzzy finding
 
 ### 6. **Development Tool Management**
-- Package installations handled by `bin-install` function (supports multiple tools)
+- Binary installations from GitHub releases handled by `github_release` role
+- Package installations through OS package managers (apt, yum, pacman, brew)
 - Version management for: Node.js (nvm), Python, Go, Ruby
 - Kubernetes tooling: kubectl, k9s, helm with custom helper functions
 - Cloud CLIs: AWS, Azure, Google Cloud with credential management
@@ -107,6 +108,20 @@ brew update && brew upgrade
 - Use `ansible.builtin.copy` or `ansible.builtin.template`
 - Files stored in `roles/<name>/files/`
 - OS-specific files in `roles/<name>/files/os/<OS>/`
+
+### Using GitHub Release Role
+- For installing binaries from GitHub releases, use the `github_release` role:
+  ```yaml
+  - name: "Install from GitHub Release"
+    ansible.builtin.include_role:
+      name: github_release
+    vars:
+      github_release_repo: "owner/repo"
+      github_release_binary_name: "binary-name"
+      github_release_asset_name_pattern: "binary-{{ ansible_system | lower }}-amd64"
+  ```
+- Supports various archive formats: tar.gz, tar.bz2, zip, and direct binaries
+- Automatically handles binary extraction and installation to ~/.local/bin
 
 ### Testing Changes
 - Always test with specific tags first: `dotfiles -t <role> --check`

@@ -1,0 +1,55 @@
+---
+# Update nvm to the latest version
+
+- name: "NVM | Update | Get latest nvm version"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/nvm-sh/nvm/releases/latest
+    headers:
+      Accept: application/vnd.github.v3+json
+  register: nvm_latest_version_json
+  changed_when: false
+
+- name: "NVM | Update | Get current nvm version"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm --version
+  args:
+    executable: /bin/bash
+  register: current_nvm_version
+  changed_when: false
+  failed_when: false
+
+- name: "NVM | Update | Compare versions"
+  ansible.builtin.set_fact:
+    nvm_needs_update: "{{ current_nvm_version.stdout != nvm_latest_version_json.json.tag_name.lstrip('v') }}"
+    nvm_latest_version: "{{ nvm_latest_version_json.json.tag_name }}"
+
+- name: "NVM | Update | Display version info"
+  ansible.builtin.debug:
+    msg: |
+      Current nvm version: {{ current_nvm_version.stdout | default('not installed') }}
+      Latest nvm version: {{ nvm_latest_version.lstrip('v') }}
+      Update needed: {{ nvm_needs_update }}
+
+- name: "NVM | Update | Update nvm to latest version"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    cd "$NVM_DIR"
+    git fetch --tags origin
+    git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`
+    source "$NVM_DIR/nvm.sh"
+  args:
+    executable: /bin/bash
+  when: nvm_needs_update | bool
+
+- name: "NVM | Update | Update Node.js to latest LTS"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm install lts/* --reinstall-packages-from=current
+    nvm alias default lts/*
+  args:
+    executable: /bin/bash
+  register: node_update_result
+  changed_when: "'is already installed' not in node_update_result.stdout"

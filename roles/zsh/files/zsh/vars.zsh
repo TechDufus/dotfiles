@@ -27,7 +27,7 @@ export COLOR_ESC=$(printf '\033')
 export COLOR_BOLD=${COLOR_ESC}$(printf '[1m')
 
 #emoji codes
-export CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
+export CHECK_MARK="${GREEN}\xE2\x9C\x93${NC}"
 export X_MARK="${RED}\xE2\x9C\x96${NC}"
 export PIN="${RED}\xF0\x9F\x93\x8C${NC}"
 export CLOCK="${GREEN}\xE2\x8C\x9B${NC}"

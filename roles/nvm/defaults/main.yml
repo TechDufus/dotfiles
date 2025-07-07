@@ -3,3 +3,10 @@
 
 # Fallback version to use when GitHub API is unavailable
 nvm_fallback_version: "v0.40.3"
+
+# Node.js version to install and set as default
+# Options: "lts/*" for latest LTS, "node" for latest, or specific version like "20.11.0"
+nvm_node_version: "lts/*"
+
+# Whether to set the installed version as default
+nvm_set_default: true

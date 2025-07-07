@@ -41,8 +41,7 @@ local options = {
   breakindent = true,                        -- set break indent
   wrap = false,                              -- display lines as one long line
   sidescrolloff = 8,
-  foldmethod = "syntax",
-  foldlevelstart = 99,
+  -- Folding is now configured in treesitter.lua
   -- guifont = "monospace:h17", -- the font used in graphical neovim applications
   guifont = "BerkeleyMono Nerd Font:h17",
   errorbells = false,   -- no error bells

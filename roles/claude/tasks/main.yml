@@ -75,6 +75,24 @@
     state: link
     force: true
 
+- name: "{{ role_name }} | Check if ~/.claude/hooks exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.claude/hooks"
+  register: hooks_dir
+
+- name: "{{ role_name }} | Remove existing hooks directory if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.claude/hooks"
+    state: absent
+  when: hooks_dir.stat.exists and not hooks_dir.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to Claude hooks"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/hooks"
+    dest: "{{ ansible_env.HOME }}/.claude/hooks"
+    state: link
+    force: true
+
 # Check for OS-specific configuration
 - name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
   ansible.builtin.stat:

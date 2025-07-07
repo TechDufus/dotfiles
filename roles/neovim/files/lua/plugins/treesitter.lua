@@ -41,5 +41,7 @@ return {
         },
       }
     }
+    
+    -- UFO plugin will handle the folding configuration
   end
 }

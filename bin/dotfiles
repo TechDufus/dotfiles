@@ -96,7 +96,7 @@ function ubuntu_setup() {
   if [ -f /etc/os-release ]; then
     source /etc/os-release
   fi
-  
+
   if ! dpkg -s ansible >/dev/null 2>&1; then
     __task "Installing Ansible (This may take a few minutes)"
     _cmd "sudo apt-get update"
@@ -275,6 +275,7 @@ update_ansible_galaxy $ID
 # confirmVaultAccess
 
 rm -f $VAULT_SECRET_FILE
+_task_done
 ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
 
 popd 2>&1 > /dev/null

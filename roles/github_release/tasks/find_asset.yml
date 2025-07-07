@@ -119,6 +119,7 @@
   ansible.builtin.set_fact:
     _github_release_asset_type: >-
       {%- if _github_release_asset_name.endswith('.tar.gz') -%}tar.gz
+      {%- elif _github_release_asset_name.endswith('.tar.bz2') or _github_release_asset_name.endswith('.tbz') -%}tar.bz2
       {%- elif _github_release_asset_name.endswith('.zip') -%}zip
       {%- elif _github_release_asset_name.endswith('.deb') -%}deb
       {%- elif _github_release_asset_name.endswith('.rpm') -%}rpm

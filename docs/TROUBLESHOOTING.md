@@ -166,19 +166,6 @@ cd ~/.dotfiles
 ansible-galaxy install -r requirements/common.yml --force
 ```
 
-### SSH key generation fails
-
-**Problem**: Can't create SSH keys.
-
-**Solution**:
-```bash
-# Check SSH directory permissions
-ls -la ~/.ssh
-chmod 700 ~/.ssh
-
-# Manually generate keys if needed
-ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
-```
 
 ## 🏃‍♂️ Performance Issues
 

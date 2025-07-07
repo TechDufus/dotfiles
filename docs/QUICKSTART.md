@@ -77,7 +77,6 @@ The script will show progress like this:
  [✓] Installing Git
  [✓] Installing Ansible
  [✓] Installing 1Password CLI
- [✓] Generating SSH keys
  [✓] Downloading dotfiles repository (This may take a minute)
  [✓] Installing Ansible dependencies (This may take a few minutes)
 ```

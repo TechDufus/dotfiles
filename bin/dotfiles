@@ -45,7 +45,6 @@ OP_VAULT_SECRET=""
 ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
-SSH_DIR="$HOME/.ssh"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 # _header colorize the given argument with spacing
 function __task {
@@ -251,15 +250,6 @@ case $dotfiles_os in
     _cmd "echo 'Unsupported OS'"
     ;;
 esac
-
-
-if ! [[ -f "$SSH_DIR/authorized_keys" ]]; then
-  __task "Generating SSH keys"
-  _cmd "mkdir -p $SSH_DIR"
-  _cmd "chmod 700 $SSH_DIR"
-  _cmd "ssh-keygen -b 4096 -t rsa -f $SSH_DIR/id_rsa -N '' -C $USER@$HOSTNAME"
-  _cmd "cat $SSH_DIR/id_rsa.pub >> $SSH_DIR/authorized_keys"
-fi
 
 if ! [[ -d "$DOTFILES_DIR" ]]; then
   __task "Downloading dotfiles repository (This may take a minute)"

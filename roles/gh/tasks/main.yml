@@ -8,10 +8,6 @@
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
 
-- name: "GH | MacOSX | Install gh-dash"
-  ansible.builtin.command:
-    cmd: gh extension install dlvhdr/gh-dash
-
 - name: "{{ role_name }} | Ensure gh-dash config dir exists"
   ansible.builtin.file:
     state: directory

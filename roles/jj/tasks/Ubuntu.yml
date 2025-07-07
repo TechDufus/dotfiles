@@ -33,14 +33,19 @@
 
     - name: "JJ | Ensure clean download destination"
       ansible.builtin.file:
-        path: "/tmp/{{ jj_file }}.tar.gz"
+        path: "{{ ansible_env.HOME }}/.ansible_tmp/{{ jj_file }}.tar.gz"
         state: absent
-      become: true
+
+    - name: "JJ | Create temp directory"
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.ansible_tmp"
+        state: directory
+        mode: "0755"
 
     - name: "JJ | Downloading jj Release"
       ansible.builtin.get_url:
         url: "https://github.com/jj-vcs/jj/releases/download/{{ jj_latest_release }}/{{ jj_file }}.tar.gz"
-        dest: /tmp/
+        dest: "{{ ansible_env.HOME }}/.ansible_tmp/"
         mode: "0644"
         force: true
       notify:
@@ -48,15 +53,14 @@
 
     - name: "JJ | Ensure clean extraction destination"
       ansible.builtin.file:
-        path: "/tmp/jj"
+        path: "{{ ansible_env.HOME }}/.ansible_tmp/jj"
         state: absent
-      become: true
 
     - name: "JJ | Extract jj tar file"
       ansible.builtin.unarchive:
-        src: "/tmp/{{ jj_file }}.tar.gz"
-        dest: /tmp
-        creates: "/tmp/jj"
+        src: "{{ ansible_env.HOME }}/.ansible_tmp/{{ jj_file }}.tar.gz"
+        dest: "{{ ansible_env.HOME }}/.ansible_tmp"
+        creates: "{{ ansible_env.HOME }}/.ansible_tmp/jj"
 
     - name: "JJ | Remove any current jj installations"
       ansible.builtin.file:
@@ -67,7 +71,7 @@
     - name: "JJ | Install jj"
       ansible.builtin.copy:
         remote_src: true
-        src: /tmp/jj
+        src: "{{ ansible_env.HOME }}/.ansible_tmp/jj"
         dest: /usr/local/bin/
         owner: "{{ host_user }}"
         group: "{{ host_user }}"

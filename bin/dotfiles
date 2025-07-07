@@ -92,6 +92,11 @@ function _task_done {
 }
 
 function ubuntu_setup() {
+  # Source os-release to get VERSION_ID
+  if [ -f /etc/os-release ]; then
+    source /etc/os-release
+  fi
+  
   if ! dpkg -s ansible >/dev/null 2>&1; then
     __task "Installing Ansible (This may take a few minutes)"
     _cmd "sudo apt-get update"
@@ -107,8 +112,8 @@ function ubuntu_setup() {
     _cmd "sudo apt-get install -y python3"
   fi
 
-  local UBUNTU_MAJOR_VERSION=$(echo $VERSION_ID | cut -d. -f1)
-  if [ $UBUNTU_MAJOR_VERSION -le 22 ]; then
+  local UBUNTU_MAJOR_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
+  if [ "$UBUNTU_MAJOR_VERSION" -le 22 ] 2>/dev/null; then
     if ! dpkg -s python3-pip >/dev/null 2>&1; then
       __task "Installing Python3 Pip"
       _cmd "sudo apt-get install -y python3-pip"

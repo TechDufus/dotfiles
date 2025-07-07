@@ -122,9 +122,8 @@
   when: nodejs_installed.rc == 0 or npm_system_install is defined or npm_user_install is defined
   block:
     - name: "NPM | Install global packages (with sudo)"
-      community.general.npm:
-        name: "{{ item }}"
-        global: true
+      ansible.builtin.shell: |
+        npm install -g {{ item }}
       with_items:
         - yarn
         - pnpm

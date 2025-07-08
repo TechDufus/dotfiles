@@ -21,6 +21,7 @@ Before running anything, let's make sure your system is ready:
 This works on:
 - ✅ **macOS** (Monterey 12.0+)
 - ✅ **Ubuntu** (20.04+)
+- ✅ **Fedora** (any recent version)
 - ✅ **Arch Linux** (any recent version)
 
 ```bash
@@ -48,6 +49,9 @@ brew update && brew upgrade
 
 # Ubuntu
 sudo apt update && sudo apt upgrade -y
+
+# Fedora
+sudo dnf update && sudo dnf upgrade -y
 
 # Arch Linux
 sudo pacman -Syu

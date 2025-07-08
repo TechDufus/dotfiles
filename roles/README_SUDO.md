@@ -85,6 +85,15 @@ After the sudo detection pre-task runs, the following facts are available:
     - ansible_distribution in ["Ubuntu", "Debian"]
     - can_install_packages | default(false)
 
+- name: Install package (Fedora)
+  ansible.builtin.dnf:
+    name: package-name
+    state: present
+  become: true
+  when:
+    - ansible_distribution == "Fedora"
+    - can_install_packages | default(false)
+
 - name: Install package (Arch)
   community.general.pacman:
     name: package-name

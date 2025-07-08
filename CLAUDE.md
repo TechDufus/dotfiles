@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a comprehensive dotfiles repository that uses Ansible to automate development environment setup across multiple operating systems (macOS, Ubuntu, Arch Linux). The repository includes configurations for development tools, terminal environments, and productivity applications.
+This is a comprehensive dotfiles repository that uses Ansible to automate development environment setup across multiple operating systems (macOS, Ubuntu, Fedora, Arch Linux). The repository includes configurations for development tools, terminal environments, and productivity applications.
 
 ## Essential Commands
 

@@ -97,6 +97,7 @@ The first task checks for the existence of a `roles/<target role>/tasks/<current
 
 Currently configured 'bootstrap-able' OS's:
 - Ubuntu
+- Fedora
 - Archlinux (btw)
 - MacOSX (darwin)
 
@@ -111,6 +112,8 @@ Verify your `supported OS` installation has all latest packages installed before
 ```
 # Ubuntu
 sudo apt-get update && sudo apt-get upgrade -y
+# Fedora
+sudo dnf update && sudo dnf upgrade -y
 # Arch
 sudo pacman -Syu
 # MacOSX (brew)

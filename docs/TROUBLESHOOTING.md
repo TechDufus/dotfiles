@@ -20,6 +20,9 @@ sudo apt install software-properties-common
 sudo apt-add-repository --yes --update ppa:ansible/ansible
 sudo apt install ansible
 
+# Fedora
+sudo dnf install ansible
+
 # Arch Linux
 sudo pacman -S ansible
 ```
@@ -47,6 +50,9 @@ xcode-select --install
 # Ubuntu
 sudo apt install curl
 
+# Fedora
+sudo dnf install curl
+
 # Arch Linux
 sudo pacman -S curl
 ```
@@ -66,6 +72,11 @@ brew install --cask 1password-cli
 curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
 echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main' | sudo tee /etc/apt/sources.list.d/1password.list
 sudo apt update && sudo apt install 1password-cli
+
+# Fedora
+sudo rpm --import https://downloads.1password.com/linux/keys/1password.asc
+sudo sh -c 'echo -e "[1password]\nname=1Password Stable Channel\nbaseurl=https://downloads.1password.com/linux/rpm/stable/\$basearch\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://downloads.1password.com/linux/keys/1password.asc" > /etc/yum.repos.d/1password.repo'
+sudo dnf install 1password-cli
 
 # Arch Linux
 yay -S 1password-cli  # or your preferred AUR helper
@@ -137,6 +148,25 @@ sudo pacman-key --refresh-keys
 sudo pacman -Scc
 ```
 
+### Fedora: SELinux issues
+
+**Problem**: "Permission denied" errors related to SELinux.
+
+**Solution**:
+```bash
+# Check SELinux status
+getenforce
+
+# Temporarily set to permissive mode (for testing)
+sudo setenforce 0
+
+# If dotfiles work, update SELinux contexts
+sudo restorecon -Rv ~/.dotfiles
+
+# Re-enable SELinux
+sudo setenforce 1
+```
+
 ## ⚙️ Configuration Issues
 
 ### "Playbook failed" during run
@@ -198,6 +228,9 @@ brew cleanup
 
 # Ubuntu
 sudo apt clean
+
+# Fedora
+sudo dnf clean all
 
 # Arch
 sudo pacman -Scc

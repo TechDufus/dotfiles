@@ -1,4 +1,10 @@
 ---
+- name: "SSH | Ensure .ssh directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.ssh"
+    state: directory
+    mode: "0700"
+
 - name: "SSH | Deploy SSH keys from Vault"
   when: op_installed
   ansible.builtin.include_tasks: ssh_keys.yml

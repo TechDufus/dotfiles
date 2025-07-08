@@ -1,0 +1,59 @@
+---
+# Tmux installation for Fedora/RHEL
+
+- name: "Tmux | {{ ansible_distribution }} | Check if tmux is installed"
+  ansible.builtin.command: which tmux
+  register: tmux_check
+  changed_when: false
+  failed_when: false
+
+- name: "Tmux | {{ ansible_distribution }} | Install tmux"
+  ansible.builtin.dnf:
+    name: tmux
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - tmux_check.rc != 0
+  register: tmux_install
+
+- name: "Tmux | {{ ansible_distribution }} | Alternative installation (no sudo)"
+  when:
+    - not (can_install_packages | default(false))
+    - tmux_check.rc != 0
+  block:
+    - name: "Tmux | Create ~/.local/bin directory"
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: "Tmux | Download tmux AppImage"
+      ansible.builtin.get_url:
+        url: "https://github.com/nelsonenzo/tmux-appimage/releases/download/3.3a/tmux.appimage"
+        dest: "{{ ansible_env.HOME }}/.local/bin/tmux"
+        mode: '0755'
+      register: tmux_appimage
+      failed_when: false
+
+    - name: "Tmux | Alternative manual installation instructions"
+      when: tmux_appimage is failed
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  Tmux is not installed and sudo is not available.
+          
+          To install tmux manually:
+          1. Download a static binary from: https://github.com/nelsonenzo/tmux-appimage/releases
+          2. Or compile from source: https://github.com/tmux/tmux/releases
+          3. Or ask your system administrator to install tmux
+          
+          Tmux is required for terminal multiplexing features.
+
+- name: "Tmux | {{ ansible_distribution }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      Tmux installation status:
+      - Already installed: {{ '✓' if tmux_check.rc == 0 else '✗' }}
+      - System install: {{ '✓' if tmux_install is defined and tmux_install is succeeded else 'N/A' }}
+      - AppImage install: {{ '✓' if tmux_appimage is defined and tmux_appimage is succeeded else 'N/A' }}
+      - Sudo available: {{ '✓' if can_install_packages | default(false) else '✗' }}

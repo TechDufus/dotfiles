@@ -1,10 +1,10 @@
 ---
 # Find matching asset from release
 
-- name: Use provided asset name pattern if specified
+- name: "GitHub Release | {{ github_release_binary_name }} | Use provided asset name pattern if specified"
   when: github_release_asset_name_pattern != ""
   block:
-    - name: Find asset by pattern
+    - name: "GitHub Release | {{ github_release_binary_name }} | Find asset by pattern"
       ansible.builtin.set_fact:
         _github_release_matching_assets: >-
           {{
@@ -13,27 +13,27 @@
             list
           }}
 
-    - name: Fail if no matching asset found
+    - name: "GitHub Release | {{ github_release_binary_name }} | Fail if no matching asset found"
       when: _github_release_matching_assets | length == 0
       ansible.builtin.fail:
         msg: "No asset matching pattern '{{ github_release_asset_name_pattern }}' found in release"
 
-    - name: Select first matching asset
+    - name: "GitHub Release | {{ github_release_binary_name }} | Select first matching asset"
       ansible.builtin.set_fact:
         _github_release_asset: "{{ _github_release_matching_assets[0] }}"
 
-- name: Auto-detect asset based on OS and architecture
+- name: "GitHub Release | {{ github_release_binary_name }} | Auto-detect asset based on OS and architecture"
   when: github_release_asset_name_pattern == ""
   block:
-    - name: Build OS patterns
+    - name: "GitHub Release | {{ github_release_binary_name }} | Build OS patterns"
       ansible.builtin.set_fact:
         _github_os_patterns: "{{ github_release_os_map[github_release_os] | default([github_release_os]) }}"
 
-    - name: Build architecture patterns
+    - name: "GitHub Release | {{ github_release_binary_name }} | Build architecture patterns"
       ansible.builtin.set_fact:
         _github_arch_patterns: "{{ github_release_arch_map[github_release_arch] | default([github_release_arch]) }}"
 
-    - name: Find assets matching OS and architecture
+    - name: "GitHub Release | {{ github_release_binary_name }} | Find assets matching OS and architecture"
       ansible.builtin.set_fact:
         _github_release_candidate_assets: >-
           {{
@@ -43,10 +43,10 @@
             list
           }}
 
-    - name: Handle no matching assets
+    - name: "GitHub Release | {{ github_release_binary_name }} | Handle no matching assets"
       when: _github_release_candidate_assets | length == 0
       block:
-        - name: Try binary name only
+        - name: "GitHub Release | {{ github_release_binary_name }} | Try binary name only"
           ansible.builtin.set_fact:
             _github_release_candidate_assets: >-
               {{
@@ -55,7 +55,7 @@
                 list
               }}
 
-        - name: Fail if still no matches
+        - name: "GitHub Release | {{ github_release_binary_name }} | Fail if still no matches"
           when: _github_release_candidate_assets | length == 0
           ansible.builtin.fail:
             msg: >
@@ -110,12 +110,12 @@
           ansible.builtin.set_fact:
             _github_release_asset: "{{ _github_release_typed_assets[0] }}"
 
-- name: Set asset details
+- name: "GitHub Release | {{ github_release_binary_name }} | Set asset details"
   ansible.builtin.set_fact:
     _github_release_asset_name: "{{ _github_release_asset.name }}"
     _github_release_asset_url: "{{ _github_release_asset.browser_download_url }}"
 
-- name: Determine asset type
+- name: "GitHub Release | {{ github_release_binary_name }} | Determine asset type"
   ansible.builtin.set_fact:
     _github_release_asset_type: >-
       {%- if _github_release_asset_name.endswith('.tar.gz') -%}tar.gz
@@ -127,7 +127,7 @@
       {%- else -%}binary
       {%- endif -%}
 
-- name: Display selected asset
+- name: "GitHub Release | {{ github_release_binary_name }} | Display selected asset"
   ansible.builtin.debug:
     msg:
       - "Selected asset: {{ _github_release_asset_name }}"

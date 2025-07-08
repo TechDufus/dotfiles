@@ -7,12 +7,12 @@
     state: directory
     mode: "0755"
 
-- name: Extract tar.gz archive
+- name: "GitHub Release | {{ github_release_binary_name }} | Extract tar.gz archive"
   ansible.builtin.shell:
     cmd: "tar -xzf {{ github_release_temp_dir }}/{{ _github_release_asset_name }} -C {{ github_release_temp_dir }}/extract"
   register: _github_release_extract
 
-- name: Find binary in extracted files
+- name: "GitHub Release | {{ github_release_binary_name }} | Find binary in extracted files"
   ansible.builtin.find:
     paths: "{{ github_release_temp_dir }}/extract"
     patterns:
@@ -31,7 +31,7 @@
 - name: Find executable files only
   ansible.builtin.shell:
     cmd: |
-      find {{ github_release_temp_dir }}/extract -name "{{ github_release_binary_name }}*" -type f -perm +111 ! -name "*.sh" ! -name "*.1" | grep -E "({{ github_release_binary_name }}$|{{ github_release_binary_name }}_)" | head -1
+      find {{ github_release_temp_dir }}/extract -name "{{ github_release_binary_name }}*" -type f -perm /111 ! -name "*.sh" ! -name "*.1" | grep -E "({{ github_release_binary_name }}$|{{ github_release_binary_name }}_)" | head -1
   register: _github_release_executable_search
   changed_when: false
   failed_when: false
@@ -50,12 +50,12 @@
         )
       }}
 
-- name: Fail if binary not found
+- name: "GitHub Release | {{ github_release_binary_name }} | Fail if binary not found"
   when: _github_release_binary_path == ""
   ansible.builtin.fail:
     msg: "Could not find binary '{{ github_release_binary_name }}' in extracted archive"
 
-- name: Install binary
+- name: "GitHub Release | {{ github_release_binary_name }} | Install binary"
   ansible.builtin.copy:
     src: "{{ _github_release_binary_path }}"
     dest: "{{ github_release_install_path }}/{{ github_release_binary_name }}"

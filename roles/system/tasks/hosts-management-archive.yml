@@ -1,0 +1,59 @@
+---
+# ARCHIVED: /etc/hosts management code
+# STATUS: Needs refactoring
+# ISSUES:
+#   - Hardcoded 1Password vault paths
+#   - Not dynamic enough
+#   - WSL handling could be better
+#   - Should be in a separate role or use a more flexible approach
+#
+# TODO:
+#   - Create a proper hosts management role
+#   - Support dynamic host entries from various sources
+#   - Better WSL integration
+#   - Consider using blockinfile instead of lineinfile
+#   - Add proper host validation
+#
+# ORIGINAL CODE (DO NOT USE IN PRODUCTION):
+
+- name: "System | Set hosts"
+  ansible.builtin.template:
+    dest: "/etc/hosts"
+    src: hosts.j2
+    mode: "0644"
+  become: true
+  when: not ansible_host_environment_is_wsl
+
+# FIXME: Follow the SSH vault.yml structure of looping over op keys
+# and adding them to etc-hosts after the above template is laid down.
+- name: "System | Get Host from Vault"
+  ansible.builtin.command:
+    cmd: op --account my.1password.com read op://Raft/rdp-demo-local-ingress/notesPlain
+  register: rdp_demo_local_ingress_hosts
+  changed_when: false
+
+# FIXME: This needs to more dynamically apply op host entries.
+# See above `fixme:` for more info
+- name: "System | Add Vault Hosts to /etc/hosts"
+  when: rdp_demo_local_ingress_hosts is defined
+  ansible.builtin.lineinfile:
+    line: "{{ rdp_demo_local_ingress_hosts.stdout }}"
+    path: /etc/hosts
+  become: true
+
+# FIXME: Follow the SSH vault.yml structure of looping over op keys
+# and adding them to etc-hosts after the above template is laid down.
+- name: "System | Get updm-rdp-ingress Host from Vault"
+  ansible.builtin.command:
+    cmd: op --account my.1password.com read op://Raft/updm-rdp-ingress/notesPlain
+  register: updm_rdp_ingress_hosts
+  changed_when: false
+
+# FIXME: This needs to more dynamically apply op host entries.
+# See above `fixme:` for more info
+- name: "System | Add updm-rdp-ingress Vault Hosts to /etc/hosts"
+  when: updm_rdp_ingress_hosts is defined
+  ansible.builtin.lineinfile:
+    line: "{{ updm_rdp_ingress_hosts.stdout }}"
+    path: /etc/hosts
+  become: true

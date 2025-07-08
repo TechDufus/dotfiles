@@ -2,19 +2,19 @@
 # GitHub Release Downloader Role
 # Downloads and installs binaries from GitHub releases
 
-- name: Validate required variables
+- name: "GitHub Release | {{ github_release_binary_name }} | Validate required variables"
   ansible.builtin.assert:
     that:
       - github_release_repo != ""
       - github_release_binary_name != ""
     fail_msg: "github_release_repo and github_release_binary_name must be provided"
 
-- name: Parse repository owner and name
+- name: "GitHub Release | {{ github_release_binary_name }} | Parse repository owner and name"
   ansible.builtin.set_fact:
     _github_owner: "{{ github_release_repo.split('/')[0] }}"
     _github_repo: "{{ github_release_repo.split('/')[1] }}"
 
-- name: Get latest release information
+- name: "GitHub Release | {{ github_release_binary_name }} | Get latest release information"
   when: github_release_tag == "latest"
   ansible.builtin.uri:
     url: "https://api.github.com/repos/{{ github_release_repo }}/releases/latest"
@@ -23,7 +23,7 @@
   register: _github_latest_release_json
   changed_when: false
 
-- name: Get specific release information
+- name: "GitHub Release | {{ github_release_binary_name }} | Get specific release information"
   when: github_release_tag != "latest"
   ansible.builtin.uri:
     url: "https://api.github.com/repos/{{ github_release_repo }}/releases/tags/{{ github_release_tag }}"
@@ -32,22 +32,22 @@
   register: _github_specific_release_json
   changed_when: false
 
-- name: Set release information
+- name: "GitHub Release | {{ github_release_binary_name }} | Set release information"
   ansible.builtin.set_fact:
     _github_release: "{{ _github_latest_release_json.json if github_release_tag == 'latest' else _github_specific_release_json.json }}"
 
-- name: Extract release tag
+- name: "GitHub Release | {{ github_release_binary_name }} | Extract release tag"
   ansible.builtin.set_fact:
     _github_release_tag: "{{ _github_release.tag_name }}"
 
-- name: Check if binary is already installed
+- name: "GitHub Release | {{ github_release_binary_name }} | Check if binary is already installed"
   ansible.builtin.command:
     cmd: "which {{ github_release_binary_name }}"
   register: _github_release_which
   changed_when: false
   failed_when: false
 
-- name: Get current version if installed
+- name: "GitHub Release | {{ github_release_binary_name }} | Get current version if installed"
   when: _github_release_which.rc == 0
   ansible.builtin.shell:
     cmd: "{{ github_release_check_command }} 2>&1 || true"
@@ -55,12 +55,12 @@
   changed_when: false
   failed_when: false
 
-- name: Extract version from output
+- name: "GitHub Release | {{ github_release_binary_name }} | Extract version from output"
   when: _github_release_which.rc == 0
   ansible.builtin.set_fact:
     _github_release_installed_version: "{{ _github_release_current_version.stdout | regex_search(github_release_version_pattern) | default('unknown') }}"
 
-- name: Determine if installation needed
+- name: "GitHub Release | {{ github_release_binary_name }} | Determine if installation needed"
   ansible.builtin.set_fact:
     _github_release_needs_install: >-
       {{
@@ -69,7 +69,7 @@
         _github_release_tag.lstrip('v') not in (_github_release_installed_version | default(''))
       }}
 
-- name: Display version information
+- name: "GitHub Release | {{ github_release_binary_name }} | Display version information"
   ansible.builtin.debug:
     msg:
       - "Repository: {{ github_release_repo }}"
@@ -77,13 +77,13 @@
       - "Installed version: {{ _github_release_installed_version | default('Not installed') }}"
       - "Installation needed: {{ _github_release_needs_install }}"
 
-- name: Install from GitHub release
+- name: "GitHub Release | {{ github_release_binary_name }} | Install from GitHub release"
   when: _github_release_needs_install
   block:
-    - name: Find matching asset
+    - name: "GitHub Release | {{ github_release_binary_name }} | Find matching asset"
       ansible.builtin.include_tasks: find_asset.yml
 
-    - name: Download release asset
+    - name: "GitHub Release | {{ github_release_binary_name }} | Download release asset"
       ansible.builtin.get_url:
         url: "{{ _github_release_asset_url }}"
         dest: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
@@ -91,28 +91,28 @@
         force: true
       register: _github_release_download
 
-    - name: Install based on asset type
+    - name: "GitHub Release | {{ github_release_binary_name }} | Install based on asset type"
       ansible.builtin.include_tasks: "install_{{ _github_release_asset_type }}.yml"
 
-    - name: Verify installation
+    - name: "GitHub Release | {{ github_release_binary_name }} | Verify installation"
       ansible.builtin.command:
         cmd: "which {{ github_release_binary_name }}"
       changed_when: false
 
-    - name: Verify version
+    - name: "GitHub Release | {{ github_release_binary_name }} | Verify version"
       ansible.builtin.shell:
         cmd: "{{ github_release_check_command }} 2>&1 || true"
       register: _github_release_new_version
       changed_when: false
 
-    - name: Display installation result
+    - name: "GitHub Release | {{ github_release_binary_name }} | Display installation result"
       ansible.builtin.debug:
         msg: >-
           Successfully installed {{ github_release_binary_name }} version
           {{ _github_release_new_version.stdout | regex_search(github_release_version_pattern) | default(_github_release_tag) }}
 
   always:
-    - name: Cleanup downloaded files
+    - name: "GitHub Release | {{ github_release_binary_name }} | Cleanup downloaded files"
       when: 
         - github_release_cleanup
         - _github_release_asset_name is defined

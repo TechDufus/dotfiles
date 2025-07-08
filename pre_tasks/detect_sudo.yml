@@ -35,12 +35,28 @@
       changed_when: false
       no_log: true
 
+    - name: Check for dnf (Fedora/RHEL 8+)
+      command: which dnf
+      register: dnf_check
+      ignore_errors: true
+      changed_when: false
+      no_log: true
+
+    - name: Check for yum (RHEL/CentOS)
+      command: which yum
+      register: yum_check
+      ignore_errors: true
+      changed_when: false
+      no_log: true
+
     - name: Set detected package manager
       set_fact:
         detected_package_manager: >-
           {%- if brew_check.rc == 0 -%}brew
           {%- elif apt_check.rc == 0 -%}apt
           {%- elif pacman_check.rc == 0 -%}pacman
+          {%- elif dnf_check.rc == 0 -%}dnf
+          {%- elif yum_check.rc == 0 -%}yum
           {%- else -%}none{%- endif -%}
 
 - name: Test passwordless sudo
@@ -119,10 +135,10 @@
       when: not has_sudo
       no_log: true
 
-    - name: Set pkexec facts
+    - name: Set pkexec facts (but use sudo for Ansible)
       set_fact:
         has_sudo: true
-        sudo_method: 'pkexec'
+        sudo_method: 'sudo'  # Use sudo for Ansible even if pkexec works
         sudo_requires_password: true
         privilege_escalation_available: true
       when:
@@ -133,7 +149,7 @@
   set_fact:
     can_install_packages: >-
       {{ (detected_package_manager == 'brew') or
-         (has_sudo and detected_package_manager in ['apt', 'pacman']) }}
+         (has_sudo and detected_package_manager in ['apt', 'pacman', 'dnf', 'yum']) }}
 
 - name: Display privilege escalation detection results
   debug:
@@ -150,7 +166,6 @@
   set_fact:
     ansible_become_method: >-
       {%- if sudo_method == 'doas' -%}doas
-      {%- elif sudo_method == 'pkexec' -%}pkexec
       {%- elif sudo_method == 'sudo' -%}sudo
       {%- else -%}sudo{%- endif -%}
   when: has_sudo

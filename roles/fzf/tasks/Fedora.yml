@@ -1,0 +1,14 @@
+---
+- name: "FZF | Uninstall DNF fzf"
+  ansible.builtin.dnf:
+    name: fzf
+    state: absent
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "FZF | Clone Latest Version"
+  ansible.builtin.git:
+    repo: https://github.com/junegunn/fzf.git
+    depth: 1
+    dest: "{{ ansible_user_dir }}/.fzf"
+  notify: "Install FZF"

@@ -1,0 +1,250 @@
+---
+# Go installation for Fedora/RHEL
+
+- name: "Go-Lang | Check for system Go package"
+  ansible.builtin.dnf:
+    list: golang
+  register: golang_package
+  when: can_install_packages | default(false)
+
+- name: "Go-Lang | Install Go from system package if available"
+  ansible.builtin.dnf:
+    name: golang
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - golang_package.results | length > 0
+    - golang_package.results[0].version is version('1.21', '>=')
+  register: system_go_install
+
+- name: "Go-Lang | {{ ansible_distribution }} | Install dependencies"
+  ansible.builtin.dnf:
+    name:
+      - curl
+      - gcc
+      - git
+      - findutils
+      - make
+      - rsync
+      - tar
+      - jq
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+  register: go_deps_install
+
+- name: "Go-Lang | Check for missing dependencies (no sudo)"
+  when: not (can_install_packages | default(false))
+  block:
+    - name: "Go-Lang | Check required tools"
+      ansible.builtin.command: "which {{ item }}"
+      register: tool_check
+      loop:
+        - curl
+        - tar
+        - jq
+      changed_when: false
+      failed_when: false
+
+    - name: "Go-Lang | Report missing dependencies"
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  Missing required tools for Go installation:
+          {% for result in tool_check.results %}
+          {% if result.rc != 0 %}
+          - {{ result.item }}
+          {% endif %}
+          {% endfor %}
+          
+          Please install these tools or ask your system administrator.
+      when: tool_check.results | selectattr('rc', 'ne', 0) | list | length > 0
+
+- name: "Go-Lang | Define GOARCH"
+  ansible.builtin.set_fact:
+    goarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+
+- name: "Go-Lang | Define GOOS"
+  ansible.builtin.set_fact:
+    goos: "{{ ansible_system | lower }}"
+
+- name: "Go-Lang | GOARCH Value"
+  ansible.builtin.debug:
+    var: goarch
+
+- name: "Go-Lang | GOOS Value"
+  ansible.builtin.debug:
+    var: goos
+
+- name: "Go-Lang | Getting version information"
+  ansible.builtin.shell: |
+    if [ -d /usr/local/go ]; then
+      /usr/local/go/bin/go version
+    elif [ -d {{ ansible_env.HOME }}/.local/go ]; then
+      {{ ansible_env.HOME }}/.local/go/bin/go version
+    elif command -v go >/dev/null 2>&1; then
+      go version
+    else
+      echo "not installed"
+    fi
+  register: current_go_version
+  changed_when: false
+  failed_when: false
+
+- name: "Go-Lang | Querying Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://go.dev/dl/?mode=json
+  register: go_latest_version_json
+  changed_when: false
+
+- name: "Go-Lang | Registering go Latest Version"
+  ansible.builtin.set_fact:
+    go_latest_version: "go version {{ go_latest_version_json.json[0].version }} {{ goos }}/{{ goarch }}"
+  when: go_latest_version_json.json is defined
+
+- name: "Go-Lang | Registering go Latest Release"
+  ansible.builtin.set_fact:
+    go_latest_release: "{{ go_latest_version_json.json[0].version }}"
+  when: go_latest_version_json.json is defined
+
+- name: "Go-Lang | Define go_file"
+  ansible.builtin.set_fact:
+    go_file: "{{ go_latest_release }}.{{ goos }}-{{ goarch }}"
+  when: go_latest_release is defined
+
+- name: "Go-Lang | Show current_go_version debug"
+  ansible.builtin.debug:
+    var: current_go_version.stdout|default('')
+
+- name: "Go-Lang | Show go_latest_release debug"
+  ansible.builtin.debug:
+    var: go_latest_release
+
+- name: "Go-Lang | Remove system package if outdated"
+  ansible.builtin.dnf:
+    name: golang
+    state: absent
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - go_latest_version is defined
+    - go_latest_version not in current_go_version.stdout|default('')
+    - '"/usr/bin/go" in current_go_version.stdout|default("")'
+
+- name: "Go-Lang | Install (system-wide)"
+  when: 
+    - go_latest_version is defined
+    - go_latest_version not in current_go_version.stdout|default('')
+    - can_install_packages | default(false)
+    - system_go_install is not defined or system_go_install is skipped
+  block:
+    - name: "Go-Lang | Ensure clean download destination"
+      ansible.builtin.file:
+        path: "/tmp/{{ go_file }}.tar.gz"
+        state: absent
+      become: true
+
+    - name: "Go-Lang | Downloading GoLang Release"
+      ansible.builtin.get_url:
+        url: "https://golang.org/dl/{{ go_file }}.tar.gz"
+        dest: /tmp/
+        mode: 0644
+        force: true
+
+    - name: "Go-Lang | Ensure clean extraction destination"
+      ansible.builtin.file:
+        path: "/tmp/go"
+        state: absent
+      become: true
+
+    - name: "Go-Lang | Extract go tar file"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ go_file }}.tar.gz"
+        dest: /tmp
+
+    - name: "Go-Lang | Remove any current Go installations"
+      ansible.builtin.file:
+        path: /usr/local/go
+        state: absent
+      become: true
+
+    - name: "Go-Lang | Install Go"
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/go
+        dest: /usr/local/
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        force: true
+      become: true
+
+    - name: "Go-Lang | Cleanup"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/{{ go_file }}.tar.gz"
+        - "/tmp/go"
+
+- name: "Go-Lang | Install (user-local)"
+  when: 
+    - go_latest_version is defined
+    - go_latest_version not in current_go_version.stdout|default('')
+    - not (can_install_packages | default(false))
+  block:
+    - name: "Go-Lang | Create local directories"
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.local"
+        state: directory
+        mode: '0755'
+
+    - name: "Go-Lang | Downloading GoLang Release"
+      ansible.builtin.get_url:
+        url: "https://golang.org/dl/{{ go_file }}.tar.gz"
+        dest: /tmp/
+        mode: 0644
+        force: true
+
+    - name: "Go-Lang | Extract go tar file"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ go_file }}.tar.gz"
+        dest: /tmp
+
+    - name: "Go-Lang | Remove any current Go installations"
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/.local/go"
+        state: absent
+
+    - name: "Go-Lang | Install Go to user directory"
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/go
+        dest: "{{ ansible_env.HOME }}/.local/"
+        force: true
+
+    - name: "Go-Lang | Cleanup"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/{{ go_file }}.tar.gz"
+        - "/tmp/go"
+
+    - name: "Go-Lang | Setup user environment"
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  Go installed to user directory: ~/.local/go
+          
+          Add to your shell config:
+          export PATH="$HOME/.local/go/bin:$PATH"
+          export GOPATH="$HOME/go"
+          export PATH="$GOPATH/bin:$PATH"
+
+- name: "Go-Lang | {{ ansible_distribution }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      Go installation status:
+      - Current version: {{ current_go_version.stdout if 'not installed' not in current_go_version.stdout else 'Not installed' }}
+      - Latest version: {{ go_latest_release }}
+      - Installation location: {{ '/usr/local/go' if can_install_packages | default(false) else '~/.local/go' }}
+      - Sudo used: {{ '✓' if can_install_packages | default(false) else '✗' }}

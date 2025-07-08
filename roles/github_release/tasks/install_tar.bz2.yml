@@ -31,7 +31,7 @@
 - name: Find executable files only
   ansible.builtin.shell:
     cmd: |
-      find {{ github_release_temp_dir }}/extract -name "{{ github_release_binary_name }}*" -type f -perm +111 ! -name "*.sh" ! -name "*.1" | grep -E "({{ github_release_binary_name }}$|{{ github_release_binary_name }}_)" | head -1
+      find {{ github_release_temp_dir }}/extract -name "{{ github_release_binary_name }}*" -type f -perm /111 ! -name "*.sh" ! -name "*.1" | grep -E "({{ github_release_binary_name }}$|{{ github_release_binary_name }}_)" | head -1
   register: _github_release_executable_search
   changed_when: false
   failed_when: false

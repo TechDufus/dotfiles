@@ -154,6 +154,30 @@ function arch_setup() {
   _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
 }
 
+function fedora_setup() {
+  if ! [ -x "$(command -v ansible)" ]; then
+    __task "Installing Ansible (This may take a few minutes)"
+    _cmd "sudo dnf install -y ansible"
+  fi
+  if ! [ -x "$(command -v python3)" ]; then
+    __task "Installing Python3"
+    _cmd "sudo dnf install -y python3"
+  fi
+  if ! [ -x "$(command -v pip3)" ]; then
+    __task "Installing Python3 Pip"
+    _cmd "sudo dnf install -y python3-pip"
+  fi
+  if ! rpm -q python3-argcomplete >/dev/null 2>&1; then
+    __task "Installing Python3 Argcomplete"
+    _cmd "sudo dnf install -y python3-argcomplete"
+    _cmd "sudo activate-global-python-argcomplete3 || true"
+  fi
+  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
+    __task "Installing Python3 Watchdog"
+    _cmd "pip3 install --user watchdog"
+  fi
+}
+
 function macos_setup() {
   if ! [ -x "$(command -v brew)" ]; then
     __task "Installing Homebrew (This may take 5-10 minutes)"
@@ -241,6 +265,9 @@ case $dotfiles_os in
     ;;
   arch)
     arch_setup
+    ;;
+  fedora)
+    fedora_setup
     ;;
   darwin)
     macos_setup

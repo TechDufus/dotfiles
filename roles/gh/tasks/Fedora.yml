@@ -1,0 +1,29 @@
+---
+- name: "gh | Check if gh is installed"
+  ansible.builtin.command: which gh
+  register: gh_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: "gh | Install from DNF repository"
+  ansible.builtin.dnf:
+    name: gh
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - gh_check.rc != 0
+
+- name: "gh | Install from GitHub Release"
+  when:
+    - not (can_install_packages | default(false)) or gh_check.rc != 0
+  block:
+    - name: "gh | Install from GitHub Release using github_release role"
+      ansible.builtin.include_role:
+        name: github_release
+      vars:
+        github_release_repo: "cli/cli"
+        github_release_binary_name: "gh"
+        github_release_asset_name_pattern: "gh_*_linux_amd64.tar.gz"
+        github_release_extract_subpath: "gh_*_linux_amd64/bin/gh"

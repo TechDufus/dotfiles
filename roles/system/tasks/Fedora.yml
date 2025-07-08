@@ -1,0 +1,108 @@
+---
+# System configuration for Fedora/RHEL
+
+- name: "System | {{ ansible_distribution }} | Update DNF cache"
+  ansible.builtin.dnf:
+    update_cache: true
+  become: true
+  when: 
+    - can_install_packages | default(false)
+    - system_update_packages | default(false)
+  register: system_update_result
+
+- name: "System | {{ ansible_distribution }} | Install system utilities"
+  ansible.builtin.dnf:
+    name:
+      - jq
+      - iscsi-initiator-utils  # Fedora equivalent of open-iscsi
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+  register: system_install_result
+
+- name: "System | {{ ansible_distribution }} | Enable Passwordless Sudo"
+  ansible.builtin.template:
+    src: user-sudo.j2
+    dest: /etc/sudoers.d/{{ ansible_env['USER'] }}
+    mode: "0440"
+    validate: 'visudo -cf %s'
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_distribution }} | Check for missing packages (no sudo)"
+  when: not (can_install_packages | default(false))
+  block:
+    - name: "System | Check if jq is installed"
+      ansible.builtin.command: which jq
+      register: jq_check
+      changed_when: false
+      failed_when: false
+
+    - name: "System | Report missing packages"
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  Cannot install system packages without sudo access.
+          
+          Missing packages that should be installed:
+          {{ '- jq' if jq_check.rc != 0 else '' }}
+          
+          Please ask your system administrator to install these packages:
+          - jq (JSON processor)
+          - iscsi-initiator-utils (iSCSI support)
+
+# WSL-specific win32yank installation
+- name: System | Detecting win32yank
+  ansible.builtin.stat:
+    path: /usr/local/bin/win32yank.exe
+  register: win32yank_installed
+  when: ansible_host_environment_is_wsl
+
+- name: "System | Install win32yank.exe"
+  when:
+    - ansible_host_environment_is_wsl
+    - not win32yank_installed.stat.exists
+  block:
+    - name: Download win32yank zip
+      ansible.builtin.get_url:
+        url: https://github.com/equalsraf/win32yank/releases/download/v0.0.4/win32yank-x64.zip
+        dest: /tmp/win32yank.zip
+        mode: "0755"
+
+    - name: System | Unzip win32yank.exe
+      ansible.builtin.unarchive:
+        src: /tmp/win32yank.zip
+        dest: /tmp
+        mode: "0755"
+
+    - name: System | Copy win32yank into path
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/win32yank.exe
+        dest: /usr/local/bin/win32yank.exe
+        mode: "0755"
+      become: true
+      when: can_install_packages | default(false)
+
+    - name: System | Copy win32yank to user directory (no sudo)
+      ansible.builtin.copy:
+        remote_src: true
+        src: /tmp/win32yank.exe
+        dest: "{{ ansible_env.HOME }}/.local/bin/win32yank.exe"
+        mode: "0755"
+      when: not (can_install_packages | default(false))
+
+    - name: System | Remove tmp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/win32yank.zip
+        - /tmp/win32yank.exe
+
+- name: "System | {{ ansible_distribution }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      System configuration status:
+      - Package update: {{ '✓' if system_update_result is defined and system_update_result is succeeded else 'Skipped (no sudo)' }}
+      - Utilities installed: {{ '✓' if system_install_result is defined and system_install_result is succeeded else 'Skipped (no sudo)' }}
+      - WSL win32yank: {{ 'Installed' if ansible_host_environment_is_wsl and win32yank_installed.stat.exists else 'N/A' }}

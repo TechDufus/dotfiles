@@ -337,7 +337,6 @@
       "Bash(ab:*)",
       "Bash(wrk:*)",
       "Bash(hey:*)",
-      "Bash(vegeta:*)",
       "Bash(k6:*)",
       "Bash(locust:*)",
       "Bash(jmeter:*)",

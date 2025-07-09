@@ -944,6 +944,7 @@
     ],
     "defaultMode": "allowEdits"
   },
+  "prefferedNotifyChannel": "terminal_bell",
   "multiEdit": {
     "allowReplaceAll": true
   },

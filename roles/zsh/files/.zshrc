@@ -60,6 +60,7 @@ zinit snippet OMZP::command-not-found
 autoload -U +X bashcompinit && bashcompinit
 autoload -Uz compinit && compinit
 
+# Let zinit replay its captured completions
 zinit cdreplay -q
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
@@ -97,7 +98,7 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
 zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
 
 
-# All custom functions
+# All custom functions and completions
 for file in $HOME/.config/zsh/*.zsh; do
   source "$file"
 done

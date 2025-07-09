@@ -48,7 +48,7 @@ function __get_secret_vars() {
   fi
 
   # Extract export statements, handling both simple and command substitution exports
-  /bin/grep -E '^\s*export\s+\w+=' "$secret_file" | /bin/sed -E 's/^\s*export\s+([A-Za-z_][A-Za-z0-9_]*)=.*/\1/'
+  grep -E '^\s*export\s+\w+=' "$secret_file" | sed -E 's/^\s*export\s+([A-Za-z_][A-Za-z0-9_]*)=.*/\1/'
 }
 
 function secret() {

@@ -384,19 +384,153 @@ esac
 if ! [[ -d "$DOTFILES_DIR" ]]; then
   __task "Downloading dotfiles repository (This may take a minute)"
   _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
+  _task_done
 else
   __task "Updating dotfiles repository"
   _cmd "git -C $DOTFILES_DIR pull --quiet"
+  _task_done
 fi
 
 pushd "$DOTFILES_DIR" 2>&1 > /dev/null
+
+# Parse arguments for uninstall/delete
+UNINSTALL_ROLE=""
+DELETE_ROLE=""
+REMAINING_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --uninstall)
+      UNINSTALL_ROLE="$2"
+      shift 2
+      ;;
+    --delete)
+      DELETE_ROLE="$2"
+      shift 2
+      ;;
+    *)
+      REMAINING_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Common function to run uninstall script
+run_uninstall_script() {
+  local role="$1"
+  local role_dir="$DOTFILES_DIR/roles/$role"
+  local uninstall_script="$role_dir/uninstall.sh"
+  
+  if [[ ! -d "$role_dir" ]]; then
+    echo -e "${RED} [✗]  ${WHITE}Error: Role '${role}' not found${NC}"
+    return 1
+  fi
+  
+  if [[ ! -f "$uninstall_script" ]]; then
+    echo -e "${RED} [✗]  ${WHITE}Error: Role '${role}' does not have an uninstall script${NC}"
+    return 1
+  fi
+  
+  # Export functions and colors for use in uninstall script
+  export -f __task _task_done _clear_task _cmd _spinner
+  export SPINNER_PID TASK DOTFILES_LOG
+  export NC BOLD
+  export CAT_ROSEWATER CAT_FLAMINGO CAT_PINK CAT_MAUVE CAT_RED CAT_MAROON
+  export CAT_PEACH CAT_YELLOW CAT_GREEN CAT_TEAL CAT_SKY CAT_SAPPHIRE
+  export CAT_BLUE CAT_LAVENDER CAT_TEXT CAT_SUBTEXT1 CAT_SUBTEXT0
+  export CAT_OVERLAY2 CAT_OVERLAY1 CAT_OVERLAY0 CAT_SURFACE2 CAT_SURFACE1
+  export CAT_SURFACE0 CAT_BASE CAT_MANTLE CAT_CRUST
+  export RED GREEN YELLOW BLUE PURPLE CYAN WHITE LBLACK
+  export LRED LGREEN LYELLOW LBLUE LPURPLE LCYAN SEA OVERWRITE
+  export CHECK_MARK X_MARK PIN CLOCK ARROW BOOK HOT WARNING RIGHT_ANGLE
+  
+  # Run uninstall script with exported environment
+  bash "$uninstall_script"
+  return 0
+}
+
+# Handle uninstall (cleanup only)
+if [[ -n "$UNINSTALL_ROLE" ]]; then
+  # Confirm uninstall
+  echo -e "${YELLOW} [?]  ${WHITE}This will uninstall ${BOLD}${CAT_MAUVE}${UNINSTALL_ROLE}${NC}."
+  read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if run_uninstall_script "$UNINSTALL_ROLE"; then
+      echo -e "${GREEN} [✓]  ${WHITE}${UNINSTALL_ROLE} has been uninstalled${NC}"
+    else
+      popd 2>&1 > /dev/null
+      exit 1
+    fi
+  else
+    echo -e "${YELLOW} [!]  ${WHITE}Uninstall cancelled${NC}"
+  fi
+  popd 2>&1 > /dev/null
+  exit 0
+fi
+
+# Handle delete (uninstall + remove role)
+if [[ -n "$DELETE_ROLE" ]]; then
+  ROLE_DIR="$DOTFILES_DIR/roles/$DELETE_ROLE"
+  UNINSTALL_SCRIPT="$ROLE_DIR/uninstall.sh"
+  
+  # Check if role exists
+  if [[ ! -d "$ROLE_DIR" ]]; then
+    echo -e "${RED} [✗]  ${WHITE}Error: Role '${DELETE_ROLE}' not found${NC}"
+    popd 2>&1 > /dev/null
+    exit 1
+  fi
+  
+  # Confirm delete
+  if [[ -f "$UNINSTALL_SCRIPT" ]]; then
+    echo -e "${YELLOW} [?]  ${WHITE}This will uninstall ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} and ${BOLD}${CAT_RED}DELETE${NC} the role from your dotfiles."
+  else
+    echo -e "${YELLOW} [?]  ${WHITE}This will ${BOLD}${CAT_RED}DELETE${NC} the role ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} from your dotfiles."
+    echo -e "${YELLOW}      ${WHITE}Note: No uninstall script exists, so only the role directory will be removed.${NC}"
+  fi
+  
+  read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # Run uninstall script if it exists
+    if [[ -f "$UNINSTALL_SCRIPT" ]]; then
+      if ! run_uninstall_script "$DELETE_ROLE"; then
+        echo -e "${YELLOW} [!]  ${WHITE}Uninstall script failed, but continuing with deletion...${NC}"
+      fi
+    fi
+    
+    # Remove from group_vars/all.yml (with backup)
+    if grep -q "^  - $DELETE_ROLE$" "$DOTFILES_DIR/group_vars/all.yml"; then
+      __task "Removing $DELETE_ROLE from configuration"
+      cp "$DOTFILES_DIR/group_vars/all.yml" "$DOTFILES_DIR/group_vars/all.yml.bak"
+      sed -i '' "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
+      _task_done
+    fi
+    
+    # Remove role directory
+    __task "Removing $DELETE_ROLE role directory"
+    rm -rf "$ROLE_DIR"
+    _task_done
+    
+    if [[ -f "$UNINSTALL_SCRIPT" ]]; then
+      echo -e "${GREEN} [✓]  ${WHITE}${DELETE_ROLE} has been uninstalled and deleted${NC}"
+    else
+      echo -e "${GREEN} [✓]  ${WHITE}${DELETE_ROLE} has been deleted${NC}"
+    fi
+  else
+    echo -e "${YELLOW} [!]  ${WHITE}Delete cancelled${NC}"
+  fi
+  popd 2>&1 > /dev/null
+  exit 0
+fi
+
 update_ansible_galaxy $ID
 
 # confirmVaultAccess
 
 rm -f $VAULT_SECRET_FILE
 _task_done
-ansible-playbook "$DOTFILES_DIR/main.yml" "$@"
+ansible-playbook "$DOTFILES_DIR/main.yml" "${REMAINING_ARGS[@]}"
 
 popd 2>&1 > /dev/null
 

@@ -4,24 +4,24 @@
 
 - name: "Docker | {{ ansible_distribution }} | Check sudo availability"
   ansible.builtin.debug:
-    msg: |
-      ⚠️  DOCKER INSTALLATION REQUIREMENTS:
-      - Sudo access: {{ 'Available ✓' if has_sudo | default(false) else 'NOT AVAILABLE ✗' }}
-      - Package installation: {{ 'Possible ✓' if can_install_packages | default(false) else 'NOT POSSIBLE ✗' }}
-
-      {% if not (has_sudo | default(false)) %}
-      Docker requires system-level access for:
-      - Installing kernel modules
-      - Managing system services
-      - Creating system groups
-      - Modifying system configurations
-
-      ALTERNATIVES WITHOUT SUDO:
-      1. Use Podman instead (rootless containers)
-      2. Request Docker installation from your system administrator
-      3. Use Docker Desktop if available for your platform
-      4. Use a cloud-based development environment
-      {% endif %}
+    msg:
+      - "⚠️  DOCKER INSTALLATION REQUIREMENTS:"
+      - "- Sudo access: {{ 'Available ✓' if has_sudo | default(false) else 'NOT AVAILABLE ✗' }}"
+      - "- Package installation: {{ 'Possible ✓' if can_install_packages | default(false) else 'NOT POSSIBLE ✗' }}"
+      - "{% if not (has_sudo | default(false)) %}"
+      - ""
+      - "Docker requires system-level access for:"
+      - "- Installing kernel modules"
+      - "- Managing system services"
+      - "- Creating system groups"
+      - "- Modifying system configurations"
+      - ""
+      - "ALTERNATIVES WITHOUT SUDO:"
+      - "1. Use Podman instead (rootless containers)"
+      - "2. Request Docker installation from your system administrator"
+      - "3. Use Docker Desktop if available for your platform"
+      - "4. Use a cloud-based development environment"
+      - "{% endif %}"
 
 - name: "Docker | {{ ansible_distribution }} | Skip if no sudo"
   meta: end_play
@@ -111,10 +111,10 @@
 
     - name: "Docker | Installation complete"
       ansible.builtin.debug:
-        msg: |
-          Docker installation status:
-          - Docker Engine: {{ '✓ Installed' if docker_install is succeeded else '✗ Failed' }}
-          - User added to docker group: {{ '✓' if docker_group_add is succeeded else '✗' }}
-
-          NOTE: You may need to log out and back in for group changes to take effect.
-          Or run: newgrp docker
+        msg:
+          - "Docker installation status:"
+          - "- Docker Engine: {{ '✓ Installed' if docker_install is succeeded else '✗ Failed' }}"
+          - "- User added to docker group: {{ '✓' if docker_group_add is succeeded else '✗' }}"
+          - ""
+          - "NOTE: You may need to log out and back in for group changes to take effect."
+          - "Or run: newgrp docker"

@@ -45,7 +45,7 @@
         executable: /bin/bash
       register: current_npm_version
       changed_when: false
-      when: nvm_node_check.stdout != "not-installed"
+      when: nvm_node_check.stdout != 'not-installed'
 
     - name: "NPM | Get latest npm version"
       ansible.builtin.shell: |
@@ -58,7 +58,7 @@
       changed_when: false
       when: 
         - npm_update_npm
-        - nvm_node_check.stdout != "not-installed"
+        - nvm_node_check.stdout != 'not-installed'
 
     - name: "NPM | Update npm to latest version (nvm)"
       ansible.builtin.shell: |
@@ -69,7 +69,7 @@
         executable: /bin/bash
       when: 
         - npm_update_npm
-        - nvm_node_check.stdout != "not-installed"
+        - nvm_node_check.stdout != 'not-installed'
         - current_npm_version.stdout != latest_npm_version.stdout
       register: npm_update_result
       changed_when: current_npm_version.stdout != latest_npm_version.stdout
@@ -94,7 +94,7 @@
       ansible.builtin.command: npm --version
       register: current_npm_version_brew
       changed_when: false
-      when: brew_node_check.stdout != "not-installed"
+      when: brew_node_check.stdout != 'not-installed'
 
     - name: "NPM | MacOSX | Get latest npm version"
       ansible.builtin.shell: npm view npm version
@@ -102,13 +102,13 @@
       changed_when: false
       when: 
         - npm_update_npm
-        - brew_node_check.stdout != "not-installed"
+        - brew_node_check.stdout != 'not-installed'
 
     - name: "NPM | MacOSX | Update npm to latest"
       ansible.builtin.command: npm install -g npm@latest
       when: 
         - npm_update_npm
-        - brew_node_check.stdout != "not-installed"
+        - brew_node_check.stdout != 'not-installed'
         - current_npm_version_brew.stdout != latest_npm_version_brew.stdout
       register: npm_update_result
       changed_when: current_npm_version_brew.stdout != latest_npm_version_brew.stdout
@@ -210,7 +210,7 @@
     msg: |
       NPM/Node.js installation status:
       - Installation method: {{ 'nvm' if use_nvm else 'Homebrew' }}
-      - Node.js installed: {{ '✓' if (use_nvm and nvm_node_check.stdout != "not-installed") or (not use_nvm and brew_node_check.stdout != "not-installed") else '✗' }}
+      - Node.js installed: {{ '✓' if (use_nvm and nvm_node_check.stdout != 'not-installed') or (not use_nvm and brew_node_check.stdout != 'not-installed') else '✗' }}
       {% if use_nvm %}
       - Using nvm for Node.js management
       - Run 'nvm list' to see installed versions

@@ -1,0 +1,12 @@
+---
+- name: restart systemd-journald
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted
+  become: true
+
+- name: restart systemd-zram-setup@zram0
+  ansible.builtin.systemd:
+    name: systemd-zram-setup@zram0
+    state: restarted
+  become: true

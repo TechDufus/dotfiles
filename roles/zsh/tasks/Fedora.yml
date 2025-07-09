@@ -64,22 +64,36 @@
 
     - name: "Zsh | Manual installation instructions"
       ansible.builtin.debug:
-        msg: |
-          ⚠️  Zsh is not installed and sudo is not available.
+        msg:
+          - "⚠️  Zsh is not installed and sudo is not available."
 
-          To install zsh manually:
+          - ""
 
-          Option 1 - Build from source (if you have gcc/make):
-          ```bash
-          cd ~/.local/src
-          wget https://github.com/zsh-users/zsh/releases/download/zsh-5.9/zsh-5.9.tar.xz
-          tar xf zsh-5.9.tar.xz
-          cd zsh-5.9
-          ./configure --prefix=$HOME/.local
-          make && make install
-          ```
+          - "To install zsh manually:"
 
-          Option 2 - Use a pre-built binary:
+          - ""
+
+          - "Option 1 - Build from source (if you have gcc/make):"
+
+          - "```bash"
+
+          - "cd ~/.local/src"
+
+          - "wget https://github.com/zsh-users/zsh/releases/download/zsh-5.9/zsh-5.9.tar.xz"
+
+          - "tar xf zsh-5.9.tar.xz"
+
+          - "cd zsh-5.9"
+
+          - "./configure --prefix=$HOME/.local"
+
+          - "make && make install"
+
+          - "```"
+
+          - ""
+
+          - "Option 2 - Use a pre-built binary:"
           - Check if your system has a portable zsh available
           - Or request your administrator to install zsh
 
@@ -113,17 +127,23 @@
 # Report installation status
 - name: "Zsh | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
-    msg: |
-      Zsh installation status:
-      - Previously installed: {{ '✓' if zsh_check.rc == 0 else '✗' }}
-      - System installation: {{ '✓' if zsh_system_install is defined and zsh_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}
-      - Default shell changed: {{ '✓' if zsh_shell_change is defined and zsh_shell_change is succeeded else '✗ (requires sudo)' if not can_install_packages else 'No change needed' }}
-      - Configuration files: ✓ Deployed to home directory
-      - Current shell: {{ current_shell.stdout }}
+    msg:
+      - "Zsh installation status:"
+      - "- Previously installed: {{ '✓' if zsh_check.rc == 0 else '✗' }}"
+      - "- System installation: {{ '✓' if zsh_system_install is defined and zsh_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}"
+      - "- Default shell changed: {{ '✓' if zsh_shell_change is defined and zsh_shell_change is succeeded else '✗ (requires sudo)' if not can_install_packages else 'No change needed' }}"
+      - "- Configuration files: ✓ Deployed to home directory"
+      - "- Current shell: {{ current_shell.stdout }}"
 
-      {% if not can_install_packages and zsh_check.rc != 0 %}
-      Note: To use zsh after manual installation:
-      1. Add ~/.local/bin to your PATH
-      2. Run: chsh -s $(which zsh) (if chsh is available)
-      3. Or ask your administrator to change your default shell
+      - ""
+
+      - "{% if not can_install_packages and zsh_check.rc != 0 %}"
+
+      - "Note: To use zsh after manual installation:"
+
+      - "1. Add ~/.local/bin to your PATH"
+
+      - "2. Run: chsh -s $(which zsh) (if chsh is available)"
+
+      - "3. Or ask your administrator to change your default shell"
       {% endif %}

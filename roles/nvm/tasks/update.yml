@@ -27,22 +27,30 @@
 
 - name: "NVM | Update | Display version info"
   ansible.builtin.debug:
-    msg: |
-      Current nvm version: {{ current_nvm_version.stdout | default('not installed') }}
-      Latest nvm version: {{ nvm_latest_version.lstrip('v') }}
-      Update needed: {{ nvm_needs_update }}
+    msg:
+      - "Current nvm version: {{ current_nvm_version.stdout | default('not installed') }}"
+      - "Latest nvm version: {{ nvm_latest_version.lstrip('v') }}"
+      - "Update needed: {{ nvm_needs_update }}"
 
 - name: "NVM | Update | Update nvm to latest version"
-  ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
-    cd "$NVM_DIR"
-    git fetch --tags origin
-    git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`
-    source "$NVM_DIR/nvm.sh"
-  args:
-    executable: /bin/bash
-  when: nvm_needs_update | bool
 
+      - "ansible.builtin.shell: |"
+
+      - "export NVM_DIR="{{ ansible_env.HOME }}/.nvm""
+
+      - "cd "$NVM_DIR""
+
+      - "git fetch --tags origin"
+
+      - "git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`"
+
+      - "source "$NVM_DIR/nvm.sh""
+
+      - "args:"
+
+      - "executable: /bin/bash"
+
+      - "when: nvm_needs_update | bool"
 - name: "NVM | Update | Update Node.js to latest LTS"
   ansible.builtin.shell: |
     export NVM_DIR="{{ ansible_env.HOME }}/.nvm"

@@ -81,13 +81,13 @@
 
     - name: "1Password | Warning when not authenticated"
       ansible.builtin.debug:
-        msg: |
-          ⚠️  1Password CLI is installed but not authenticated.
-          
-          To fix this, run:
-          eval $(op signin)
-          
-          Then run dotfiles again. For now, skipping 1Password integration.
+        msg:
+          - "⚠️  1Password CLI is installed but not authenticated."
+          - ""
+          - "To fix this, run:"
+          - "eval $(op signin)"
+          - ""
+          - "Then run dotfiles again. For now, skipping 1Password integration."
       when: op_git_user_email.rc != 0
 
 - name: "Git | Set user.email"

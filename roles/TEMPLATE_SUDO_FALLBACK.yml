@@ -70,13 +70,13 @@
         - binary_install is failed or not defined
         - tool_check.rc != 0
       ansible.builtin.debug:
-        msg: |
-          ⚠️  {{ tool_name }} is not installed and automatic installation failed.
-          
-          To install {{ tool_name }} manually:
-          1. Download from: {{ download_url }}
-          2. Extract to: ~/.local/bin/
-          3. Or ask your system administrator to install {{ tool_name }}
+        msg:
+          - "⚠️  {{ tool_name }} is not installed and automatic installation failed."
+          - ""
+          - "To install {{ tool_name }} manually:"
+          - "1. Download from: {{ download_url }}"
+          - "2. Extract to: ~/.local/bin/"
+          - "3. Or ask your system administrator to install {{ tool_name }}"
 
 # 4. Configure tool (works for both installation methods)
 - name: "{{ role_name }} | Configure {{ tool_name }}"
@@ -104,32 +104,31 @@
 # 5. Report installation status
 - name: "{{ role_name }} | Report status"
   ansible.builtin.debug:
-    msg: |
-      {{ tool_name }} installation status:
-      - Previously installed: {{ '✓' if tool_check.rc == 0 else '✗' }}
-      - System installation: {{ '✓' if system_install is defined and system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}
-      - User installation: {{ '✓' if binary_install is defined and binary_install is succeeded else 'N/A' }}
-      - Configuration: ✓ Deployed to ~/.config/{{ tool_name }}
-      
-      {% if not can_install_packages and tool_check.rc != 0 %}
-      Note: Add ~/.local/bin to your PATH to use {{ tool_name }}
-      {% endif %}
+    msg:
+      - "{{ tool_name }} installation status:"
+      - "- Previously installed: {{ '✓' if tool_check.rc == 0 else '✗' }}"
+      - "- System installation: {{ '✓' if system_install is defined and system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}"
+      - "- User installation: {{ '✓' if binary_install is defined and binary_install is succeeded else 'N/A' }}"
+      - "- Configuration: ✓ Deployed to ~/.config/{{ tool_name }}"
+      - "{% if not can_install_packages and tool_check.rc != 0 %}"
+      - "Note: Add ~/.local/bin to your PATH to use {{ tool_name }}"
+      - "{% endif %}"
 
 # PATTERNS FOR SPECIFIC SCENARIOS:
 
 # For tools that absolutely require sudo (like Docker):
 # - name: "{{ role_name }} | Check sudo requirement"
 #   ansible.builtin.debug:
-#     msg: |
-#       ⚠️  {{ tool_name }} requires sudo/admin access for:
-#       - System service management
-#       - Kernel module loading
-#       - Network configuration
-#       
-#       ALTERNATIVES:
-#       1. Use rootless alternative (e.g., Podman instead of Docker)
-#       2. Request installation from your system administrator
-#       3. Use cloud-based development environment
+#     msg:
+#       - "⚠️  {{ tool_name }} requires sudo/admin access for:"
+#       - "- System service management"
+#       - "- Kernel module loading"
+#       - "- Network configuration"
+#       - ""
+#       - "ALTERNATIVES:"
+#       - "1. Use rootless alternative (e.g., Podman instead of Docker)"
+#       - "2. Request installation from your system administrator"
+#       - "3. Use cloud-based development environment"
 #   when: not (has_sudo | default(false))
 #
 # - name: "{{ role_name }} | Skip if no sudo"

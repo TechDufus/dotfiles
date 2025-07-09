@@ -53,12 +53,14 @@
 
     - name: "Starship | Ensure ~/.local/bin is in PATH"
       ansible.builtin.debug:
-        msg: |
-          ⚠️  Starship installed to ~/.local/bin/
-          
-          Make sure ~/.local/bin is in your PATH by adding to your shell config:
-          export PATH="$HOME/.local/bin:$PATH"
+        msg:
+          - "⚠️  Starship installed to ~/.local/bin/"
 
+          - ""
+
+          - "Make sure ~/.local/bin is in your PATH by adding to your shell config:"
+
+          - "export PATH="$HOME/.local/bin:$PATH""
 - name: "Starship | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
     msg: |

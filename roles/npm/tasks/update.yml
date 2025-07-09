@@ -66,9 +66,9 @@
 
     - name: "NPM | Display outdated packages"
       ansible.builtin.debug:
-        msg: |
-          Outdated global packages:
-          {{ (outdated_nvm.stdout if use_nvm else outdated_system.stdout) | default('All packages are up to date') }}
+        msg:
+          - "Outdated global packages:"
+          - "{{ (outdated_nvm.stdout if use_nvm else outdated_system.stdout) | default('All packages are up to date') }}"
 
 - name: "NPM | Update | Update all global packages"
   block:
@@ -144,9 +144,9 @@
 
     - name: "NPM | Display packages that can be upgraded"
       ansible.builtin.debug:
-        msg: |
-          Packages with major version updates available:
-          {{ (ncu_result_nvm.stdout if use_nvm else ncu_result_system.stdout) | default('All packages are at their latest major versions') }}
-          
-          To upgrade all packages to latest major versions, run:
-          {{ 'ncu -g -u' if not use_nvm else 'nvm use default && ncu -g -u' }}
+        msg:
+          - "Packages with major version updates available:"
+          - "{{ (ncu_result_nvm.stdout if use_nvm else ncu_result_system.stdout) | default('All packages are at their latest major versions') }}"
+          - ""
+          - "To upgrade all packages to latest major versions, run:"
+          - "{{ 'ncu -g -u' if not use_nvm else 'nvm use default && ncu -g -u' }}"

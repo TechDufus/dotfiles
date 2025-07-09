@@ -14,6 +14,7 @@
   when:
     - can_install_packages | default(false)
     - kitty_check.rc != 0
+  register: kitty_system_install
 
 - name: "Kitty | {{ ansible_distribution }} | Install from GitHub Release (fallback)"
   when:
@@ -21,19 +22,28 @@
   block:
     - name: "Kitty | Manual installation instructions"
       ansible.builtin.debug:
-        msg: |
-          ⚠️  Kitty cannot be installed without sudo access.
-          
-          To install kitty manually:
-          1. Download the latest release:
-             curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin
-          
-          2. Create a symlink:
-             ln -s ~/.local/kitty.app/bin/kitty ~/.local/bin/
-          
-          3. Add to your PATH if not already:
-             export PATH="$HOME/.local/bin:$PATH"
+        msg:
+          - "⚠️  Kitty cannot be installed without sudo access."
 
+          - ""
+
+          - "To install kitty manually:"
+
+          - "1. Download the latest release:"
+
+          - "curl -L https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin"
+
+          - ""
+
+          - "2. Create a symlink:"
+
+          - "ln -s ~/.local/kitty.app/bin/kitty ~/.local/bin/"
+
+          - ""
+
+          - "3. Add to your PATH if not already:"
+
+          - 'export PATH="$HOME/.local/bin:$PATH"'
 - name: "Kitty | {{ ansible_distribution }} | Ensure config directory exists"
   ansible.builtin.file:
     path: "{{ ansible_env.HOME }}/.config/kitty"
@@ -50,8 +60,8 @@
 
 - name: "Kitty | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
-    msg: |
-      Kitty installation status:
-      - Previously installed: {{ '✓' if kitty_check.rc == 0 else '✗' }}
-      - System installation: {{ '✓' if kitty_system_install is defined and kitty_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}
-      - Configuration deployed: {{ '✓' if kitty_check.rc == 0 else 'Only if installed' }}
+    msg:
+      - "Kitty installation status:"
+      - "- Previously installed: {{ '✓' if kitty_check.rc == 0 else '✗' }}"
+      - "- System installation: {{ '✓' if kitty_system_install is defined and kitty_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else 'N/A' }}"
+      - "- Configuration deployed: {{ '✓' if kitty_check.rc == 0 else 'Only if installed' }}"

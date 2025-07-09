@@ -115,11 +115,11 @@
 # Report installation status
 - name: "Neovim | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
-    msg: |
-      Neovim installation status:
-      - Previously installed: {{ '✓' if nvim_check.rc == 0 else '✗' }}
-      - System installation: {{ '✓' if nvim_system_install is defined and nvim_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else '✗' }}
-      - User installation: {{ '✓' if nvim_user_install is defined and nvim_user_install is succeeded else 'N/A' }}
-      - Location: {{ 'System-wide' if nvim_system_install is defined and nvim_system_install is succeeded else '~/.local/bin' if nvim_user_install is defined and nvim_user_install is succeeded else 'Pre-existing' }}
-
-      Note: Make sure ~/.local/bin is in your PATH
+    msg:
+      - "Neovim installation status:"
+      - "- Previously installed: {{ '✓' if nvim_check.rc == 0 else '✗' }}"
+      - "- System installation: {{ '✓' if nvim_system_install is defined and nvim_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else '✗' }}"
+      - "- User installation: {{ '✓' if nvim_user_install is defined and nvim_user_install is succeeded else 'N/A' }}"
+      - "- Location: {{ 'System-wide' if nvim_system_install is defined and nvim_system_install is succeeded else '~/.local/bin' if nvim_user_install is defined and nvim_user_install is succeeded else 'Pre-existing' }}"
+      - ""
+      - "Note: Make sure ~/.local/bin is in your PATH"

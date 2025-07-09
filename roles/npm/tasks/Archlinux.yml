@@ -45,7 +45,7 @@
         executable: /bin/bash
       when: 
         - npm_update_npm
-        - nvm_node_check.stdout != "not-installed"
+        - nvm_node_check.stdout != 'not-installed'
       register: npm_update_result
       changed_when: "'updated' in npm_update_result.stdout or 'added' in npm_update_result.stdout"
 
@@ -217,7 +217,7 @@
       
       {% if not can_install_packages and not use_nvm %}
       ⚠️  User-local installation notes:
-      1. Add to your PATH: export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+      1. Add to your PATH: export PATH='${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}'
       2. Global packages will be installed to: ~/.npm-global
       3. This is already configured in your shell if using the zsh role
       {% endif %}

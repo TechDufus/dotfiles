@@ -45,7 +45,7 @@
         executable: /bin/bash
       register: current_npm_version
       changed_when: false
-      when: nvm_node_check.stdout != "not-installed"
+      when: nvm_node_check.stdout != 'not-installed'
 
     - name: "NPM | Get latest npm version"
       ansible.builtin.shell: |
@@ -58,7 +58,7 @@
       changed_when: false
       when: 
         - npm_update_npm
-        - nvm_node_check.stdout != "not-installed"
+        - nvm_node_check.stdout != 'not-installed'
 
     - name: "NPM | Update npm to latest version (nvm)"
       ansible.builtin.shell: |
@@ -69,7 +69,7 @@
         executable: /bin/bash
       when: 
         - npm_update_npm
-        - nvm_node_check.stdout != "not-installed"
+        - nvm_node_check.stdout != 'not-installed'
         - current_npm_version.stdout != latest_npm_version.stdout
       register: npm_update_result
       changed_when: current_npm_version.stdout != latest_npm_version.stdout
@@ -117,12 +117,14 @@
 
         - name: "NPM | Show NodeJS versions"
           ansible.builtin.debug:
-            msg: |
-              Current NodeJS: {{ nodejs_installed.stdout if nodejs_installed.rc == 0 else 'Not installed' }}
-              Latest LTS: {{ nodejs_latest_version.stdout }}
-              Installation needed: {{ nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout }}
+            msg:
+              - "Current NodeJS: {{ nodejs_installed.stdout if nodejs_installed.rc == 0 else 'Not installed' }}"
+              - "Latest LTS: {{ nodejs_latest_version.stdout }}"
+              - "Installation needed: {{ nodejs_installed.rc != 0 or nodejs_installed.stdout != nodejs_latest_version.stdout }}"
 
-        # System-wide installation with sudo
+              - ""
+
+              - "# System-wide installation with sudo"
         - name: "NPM | System installation"
           when:
             - can_install_packages | default(false)
@@ -333,7 +335,7 @@
     msg: |
       NPM/Node.js installation status:
       - Installation method: {{ 'nvm' if use_nvm else ('system package' if npm_dnf_install is defined and npm_dnf_install is succeeded else 'manual installation') }}
-      - Node.js installed: {{ '✓' if (use_nvm and nvm_node_check.stdout != "not-installed") or (not use_nvm and nodejs_installed.rc == 0) else '✗' }}
+      - Node.js installed: {{ '✓' if (use_nvm and nvm_node_check.stdout != 'not-installed') or (not use_nvm and nodejs_installed.rc == 0) else '✗' }}
       {% if use_nvm %}
       - Using nvm for Node.js management
       - Run 'nvm list' to see installed versions
@@ -345,7 +347,7 @@
       
       {% if not can_install_packages and not use_nvm %}
       ⚠️  User-local installation notes:
-      1. Add to your PATH: export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+      1. Add to your PATH: export PATH='${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}'
       2. Global packages will be installed to: ~/.npm-global
       3. This is already configured in your shell if using the zsh role
       {% endif %}

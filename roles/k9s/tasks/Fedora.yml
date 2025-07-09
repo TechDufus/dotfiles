@@ -46,9 +46,9 @@
 
 - name: "K9s | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
-    msg: |
-      K9s installation status:
-      - Status: {{ '✓ Installed' if k9s_check.rc == 0 else '✓ Newly installed' }}
-      - Location: {{ ansible_user_dir }}/.local/bin/k9s
-      - Config: ~/.config/k9s/
-      - Sudo used: {{ '✓' if can_install_packages | default(false) else '✗ (installed to user directory)' }}
+    msg:
+      - "K9s installation status:"
+      - "- Status: {{ '✓ Installed' if k9s_check.rc == 0 else '✓ Newly installed' }}"
+      - "- Location: {{ ansible_user_dir }}/.local/bin/k9s"
+      - "- Config: ~/.config/k9s/"
+      - "- Sudo used: {{ '✓' if can_install_packages | default(false) else '✗ (installed to user directory)' }}"

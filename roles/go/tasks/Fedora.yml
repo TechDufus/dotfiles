@@ -49,17 +49,16 @@
 
     - name: "Go-Lang | Report missing dependencies"
       ansible.builtin.debug:
-        msg: |
-          ⚠️  Missing required tools for Go installation:
-          {% for result in tool_check.results %}
-          {% if result.rc != 0 %}
-          - {{ result.item }}
-          {% endif %}
-          {% endfor %}
-          
-          Please install these tools or ask your system administrator.
+        msg:
+          - "⚠️  Missing required tools for Go installation:"
+          - "{% for result in tool_check.results %}"
+          - "{% if result.rc != 0 %}"
+          - "- {{ result.item }}"
+          - "{% endif %}"
+          - "{% endfor %}"
+          - ""
+          - "Please install these tools or ask your system administrator."
       when: tool_check.results | selectattr('rc', 'ne', 0) | list | length > 0
-
 - name: "Go-Lang | Define GOARCH"
   ansible.builtin.set_fact:
     goarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
@@ -232,19 +231,18 @@
 
     - name: "Go-Lang | Setup user environment"
       ansible.builtin.debug:
-        msg: |
-          ⚠️  Go installed to user directory: ~/.local/go
-          
-          Add to your shell config:
-          export PATH="$HOME/.local/go/bin:$PATH"
-          export GOPATH="$HOME/go"
-          export PATH="$GOPATH/bin:$PATH"
-
+        msg:
+          - "⚠️  Go installed to user directory: ~/.local/go"
+          - ""
+          - "Add to your shell config:"
+          - 'export PATH="$HOME/.local/go/bin:$PATH"'
+          - 'export GOPATH="$HOME/go"'
+          - 'export PATH="$GOPATH/bin:$PATH"'
 - name: "Go-Lang | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
-    msg: |
-      Go installation status:
-      - Current version: {{ current_go_version.stdout if 'not installed' not in current_go_version.stdout else 'Not installed' }}
-      - Latest version: {{ go_latest_release }}
-      - Installation location: {{ '/usr/local/go' if can_install_packages | default(false) else '~/.local/go' }}
-      - Sudo used: {{ '✓' if can_install_packages | default(false) else '✗' }}
+    msg:
+      - "Go installation status:"
+      - "- Current version: {{ current_go_version.stdout if 'not installed' not in current_go_version.stdout else 'Not installed' }}"
+      - "- Latest version: {{ go_latest_release | default('Not checked') }}"
+      - "- Installation location: {{ '/usr/local/go' if can_install_packages | default(false) else '~/.local/go' }}"
+      - "- Sudo used: {{ '✓' if can_install_packages | default(false) else '✗' }}"

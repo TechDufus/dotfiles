@@ -39,16 +39,22 @@
     - name: "Tmux | Alternative manual installation instructions"
       when: tmux_appimage is failed
       ansible.builtin.debug:
-        msg: |
-          ⚠️  Tmux is not installed and sudo is not available.
-          
-          To install tmux manually:
-          1. Download a static binary from: https://github.com/nelsonenzo/tmux-appimage/releases
-          2. Or compile from source: https://github.com/tmux/tmux/releases
-          3. Or ask your system administrator to install tmux
-          
-          Tmux is required for terminal multiplexing features.
+        msg:
+          - "⚠️  Tmux is not installed and sudo is not available."
 
+          - ""
+
+          - "To install tmux manually:"
+
+          - "1. Download a static binary from: https://github.com/nelsonenzo/tmux-appimage/releases"
+
+          - "2. Or compile from source: https://github.com/tmux/tmux/releases"
+
+          - "3. Or ask your system administrator to install tmux"
+
+          - ""
+
+          - "Tmux is required for terminal multiplexing features."
 - name: "Tmux | {{ ansible_distribution }} | Report installation status"
   ansible.builtin.debug:
     msg: |

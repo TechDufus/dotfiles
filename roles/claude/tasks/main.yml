@@ -25,19 +25,13 @@
     state: absent
   when: settings_file.stat.exists and not settings_file.stat.islnk
 
-- name: "{{ role_name }} | Deploy settings.json"
+- name: "{{ role_name }} | Deploy settings.json (copy, not symlink)"
   ansible.builtin.copy:
     src: "settings.json"
-    dest: "{{ role_path }}/files/settings.json"
-    mode: '0644'
-  when: not settings_file.stat.exists or not settings_file.stat.islnk
-
-- name: "{{ role_name }} | Create symlink to settings.json"
-  ansible.builtin.file:
-    src: "{{ role_path }}/files/settings.json"
     dest: "{{ ansible_env.HOME }}/.claude/settings.json"
-    state: link
-    force: true
+    mode: '0644'
+    backup: true
+  when: not settings_file.stat.exists
 
 - name: "{{ role_name }} | Check if ~/.claude/scripts exists and is not a symlink"
   ansible.builtin.stat:

@@ -1,111 +1,121 @@
 #!/usr/bin/env zsh
 # Claude-related functions for managing settings and dotfiles integration
+# Note: Color variables are defined in vars.zsh which is sourced before this file
 
 # Show current status of Claude settings file in dotfiles
 c.settings-status() {
   pushd ~/.dotfiles > /dev/null 2>&1
-  echo "📊 Claude settings.json status:"
-  git diff --stat roles/claude/files/settings.json
-  if git diff --quiet roles/claude/files/settings.json; then
-    echo "✅ No changes detected"
-  else
-    echo "📝 Changes detected:"
-    git diff roles/claude/files/settings.json | head -20
-    echo "\nUse 'c.settings-diff' to see full diff"
-  fi
-  popd > /dev/null 2>&1
-}
+  echo ""
+  echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_MID}${NC}  📊 ${CAT_TEXT}Claude Settings Status${NC}                               ${CAT_SAPPHIRE}${BOX_MID}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_BOT}${NC}"
+  echo ""
 
-# Show full diff of Claude settings
-c.settings-diff() {
-  pushd ~/.dotfiles > /dev/null 2>&1
-  git diff roles/claude/files/settings.json
+  if git diff --quiet roles/claude/files/settings.json; then
+    echo -e "  ${CAT_GREEN}✅ Status:${NC} ${CAT_TEXT}No changes detected${NC}"
+    echo ""
+    echo -e "  ${CAT_OVERLAY1}Your Claude settings are in sync with dotfiles${NC}"
+  else
+    echo -e "  ${CAT_PEACH}⚡ Status:${NC} ${CAT_YELLOW}Local changes detected${NC}"
+    echo ""
+
+    # Get stats
+    local changes=$(git diff --shortstat roles/claude/files/settings.json)
+    echo -e "  ${CAT_OVERLAY1}$changes${NC}"
+    echo ""
+
+    # Show preview of changes
+    echo -e "  ${CAT_MAUVE}📝 Preview of changes:${NC}"
+    echo -e "  ${CAT_SURFACE2}${DIVIDER}${NC}"
+    git diff --color=always roles/claude/files/settings.json | head -15 | sed 's/^/  /'
+    echo -e "  ${CAT_SURFACE2}${DIVIDER}${NC}"
+    echo ""
+    echo -e "  💡 ${CAT_MAUVE}Tip:${NC} Run ${CAT_GREEN}c.settings-save${NC} to commit these changes"
+  fi
+  echo ""
   popd > /dev/null 2>&1
 }
 
 # Save current Claude settings to dotfiles
 c.settings-save() {
   pushd ~/.dotfiles > /dev/null 2>&1
+  echo ""
+  echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_MID}${NC}  💾 ${CAT_TEXT}Save Claude Settings${NC}                                 ${CAT_SAPPHIRE}${BOX_MID}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_BOT}${NC}"
+  echo ""
+
   if git diff --quiet roles/claude/files/settings.json; then
-    echo "✅ No changes to save"
+    echo -e "  ${CAT_GREEN}✅ Status:${NC} ${CAT_TEXT}No changes to save${NC}"
+    echo ""
+    echo -e "  ${CAT_OVERLAY1}Your Claude settings are already in sync with dotfiles${NC}"
+    echo ""
     popd > /dev/null 2>&1
     return 0
   fi
 
-  echo "💾 Saving Claude settings to dotfiles..."
+  echo -e "  ${CAT_PEACH}⚡ Action:${NC} ${CAT_YELLOW}Committing settings changes...${NC}"
+  echo ""
+
+  # Show what's being committed
+  local changes=$(git diff --shortstat roles/claude/files/settings.json)
+  echo -e "  ${CAT_OVERLAY1}$changes${NC}"
+  echo ""
+
   git add roles/claude/files/settings.json
   git commit -m "feat: update claude settings
 
-Updated settings.json with latest preferences"
-  echo "✅ Settings saved! Use 'git push' when ready to sync."
-  popd > /dev/null 2>&1
-}
+Updated settings.json with latest preferences" > /dev/null 2>&1
 
-# Ignore local Claude settings changes in git
-c.settings-ignore() {
-  pushd ~/.dotfiles > /dev/null 2>&1
-  git update-index --skip-worktree roles/claude/files/settings.json
-  echo "🙈 Git will now ignore changes to Claude settings.json"
-  echo "Use 'c.settings-unignore' to track changes again"
-  popd > /dev/null 2>&1
-}
-
-# Stop ignoring Claude settings changes
-c.settings-unignore() {
-  pushd ~/.dotfiles > /dev/null 2>&1
-  git update-index --no-skip-worktree roles/claude/files/settings.json
-  echo "👀 Git will now track changes to Claude settings.json"
-  popd > /dev/null 2>&1
-}
-
-# Reset Claude settings to dotfiles version (careful!)
-c.settings-reset() {
-  echo "⚠️  This will reset your Claude settings to the dotfiles version!"
-  echo -n "Are you sure? (y/N): "
-  read -r response
-  if [[ "$response" =~ ^[Yy]$ ]]; then
-    pushd ~/.dotfiles > /dev/null 2>&1
-    git checkout roles/claude/files/settings.json
-    echo "✅ Settings reset to dotfiles version"
-    popd > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo -e "  ${CAT_GREEN}✅ Success:${NC} ${CAT_TEXT}Settings saved to dotfiles!${NC}"
+    echo ""
+    echo -e "  💡 ${CAT_MAUVE}Next step:${NC} Run ${CAT_GREEN}git push${NC} when ready to sync"
   else
-    echo "❌ Reset cancelled"
+    echo -e "  ${CAT_RED}❌ Error:${NC} ${CAT_MAROON}Failed to commit changes${NC}"
   fi
+  echo ""
+  popd > /dev/null 2>&1
 }
 
 # Show all Claude functions
 c.help() {
-  echo "🤖 Claude Helper Functions:"
   echo ""
-  echo "  c.settings-status   - Show status of Claude settings in dotfiles"
-  echo "  c.settings-diff     - Show full diff of Claude settings"
-  echo "  c.settings-save     - Commit current Claude settings to dotfiles"
-  echo "  c.settings-ignore   - Tell git to ignore Claude settings changes"
-  echo "  c.settings-unignore - Tell git to track Claude settings changes"
-  echo "  c.settings-reset    - Reset Claude settings to dotfiles version"
-  echo "  c.continue          - Continue Claude session with working directory"
-  echo "  c.help              - Show this help message"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_MID}${NC}  🤖 ${CAT_TEXT}Claude Helper Functions${NC}                              ${CAT_SAPPHIRE}${BOX_MID}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_BOT}${NC}"
   echo ""
-  echo "💡 Tip: Use tab completion to discover all c.* functions"
+  echo -e "  ${CAT_YELLOW}📊 Settings Management${NC}"
+  echo -e "  ${CAT_GREEN}  c.settings-status${NC}   ${CAT_SURFACE2}│${NC} Show if Claude settings changed in dotfiles"
+  echo -e "  ${CAT_GREEN}  c.settings-save${NC}     ${CAT_SURFACE2}│${NC} Commit Claude settings changes to dotfiles"
+  echo ""
+  echo -e "  ${CAT_YELLOW}🚀 Quick Actions${NC}"
+  echo -e "  ${CAT_GREEN}  c.continue${NC}          ${CAT_SURFACE2}│${NC} Continue Claude session with workspace context"
+  echo -e "  ${CAT_GREEN}  c.c${NC}                 ${CAT_SURFACE2}│${NC} Alias for c.continue ${CAT_OVERLAY0}(quick access)${NC}"
+  echo ""
+  echo -e "  ${CAT_YELLOW}📚 Help${NC}"
+  echo -e "  ${CAT_GREEN}  c.help${NC}              ${CAT_SURFACE2}│${NC} Show this help message"
+  echo ""
+  echo -e "  ${CAT_SURFACE2}${DIVIDER}${NC}"
+  echo -e "  💡 ${CAT_MAUVE}Tip:${NC} Use ${CAT_PEACH}tab completion${NC} to discover all ${CAT_GREEN}c.*${NC} functions"
+  echo ""
 }
 
 # Continue Claude session with current working directory context
 c.continue() {
-  local workspace_flag=""
-  local input_text="$*"
-
-  # Only add workspace flag if we're in a git repo or specific project directory
-  if git rev-parse --git-dir > /dev/null 2>&1; then
-    workspace_flag="--workspace $(pwd)"
-  elif [[ -f "package.json" ]] || [[ -f "Cargo.toml" ]] || [[ -f "go.mod" ]] || [[ -f "requirements.txt" ]]; then
-    workspace_flag="--workspace $(pwd)"
+  # If in a git repo, go to the root
+  local git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+  
+  # Not in a git repo, just run claude here
+  if [[ -z "$git_root" ]]; then
+    claude --continue
+    return
   fi
-
-  if [[ -n "$input_text" ]]; then
-    echo "$input_text" | claude $workspace_flag --continue
-  else
-    claude $workspace_flag --continue
-  fi
+  
+  # In a git repo, go to root first
+  pushd "$git_root" > /dev/null 2>&1
+  claude --continue
+  popd > /dev/null 2>&1
 }
 
 # Alias for common continue patterns

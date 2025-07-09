@@ -1,25 +1,55 @@
 #!/bin/bash
 
-# color codes
-RESTORE='\033[0m'
+# Catppuccin Mocha color codes
 NC='\033[0m'
-BLACK='\033[00;30m'
-RED='\033[00;31m'
-GREEN='\033[00;32m'
-YELLOW='\033[00;33m'
-BLUE='\033[00;34m'
-PURPLE='\033[00;35m'
-CYAN='\033[00;36m'
-SEA="\\033[38;5;49m"
-LIGHTGRAY='\033[00;37m'
-LBLACK='\033[01;30m'
-LRED='\033[01;31m'
-LGREEN='\033[01;32m'
-LYELLOW='\033[01;33m'
-LBLUE='\033[01;34m'
-LPURPLE='\033[01;35m'
-LCYAN='\033[01;36m'
-WHITE='\033[01;37m'
+BOLD='\033[1m'
+
+# Catppuccin Mocha colors
+CAT_ROSEWATER='\033[38;2;245;224;220m'
+CAT_FLAMINGO='\033[38;2;242;205;205m'
+CAT_PINK='\033[38;2;245;194;231m'
+CAT_MAUVE='\033[38;2;203;166;247m'
+CAT_RED='\033[38;2;243;139;168m'
+CAT_MAROON='\033[38;2;235;160;172m'
+CAT_PEACH='\033[38;2;250;179;135m'
+CAT_YELLOW='\033[38;2;249;226;175m'
+CAT_GREEN='\033[38;2;166;227;161m'
+CAT_TEAL='\033[38;2;148;226;213m'
+CAT_SKY='\033[38;2;137;220;235m'
+CAT_SAPPHIRE='\033[38;2;116;199;236m'
+CAT_BLUE='\033[38;2;137;180;250m'
+CAT_LAVENDER='\033[38;2;180;190;254m'
+CAT_TEXT='\033[38;2;205;214;244m'
+CAT_SUBTEXT1='\033[38;2;186;194;222m'
+CAT_SUBTEXT0='\033[38;2;166;173;200m'
+CAT_OVERLAY2='\033[38;2;147;153;178m'
+CAT_OVERLAY1='\033[38;2;127;132;156m'
+CAT_OVERLAY0='\033[38;2;108;112;134m'
+CAT_SURFACE2='\033[38;2;88;91;112m'
+CAT_SURFACE1='\033[38;2;69;71;90m'
+CAT_SURFACE0='\033[38;2;49;50;68m'
+CAT_BASE='\033[38;2;30;30;46m'
+CAT_MANTLE='\033[38;2;24;24;37m'
+CAT_CRUST='\033[38;2;17;17;27m'
+
+# Legacy mappings for easier use
+RED="$CAT_RED"
+GREEN="$CAT_GREEN"
+YELLOW="$CAT_YELLOW"
+BLUE="$CAT_BLUE"
+PURPLE="$CAT_MAUVE"
+CYAN="$CAT_TEAL"
+WHITE="$CAT_TEXT"
+LBLACK="$CAT_SURFACE0"
+LRED="$CAT_RED"
+LGREEN="$CAT_GREEN"
+LYELLOW="$CAT_YELLOW"
+LBLUE="$CAT_BLUE"
+LPURPLE="$CAT_MAUVE"
+LCYAN="$CAT_TEAL"
+
+# Special
+SEA="$CAT_SAPPHIRE"
 OVERWRITE='\e[1A\e[K'
 
 #emoji codes
@@ -37,6 +67,20 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 set -e
 
+# Cleanup function for exit
+function cleanup() {
+  # Kill spinner if running
+  if [[ $SPINNER_PID != "" ]]; then
+    kill $SPINNER_PID 2>/dev/null
+    wait $SPINNER_PID 2>/dev/null
+  fi
+  # Show cursor
+  tput cnorm
+}
+
+# Set trap to cleanup on exit
+trap cleanup EXIT INT TERM
+
 # Paths
 VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
 OP_INSTALLED=false
@@ -46,15 +90,48 @@ ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
-# _header colorize the given argument with spacing
+# Spinner PID tracking
+SPINNER_PID=""
+
+# Spinner function that runs in background
+function _spinner() {
+  local task_text="$1"
+  local chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  local delay=0.08
+  
+  # Hide cursor
+  tput civis
+  
+  # Save cursor position
+  tput sc
+  
+  while true; do
+    for char in "${chars[@]}"; do
+      # Restore cursor position and clear line
+      tput rc
+      tput el
+      printf "${CAT_OVERLAY1} [${CAT_SAPPHIRE}${char}${CAT_OVERLAY1}]  ${CAT_TEXT}${task_text}" >&2
+      sleep $delay
+    done
+  done
+}
+
+# Start a new task with spinner
 function __task {
-  # if _task is called while a task was set, complete the previous
-  if [[ $TASK != "" ]]; then
-    printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  # if a task is running, complete it first
+  if [[ $TASK != "" ]] && [[ $SPINNER_PID != "" ]]; then
+    _task_done
   fi
-  # set new task title and print
+  
+  # set new task
   TASK=$1
-  printf "${LBLACK} [ ]  ${TASK} \n${LRED}"
+  
+  # Start spinner in background
+  _spinner "$TASK" &
+  SPINNER_PID=$!
+  
+  # Disable job control messages
+  disown $SPINNER_PID 2>/dev/null
 }
 
 # _cmd performs commands with error checking
@@ -65,20 +142,35 @@ function _cmd {
   fi
   # empty conduro.log
   > $DOTFILES_LOG
+  
   # hide stdout, on error we print and exit
   if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
     return 0 # success
+  else
+    # Kill spinner if running
+    if [[ $SPINNER_PID != "" ]]; then
+      kill $SPINNER_PID 2>/dev/null
+      wait $SPINNER_PID 2>/dev/null
+      SPINNER_PID=""
+    fi
+    
+    # Show cursor again
+    tput cnorm
+    
+    # Clear the line and show error
+    printf "\r\033[K${CAT_RED} [✗]  ${CAT_TEXT}${TASK}${NC}\n"
+    
+    # Show error details
+    while read line; do
+      printf "      ${CAT_MAROON}${line}${NC}\n"
+    done < $DOTFILES_LOG
+    printf "\n"
+    
+    # remove log file
+    rm $DOTFILES_LOG
+    # exit installation
+    exit 1
   fi
-  # read error from log and add spacing
-  printf "${OVERWRITE}${LRED} [X]  ${TASK}${LRED}\n"
-  while read line; do
-    printf "      ${line}\n"
-  done < $DOTFILES_LOG
-  printf "\n"
-  # remove log file
-  rm $DOTFILES_LOG
-  # exit installation
-  exit 1
 }
 
 function _clear_task {
@@ -86,7 +178,18 @@ function _clear_task {
 }
 
 function _task_done {
-  printf "${OVERWRITE}${LGREEN} [✓]  ${LGREEN}${TASK}\n"
+  # Kill spinner if running
+  if [[ $SPINNER_PID != "" ]]; then
+    kill $SPINNER_PID 2>/dev/null
+    wait $SPINNER_PID 2>/dev/null
+    SPINNER_PID=""
+  fi
+  
+  # Show cursor again
+  tput cnorm
+  
+  # Clear line and show success
+  printf "\r\033[K${CAT_GREEN} [✓]  ${CAT_TEXT}${TASK}\n"
   _clear_task
 }
 
@@ -198,7 +301,7 @@ function macos_setup() {
     __task "Setting up 1Password CLI"
     # press any key to continue
     read -n 1 -s -r -p "Press any key to continue"
-    echo -e "${OVERWRITE}${OVERWRITE} [✓]  ${GREEN}1Password CLI setup complete${NC}" && _clear_task
+    _task_done
   fi
 }
 
@@ -207,7 +310,7 @@ update_ansible_galaxy() {
   local os_requirements=""
   __task "Installing Ansible dependencies (This may take a few minutes)"
   if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
-    __task "${OVERWRITE}Installing Ansible dependencies for $os"
+    __task "Installing Ansible dependencies for $os"
     os_requirements="$DOTFILES_DIR/requirements/$os.yml"
   fi
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
@@ -216,15 +319,15 @@ update_ansible_galaxy() {
 function confirmVaultAccess() {
   __task "Checking for 1Password CLI"
   if ! command -v op >/dev/null 2>&1; then
-    printf "${OVERWRITE} ${RED}[X]  Checking for 1Password CLI\n"
-    printf " ${WARNING}${RED}   1Password CLI is not installed.${NC}\n"
+    printf "${OVERWRITE}${CAT_RED} [X]  ${CAT_TEXT}Checking for 1Password CLI\n"
+    printf " ${WARNING}${CAT_MAROON}   1Password CLI is not installed.${NC}\n"
     exit 1
   fi
   local op_version
   op_version=$(op --version)
   __task "1Password CLI found: [$op_version] -- Authenticating..."
   if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
-  _task_done && printf "${GREEN} [✓] Successfully authenticated with 1Password CLI! ☕\n"
+  _task_done && printf "${CAT_GREEN} [✓] ${CAT_TEXT}Successfully authenticated with 1Password CLI! ☕\n"
   return
 }
 
@@ -239,19 +342,19 @@ detect_os() {
 
 function print_banner() {
   echo ""
-  echo -e "${LGREEN}  ████████╗███████╗ ██████╗██╗  ██╗██████╗ ██╗   ██╗███████╗██╗   ██╗███████╗${NC}"
-  echo -e "${LGREEN}  ╚══██╔══╝██╔════╝██╔════╝██║  ██║██╔══██╗██║   ██║██╔════╝██║   ██║██╔════╝${NC}"
-  echo -e "${LGREEN}     ██║   █████╗  ██║     ███████║██║  ██║██║   ██║█████╗  ██║   ██║███████╗${NC}"
-  echo -e "${LGREEN}     ██║   ██╔══╝  ██║     ██╔══██║██║  ██║██║   ██║██╔══╝  ██║   ██║╚════██║${NC}"
-  echo -e "${LGREEN}     ██║   ███████╗╚██████╗██║  ██║██████╔╝╚██████╔╝██║     ╚██████╔╝███████║${NC}"
-  echo -e "${LGREEN}     ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═╝      ╚═════╝ ╚══════╝${NC}"
+  echo -e "${CAT_SAPPHIRE}  ████████╗███████╗ ██████╗██╗  ██╗██████╗ ██╗   ██╗███████╗██╗   ██╗███████╗${NC}"
+  echo -e "${CAT_SAPPHIRE}  ╚══██╔══╝██╔════╝██╔════╝██║  ██║██╔══██╗██║   ██║██╔════╝██║   ██║██╔════╝${NC}"
+  echo -e "${CAT_SAPPHIRE}     ██║   █████╗  ██║     ███████║██║  ██║██║   ██║█████╗  ██║   ██║███████╗${NC}"
+  echo -e "${CAT_SAPPHIRE}     ██║   ██╔══╝  ██║     ██╔══██║██║  ██║██║   ██║██╔══╝  ██║   ██║╚════██║${NC}"
+  echo -e "${CAT_SAPPHIRE}     ██║   ███████╗╚██████╗██║  ██║██████╔╝╚██████╔╝██║     ╚██████╔╝███████║${NC}"
+  echo -e "${CAT_SAPPHIRE}     ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═╝      ╚═════╝ ╚══════╝${NC}"
   echo ""
-  echo -e "${LGREEN}      ██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗${NC}"
-  echo -e "${LGREEN}      ██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝${NC}"
-  echo -e "${LGREEN}      ██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗${NC}"
-  echo -e "${LGREEN}      ██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║${NC}"
-  echo -e "${LGREEN}      ██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║${NC}"
-  echo -e "${LGREEN}      ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
+  echo -e "${CAT_BLUE}      ██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗${NC}"
+  echo -e "${CAT_BLUE}      ██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝${NC}"
+  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗${NC}"
+  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║${NC}"
+  echo -e "${CAT_BLUE}      ██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║${NC}"
+  echo -e "${CAT_BLUE}      ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
   echo ""
 }
 
@@ -299,14 +402,14 @@ popd 2>&1 > /dev/null
 
 if ! [[ -f "$IS_FIRST_RUN" ]]; then
   echo ""
-  echo -e "${CHECK_MARK} ${GREEN}🎉 Dotfiles installation complete!${NC}"
+  echo -e "${CHECK_MARK} ${CAT_GREEN}🎉 Dotfiles installation complete!${NC}"
   echo ""
-  echo -e "${ARROW} ${CYAN}Next steps:${NC}"
-  echo -e "   1. Customize your setup: ${LBLUE}nvim ~/.dotfiles/group_vars/all.yml${NC}"
-  echo -e "   2. Apply changes anytime: ${LBLUE}dotfiles${NC}"
-  echo -e "   3. Get help: ${LBLUE}https://discord.gg/5M4hjfyRBj${NC}"
+  echo -e "${ARROW} ${CAT_TEAL}Next steps:${NC}"
+  echo -e "   1. Customize your setup: ${CAT_LAVENDER}nvim ~/.dotfiles/group_vars/all.yml${NC}"
+  echo -e "   2. Apply changes anytime: ${CAT_LAVENDER}dotfiles${NC}"
+  echo -e "   3. Get help: ${CAT_LAVENDER}https://discord.gg/5M4hjfyRBj${NC}"
   echo ""
-  echo -e "${ARROW} ${CYAN}Please reboot your computer to complete the setup.${NC}"
+  echo -e "${ARROW} ${CAT_TEAL}Please reboot your computer to complete the setup.${NC}"
   echo ""
   touch "$IS_FIRST_RUN"
 fi

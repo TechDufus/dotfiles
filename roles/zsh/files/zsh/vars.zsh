@@ -53,6 +53,9 @@ export LBLUE="$BOLD$CAT_BLUE"
 export LPURPLE="$BOLD$CAT_MAUVE"
 export LCYAN="$BOLD$CAT_TEAL"
 
+# Additional legacy mappings
+export ORANGE="$CAT_PEACH"
+
 # Special
 export SEA="$CAT_SAPPHIRE"
 export OVERWRITE='\e[1A\e[K'

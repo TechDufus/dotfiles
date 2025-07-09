@@ -2,13 +2,6 @@
 
 ghelp() {
   # Display help for custom git functions
-  local BOLD='\033[1m'
-  local GREEN='\033[0;32m'
-  local YELLOW='\033[0;33m'
-  local BLUE='\033[0;34m'
-  local CYAN='\033[0;36m'
-  local MAGENTA='\033[0;35m'
-  local NC='\033[0m'
   
   echo -e "${BOLD}${BLUE}━━━ Custom Git Functions ━━━${NC}\n"
   
@@ -91,15 +84,6 @@ gss() {
     return 1
   fi
 
-  # Colors
-  local GREEN='\033[0;32m'
-  local YELLOW='\033[0;33m'
-  local RED='\033[0;31m'
-  local BLUE='\033[0;34m'
-  local CYAN='\033[0;36m'
-  local MAGENTA='\033[0;35m'
-  local BOLD='\033[1m'
-  local NC='\033[0m' # No Color
 
   # Get current branch
   local branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
@@ -379,14 +363,6 @@ gwl() {
     return 1
   fi
   
-  # Colors
-  local GREEN='\033[0;32m'
-  local YELLOW='\033[0;33m'
-  local BLUE='\033[0;34m'
-  local CYAN='\033[0;36m'
-  local MAGENTA='\033[0;35m'
-  local BOLD='\033[1m'
-  local NC='\033[0m'
   
   echo -e "${BOLD}${BLUE}━━━ Git Worktrees ━━━${NC}\n"
   

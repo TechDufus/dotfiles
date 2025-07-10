@@ -49,6 +49,7 @@ default_roles:
   - tldr
   - tmate
   - tmux
+  - sesh
   # - tshark
   - warp
   - whalebrew
@@ -88,8 +89,8 @@ go:
   packages:
     - package: github.com/go-task/task/v3/cmd/task@latest
       cmd: task
-    # - package: github.com/gcla/termshark/v2/cmd/termshark@v2.4.0
-    #   cmd: termshark
+    - package: github.com/joshmedeski/sesh/v2@latest
+      cmd: sesh
     # NOTE: termshark has dependency issues with v2.4.0
     # - package: github.com/stillmatic/chat@latest
     #   cmd: chat

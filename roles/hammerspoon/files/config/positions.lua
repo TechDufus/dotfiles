@@ -28,4 +28,26 @@ return {
     left  = '0,0 80x40',
     right = '80,0 80x40',
   },
+
+  -- 4K Monitor layout (3840x2160)
+  -- Grid-based positioning (80x40 grid)
+  fourk = {
+    -- Left side positions
+    left_large    = '0,0 52x40',      -- 65% width, full height
+    left_wide     = '0,0 64x40',      -- 80% width, full height
+    
+    -- Right side positions  
+    right_side    = '52,0 28x40',     -- 35% width, full height
+    
+    -- Floating positions
+    top_right     = '50,2 28x20',     -- Top-right quadrant
+    bottom_right  = '50,20 28x18',    -- Bottom-right quadrant
+    
+    -- Center positions
+    center_large  = '10,5 60x30',     -- Large centered window
+    center_padded = '8,4 64x32',      -- Centered with padding
+    
+    -- Utility positions
+    right_small   = '48,8 30x24',     -- Small right-side window
+  },
 }

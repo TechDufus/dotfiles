@@ -23,6 +23,7 @@ You are the Coordinator Agent orchestrating specialized sub-agents to create a c
 2. **Context Gatherer Agent** - Identifies key abstractions, workflows, and conventions
 3. **Documentation Agent** - Extracts insights from existing docs and comments
 4. **Testing Agent** - Analyzes test patterns and quality standards
+5. **Git History Analyst Agent** - Examines repository evolution and historical patterns
 
 ## Process
 
@@ -139,6 +140,44 @@ You are the Coordinator Agent orchestrating specialized sub-agents to create a c
    - Performance budgets and benchmarks
    - Documentation requirements
 
+### Phase 5: Git History Analysis (Git History Analyst Agent)
+
+1. **Repository Evolution**
+   - Initial commit and project inception
+   - Major milestones and version releases
+   - Growth patterns (files, commits, contributors)
+   - Technology migrations and upgrades
+   - Refactoring patterns and code cleanups
+   - Feature development timelines
+   - Deprecated features and removal patterns
+
+2. **Commit Patterns**
+   - Commit message conventions and evolution
+   - Commit frequency and size patterns
+   - Author contributions and expertise areas
+   - Code ownership and maintenance patterns
+   - Hot spots (frequently changed files)
+   - Stable vs volatile code areas
+   - Branching and merging strategies
+
+3. **Architectural Evolution**
+   - Major architectural changes over time
+   - Design pattern adoptions and removals
+   - Technology stack changes and reasons
+   - Performance optimization history
+   - Security improvement timeline
+   - Breaking changes and migration paths
+   - Failed experiments and lessons learned
+
+4. **Issue and Bug Patterns**
+   - Common bug fix patterns
+   - Recurring issues and solutions
+   - Performance problem areas
+   - Security vulnerability fixes
+   - Regression patterns
+   - Feature request trends
+   - Emergency fixes and hotfixes
+
 ## Ultrathink Reflection Phase
 
 Synthesize all gathered information to create a comprehensive CLAUDE.md that includes ALL sections from the template. Each agent should contribute:
@@ -166,6 +205,13 @@ Synthesize all gathered information to create a comprehensive CLAUDE.md that inc
 - Quality gates and CI/CD pipeline
 - Code review process
 - Debugging tools and approaches
+
+**Git History Analyst Agent:**
+- Historical context and evolution
+- Migration paths and deprecations
+- Common issues and their fixes
+- Code ownership and hot spots
+- Failed approaches to avoid
 
 **Additional Considerations:**
 - Quick start guide with prerequisites
@@ -344,7 +390,15 @@ project/
 [Detailed explanation of something that might trip up newcomers]
 
 ### Historical Decisions
-[Key architectural decisions and their rationale]
+[Key architectural decisions and their rationale - from git history]
+- [Decision]: [Context, alternatives considered, outcome]
+- [Migration]: [What changed, why, and lessons learned]
+
+### Code Evolution Patterns
+[How the codebase has evolved - from git history analysis]
+- Major refactorings: [what, when, why]
+- Technology migrations: [from → to, reasons]
+- Deprecated patterns: [what to avoid and why]
 
 ### Performance Considerations
 - [Bottleneck area]: [mitigation strategy]
@@ -392,11 +446,13 @@ project/
    - Symptoms: [what you'll see]
    - Cause: [root cause]
    - Solution: [how to fix]
+   - History: [how often this occurs - from git history]
 
 2. **[Another issue]**
    - Symptoms: [description]
    - Cause: [explanation]
    - Solution: [fix]
+   - Prevention: [how to avoid - learned from history]
 
 ### Debugging Tools
 - [Tool name]: [usage]
@@ -481,6 +537,11 @@ project/
 
 ### Team Contacts
 [If applicable, who to contact for different areas]
+
+### Code Ownership
+[From git history - who maintains what]
+- [Component/Area]: [Primary maintainer(s)]
+- [Another area]: [Expert(s) based on commit history]
 
 ## Maintenance Tasks
 

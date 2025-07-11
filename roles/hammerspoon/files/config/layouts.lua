@@ -13,12 +13,12 @@ return {
       Terminal    = { cell = 1, open = true }, -- Primary workspace
       Browser     = { cell = 2, open = true }, -- Always docked right
       MatterMost  = { cell = 3, open = true }, -- Floating chat overlay
-      Teams       = { cell = 3 },              -- Alternate chat
       Discord     = { cell = 3 },              -- Alternate chat
       Outlook     = { cell = 4 },              -- Email with communication apps
       Spotify     = { cell = 4, open = true }, -- Floating music control
       Finder      = { cell = 4 },              -- Alternate utility
-      Obsidian    = { cell = 5 },              -- On-demand focus overlay
+      Teams       = { cell = 5 },              -- Meeting focus - large centered
+      Obsidian    = { cell = 3 },              -- Moved to smaller chat position
       OnePassword = { cell = 6 },              -- Quick access popup
       Claude      = { cell = 6 },              -- AI assistant popup
     },
@@ -39,13 +39,13 @@ return {
       Spotify     = { cell = 2, open = true },
       Outlook     = { cell = 2, open = true },
       Finder      = { cell = 2 },
-      Obsidian    = { cell = 3, open = true },
-      Gpt         = { cell = 3 },
+      Teams       = { cell = 3 },              -- Meeting focus position
+      Obsidian    = { cell = 6 },              -- Moved to utility position
+      Gpt         = { cell = 6 },
       Terminal    = { cell = 4, open = true },
       Windows     = { cell = 4 },
       Browser     = { cell = 5, open = true },
       OnePassword = { cell = 6, open = true },
-      Teams       = { cell = 6 },
       Agenda      = { cell = 6 },
       Discord     = { cell = 7, open = true },
     },

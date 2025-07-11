@@ -78,6 +78,11 @@ Updated settings.json with latest preferences" > /dev/null 2>&1
   popd > /dev/null 2>&1
 }
 
+# Check Claude usage statistics
+c.usage() {
+  bunx ccusage "$@"
+}
+
 # Show all Claude functions
 c.help() {
   echo ""
@@ -92,6 +97,7 @@ c.help() {
   echo -e "  ${CAT_YELLOW}🚀 Quick Actions${NC}"
   echo -e "  ${CAT_GREEN}  c.continue${NC}          ${CAT_SURFACE2}│${NC} Continue Claude session with workspace context"
   echo -e "  ${CAT_GREEN}  c.c${NC}                 ${CAT_SURFACE2}│${NC} Alias for c.continue ${CAT_OVERLAY0}(quick access)${NC}"
+  echo -e "  ${CAT_GREEN}  c.usage${NC}             ${CAT_SURFACE2}│${NC} Check Claude API usage statistics"
   echo ""
   echo -e "  ${CAT_YELLOW}📚 Help${NC}"
   echo -e "  ${CAT_GREEN}  c.help${NC}              ${CAT_SURFACE2}│${NC} Show this help message"

@@ -2,24 +2,24 @@ return {
   {
     name = '4K Workspace',
     cells = {
-      { positions.fourk.left_large, positions.fourk.left_wide, positions.full, positions.fourk.center_padded }, -- 1: Terminal positions
-      { positions.fourk.right_side, positions.halves.right },   -- 2: Browser positions
-      { positions.fourk.top_right, positions.halves.left },     -- 3: Top-right float
-      { positions.fourk.bottom_right, positions.halves.left },  -- 4: Bottom-right float
-      { positions.fourk.center_large, positions.halves.right }, -- 5: Center overlay
-      { positions.fourk.right_small, positions.halves.left },   -- 6: Small utility
+      { positions.fourk.left_large,        positions.full },
+      { positions.fourk.right_side,        positions.full },
+      { positions.fourk.top_right,         positions.full },
+      { positions.fourk.center_left_large, positions.full },
+      { positions.fourk.center_large,      positions.full },
+      { positions.fourk.right_small,       positions.full },
     },
     apps = {
       Terminal    = { cell = 1, open = true }, -- Primary workspace
       Browser     = { cell = 2, open = true }, -- Always docked right
       MatterMost  = { cell = 3, open = true }, -- Floating chat overlay
       Discord     = { cell = 3 },              -- Alternate chat
-      Outlook     = { cell = 4 },              -- Email with communication apps
-      Spotify     = { cell = 4, open = true }, -- Floating music control
-      Finder      = { cell = 4 },              -- Alternate utility
+      Outlook     = { cell = 4 },              -- Email - center-left float (behind terminal)
+      Spotify     = { cell = 4, open = true }, -- Music - center-left float (behind terminal)
+      Finder      = { cell = 4 },              -- Files - center-left float (behind terminal)
+      OnePassword = { cell = 4 },              -- Password manager - center-left float (behind terminal)
       Teams       = { cell = 5 },              -- Meeting focus - large centered
       Obsidian    = { cell = 3 },              -- Moved to smaller chat position
-      OnePassword = { cell = 6 },              -- Quick access popup
       Claude      = { cell = 6 },              -- AI assistant popup
     },
   },
@@ -39,8 +39,8 @@ return {
       Spotify     = { cell = 2, open = true },
       Outlook     = { cell = 2, open = true },
       Finder      = { cell = 2 },
-      Teams       = { cell = 3 },              -- Meeting focus position
-      Obsidian    = { cell = 6 },              -- Moved to utility position
+      Teams       = { cell = 3 }, -- Meeting focus position
+      Obsidian    = { cell = 6 }, -- Moved to utility position
       Gpt         = { cell = 6 },
       Terminal    = { cell = 4, open = true },
       Windows     = { cell = 4 },

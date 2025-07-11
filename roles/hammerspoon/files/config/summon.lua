@@ -1,73 +1,36 @@
--- Simplified summon with window memory (no cycling)
-require('helpers')
+-- Simplified summon with reliable toggle and proper activation
+local previousApp = nil
 
--- Track last focused window for each application
-local appWindowTrackers = {}
-local lastFocusedApp = nil
-
--- Window filter to track focus changes
-local windowFilter = hs.window.filter.new()
-windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
-  if window and window:application() then
-    local bundleID = window:application():bundleID()
-    
-    -- Remember this window for the app
-    appWindowTrackers[bundleID] = {
-      lastWindow = window
-    }
-    
-    -- Track the last focused app for toggle behavior
-    if bundleID ~= lastFocusedApp then
-      lastFocusedApp = bundleID
+-- Track what we switch TO (more reliable than tracking what we leave)
+hs.window.filter.new():subscribe(hs.window.filter.windowFocused, function(win)
+  if win and win:application() then
+    local currentApp = hs.application.frontmostApplication():bundleID()
+    if currentApp ~= previousApp then
+      previousApp = currentApp
     end
   end
 end)
 
--- Simple summon function with window memory
-return function (appName)
-  local id
-  if _G.apps and _G.apps[appName] then
-    id = _G.apps[appName].id
-  elseif hs.application.find(appName) then
-    id = hs.application.find(appName):bundleID()
-  else
-    id = appName
-  end
+return function(appName)
+  -- Get app ID
+  local id = (_G.apps and _G.apps[appName] and _G.apps[appName].id) or appName
   
   local app = hs.application.find(id)
-  local currentApp = hs.application.frontmostApplication()
-  local currentId = currentApp:bundleID()
+  local currentId = hs.application.frontmostApplication():bundleID()
   
-  -- Case 1: App not running or no windows - open it
-  if not app or not next(app:allWindows()) then
-    hs.application.open(id)
-    return
-  end
-  
-  -- Case 2: Different app is frontmost - switch to target app's last window
-  if currentId ~= id then
-    local tracker = appWindowTrackers[id]
-    
-    if tracker and tracker.lastWindow and tracker.lastWindow:isStandard() and not tracker.lastWindow:isMinimized() then
-      -- Focus the last used window
-      tracker.lastWindow:focus()
+  -- Case 1: Target app is focused and we have history - toggle back
+  if currentId == id and previousApp and previousApp ~= id then
+    local prevApp = hs.application.find(previousApp)
+    if prevApp then
+      prevApp:activate()  -- Use activate for existing apps
     else
-      -- No tracked window, just activate the app
-      app:activate()
+      hs.application.open(previousApp)
     end
-  -- Case 3: Target app is already frontmost - toggle back
+  -- Case 2: App exists with windows - activate it (don't create new window)
+  elseif app and next(app:allWindows()) then
+    app:activate()  -- SECRET SAUCE: activate existing instead of open
+  -- Case 3: App not running or no windows - open it
   else
-    if lastFocusedApp and lastFocusedApp ~= id then
-      local lastApp = hs.application.find(lastFocusedApp)
-      if lastApp then
-        local tracker = appWindowTrackers[lastFocusedApp]
-        
-        if tracker and tracker.lastWindow and tracker.lastWindow:isStandard() and not tracker.lastWindow:isMinimized() then
-          tracker.lastWindow:focus()
-        else
-          lastApp:activate()
-        end
-      end
-    end
+    hs.application.open(id)
   end
 end

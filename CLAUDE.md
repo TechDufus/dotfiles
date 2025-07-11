@@ -4,126 +4,176 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a comprehensive dotfiles repository that uses Ansible to automate development environment setup across multiple operating systems (macOS, Ubuntu, Fedora, Arch Linux). The repository includes configurations for development tools, terminal environments, and productivity applications.
+This is an **Ansible-based dotfiles management system** for automated cross-platform development environment setup. It supports macOS, Ubuntu, Fedora, and Arch Linux, providing a consistent development experience across all platforms. The system is built with modularity, idempotency, and graceful degradation in mind.
 
 ## Essential Commands
 
-### Running the Playbook
+### Development
 ```bash
-# Run the full playbook
+# Install/update all dotfiles
 dotfiles
 
-# Run specific roles/tags
-dotfiles -t neovim,zsh
+# Install specific roles only
+dotfiles -t neovim,git,tmux
 
-# Run with verbosity
-dotfiles -vvv
-
-# Dry run (check mode)
+# Test changes without applying (dry run)
 dotfiles --check
 
-# List all available tags
+# Debug with verbose output
+dotfiles -vvv
+
+# List all available roles
 dotfiles --list-tags
 ```
 
-### Development Commands
+### Common Tasks
 ```bash
-# Lint the Ansible playbook
-ansible-lint
+# Uninstall a role (keeps config)
+dotfiles --uninstall <role>
 
-# Test specific role
-dotfiles -t <role_name> -vvv
+# Completely remove a role
+dotfiles --delete <role>
 
-# Update dependencies
+# Run syntax check
+ansible-playbook main.yml --syntax-check
+
+# Update dotfiles repository
 cd ~/.dotfiles && git pull
-```
-
-### Common Maintenance Tasks
-```bash
-# Update all gh extensions
-gh extension list | awk '{print $3}' | xargs -I {} gh extension upgrade {}
-
-# Update npm global packages
-npm update -g
-
-# Update Homebrew packages (macOS)
-brew update && brew upgrade
-
-# AI-powered GitHub PR review (use /gh-review command)
-~/.claude/scripts/gh-ai-review.sh 123
-~/.claude/scripts/gh-ai-review.sh "org/repo#123"
 ```
 
 ## Architecture and Key Concepts
 
-### 1. **Ansible-Based Architecture**
-- Main playbook: `main.yml` orchestrates all roles
-- Each tool/application has its own role in `roles/` directory
-- OS-specific configurations handled via conditional task inclusion
-- Pre-tasks validate environment before role execution
+### 1. **Role-Based Architecture**
+Each tool/application is a self-contained Ansible role in `/roles/<tool>/`. Roles automatically detect the OS and only run if supported, preventing errors on incompatible systems.
 
-### 2. **1Password Integration**
-- Replaces traditional ansible-vault with 1Password CLI (`op`)
-- Secrets referenced via vault paths (e.g., `op://Personal/GitHub/email`)
-- SSH keys, Git configs, and sensitive data managed through 1Password
-- Authentication required before playbook execution
+### 2. **OS Detection Pattern**
+```yaml
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: distribution_config
 
-### 3. **Cross-Platform Support**
-- Each role checks for OS-specific task files (`MacOSX.yml`, `Ubuntu.yml`, `Archlinux.yml`)
-- Bootstrap script (`bin/dotfiles`) handles OS detection and prerequisite installation
-- Shared configurations in role defaults, OS-specific overrides in task files
+- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: distribution_config.stat.exists
+```
 
-### 4. **Key Configuration Files**
-- `group_vars/all.yml`: Central configuration defining enabled roles and user-specific settings
-- `bin/dotfiles`: Bootstrap script and main entry point
-- Role structure: `roles/<name>/tasks/main.yml` checks for OS-specific implementations
+### 3. **1Password Integration**
+All secrets are managed through 1Password CLI (`op`). The system checks for 1Password availability and falls back gracefully when not authenticated.
 
-### 5. **Shell Environment**
-- ZSH as default shell with extensive custom functions
-- Functions organized by purpose: `pkg_functions.zsh`, `k8s_functions.zsh`, `gcloud_functions.zsh`
-- Powerlevel10k prompt for cross-shell prompt consistency
-- Integration with fzf for fuzzy finding
-
-### 6. **Development Tool Management**
-- Binary installations from GitHub releases handled by `github_release` role
-- Package installations through OS package managers (apt, yum, pacman, brew)
-- Version management for: Node.js (nvm), Python, Go, Ruby
-- Kubernetes tooling: kubectl, k9s, helm with custom helper functions
-- Cloud CLIs: AWS, Azure, Google Cloud with credential management
+### 4. **Package Management Hierarchy**
+- macOS: Homebrew
+- Ubuntu: apt/nala
+- Fedora: dnf
+- Arch: pacman
+- Language-specific: pip, npm, go, cargo
 
 ## Important Patterns
 
-### Adding New Roles
-1. Create role directory: `roles/<name>/`
-2. Add `tasks/main.yml` with OS detection template
+### Directory Structure for Roles
+```
+roles/<role_name>/
+├── tasks/
+│   ├── main.yml          # Entry point with OS detection
+│   ├── MacOSX.yml        # macOS-specific tasks
+│   ├── Ubuntu.yml        # Ubuntu-specific tasks
+│   └── Fedora.yml        # Fedora-specific tasks
+├── files/               # Static configuration files
+├── templates/           # Jinja2 templates
+├── defaults/           # Default variables
+├── handlers/           # Event handlers
+└── uninstall.sh       # Uninstallation script
+```
+
+### Task Naming Convention
+Always prefix tasks with the role name:
+```yaml
+- name: "{{ role_name }} | Install | Package dependencies"
+```
+
+### Adding New Features
+1. Create role directory: `roles/<new_tool>/`
+2. Add OS detection in `tasks/main.yml`
 3. Create OS-specific task files as needed
-4. Add role to `default_roles` in `group_vars/all.yml`
+4. Add static configs to `files/`
+5. Create `uninstall.sh` for clean removal
+6. Add role to `group_vars/all.yml` under `default_roles`
 
-### Secret Management
-- Never commit secrets directly
-- Always use 1Password vault references
-- Format: `op://<vault>/<item>/<field>`
+### Testing Approach
+- Use `--check` flag for dry runs
+- Verify idempotency by running twice
+- Test on each supported OS
+- Check CI linting passes
 
-### File Deployments
-- Use `ansible.builtin.copy` or `ansible.builtin.template`
-- Files stored in `roles/<name>/files/`
-- OS-specific files in `roles/<name>/files/os/<OS>/`
+## Hidden Context
 
-### Using GitHub Release Role
-- For installing binaries from GitHub releases, use the `github_release` role:
-  ```yaml
-  - name: "Install from GitHub Release"
-    ansible.builtin.include_role:
-      name: github_release
-    vars:
-      github_release_repo: "owner/repo"
-      github_release_binary_name: "binary-name"
-      github_release_asset_name_pattern: "binary-{{ ansible_system | lower }}-amd64"
-  ```
-- Supports various archive formats: tar.gz, tar.bz2, zip, and direct binaries
-- Automatically handles binary extraction and installation to ~/.local/bin
+### ZSH Completions Timing Issue
+ZSH completions can be overwritten by zinit's cdreplay. The solution is to load custom completions AFTER zinit's replay or use zinit's snippet management.
 
-### Testing Changes
-- Always test with specific tags first: `dotfiles -t <role> --check`
-- Use verbose mode for debugging: `-vvv`
-- Check `~/.dotfiles.log` for execution history
+### 1Password Vault Migration
+The project migrated from ansible-vault to 1Password for better secret rotation. Never store secrets in the repository - all secrets should use `op://` references.
+
+### Bootstrap Script Intelligence
+The `bin/dotfiles` script handles prerequisites automatically:
+- Installs Homebrew on macOS
+- Installs Ansible based on OS
+- Handles WSL detection
+- Provides visual feedback with spinners
+
+### Performance Considerations
+- Roles run in parallel where possible
+- Ansible Galaxy dependencies are cached
+- Use `failed_when: false` for operations that might fail but shouldn't stop execution
+
+### Security Notes
+- No secrets in repository (use 1Password)
+- SSH keys managed through 1Password
+- Git commit signing automated
+- Sudo availability checked before operations
+
+## Code Style
+
+### Naming Conventions
+- **Roles**: lowercase with underscores (`github_release`)
+- **Variables**: snake_case with role prefix (`git_user_name`)
+- **Files**: Match tool expectations (`.zshrc`, `config.yaml`)
+- **Tasks**: Descriptive with role prefix
+
+### File Organization
+- OS-specific files in `files/os/<distribution>/`
+- Templates use `.j2` extension
+- Uninstall scripts are executable shell scripts
+
+### YAML Standards
+- 2-space indentation
+- Fully qualified module names (`ansible.builtin.copy`)
+- Boolean values: `true`/`false` (not `yes`/`no`)
+- Multi-line strings use `|` or `>` appropriately
+
+### Error Handling
+- Use `block/rescue` for complex error recovery
+- Register results and check `rc` for command success
+- Provide helpful debug messages
+- Always handle missing dependencies gracefully
+
+## Gotchas and Tips
+
+- **WSL Detection**: Special handling for Windows Subsystem for Linux - checks for PowerShell and host user
+- **Homebrew on Linux**: Requires manual PATH setup in shell configs
+- **1Password Authentication**: Must be authenticated before running roles that need secrets
+- **Idempotency**: Always use `changed_when` appropriately to track state changes
+- **OS Compatibility**: Test on target OS - not all roles support all distributions
+- **Symlink vs Copy**: Prefer symlinks for config directories to maintain version control
+- **Tab Completion**: Complex timing issues in tmux - see ZSH role for solutions
+- **Package Versions**: Some packages (like termshark) need specific versions due to dependencies
+
+## CI/CD Quality Gates
+
+The repository enforces quality through GitHub Actions:
+- **Ansible Lint**: Validates all playbooks and roles
+- **ShellCheck**: Validates shell scripts
+- **YAML Lint**: Checks YAML formatting
+- **Markdown Lint**: Ensures documentation quality
+- **Link Checker**: Validates all documentation links
+
+Always ensure your changes pass all CI checks before merging.

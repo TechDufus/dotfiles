@@ -5,7 +5,7 @@ background-opacity = 1
 background-blur-radius = 20
 
 # Font
-font-size = 18
+font-size = 20
 font-family = "BerkeleyMono Nerd Font"
 font-thicken = true
 bold-is-bright = true

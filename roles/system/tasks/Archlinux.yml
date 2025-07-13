@@ -11,5 +11,6 @@
     name:
       - jq
       - open-iscsi
+      - unzip
     state: present
   become: true

@@ -97,8 +97,8 @@
           - Check if your system has a portable zsh available
           - Or request your administrator to install zsh
 
-          Option 3 - Continue using your current shell:
-          - Current shell: {{ current_shell.stdout }}
+          - "Option 3 - Continue using your current shell:"
+          - "Current shell: {{ current_shell.stdout }}"
           - Zsh configurations will be installed but inactive
 
 # Configure zsh regardless of installation method

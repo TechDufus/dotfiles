@@ -1,0 +1,30 @@
+---
+- name: "{{ role_name }} | Fedora | Check if glab is installed"
+  ansible.builtin.command: which glab
+  register: glab_check
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Fedora | Add GitLab repository"
+  ansible.builtin.get_url:
+    url: https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/glab.repo
+    dest: /etc/yum.repos.d/glab.repo
+    mode: "0644"
+  become: true
+  when: glab_check.rc != 0 and install_packages_with_package_manager
+
+- name: "{{ role_name }} | Fedora | Install GitLab CLI"
+  ansible.builtin.dnf:
+    name: glab
+    state: present
+  become: true
+  when: glab_check.rc != 0 and install_packages_with_package_manager
+
+- name: "{{ role_name }} | Fedora | Install from GitHub Release"
+  ansible.builtin.include_role:
+    name: github_release
+  vars:
+    repository: gitlab-org/cli
+    binary_name: glab
+    github_account: gitlab.com
+  when: glab_check.rc != 0 and not install_packages_with_package_manager

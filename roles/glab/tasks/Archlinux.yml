@@ -1,0 +1,6 @@
+---
+- name: "{{ role_name }} | Archlinux | Install GitLab CLI"
+  community.general.pacman:
+    name: gitlab-glab
+    state: present
+  become: true

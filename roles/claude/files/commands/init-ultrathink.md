@@ -224,7 +224,70 @@ Synthesize all gathered information to create a comprehensive CLAUDE.md that inc
 
 ## Output Format
 
-Generate a CLAUDE.md file with this comprehensive structure:
+Generate a CLAUDE.md file adapted to the project type. Use these guidelines:
+
+### Core Sections (Always Include)
+1. **Repository Overview** - What the project is and does
+2. **Quick Start** - How to get up and running
+3. **Essential Commands** - Most important commands
+4. **Architecture/Key Concepts** - Core understanding needed
+5. **Project Structure** - Directory layout
+6. **Important Patterns** - Key conventions to follow
+7. **Code Style** - Naming and formatting standards
+8. **Hidden Context** - Non-obvious but crucial info
+
+### Adaptive Sections (Include When Relevant)
+Based on what the agents discover, include these sections if they apply:
+
+**For Web Applications:**
+- API Endpoints
+- Frontend/Backend Architecture
+- State Management
+- Authentication/Authorization
+- Deployment Environments
+
+**For Libraries/Packages:**
+- Public API Reference
+- Integration Examples
+- Version Compatibility
+- Breaking Changes History
+
+**For CLI Tools:**
+- Command Reference
+- Configuration Options
+- Plugin Architecture
+- Shell Integration
+
+**For Microservices:**
+- Service Boundaries
+- Inter-service Communication
+- Event Systems
+- Service Discovery
+
+**For Data-Intensive Projects:**
+- Data Models
+- ETL Pipelines
+- Database Schema
+- Data Quality Checks
+
+**Universal Optional Sections:**
+- Testing Approach (if tests exist)
+- CI/CD Pipeline (if configured)
+- Debugging Guide (if complex)
+- Performance Profiling (if relevant)
+- Monitoring (if implemented)
+- Contributing Guidelines (if open source)
+- Deployment (if applicable)
+- Dependencies (if numerous/complex)
+
+### Format Guidelines
+- Start with the core sections
+- Add relevant adaptive sections based on project type
+- Order sections by importance for the specific project
+- Merge related content rather than forcing rigid categories
+- Use the detailed template below as inspiration, not prescription
+
+### Flexible Template Example:
 
 ```markdown
 # CLAUDE.md
@@ -565,6 +628,55 @@ project/
 [What constitutes a complete feature/fix]
 ```
 
+### Adaptation Examples
+
+**For a Simple CLI Tool:**
+```markdown
+# CLAUDE.md
+## Repository Overview
+## Quick Start
+## Essential Commands
+## Command Reference (detailed)
+## Configuration
+## Project Structure
+## Code Style
+## Hidden Context
+```
+
+**For a Complex Web Application:**
+```markdown
+# CLAUDE.md
+## Repository Overview
+## Quick Start
+## Essential Commands
+## Architecture and Key Concepts
+  ### Frontend Architecture
+  ### Backend Architecture
+  ### Database Design
+## API Reference
+## Project Structure
+## Development Workflows
+## Testing Approach
+## Deployment
+## Monitoring
+## Hidden Context
+```
+
+**For a Library:**
+```markdown
+# CLAUDE.md
+## Repository Overview
+## Quick Start
+## API Reference
+## Integration Examples
+## Project Structure
+## Important Patterns
+## Version Compatibility
+## Breaking Changes
+## Contributing Guidelines
+## Hidden Context
+```
+
 ## Validation Questions
 
 After generating the CLAUDE.md, ask:
@@ -599,3 +711,12 @@ After generating the CLAUDE.md, ask:
 - Link to additional resources and documentation
 - Make the document searchable with clear section headers
 - Update regularly as the codebase evolves
+
+**IMPORTANT**: The comprehensive template above is a REFERENCE showing all possible sections. DO NOT include all sections blindly. Instead:
+1. Identify the project type from the Repository Analyst's findings
+2. Select only relevant sections that add value for this specific project
+3. Adapt section depth based on project complexity
+4. Create custom sections if the project has unique aspects
+5. Aim for completeness without redundancy
+
+Remember: A good CLAUDE.md is comprehensive yet focused. It should give Claude Code exactly what's needed to work effectively with THIS specific codebase, no more, no less.

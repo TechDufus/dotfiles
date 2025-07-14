@@ -78,9 +78,19 @@ Updated settings.json with latest preferences" > /dev/null 2>&1
   popd > /dev/null 2>&1
 }
 
-# Check Claude usage statistics
-c.usage() {
+# Generate Claude usage report
+c.usage-report() {
   bunx ccusage "$@"
+}
+
+# Check Claude usage statistics with live updates
+c.usage() {
+  bunx ccusage blocks --live
+}
+
+# Pick a previous Claude session to resume
+c.resume() {
+  claude --resume
 }
 
 # Show all Claude functions
@@ -95,9 +105,11 @@ c.help() {
   echo -e "  ${CAT_GREEN}  c.settings-save${NC}     ${CAT_SURFACE2}│${NC} Commit Claude settings changes to dotfiles"
   echo ""
   echo -e "  ${CAT_YELLOW}🚀 Quick Actions${NC}"
-  echo -e "  ${CAT_GREEN}  c.continue${NC}          ${CAT_SURFACE2}│${NC} Continue Claude session with workspace context"
+  echo -e "  ${CAT_GREEN}  c.continue${NC}          ${CAT_SURFACE2}│${NC} Continue last Claude session with workspace context"
   echo -e "  ${CAT_GREEN}  c.c${NC}                 ${CAT_SURFACE2}│${NC} Alias for c.continue ${CAT_OVERLAY0}(quick access)${NC}"
-  echo -e "  ${CAT_GREEN}  c.usage${NC}             ${CAT_SURFACE2}│${NC} Check Claude API usage statistics"
+  echo -e "  ${CAT_GREEN}  c.resume${NC}            ${CAT_SURFACE2}│${NC} Pick a previous Claude session to resume"
+  echo -e "  ${CAT_GREEN}  c.usage${NC}             ${CAT_SURFACE2}│${NC} Live Claude usage blocks monitoring"
+  echo -e "  ${CAT_GREEN}  c.usage-report${NC}      ${CAT_SURFACE2}│${NC} Generate Claude usage statistics report"
   echo ""
   echo -e "  ${CAT_YELLOW}📚 Help${NC}"
   echo -e "  ${CAT_GREEN}  c.help${NC}              ${CAT_SURFACE2}│${NC} Show this help message"

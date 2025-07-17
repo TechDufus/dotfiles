@@ -13,7 +13,7 @@
   become: true
   when: 
     - glab_check.rc != 0
-    - install_packages_with_package_manager
+    - can_install_packages | default(false)
 
 - name: "{{ role_name }} | Ubuntu | Manual installation instructions"
   ansible.builtin.debug:
@@ -23,4 +23,4 @@
       - "Or ask your system administrator to install it."
   when: 
     - glab_check.rc != 0
-    - not install_packages_with_package_manager
+    - not (can_install_packages | default(false))

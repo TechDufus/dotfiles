@@ -11,20 +11,19 @@
     dest: /etc/yum.repos.d/glab.repo
     mode: "0644"
   become: true
-  when: glab_check.rc != 0 and install_packages_with_package_manager
+  when: glab_check.rc != 0 and can_install_packages | default(false)
 
 - name: "{{ role_name }} | Fedora | Install GitLab CLI"
   ansible.builtin.dnf:
     name: glab
     state: present
   become: true
-  when: glab_check.rc != 0 and install_packages_with_package_manager
+  when: glab_check.rc != 0 and can_install_packages | default(false)
 
-- name: "{{ role_name }} | Fedora | Install from GitHub Release"
-  ansible.builtin.include_role:
-    name: github_release
-  vars:
-    repository: gitlab-org/cli
-    binary_name: glab
-    github_account: gitlab.com
-  when: glab_check.rc != 0 and not install_packages_with_package_manager
+- name: "{{ role_name }} | Fedora | Manual installation instructions"
+  ansible.builtin.debug:
+    msg:
+      - "GitLab CLI (glab) is not installed and package manager access is not available."
+      - "To install manually, visit: https://gitlab.com/gitlab-org/cli/-/releases"
+      - "Or ask your system administrator to install it."
+  when: glab_check.rc != 0 and not (can_install_packages | default(false))

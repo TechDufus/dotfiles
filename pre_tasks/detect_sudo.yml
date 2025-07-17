@@ -12,67 +12,53 @@
     detected_package_manager: ''
     privilege_escalation_available: false
 
-- name: Initialize package manager check results
-  set_fact:
-    brew_check: { rc: 1 }
-    apt_check: { rc: 1 }
-    pacman_check: { rc: 1 }
-    dnf_check: { rc: 1 }
-    yum_check: { rc: 1 }
-
 - name: Detect package manager based on OS
   block:
-    - name: Check for brew (macOS)
-      command: which brew
-      register: brew_check
-      ignore_errors: true
-      changed_when: false
-      no_log: true
-      when: ansible_distribution == 'MacOSX'
+    - name: Set package manager for macOS
+      set_fact:
+        detected_package_manager: brew
+      when: 
+        - ansible_distribution == 'MacOSX'
+        - ansible_system == 'Darwin'
 
-    - name: Check for apt-get (Debian/Ubuntu)
-      command: which apt-get
-      register: apt_check
-      ignore_errors: true
-      changed_when: false
-      no_log: true
+    - name: Set package manager for Ubuntu/Debian
+      set_fact:
+        detected_package_manager: apt
       when: ansible_distribution in ['Ubuntu', 'Debian']
 
-    - name: Check for pacman (Arch)
-      command: which pacman
-      register: pacman_check
-      ignore_errors: true
-      changed_when: false
-      no_log: true
+    - name: Set package manager for Arch
+      set_fact:
+        detected_package_manager: pacman
       when: ansible_distribution == 'Archlinux'
 
-    - name: Check for dnf (Fedora/RHEL 8+)
-      command: which dnf
-      register: dnf_check
-      ignore_errors: true
-      changed_when: false
-      no_log: true
-      when: ansible_distribution in ['Fedora', 'RedHat', 'CentOS'] and (ansible_distribution_major_version | int >= 8 or ansible_distribution == 'Fedora')
+    - name: Set package manager for modern Fedora/RHEL
+      set_fact:
+        detected_package_manager: dnf
+      when: 
+        - ansible_distribution in ['Fedora', 'RedHat', 'CentOS', 'AlmaLinux', 'Rocky']
+        - ansible_distribution == 'Fedora' or ansible_distribution_major_version | int >= 8
 
-    - name: Check for yum (RHEL/CentOS)
-      command: which yum
-      register: yum_check
-      ignore_errors: true
-      changed_when: false
-      no_log: true
+    - name: Set package manager for older RHEL/CentOS
+      set_fact:
+        detected_package_manager: yum
       when: 
         - ansible_distribution in ['RedHat', 'CentOS']
         - ansible_distribution_major_version | int < 8
 
-    - name: Set detected package manager
+    - name: Verify detected package manager exists
+      command: "which {{ detected_package_manager }}"
+      register: pm_check
+      changed_when: false
+      failed_when: false
+      when: detected_package_manager is defined and detected_package_manager != ''
+
+    - name: Reset package manager if not found
       set_fact:
-        detected_package_manager: >-
-          {%- if brew_check.rc == 0 -%}brew
-          {%- elif apt_check.rc == 0 -%}apt
-          {%- elif pacman_check.rc == 0 -%}pacman
-          {%- elif dnf_check.rc == 0 -%}dnf
-          {%- elif yum_check.rc == 0 -%}yum
-          {%- else -%}none{%- endif -%}
+        detected_package_manager: none
+      when: 
+        - pm_check is defined
+        - pm_check.rc is defined
+        - pm_check.rc != 0
 
 - name: Test passwordless sudo
   block:

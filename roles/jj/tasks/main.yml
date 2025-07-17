@@ -9,22 +9,24 @@
   when: distribution_config.stat.exists
 
 - name: "JJ | Read user.email secret from 1Password"
-  when: op_installed
+  when: op_installed | default(false)
   block:
     - name: "1Password | Get user.email for JJ"
       ansible.builtin.command: "op --account my.1password.com read '{{ op.git.user.email }}'"
       register: op_jj_user_email
       changed_when: false
+      failed_when: false
 
     - name: "1Password | Set jj_user_email"
       ansible.builtin.set_fact:
         jj_user_email: "{{ op_jj_user_email.stdout }}"
       no_log: true
+      when: op_jj_user_email.rc == 0
 
-- name: "JJ | Set fallback email if 1Password unavailable"
+- name: "JJ | Set fallback email if 1Password unavailable or failed"
   ansible.builtin.set_fact:
-    jj_user_email: "{{ git_user_name | lower }}@example.com"
-  when: not op_installed
+    jj_user_email: "{{ git_user_name | lower | replace(' ', '') }}@users.noreply.github.com"
+  when: jj_user_email is not defined
 
 - name: "JJ | Ensure jj config directory exists"
   ansible.builtin.file:

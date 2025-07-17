@@ -98,13 +98,13 @@ function _spinner() {
   local task_text="$1"
   local chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
   local delay=0.08
-  
+
   # Hide cursor
   tput civis
-  
+
   # Save cursor position
   tput sc
-  
+
   while true; do
     for char in "${chars[@]}"; do
       # Restore cursor position and clear line
@@ -122,14 +122,14 @@ function __task {
   if [[ $TASK != "" ]] && [[ $SPINNER_PID != "" ]]; then
     _task_done
   fi
-  
+
   # set new task
   TASK=$1
-  
+
   # Start spinner in background
   _spinner "$TASK" &
   SPINNER_PID=$!
-  
+
   # Disable job control messages
   disown $SPINNER_PID 2>/dev/null
 }
@@ -142,7 +142,7 @@ function _cmd {
   fi
   # empty conduro.log
   > $DOTFILES_LOG
-  
+
   # hide stdout, on error we print and exit
   if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
     return 0 # success
@@ -153,19 +153,19 @@ function _cmd {
       wait $SPINNER_PID 2>/dev/null
       SPINNER_PID=""
     fi
-    
+
     # Show cursor again
     tput cnorm
-    
+
     # Clear the line and show error
     printf "\r\033[K${CAT_RED} [✗]  ${CAT_TEXT}${TASK}${NC}\n"
-    
+
     # Show error details
     while read line; do
       printf "      ${CAT_MAROON}${line}${NC}\n"
     done < $DOTFILES_LOG
     printf "\n"
-    
+
     # remove log file
     rm $DOTFILES_LOG
     # exit installation
@@ -184,10 +184,10 @@ function _task_done {
     wait $SPINNER_PID 2>/dev/null
     SPINNER_PID=""
   fi
-  
+
   # Show cursor again
   tput cnorm
-  
+
   # Clear line and show success
   printf "\r\033[K${CAT_GREEN} [✓]  ${CAT_TEXT}${TASK}\n"
   _clear_task
@@ -206,8 +206,7 @@ function ubuntu_setup() {
     _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
     _cmd "sudo apt-get update"
     _cmd "sudo apt-get install -y ansible"
-    _cmd "sudo apt-get install python3-argcomplete"
-    _cmd "sudo activate-global-python-argcomplete3"
+    _cmd "sudo apt-get install -y python3-argcomplete"
   fi
   if ! dpkg -s python3 >/dev/null 2>&1; then
     __task "Installing Python3"
@@ -420,17 +419,17 @@ run_uninstall_script() {
   local role="$1"
   local role_dir="$DOTFILES_DIR/roles/$role"
   local uninstall_script="$role_dir/uninstall.sh"
-  
+
   if [[ ! -d "$role_dir" ]]; then
     echo -e "${RED} [✗]  ${WHITE}Error: Role '${role}' not found${NC}"
     return 1
   fi
-  
+
   if [[ ! -f "$uninstall_script" ]]; then
     echo -e "${RED} [✗]  ${WHITE}Error: Role '${role}' does not have an uninstall script${NC}"
     return 1
   fi
-  
+
   # Export functions and colors for use in uninstall script
   export -f __task _task_done _clear_task _cmd _spinner
   export SPINNER_PID TASK DOTFILES_LOG
@@ -443,7 +442,7 @@ run_uninstall_script() {
   export RED GREEN YELLOW BLUE PURPLE CYAN WHITE LBLACK
   export LRED LGREEN LYELLOW LBLUE LPURPLE LCYAN SEA OVERWRITE
   export CHECK_MARK X_MARK PIN CLOCK ARROW BOOK HOT WARNING RIGHT_ANGLE
-  
+
   # Run uninstall script with exported environment
   bash "$uninstall_script"
   return 0
@@ -473,14 +472,14 @@ fi
 if [[ -n "$DELETE_ROLE" ]]; then
   ROLE_DIR="$DOTFILES_DIR/roles/$DELETE_ROLE"
   UNINSTALL_SCRIPT="$ROLE_DIR/uninstall.sh"
-  
+
   # Check if role exists
   if [[ ! -d "$ROLE_DIR" ]]; then
     echo -e "${RED} [✗]  ${WHITE}Error: Role '${DELETE_ROLE}' not found${NC}"
     popd 2>&1 > /dev/null
     exit 1
   fi
-  
+
   # Confirm delete
   if [[ -f "$UNINSTALL_SCRIPT" ]]; then
     echo -e "${YELLOW} [?]  ${WHITE}This will uninstall ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} and ${BOLD}${CAT_RED}DELETE${NC} the role from your dotfiles."
@@ -488,7 +487,7 @@ if [[ -n "$DELETE_ROLE" ]]; then
     echo -e "${YELLOW} [?]  ${WHITE}This will ${BOLD}${CAT_RED}DELETE${NC} the role ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} from your dotfiles."
     echo -e "${YELLOW}      ${WHITE}Note: No uninstall script exists, so only the role directory will be removed.${NC}"
   fi
-  
+
   read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -498,7 +497,7 @@ if [[ -n "$DELETE_ROLE" ]]; then
         echo -e "${YELLOW} [!]  ${WHITE}Uninstall script failed, but continuing with deletion...${NC}"
       fi
     fi
-    
+
     # Remove from group_vars/all.yml (with backup)
     if grep -q "^  - $DELETE_ROLE$" "$DOTFILES_DIR/group_vars/all.yml"; then
       __task "Removing $DELETE_ROLE from configuration"
@@ -506,12 +505,12 @@ if [[ -n "$DELETE_ROLE" ]]; then
       sed -i '' "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
       _task_done
     fi
-    
+
     # Remove role directory
     __task "Removing $DELETE_ROLE role directory"
     rm -rf "$ROLE_DIR"
     _task_done
-    
+
     if [[ -f "$UNINSTALL_SCRIPT" ]]; then
       echo -e "${GREEN} [✓]  ${WHITE}${DELETE_ROLE} has been uninstalled and deleted${NC}"
     else

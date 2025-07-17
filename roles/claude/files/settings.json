@@ -958,7 +958,8 @@
     "enabled": false
   },
   "telemetry": {
-    "enabled": false
+    "enabled": false,
+    "telemetryLevel": "off"
   },
   "editor": {
     "formatOnSave": true,
@@ -990,7 +991,12 @@
   "model": "opus",
   "codeCompletion": {
     "enabled": true,
-    "triggerCharacters": [".", "/", "-", "_"],
+    "triggerCharacters": [
+      ".",
+      "/",
+      "-",
+      "_"
+    ],
     "maxSuggestions": 10,
     "debounceTime": 300
   },
@@ -1045,9 +1051,6 @@
   "update": {
     "mode": "start",
     "showReleaseNotes": true
-  },
-  "telemetry": {
-    "telemetryLevel": "off"
   },
   "privacy": {
     "doNotTrack": true,

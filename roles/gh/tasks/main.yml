@@ -22,6 +22,20 @@
     mode: '0644'
     owner: "{{ ansible_env.USER }}"
 
+- name: "{{ role_name }} | Check if gh is authenticated"
+  ansible.builtin.command:
+    cmd: gh auth status
+  register: gh_auth_check
+  changed_when: false
+  failed_when: false
+
 - name: "{{ role_name }} | Upgrade gh extensions"
   ansible.builtin.command:
     cmd: gh extension upgrade --all
+  when: gh_auth_check.rc == 0
+  changed_when: false
+
+- name: "{{ role_name }} | Skip extension upgrade - not authenticated"
+  ansible.builtin.debug:
+    msg: "GitHub CLI not authenticated. Run 'gh auth login' to authenticate."
+  when: gh_auth_check.rc != 0

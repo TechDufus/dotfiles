@@ -14,7 +14,6 @@ default_roles:
   - fzf
   - gh
   - git
-  - glab
   - go
   - hammerspoon
   - helm

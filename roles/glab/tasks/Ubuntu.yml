@@ -7,7 +7,7 @@
 
 - name: "{{ role_name }} | Ubuntu | Install GitLab CLI via script"
   ansible.builtin.shell: |
-    curl -s https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | sudo sh
+    curl -s https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | sudo bash
   args:
     creates: /usr/local/bin/glab
   become: true

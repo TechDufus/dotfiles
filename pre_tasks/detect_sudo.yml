@@ -12,7 +12,15 @@
     detected_package_manager: ''
     privilege_escalation_available: false
 
-- name: Detect package manager
+- name: Initialize package manager check results
+  set_fact:
+    brew_check: { rc: 1 }
+    apt_check: { rc: 1 }
+    pacman_check: { rc: 1 }
+    dnf_check: { rc: 1 }
+    yum_check: { rc: 1 }
+
+- name: Detect package manager based on OS
   block:
     - name: Check for brew (macOS)
       command: which brew
@@ -20,6 +28,7 @@
       ignore_errors: true
       changed_when: false
       no_log: true
+      when: ansible_distribution == 'MacOSX'
 
     - name: Check for apt-get (Debian/Ubuntu)
       command: which apt-get
@@ -27,6 +36,7 @@
       ignore_errors: true
       changed_when: false
       no_log: true
+      when: ansible_distribution in ['Ubuntu', 'Debian']
 
     - name: Check for pacman (Arch)
       command: which pacman
@@ -34,6 +44,7 @@
       ignore_errors: true
       changed_when: false
       no_log: true
+      when: ansible_distribution == 'Archlinux'
 
     - name: Check for dnf (Fedora/RHEL 8+)
       command: which dnf
@@ -41,6 +52,7 @@
       ignore_errors: true
       changed_when: false
       no_log: true
+      when: ansible_distribution in ['Fedora', 'RedHat', 'CentOS'] and (ansible_distribution_major_version | int >= 8 or ansible_distribution == 'Fedora')
 
     - name: Check for yum (RHEL/CentOS)
       command: which yum
@@ -48,6 +60,9 @@
       ignore_errors: true
       changed_when: false
       no_log: true
+      when: 
+        - ansible_distribution in ['RedHat', 'CentOS']
+        - ansible_distribution_major_version | int < 8
 
     - name: Set detected package manager
       set_fact:

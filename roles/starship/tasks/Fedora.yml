@@ -26,7 +26,7 @@
     - can_install_packages | default(false)
     - starship_system_install is failed or starship_system_install is skipped
   ansible.builtin.shell:
-    cmd: curl -fsSL https://starship.rs/install.sh | sudo bash -s -- --force
+    cmd: curl -fsSL https://starship.rs/install.sh | sudo sh -s -- --force
   args:
     creates: /usr/local/bin/starship
 
@@ -46,7 +46,7 @@
       ansible.builtin.shell:
         cmd: |
           curl -fsSL https://starship.rs/install.sh | \
-          bash -s -- --bin-dir {{ ansible_env.HOME }}/.local/bin --force
+          sh -s -- --bin-dir {{ ansible_env.HOME }}/.local/bin --force
       args:
         creates: "{{ ansible_env.HOME }}/.local/bin/starship"
 

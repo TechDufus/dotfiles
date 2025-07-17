@@ -5,11 +5,22 @@
   changed_when: false
   failed_when: false
 
-- name: "{{ role_name }} | Ubuntu | Install from GitHub Release"
-  ansible.builtin.include_role:
-    name: github_release
-  vars:
-    repository: gitlab-org/cli
-    binary_name: glab
-    github_account: gitlab.com
-  when: glab_check.rc != 0
+- name: "{{ role_name }} | Ubuntu | Install GitLab CLI via script"
+  ansible.builtin.shell: |
+    curl -s https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | sudo sh
+  args:
+    creates: /usr/local/bin/glab
+  become: true
+  when: 
+    - glab_check.rc != 0
+    - install_packages_with_package_manager
+
+- name: "{{ role_name }} | Ubuntu | Manual installation instructions"
+  ansible.builtin.debug:
+    msg:
+      - "GitLab CLI (glab) is not installed and package manager access is not available."
+      - "To install manually, visit: https://gitlab.com/gitlab-org/cli/-/releases"
+      - "Or ask your system administrator to install it."
+  when: 
+    - glab_check.rc != 0
+    - not install_packages_with_package_manager

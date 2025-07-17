@@ -134,10 +134,12 @@
       - "- Default shell changed: {{ '✓' if zsh_shell_change is defined and zsh_shell_change is succeeded else '✗ (requires sudo)' if not can_install_packages else 'No change needed' }}"
       - "- Configuration files: ✓ Deployed to home directory"
       - "- Current shell: {{ current_shell.stdout }}"
-      - ""
-      - "{% if not can_install_packages and zsh_check.rc != 0 %}"
+
+- name: "Zsh | {{ ansible_distribution }} | Manual installation instructions"
+  ansible.builtin.debug:
+    msg:
       - "Note: To use zsh after manual installation:"
       - "1. Add ~/.local/bin to your PATH"
       - "2. Run: chsh -s $(which zsh) (if chsh is available)"
       - "3. Or ask your administrator to change your default shell"
-      - "{% endif %}"
+  when: not can_install_packages and zsh_check.rc != 0

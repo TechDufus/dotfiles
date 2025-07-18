@@ -21,6 +21,8 @@
 - Never create README.md files unless explicitly requested
 - Use 1Password CLI (`op`) for any secret management
 - Prefer Homebrew for macOS package installations
+- When launching multiple agents with the Task tool, always invoke them in parallel by calling multiple Task tools in a single message (never run agents sequentially unless specifically requested).
+- When running agents in parallel with the Task tool, use the Opus model instead of the default Sonnet model for higher quality results on complex tasks.
 
 ## Custom Scripts (FOR CLAUDE USE)
 
@@ -62,7 +64,7 @@ Use native parent/child relationships for better organization:
 
 **Structure:**
 1. Epic (Parent) - High-level feature/initiative
-2. Story (Parent/Child) - User-facing functionality  
+2. Story (Parent/Child) - User-facing functionality
 3. Task (Child) - Specific implementation work
 
 **Workflow:**

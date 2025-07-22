@@ -48,7 +48,13 @@ function __get_secret_vars() {
   fi
 
   # Extract export statements, handling both simple and command substitution exports
-  grep -E '^\s*export\s+\w+=' "$secret_file" | sed -E 's/^\s*export\s+([A-Za-z_][A-Za-z0-9_]*)=.*/\1/'
+  # Also handle non-export variable assignments like MY_ACCOUNT
+  # Use awk for more reliable cross-platform parsing
+  awk -F'=' '/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=/ {
+    # Remove leading whitespace and "export" keyword
+    gsub(/^[[:space:]]*(export[[:space:]]+)?/, "", $1)
+    print $1
+  }' "$secret_file"
 }
 
 function secret() {
@@ -136,8 +142,13 @@ function secret() {
       local count=0
       while IFS= read -r var; do
         if [[ -n "$var" ]]; then
+          # Debug: show what we're trying to unset
+          if [[ "$var" =~ "=" ]]; then
+            echo -e "${RED}Error: Variable name contains '=': ${YELLOW}$var${NC}" >&2
+            continue
+          fi
           __task "${RIGHT_ANGLE}${GREEN} Unsetting: ${YELLOW}$var"
-          unset "$var"
+          unset "$var" 2>/dev/null || echo -e "${RED}Failed to unset: ${YELLOW}$var${NC}" >&2
           ((count++))
         fi
       done <<< "$secret_vars"

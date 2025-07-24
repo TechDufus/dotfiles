@@ -5,3 +5,6 @@ roles/neovim/files/lazy-lock.json
 
 .DS_Store
 *.DS_Store
+
+# Company-specific Claude commands (not for public repo)
+roles/claude/files/commands/raft/

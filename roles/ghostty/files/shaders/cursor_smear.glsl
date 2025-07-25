@@ -60,8 +60,19 @@ float ease(float x) {
     return pow(1.0 - x, 3.0);
 }
 
-// const vec4 TRAIL_COLOR = vec4(1., 1., 0., 1.0);
-const vec4 TRAIL_COLOR = vec4(0.075, 1.0, 0.937, 1.0);
+// Catppuccin Mocha color options (uncomment one)
+const vec4 TRAIL_COLOR = vec4(0.537, 0.863, 0.922, 1.0);  // Sky - bright cyan
+// const vec4 TRAIL_COLOR = vec4(0.961, 0.761, 0.906, 1.0);  // Pink - soft pink
+// const vec4 TRAIL_COLOR = vec4(0.796, 0.651, 0.969, 1.0);  // Mauve - purple
+// const vec4 TRAIL_COLOR = vec4(0.953, 0.545, 0.659, 1.0);  // Red - vibrant red
+// const vec4 TRAIL_COLOR = vec4(0.922, 0.627, 0.675, 1.0);  // Maroon - muted red
+// const vec4 TRAIL_COLOR = vec4(0.980, 0.702, 0.529, 1.0);  // Peach - warm orange
+// const vec4 TRAIL_COLOR = vec4(0.976, 0.886, 0.686, 1.0);  // Yellow - golden
+// const vec4 TRAIL_COLOR = vec4(0.651, 0.890, 0.631, 1.0);  // Green - nature
+// const vec4 TRAIL_COLOR = vec4(0.580, 0.886, 0.835, 1.0);  // Teal - ocean
+// const vec4 TRAIL_COLOR = vec4(0.455, 0.780, 0.925, 1.0);  // Sapphire - deep blue
+// const vec4 TRAIL_COLOR = vec4(0.537, 0.706, 0.980, 1.0);  // Blue - classic blue
+// const vec4 TRAIL_COLOR = vec4(0.706, 0.745, 0.996, 1.0);  // Lavender - soft purple
 const float OPACITY = 0.6;
 const float DURATION = 0.12; //IN SECONDS
 

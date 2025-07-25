@@ -21,7 +21,7 @@ options=(
   # active_color="glow(0xff74c7ec)"  # Catppuccin Sapphire - deep blue glow
   # active_color="glow(0xff89b4fa)"  # Catppuccin Blue - classic blue glow
   # active_color="glow(0xffb4befe)"  # Catppuccin Lavender - soft purple glow
-  
+
   # Catppuccin gradients (uncomment to use)
   # active_color="gradient(top_left=0xfff5c2e7,bottom_right=0xff89dceb)"  # Pink to Sky
   # active_color="gradient(top_left=0xffcba6f7,bottom_right=0xff94e2d5)"  # Mauve to Teal

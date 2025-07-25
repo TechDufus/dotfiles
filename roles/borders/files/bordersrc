@@ -5,7 +5,7 @@ options=(
   width=10.0
 
   # Main color options
-  active_color="glow(0xff89dceb)" # Catppuccin Sky - bright cyan glow
+  active_color="glow(0xffb4befe)" # Catppuccin Lavender - soft purple glow
   inactive_color=0xff45475a      # Catppuccin Surface0
 
   # Catppuccin Mocha themed glows (uncomment to use)

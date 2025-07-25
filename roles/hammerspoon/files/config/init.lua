@@ -66,7 +66,7 @@ local layout = hs.loadSpoon('GridLayout')
     :setLayouts(layouts)
     :setApps(apps)
     :setGrid(positions.full_grid)
-    :setMargins('0x0')
+    :setMargins('5x5')
 
 if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
   layout:selectLayout(1)

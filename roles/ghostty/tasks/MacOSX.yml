@@ -1,12 +1,43 @@
 ---
-- name: "👻 Ghossty | Install Ghostty"
+- name: "{{ role_name }} | macOS | Check if regular Ghostty is installed"
+  ansible.builtin.command: brew list --cask ghostty
+  register: ghostty_regular_installed
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | macOS | Uninstall regular Ghostty if present"
   community.general.homebrew_cask:
     name: ghostty
-    state: present
-    update_homebrew: true
+    state: absent
+  when: ghostty_regular_installed.rc == 0
 
-- name: "👻 Ghossty | Deploy Configuration"
+- name: "{{ role_name }} | macOS | Install Ghostty nightly (tip)"
+  community.general.homebrew_cask:
+    name: ghostty@tip
+    state: present
+    update_homebrew: yes
+
+- name: "{{ role_name }} | macOS | Create Ghostty config directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ ansible_env.HOME }}/.config/ghostty"
+    - "{{ ansible_env.HOME }}/Library/Application Support/com.mitchellh.ghostty"
+
+- name: "{{ role_name }} | macOS | Check if config file exists"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/config"
+  register: ghostty_config_file
+
+- name: "{{ role_name }} | macOS | Deploy Ghostty configuration to both locations"
   ansible.builtin.copy:
     src: config
-    dest: "~/Library/Application\ Support/com.mitchellh.ghostty/config"
-    mode: "0600"
+    dest: "{{ item }}"
+    mode: '0644'
+    backup: yes
+  loop:
+    - "{{ ansible_env.HOME }}/.config/ghostty/config"
+    - "{{ ansible_env.HOME }}/Library/Application Support/com.mitchellh.ghostty/config"
+  when: ghostty_config_file.stat.exists

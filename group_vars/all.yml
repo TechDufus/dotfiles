@@ -14,6 +14,7 @@ default_roles:
   - fonts
   - fzf
   - gh
+  - ghostty
   - git
   - go
   - hammerspoon

@@ -4,7 +4,7 @@ local grid = require('hs.grid')
 local geom = require('hs.geometry')
 local screen = require('hs.screen')
 
-local margins = geom'10x10'
+local margins = geom'5x5'
 
 M.setMargins = function(mar)
   mar=geom.new(mar)

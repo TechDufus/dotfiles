@@ -22,6 +22,7 @@ window-padding-balance = true
 cursor-style = block
 cursor-style-blink = true
 cursor-invert-fg-bg = true
+custom-shader = shaders/cursor_smear.glsl
 mouse-hide-while-typing = true
 
 # Clipboard settings

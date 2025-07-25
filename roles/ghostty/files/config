@@ -31,7 +31,7 @@ clipboard-write = allow
 copy-on-select = true
 
 auto-update = check
-auto-update-channel = stable
+auto-update-channel = tip
 
 # extras
 shell-integration-features = no-cursor

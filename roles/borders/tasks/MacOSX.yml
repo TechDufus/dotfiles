@@ -1,0 +1,33 @@
+---
+- name: "{{ role_name }} | macOS | Add FelixKratz tap"
+  community.general.homebrew_tap:
+    name: FelixKratz/formulae
+    state: present
+
+- name: "{{ role_name }} | macOS | Install borders"
+  community.general.homebrew:
+    name: borders
+    state: present
+
+- name: "{{ role_name }} | macOS | Create borders config directory"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/borders"
+    state: directory
+    mode: '0755'
+
+- name: "{{ role_name }} | macOS | Deploy bordersrc configuration"
+  ansible.builtin.copy:
+    src: bordersrc
+    dest: "{{ ansible_env.HOME }}/.config/borders/bordersrc"
+    mode: '0755'
+    backup: yes
+
+- name: "{{ role_name }} | macOS | Check if borders service is running"
+  ansible.builtin.command: brew services list
+  register: brew_services
+  changed_when: false
+
+- name: "{{ role_name }} | macOS | Start borders service"
+  ansible.builtin.command: brew services start borders
+  when: "'borders stopped' in brew_services.stdout or 'borders none' in brew_services.stdout"
+  changed_when: true

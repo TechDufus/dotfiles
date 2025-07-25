@@ -5,6 +5,7 @@ default_roles:
   - asciiquarium
   - bash
   - bat
+  - borders
   - btop
   - claude
   # - discord

@@ -61,7 +61,7 @@ float ease(float x) {
 }
 
 // Catppuccin Mocha color options (uncomment one)
-const vec4 TRAIL_COLOR = vec4(0.537, 0.863, 0.922, 1.0);  // Sky - bright cyan
+const vec4 TRAIL_COLOR = vec4(0.455, 0.780, 0.925, 1.0);  // Sapphire - deep blue (matches borders)
 // const vec4 TRAIL_COLOR = vec4(0.961, 0.761, 0.906, 1.0);  // Pink - soft pink
 // const vec4 TRAIL_COLOR = vec4(0.796, 0.651, 0.969, 1.0);  // Mauve - purple
 // const vec4 TRAIL_COLOR = vec4(0.953, 0.545, 0.659, 1.0);  // Red - vibrant red

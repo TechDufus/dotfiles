@@ -87,6 +87,24 @@
     state: link
     force: true
 
+- name: "{{ role_name }} | Check if ~/.claude/agents exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.claude/agents"
+  register: agents_dir
+
+- name: "{{ role_name }} | Remove existing agents directory if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.claude/agents"
+    state: absent
+  when: agents_dir.stat.exists and not agents_dir.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to Claude agents"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/agents"
+    dest: "{{ ansible_env.HOME }}/.claude/agents"
+    state: link
+    force: true
+
 # Check for OS-specific configuration
 - name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
   ansible.builtin.stat:

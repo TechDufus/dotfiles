@@ -1,4 +1,7 @@
 return {
+  -- Learned that <space>w<space>+ does the same thing in LazyVim
+  enabled = false,
+
   -- Allows the same command to be run over and over, <C-w>hhhhhhhhhhhh
   "nvimtools/hydra.nvim",
   config = function()

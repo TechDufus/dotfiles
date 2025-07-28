@@ -24,6 +24,27 @@ vim.api.nvim_create_user_command("W", function()
   end, 100)
 end, {})
 
+-- Open dashboard when no buffers remain
+vim.api.nvim_create_autocmd("BufDelete", {
+  group = vim.api.nvim_create_augroup("DashboardOnEmpty", { clear = true }),
+  callback = function()
+    vim.schedule(function()
+      -- Filter for valid and listed buffers with names
+      local bufs = vim.tbl_filter(function(buf)
+        return vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buflisted and vim.api.nvim_buf_get_name(buf) ~= ""
+      end, vim.api.nvim_list_bufs())
+
+      -- Open the snacks.dashboard if no buffers remain
+      if #bufs == 0 then
+        ---@diagnostic disable-next-line: missing-fields
+        require("snacks.dashboard").open({
+          win = vim.api.nvim_get_current_win(),
+        })
+      end
+    end)
+  end,
+})
+
 -- local Format = vim.api.nvim_create_augroup("Format", { clear = true })
 -- vim.api.nvim_create_autocmd("BufWritePre", {
 -- group = Format,

@@ -109,8 +109,8 @@ if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 # Shell integrations
 if [[ -f ~/.fzf.zsh ]]; then
   source ~/.fzf.zsh
+  eval "$(fzf --zsh)"
 fi
-eval "$(fzf --zsh)"
 # zi is defined by zinit as alias zi='zinit'. Unalias it to use with zoxide
 unalias zi
 eval "$(zoxide init zsh)"

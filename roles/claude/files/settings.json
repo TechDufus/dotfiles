@@ -1,4 +1,5 @@
 {
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "WebFetch(domain:docs.anthropic.com)",
@@ -944,6 +945,8 @@
     ],
     "defaultMode": "acceptEdits"
   },
-  "includeCoAuthoredBy": false,
-  "model": "opus"
+  "model": "opus",
+  "feedbackSurveyState": {
+    "lastShownTime": 1753984817763
+  }
 }

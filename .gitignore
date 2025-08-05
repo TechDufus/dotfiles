@@ -10,3 +10,6 @@ roles/neovim/files/lazy-lock.json
 roles/claude/files/commands/raft/
 roles/claude/files/commands/raft-*.md
 roles/claude/files/agents/raft-*.md
+
+# Crush directory
+.crush/

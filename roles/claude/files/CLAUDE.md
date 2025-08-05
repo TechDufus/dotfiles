@@ -46,6 +46,10 @@ Scripts I must use when performing these tasks:
 - **`~/.claude/scripts/gh-ai-review.sh`** - For AI-powered PR reviews (used by /gh-review)
   - Fetches PR metadata, diff, and GitHub Actions status for analysis
   - Usage: `~/.claude/scripts/gh-ai-review.sh <pr-reference>`
+- **`~/.claude/scripts/gh-issue-hierarchy.sh`** - For traversing GitHub issue hierarchies
+  - Fetches complete parent/sub-issue hierarchy with full URLs
+  - Usage: `~/.claude/scripts/gh-issue-hierarchy.sh <issue> [--format json|yaml|tree] [--depth N]`
+  - Returns structured JSON with all sub-issues recursively for status analysis
 
 ### Git Scripts (USE BEFORE COMMITTING)
 - **`git-commit-helper.sh`** - Validate ALL commit messages before committing

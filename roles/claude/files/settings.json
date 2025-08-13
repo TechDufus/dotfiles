@@ -945,5 +945,9 @@
     ],
     "defaultMode": "acceptEdits"
   },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/scripts/statusline.sh"
+  },
   "model": "opus"
 }

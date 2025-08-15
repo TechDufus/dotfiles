@@ -47,7 +47,7 @@
     - name: "LAZYGIT | Downloading lazygit Release"
       ansible.builtin.get_url:
         url: "https://github.com/jesseduffield/lazygit/releases/download/{{ lazygit_latest_release }}/{{ lazygit_file }}.tar.gz"
-        dest: /tmp/
+        dest: "/tmp/{{ lazygit_file }}.tar.gz"
         mode: "0644"
         force: true
       notify:
@@ -63,6 +63,7 @@
       ansible.builtin.unarchive:
         src: "/tmp/{{ lazygit_file }}.tar.gz"
         dest: /tmp
+        remote_src: true
 
     - name: "LAZYGIT | Remove any current lazygit installations"
       ansible.builtin.file:

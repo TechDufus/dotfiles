@@ -174,6 +174,8 @@
       "Bash(git:pull*)",
       "Bash(git:clone*)",
       "Bash(git:add*)",
+      "Bash(git:shortlog*)",
+      "Bash(git:log*)",
       "Bash(git:rm*)",
       "Bash(git:mv*)",
       "Bash(git:stash*)",
@@ -949,5 +951,12 @@
     "type": "command",
     "command": "~/.claude/scripts/statusline.sh"
   },
-  "model": "opus"
+  "model": "opus",
+  "environmentVariables": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_BUG_COMMAND": "1",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "BASH_MAX_TIMEOUT_MS": "300000"
+  }
 }

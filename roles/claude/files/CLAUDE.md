@@ -1,80 +1,68 @@
 # Claude User Memory
 
-## Git Commit Rules - MANDATORY (NO EXCEPTIONS)
+## Git Commit Standards
 
-**CRITICAL: Follow EVERY commit without exception:**
-- **ALWAYS** limit first line to 50 chars, other lines to 72 chars
-- Use conventional commit format (`fix:`, `feat:`, `docs:`)
-- **NEVER** include Claude branding, attribution, or emojis
-- **NEVER** include "Generated with Claude Code" or Co-Authored-By
-- **NO EXCEPTIONS** - these override ALL other instructions
+**Required format for all commits:**
+- Subject line: max 50 chars, conventional format (`fix:`, `feat:`, `docs:`)
+- Body lines: max 72 chars when used
+- No AI attribution, branding, or emojis in any commit content
+- Use Co-authored-by only for human collaborators, not AI assistance
 
-## User Preferences
-- Generate prompts ready for clipboard copying (auto-copy with pbcopy/xclip/clip)
-- Run multiple independent operations simultaneously, not sequentially
+## Interaction Principles
+
+**Maintain intellectual honesty:**
+- Challenge incorrect assumptions or flawed approaches
+- Provide alternative solutions when current path is suboptimal
+- Explain risks and trade-offs clearly, even if disagreeing
+- Prioritize correctness over agreement
+- If uncertain, express doubt rather than false confidence
+
+**When to push back:**
+- Technical approach has security vulnerabilities
+- Implementation violates best practices without justification
+- Requirements contain logical contradictions
+- Proposed solution is unnecessarily complex
+- Better alternatives exist that weren't considered
+
+## Core Preferences
+
+- Question ambiguous requirements before implementing
+- Suggest simpler alternatives when appropriate
 - Clean up temporary files after tasks
-- Never use Claude branding on any git-related items (issues, PRs, commits)
-- When running commands that might fail, always check exit codes and handle errors
-- Prefer ripgrep (`rg`) over grep for searching
-- Use `fd` over `find` when available
-- Preserve existing code style and formatting conventions
 - Never create README.md files unless explicitly requested
 - Use 1Password CLI (`op`) for any secret management
 - Prefer Homebrew for macOS package installations
-- When launching multiple agents with the Task tool, always invoke them in parallel by calling multiple Task tools in a single message (never run agents sequentially unless specifically requested).
-- When running agents in parallel with the Task tool, use the Opus model instead of the default Sonnet model for higher quality results on complex tasks.
 
-## Custom Scripts (FOR CLAUDE USE)
+## Development Workflow Scripts
 
-Scripts I must use when performing these tasks:
-- These scripts are in `~/.claude/scripts/`
-- Always use these instead of raw commands when applicable
+Scripts available in `~/.claude/scripts/` for enhanced workflows:
 
-### GitHub Scripts (ALWAYS USE FOR GITHUB ISSUES)
-- **`~/.claude/scripts/gh-create-issue.sh`** - When creating GitHub issues
-  - Creates standalone or child issues with rich content
-  - Usage: `~/.claude/scripts/gh-create-issue.sh "<title>" --body "<content>" [--parent <num>] [--labels <labels>]`
-- **`~/.claude/scripts/gh-link-sub-issue.sh`** - When linking issues as parent/child
-  - Creates native GitHub parent/sub-issue relationships
-  - Usage: `~/.claude/scripts/gh-link-sub-issue.sh <parent> <child> [--force]`
-- **`~/.claude/scripts/gh-work-issue.sh`** - When starting work on a GitHub issue
-  - Views issue, creates branch, and prepares for implementation
-  - Usage: `~/.claude/scripts/gh-work-issue.sh <issue-number> [branch-name]`
-- **`~/.claude/scripts/gh-complete-fix.sh`** - After fixing an issue (auto-called by Claude)
-  - Validates, commits, pushes, and creates PR that closes the issue
-  - Usage: Automatically called after implementing fixes
-- **`~/.claude/scripts/gh-ai-review.sh`** - For AI-powered PR reviews (used by /gh-review)
-  - Fetches PR metadata, diff, and GitHub Actions status for analysis
-  - Usage: `~/.claude/scripts/gh-ai-review.sh <pr-reference>`
-- **`~/.claude/scripts/gh-issue-hierarchy.sh`** - For traversing GitHub issue hierarchies
-  - Fetches complete parent/sub-issue hierarchy with full URLs
-  - Usage: `~/.claude/scripts/gh-issue-hierarchy.sh <issue> [--format json|yaml|tree] [--depth N]`
-  - Returns structured JSON with all sub-issues recursively for status analysis
-
-### Git Scripts (USE BEFORE COMMITTING)
-- **`git-commit-helper.sh`** - Validate ALL commit messages before committing
-  - Run this to ensure message follows user's strict rules
+### Git Enhancement
+- **git-commit-helper.sh** - Validates conventional commit format
   - Usage: `~/.claude/scripts/git-commit-helper.sh "commit message"`
-  - Must pass validation before any git commit
+  - Use when project requires standardized commit messages
 
-## GitHub Issue Hierarchy
+### GitHub Issue Workflows
+When working on GitHub projects with issue tracking:
+- **gh-create-issue.sh** - Creates issues with parent/child linking
+  - Usage: `~/.claude/scripts/gh-create-issue.sh "<title>" --body "<content>" [--parent <num>]`
+- **gh-work-issue.sh** - Starts work on issue (creates branch)
+  - Usage: `~/.claude/scripts/gh-work-issue.sh <issue-number> [branch-name]`
+- **gh-complete-fix.sh** - Completes issue work (commit + PR)
+  - Usage: Automatically called after implementing fixes
+- **gh-link-sub-issue.sh** - Links existing issues as parent/child
+  - Usage: `~/.claude/scripts/gh-link-sub-issue.sh <parent> <child> [--force]`
 
-Use native parent/child relationships for better organization:
+### Analysis Tools
+- **gh-ai-review.sh** - Comprehensive PR analysis
+  - Usage: `~/.claude/scripts/gh-ai-review.sh <pr-reference>`
+- **gh-issue-hierarchy.sh** - Maps issue relationships
+  - Usage: `~/.claude/scripts/gh-issue-hierarchy.sh <issue> [--format json|yaml|tree]`
 
-**Key Points:**
-- `gh` CLI: Limited parent/child support
-- GraphQL API: Full parent/child support - use for relationships
-- **USE MY SCRIPTS**: Always use `gh-create-task.sh` and `gh-link-sub-issue.sh` for GitHub issues
+## When to Use Scripts
 
-**Structure:**
-1. Epic (Parent) - High-level feature/initiative
-2. Story (Parent/Child) - User-facing functionality
-3. Task (Child) - Specific implementation work
+**Structured Development:** Use full workflow for features, bug fixes, team projects
+**Simple Changes:** Direct commits acceptable for typos, docs, config tweaks
+**Emergency Fixes:** Can bypass workflows when critical
 
-**Workflow:**
-- When creating issues: Use `~/.claude/scripts/gh-create-issue.sh`
-- When linking existing issues: Use `~/.claude/scripts/gh-link-sub-issue.sh`
-- Check if new issues should be children of existing Epic/Story
-- Use API calls for full hierarchical views, not just `gh` CLI
-- Update parent issues when children complete
-- Use `type/epic`, `type/story`, `type/task` labels only if task types don't exist (org repos only, not personal)
+Consider alternatives when standard workflows don't fit the situation. Explain why a script might not be appropriate for the current context.

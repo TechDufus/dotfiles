@@ -13,8 +13,7 @@ Execute multiple specialized agents in parallel to tackle complex tasks from all
 ## Context
 
 - Task to parallelize: $ARGUMENTS
-- **CRITICAL**: All agents MUST be executed in parallel using multiple Task tool invocations in a single message
-- Use Opus model for complex parallel tasks (model: "opus" parameter)
+- Execute all agents in parallel using multiple Task tool invocations in a single message
 
 ## Your Role
 
@@ -75,7 +74,6 @@ You are the Parallel Orchestration Engine that:
 
 3. EXECUTE all agents in parallel:
    - Use multiple Task tool invocations in ONE message
-   - Include model: "opus" for complex tasks
    - Provide complete context to each agent
    - Specify coordination instructions
 
@@ -150,14 +148,13 @@ After parallel execution:
 3. **Resolve Conflicts**: Handle any unexpected overlaps
 4. **Present Synthesis**: Deliver integrated solution
 
-## CRITICAL REMINDERS
+## Key Principles
 
-- **ALWAYS** execute agents in parallel (multiple Task tools in one message)
-- **NEVER** run agents sequentially unless explicitly required
-- **ALWAYS** consider potential conflicts during design phase
-- **ALWAYS** use model: "opus" for complex parallel tasks
-- **ALWAYS** provide complete, self-contained instructions to each agent
-- **NEVER** assume agents can communicate during execution
+- Execute agents in parallel (multiple Task tools in one message)
+- Run agents sequentially only when dependencies require it
+- Consider potential conflicts during design phase
+- Provide complete, self-contained instructions to each agent
+- Agents cannot communicate during execution
 
 ## Error Handling
 

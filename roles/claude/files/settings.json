@@ -943,7 +943,28 @@
       "Bash(git:reset*)",
       "Bash(git:revert*)",
       "Bash(git:cherry-pick*)",
-      "Bash(git:tag*)"
+      "Bash(git:tag*)",
+      "Read(./.env*)",
+      "Read(./secrets/**)",
+      "Read(./**/credentials*)",
+      "Read(./**/.aws/**)",
+      "Read(./**/.ssh/**)",
+      "Read(./**/id_rsa*)",
+      "Read(./**/id_ed25519*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/password*)",
+      "Read(./**/token*)",
+      "Read(./**/.1password/**)",
+      "Write(./.env*)",
+      "Write(./secrets/**)",
+      "Write(./**/credentials*)",
+      "Write(./**/.aws/**)",
+      "Write(./**/.ssh/**)",
+      "Write(./**/*.pem)",
+      "Write(./**/*.key)",
+      "Bash(chmod:777*)",
+      "Bash(chown:root*)"
     ],
     "defaultMode": "acceptEdits"
   },
@@ -957,6 +978,12 @@
     "DISABLE_ERROR_REPORTING": "1",
     "DISABLE_BUG_COMMAND": "1",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "BASH_MAX_TIMEOUT_MS": "300000"
+    "BASH_MAX_TIMEOUT_MS": "300000",
+    "BASH_DEFAULT_TIMEOUT_MS": "60000",
+    "BASH_MAX_OUTPUT_LENGTH": "50000",
+    "MAX_MCP_OUTPUT_TOKENS": "8192",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "8192",
+    "MCP_TIMEOUT": "30000",
+    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "3600000"
   }
 }

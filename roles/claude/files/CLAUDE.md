@@ -24,6 +24,13 @@
 - Proposed solution is unnecessarily complex
 - Better alternatives exist that weren't considered
 
+**Favor simplicity:**
+- Simple solutions that work effectively are better than complex ones
+- Before proposing major refactors, consider minimal fixes first
+- Adding complexity should be justified by clear benefits
+- "Good enough" today beats "perfect" never
+- The best code is often the code you don't write
+
 ## Core Preferences
 
 - Question ambiguous requirements before implementing
@@ -31,7 +38,6 @@
 - Clean up temporary files after tasks
 - Never create README.md files unless explicitly requested
 - Use 1Password CLI (`op`) for any secret management
-- Prefer Homebrew for macOS package installations
 
 ## Development Workflow Scripts
 

@@ -87,6 +87,12 @@ export DOTFILES="$HOME/.dotfiles"
 export GOBIN="$HOME/.local/bin"
 export BIN="$HOME/.local/bin"
 
+# Corporate security policies restrict /tmp access - use user-controlled location
+if [[ ! -d "$HOME/tmp/tmux" ]]; then
+  mkdir -p "$HOME/tmp/tmux"
+fi
+export TMUX_TMPDIR="$HOME/tmp/tmux"
+
 # Claude
 export CLAUDE_HOME="$HOME/.claude"
 export CLAUDE_SETTINGS="$CLAUDE_HOME/settings.json"

@@ -58,6 +58,13 @@ get_cwd() { echo "$input" | jq -r '.cwd // empty'; }
 # Version information (if available)
 get_version() { echo "$input" | jq -r '.version // empty'; }
 
+# Cost and usage information (new fields)
+get_total_cost() { echo "$input" | jq -r '.cost.total_cost_usd // empty'; }
+get_api_duration() { echo "$input" | jq -r '.cost.total_api_duration_ms // empty'; }
+get_lines_added() { echo "$input" | jq -r '.cost.total_lines_added // empty'; }
+get_lines_removed() { echo "$input" | jq -r '.cost.total_lines_removed // empty'; }
+get_output_style() { echo "$input" | jq -r '.output_style.name // empty'; }
+
 # Get Claude's current directory from the input JSON
 CLAUDE_DIR=$(get_current_dir)
 PROJECT_DIR=$(get_project_dir)
@@ -72,6 +79,50 @@ if [[ -n "$PROJECT_DIR" ]] && [[ "$CLAUDE_DIR" != "$PROJECT_DIR" ]]; then
 fi
 
 MODEL=$(get_model_name)
+
+# Get cost and usage information
+COST=$(get_total_cost)
+API_DURATION=$(get_api_duration)
+LINES_ADDED=$(get_lines_added)
+LINES_REMOVED=$(get_lines_removed)
+
+# Format cost display with color coding
+COST_DISPLAY=""
+if [[ -n "$COST" ]]; then
+  # Format cost: $0.01 for < $1, $1.23 for >= $1
+  if (( $(echo "$COST < 1" | bc -l) )); then
+    COST_FORMATTED=$(printf "$%.2f" "$COST")
+  else
+    COST_FORMATTED=$(printf "$%.2f" "$COST")
+  fi
+  
+  # Simple color for cost display (just for visibility, not warning)
+  # Using cyan to match directory color - clean and informational
+  COST_COLOR="${BRIGHT_CYAN}"
+  
+  COST_DISPLAY="${TEXT_DIM} | ${COST_COLOR}${COST_FORMATTED}"
+fi
+
+# Format API duration (convert ms to seconds)
+API_TIME_DISPLAY=""
+if [[ -n "$API_DURATION" ]]; then
+  API_SECONDS=$(echo "scale=1; $API_DURATION / 1000" | bc)
+  API_TIME_DISPLAY="${TEXT_DIM} | ${GRAY}${API_SECONDS}s"
+fi
+
+# Format code changes
+CODE_CHANGES=""
+if [[ -n "$LINES_ADDED" ]] || [[ -n "$LINES_REMOVED" ]]; then
+  LINES_ADDED=${LINES_ADDED:-0}
+  LINES_REMOVED=${LINES_REMOVED:-0}
+  if [[ $LINES_ADDED -gt 0 ]] || [[ $LINES_REMOVED -gt 0 ]]; then
+    CODE_CHANGES="${TEXT_DIM} | ${BRIGHT_GREEN}+${LINES_ADDED}${TEXT_DIM}/${BRIGHT_MAGENTA}-${LINES_REMOVED}"
+  fi
+fi
+
+# Get terminal width for adaptive formatting
+# Check COLUMNS env var first (for testing), then tput cols
+TERM_WIDTH=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
 
 # Get OS icon (like P10k)
 case "$(uname -s)" in
@@ -244,5 +295,14 @@ if [[ -n "$CLAUDE_DIR" ]] && cd "$CLAUDE_DIR" 2>/dev/null && git rev-parse --is-
 fi
 
 # Build the statusline with P10k-inspired colors
-# Format: os_icon dir on branch *modified !staged ?untracked | model
-printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${RESET}"
+# Only adapt what metrics to show based on terminal width, not dir/git formatting
+if [[ $TERM_WIDTH -gt 120 ]]; then
+  # Full format: Show all metrics
+  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${COST_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}${RESET}"
+elif [[ $TERM_WIDTH -gt 80 ]]; then
+  # Medium format: Show dir, git, model, and cost only
+  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
+else
+  # Compact format: Show dir, git, model, and cost only (same as medium)
+  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
+fi

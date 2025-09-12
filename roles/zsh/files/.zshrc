@@ -40,6 +40,8 @@ zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
 # zinit ice depth=1; zinit light jeffreytse/zsh-vi-mode
+# zsh-fzf-history-search
+zinit ice lucid wait'0'; zinit light joshskidmore/zsh-fzf-history-search
 
 # Add in snippets
 # Needed for loading next git.zsh without [_defer_async_git_register:4: command not found: _omz_register_handler errors]

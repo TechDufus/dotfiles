@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+
+# Claude Dashboard - Beautiful tmux session switcher with Claude status
+# Uses Catppuccin Mocha colors for consistency with tmux theme
+
+STATUS_DIR="$HOME/.cache/claude-status"
+
+# Catppuccin Mocha Colors
+ROSEWATER=$'\033[38;2;245;224;220m'
+FLAMINGO=$'\033[38;2;242;205;205m'
+PINK=$'\033[38;2;245;194;231m'
+MAUVE=$'\033[38;2;203;166;247m'
+RED=$'\033[38;2;243;139;168m'
+MAROON=$'\033[38;2;235;160;172m'
+PEACH=$'\033[38;2;250;179;135m'
+YELLOW=$'\033[38;2;249;226;175m'
+GREEN=$'\033[38;2;166;227;161m'
+TEAL=$'\033[38;2;148;226;213m'
+SKY=$'\033[38;2;137;220;235m'
+SAPPHIRE=$'\033[38;2;116;199;236m'
+BLUE=$'\033[38;2;137;180;250m'
+LAVENDER=$'\033[38;2;180;190;254m'
+TEXT=$'\033[38;2;205;214;244m'
+SUBTEXT1=$'\033[38;2;186;194;222m'
+SUBTEXT0=$'\033[38;2;166;173;200m'
+OVERLAY2=$'\033[38;2;147;153;178m'
+OVERLAY1=$'\033[38;2;127;132;156m'
+OVERLAY0=$'\033[38;2;108;112;134m'
+SURFACE2=$'\033[38;2;88;91;112m'
+SURFACE1=$'\033[38;2;69;71;90m'
+SURFACE0=$'\033[38;2;49;50;68m'
+BASE=$'\033[38;2;30;30;46m'
+MANTLE=$'\033[38;2;24;24;37m'
+CRUST=$'\033[38;2;17;17;27m'
+RESET=$'\033[0m'
+BOLD=$'\033[1m'
+DIM=$'\033[2m'
+
+# Cache for all Claude TTYs to avoid repeated ps calls
+_CLAUDE_TTYS=""
+_CLAUDE_TTYS_TIME=0
+
+# Function to check if Claude is in a session (actually running, not just has status file)
+has_claude_in_session() {
+  local session="$1"
+  
+  # Refresh cache every 2 seconds
+  local current_time=$(date +%s)
+  if [ $((current_time - _CLAUDE_TTYS_TIME)) -gt 2 ] || [ -z "$_CLAUDE_TTYS" ]; then
+    # Get all TTYs running claude in one go (much faster than per-session)
+    _CLAUDE_TTYS=$(ps aux | grep -v grep | grep "claude" | awk '{print $7}' | sort -u | tr '\n' ' ')
+    _CLAUDE_TTYS_TIME=$current_time
+  fi
+  
+  # Early return if no claude processes at all
+  [ -z "$_CLAUDE_TTYS" ] && return 1
+  
+  # Get TTYs for this session and check if any match
+  local session_ttys=$(tmux list-panes -t "$session" -F "#{pane_tty}" 2>/dev/null | sed 's|/dev/tty||' | tr '\n' ' ')
+  
+  for tty in $session_ttys; do
+    if [[ " $_CLAUDE_TTYS " == *" $tty "* ]]; then
+      return 0
+    fi
+  done
+  
+  return 1
+}
+
+# Function to get Claude status from hook files
+get_claude_status() {
+  local session="$1"
+  local status_file="$STATUS_DIR/${session}.status"
+
+  if [ -f "$status_file" ]; then
+    # Read status from file (should be "working" or "done")
+    cat "$status_file" 2>/dev/null || echo ""
+  else
+    echo ""
+  fi
+}
+
+# Get all sessions with formatted output
+get_sessions_with_status() {
+  local working_sessions=()
+  local done_sessions=()
+  local no_claude_sessions=()
+  local max_name_length=0
+  local all_sessions=()
+
+  # First pass: collect all sessions and find max name length
+  while IFS=: read -r name windows attached; do
+    all_sessions+=("$name:$windows:$attached")
+    local name_len=${#name}
+    [ $name_len -gt $max_name_length ] && max_name_length=$name_len
+  done < <(tmux list-sessions -F "#{session_name}:#{session_windows}:#{?session_attached,(attached),}")
+
+  # Add minimal padding
+  max_name_length=$((max_name_length + 1))
+  
+  # Ensure minimum width but not too wide
+  [ $max_name_length -lt 15 ] && max_name_length=15
+  [ $max_name_length -gt 30 ] && max_name_length=30
+
+  # Second pass: format with dynamic width
+  for session_data in "${all_sessions[@]}"; do
+    IFS=: read -r name windows attached <<< "$session_data"
+    local formatted_line=""
+    
+    # Window icon based on count
+    local window_icon=""
+    local window_text=""
+    if [ "$windows" = "1" ]; then
+      window_icon="${OVERLAY1}󰖯${RESET}"  # Single window icon
+      window_text="${DIM}${OVERLAY0}window${RESET}"
+    else
+      window_icon="${LAVENDER}󰖰${RESET}"  # Multiple windows icon
+      window_text="${DIM}${OVERLAY0}windows${RESET}"
+    fi
+    
+    # Attached status - compact
+    local attach_display=""
+    if [ -n "$attached" ]; then
+      attach_display="${GREEN}󰆍${RESET}"
+    else
+      attach_display="${OVERLAY0}○${RESET}"
+    fi
+
+    # First check if Claude is present
+    if has_claude_in_session "$name"; then
+      # Get status from hook file
+      local claude_status=$(get_claude_status "$name")
+
+      # Default to "done" if no status file exists
+      [ -z "$claude_status" ] && claude_status="done"
+
+      if [ "$claude_status" = "working" ]; then
+        # Build compact line
+        local padded_name=$(printf "%-${max_name_length}s" "$name")
+        formatted_line=" ${YELLOW}◉${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${YELLOW}⚡ working${RESET}"
+        working_sessions+=("$formatted_line")
+      else
+        local padded_name=$(printf "%-${max_name_length}s" "$name")
+        formatted_line=" ${GREEN}◉${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${GREEN}✓ done${RESET}"
+        done_sessions+=("$formatted_line")
+      fi
+    else
+      local padded_name=$(printf "%-${max_name_length}s" "$name")
+      formatted_line=" ${SURFACE1}○${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${OVERLAY0}no claude${RESET}"
+      no_claude_sessions+=("$formatted_line")
+    fi
+  done
+
+  # Output grouped sessions with beautiful separators
+  
+  # Calculate total sessions
+  local total_sessions=$((${#working_sessions[@]} + ${#done_sessions[@]} + ${#no_claude_sessions[@]}))
+
+  # Working sessions
+  if [ ${#working_sessions[@]} -gt 0 ]; then
+    echo -e "${YELLOW}${BOLD} ⚡ WORKING ${RESET}${OVERLAY0}(${#working_sessions[@]})${RESET}"
+    echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
+    printf '%s\n' "${working_sessions[@]}"
+  fi
+
+  # Done sessions
+  if [ ${#done_sessions[@]} -gt 0 ]; then
+    [ ${#working_sessions[@]} -gt 0 ] && echo
+    echo -e "${GREEN}${BOLD} ✓ DONE ${RESET}${OVERLAY0}(${#done_sessions[@]})${RESET}"
+    echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
+    printf '%s\n' "${done_sessions[@]}"
+  fi
+
+  # No Claude sessions
+  if [ ${#no_claude_sessions[@]} -gt 0 ]; then
+    [ ${#working_sessions[@]} -gt 0 ] || [ ${#done_sessions[@]} -gt 0 ] && echo
+    echo -e "${OVERLAY1}${BOLD} ○ NO CLAUDE ${RESET}${OVERLAY0}(${#no_claude_sessions[@]})${RESET}"
+    echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
+    printf '%s\n' "${no_claude_sessions[@]}"
+  fi
+  
+  # Footer with total count and hints
+  echo
+  echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
+  echo -e "${OVERLAY0} ${total_sessions} sessions ${SURFACE1}│${RESET} ${SAPPHIRE}󰌌 j/k${RESET}${OVERLAY0}: navigate ${SURFACE1}│${RESET} ${GREEN}󰌑${RESET}${OVERLAY0}: select ${SURFACE1}│${RESET} ${RED}󰜺${RESET}${OVERLAY0}: cancel${RESET}"
+}
+
+# Main
+sessions=$(get_sessions_with_status)
+
+# Use fzf to select with beautiful Catppuccin colors
+selected=$(echo "$sessions" | fzf \
+  --ansi \
+  --no-sort \
+  --header="" \
+  --prompt="➜ " \
+  --pointer="▶ " \
+  --marker="✓ " \
+  --bind="j:down,k:up,q:cancel,esc:cancel" \
+  --layout=reverse \
+  --info=hidden \
+  --border=none \
+  --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8" \
+  --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f9e2af" \
+  --color="marker:#a6e3a1,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8" \
+  --color="border:#313244,label:#b4befe,query:#f5e0dc")
+
+# Switch to selected session (skip separator lines and footer)
+if [ -n "$selected" ] && ! echo "$selected" | grep -qE "───|sessions|navigate|cancel|WORKING|DONE|CLAUDE"; then
+  # Extract session name - it's between the bullet and the first pipe
+  # First strip ANSI codes, then extract the session name
+  session_name=$(echo "$selected" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[[:space:]]*[○◉][[:space:]]*//' | awk '{print $1}')
+  if [ -n "$session_name" ]; then
+    tmux switch-client -t "$session_name"
+  fi
+fi

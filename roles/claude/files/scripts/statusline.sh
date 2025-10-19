@@ -294,15 +294,24 @@ if [[ -n "$CLAUDE_DIR" ]] && cd "$CLAUDE_DIR" 2>/dev/null && git rev-parse --is-
   GIT_INFO="${TEXT_DIM} on ${BRANCH_COLOR}${REMOTE_ICON}${BRANCH_ICON} ${BRANCH}${STATUS_COLOR}${STATUS_INDICATORS}${STATUS_COLOR}${UPSTREAM}${ERROR_COLOR}${GIT_STATE}"
 fi
 
-# Build the statusline with P10k-inspired colors
+# Build the statusline with P10k-inspired colors (two-line format)
+# Line 1: Directory and git info (variable length)
+# Line 2: Model and metrics (fixed positions)
+
+# Use └─ as the line connector for the second line
+CONNECTOR="${TEXT_DIM}└─ "
+
 # Only adapt what metrics to show based on terminal width, not dir/git formatting
 if [[ $TERM_WIDTH -gt 120 ]]; then
   # Full format: Show all metrics
-  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${COST_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}${RESET}"
+  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
+  printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${COST_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}${RESET}"
 elif [[ $TERM_WIDTH -gt 80 ]]; then
   # Medium format: Show dir, git, model, and cost only
-  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
+  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
+  printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
 else
   # Compact format: Show dir, git, model, and cost only (same as medium)
-  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${TEXT_DIM} | ${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
+  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
+  printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
 fi

@@ -1,6 +1,39 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": true,
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "sudo *": "deny",
+      "su *": "deny",
+      "passwd *": "deny",
+      "shutdown *": "deny",
+      "reboot *": "deny",
+      "halt *": "deny",
+      "poweroff *": "deny",
+      "systemctl reboot": "deny",
+      "systemctl poweroff": "deny",
+      "systemctl halt": "deny",
+      "rm -rf /": "deny",
+      "rm -rf /*": "deny",
+      "dd if=/dev/zero of=/dev/*": "deny",
+      "mkfs *": "deny",
+      "fdisk *": "deny",
+      "parted *": "deny",
+      "git commit *": "deny",
+      "git push *": "deny",
+      "git merge *": "deny",
+      "git rebase *": "deny",
+      "git reset *": "deny",
+      "git revert *": "deny",
+      "git cherry-pick *": "deny",
+      "git tag *": "deny",
+      "chmod 777 *": "deny",
+      "chown root *": "deny"
+    },
+    "edit": "allow",
+    "webfetch": "allow"
+  },
   "command": {
     "gh-work": {
       "template": "Complete GitHub issue workflow: view issue, create branch, implement fix, test, commit, and create PR.\n\nRun: !`~/.config/opencode/scripts/gh-work-issue.sh $ARGUMENTS`\n\nAfter the script completes, analyze the issue details and implement the complete fix following this workflow:\n\n1. Review issue requirements and acceptance criteria\n2. Search codebase for relevant files\n3. Implement the fix with proper testing\n4. Run tests and linting\n5. Commit with conventional format referencing the issue\n6. Create PR with summary and test plan",

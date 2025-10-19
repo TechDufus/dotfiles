@@ -21,6 +21,7 @@ return {
       Teams       = { cell = 5 },              -- Meeting focus - large centered
       Obsidian    = { cell = 3 },              -- Moved to smaller chat position
       Claude      = { cell = 6 },              -- AI assistant popup
+      Agenda      = { cell = 6 },              -- Granola popup
     },
   },
   {

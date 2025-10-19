@@ -1,7 +1,7 @@
 return {
   Agenda      = {
-    id = 'com.apple.iCal',
-    summon = 'a', -- [A]genda
+    id = 'com.granola.app',
+    summon = 'a', -- [A]genda or Granol[A]
   },
   Browser     = {
     id = 'com.brave.Browser',

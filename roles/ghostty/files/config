@@ -5,7 +5,7 @@ background-opacity = 1
 background-blur-radius = 20
 
 # Requires nightly version of ghostty
-background-image = ~/OneDrive/Pictures/code-bgs/4k/sukuna-electric-3840x2160-22504.jpg
+# background-image = ~/OneDrive/Pictures/code-bgs/4k/kakashi-hatake.jpg
 background-image-opacity = 0.3
 background-image-fit = cover
 

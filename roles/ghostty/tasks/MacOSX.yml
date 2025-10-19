@@ -23,3 +23,10 @@
     dest: "{{ ansible_env.HOME }}/.config/ghostty/"
     mode: "0644"
     directory_mode: "0755"
+
+- name: "{{ role_name }} | macOS | Deploy Themes directory"
+  ansible.builtin.copy:
+    src: themes
+    dest: "{{ ansible_env.HOME }}/.config/ghostty/"
+    mode: "0644"
+    directory_mode: "0755"

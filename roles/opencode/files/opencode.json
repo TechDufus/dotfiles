@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": true,
+  "command": {
+    "gh-work": {
+      "template": "Complete GitHub issue workflow: view issue, create branch, implement fix, test, commit, and create PR.\n\nRun: !`~/.config/opencode/scripts/gh-work-issue.sh $ARGUMENTS`\n\nAfter the script completes, analyze the issue details and implement the complete fix following this workflow:\n\n1. Review issue requirements and acceptance criteria\n2. Search codebase for relevant files\n3. Implement the fix with proper testing\n4. Run tests and linting\n5. Commit with conventional format referencing the issue\n6. Create PR with summary and test plan",
+      "description": "Fix GitHub issue end-to-end"
+    },
+    "gh-issue": {
+      "template": "Create a GitHub issue based on current context.\n\nAnalyze the conversation and generate:\n1. Concise title (50 chars max)\n2. Detailed body with:\n   - Summary\n   - Context from conversation\n   - Acceptance criteria\n   - Technical details\n\nThen execute:\n!`~/.config/opencode/scripts/gh-create-issue.sh \"<generated-title>\" --body \"<generated-body>\" $ARGUMENTS`\n\nIf first argument is a number or org/repo#num format, treat as parent issue.",
+      "description": "Create GitHub issue"
+    },
+    "gh-review": {
+      "template": "AI-powered code review for GitHub PR.\n\nFetch PR data: !`~/.config/opencode/scripts/gh-ai-review.sh \"$ARGUMENTS\"`\n\nProvide comprehensive analysis:\n\n📊 **Change Summary**\n✅ **Strengths**\n🔍 **Code Review Findings**:\n  - 🐛 Bugs/Issues (with severity)\n  - 🎯 Suggestions (with code examples)\n  - ❓ Questions for clarification\n🚦 **CI/CD Status**\n📝 **Recommended Actions**\n\nFocus on: code quality, bugs, security, performance, best practices, testing.",
+      "description": "AI-powered PR review"
+    },
+    "gh-link": {
+      "template": "Link a child issue to a parent issue.\n\nUsage: /gh-link <parent-issue> <child-issue>\n\nExecute: !`~/.config/opencode/scripts/gh-link-sub-issue.sh $ARGUMENTS`",
+      "description": "Link GitHub issues"
+    }
+  }
+}

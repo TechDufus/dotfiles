@@ -61,6 +61,13 @@
     state: link
     force: true
 
+- name: "{{ role_name }} | Deploy global AGENTS.md"
+  ansible.builtin.copy:
+    src: "AGENTS.md"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    mode: '0644'
+    backup: true
+
 - name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
   ansible.builtin.stat:
     path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"

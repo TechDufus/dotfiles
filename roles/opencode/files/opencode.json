@@ -17,6 +17,26 @@
     "gh-link": {
       "template": "Link a child issue to a parent issue.\n\nUsage: /gh-link <parent-issue> <child-issue>\n\nExecute: !`~/.config/opencode/scripts/gh-link-sub-issue.sh $ARGUMENTS`",
       "description": "Link GitHub issues"
+    },
+    "prp-init": {
+      "template": "Initialize a feature file through interactive interrogation and codebase analysis for: $ARGUMENTS\n\nSee detailed workflow in command markdown.",
+      "description": "Initialize feature file"
+    },
+    "prp-build": {
+      "template": "Build a comprehensive PRP from feature file: $ARGUMENTS\n\nConduct research, gather context, and create implementation blueprint.\n\nSee detailed workflow in command markdown.",
+      "description": "Build PRP from feature file"
+    },
+    "prp-execute": {
+      "template": "Execute PRP file: $ARGUMENTS\n\nLoad context, ULTRATHINK, implement with validation, and track progress.\n\nSee detailed workflow in command markdown.",
+      "description": "Execute PRP implementation"
+    },
+    "spec-init": {
+      "template": "Initialize specification-driven feature using SPARC methodology for: $ARGUMENTS\n\nCreate comprehensive spec with requirements, architecture, and validation gates.\n\nSee detailed workflow in command markdown.",
+      "description": "Initialize SPARC specification"
+    },
+    "spec-implement": {
+      "template": "Implement feature from architecture: $ARGUMENTS\n\nTest-driven development with continuous validation and checkpoint tracking.\n\nSee detailed workflow in command markdown.",
+      "description": "Implement SPARC feature with TDD"
     }
   }
 }

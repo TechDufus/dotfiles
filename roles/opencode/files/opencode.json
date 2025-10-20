@@ -2,6 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": true,
   "model": "anthropic/claude-sonnet-4-5",
+  "instructions": [
+    "docs/QUICKSTART.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/EXAMPLES.md"
+  ],
   "permission": {
     "bash": {
       "*": "allow",

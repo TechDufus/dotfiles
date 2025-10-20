@@ -1,4 +1,4 @@
-# Claude User Memory
+# OpenCode Global Configuration
 
 ## Core Engineering Principles
 
@@ -69,7 +69,7 @@ For complex technical decisions, break down the problem, validate assumptions, a
 
 ## Workflow Scripts
 
-**Available in `~/.claude/scripts/`:**
+**Available in `~/.config/opencode/scripts/`:**
 
 **Git Enhancement:**
 - `git-commit-helper.sh "message"` - Validates conventional format

@@ -48,13 +48,13 @@ The AI agent only gets context you provide and training data. Include:
 ruff check --fix && mypy .
 uv run pytest tests/ -v
 
-# Example for Node.js project  
+# Example for Node.js project
 npm run lint && npm run typecheck
 npm test
 ```
 
 > ⚠️ **CRITICAL**: Before building the PRP:
-> 
+>
 > **ULTRATHINK** about the PRP and plan your approach comprehensively.
 
 ## Output

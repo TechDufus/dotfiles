@@ -73,17 +73,17 @@ Follow architecture specifications:
 # Example: Component implementation
 class Component:
     """Implements pseudocode from architecture/pseudocode/detailed.md"""
-    
+
     def process(self, input):
         # Step 1: Validate
         self._validate(input)
-        
+
         # Step 2: Transform
         result = self._transform(input)
-        
+
         # Step 3: Handle edge cases
         result = self._handle_edge_cases(result)
-        
+
         # Step 4: Return
         return result
 ```
@@ -97,7 +97,7 @@ After each task:
 # Syntax & Style
 make lint || npm run lint || ruff check
 
-# Type Safety  
+# Type Safety
 make typecheck || npm run typecheck || mypy .
 
 # Unit Tests
@@ -194,17 +194,17 @@ final_gates:
     - lint: passing
     - typecheck: no_errors
     - complexity: within_limits
-  
+
   testing:
     - unit_coverage: ≥85%
     - integration: all_passing
     - e2e: scenarios_complete
-  
+
   performance:
     - latency_p99: <100ms
     - throughput: >1000rps
     - memory: <500MB
-  
+
   security:
     - vulnerabilities: none
     - secrets: none_exposed
@@ -226,7 +226,7 @@ try:
 except ImplementationError as e:
     # Document blocker
     log_blocker(task, e)
-    
+
     # Try alternative or rollback
     if has_alternative(task):
         implement_alternative(task)

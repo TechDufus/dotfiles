@@ -24,10 +24,10 @@ Run comprehensive quality gates to ensure implementation meets all specification
    ```bash
    # Ensure clean working directory
    git diff --stat
-   
+
    # Check all dependencies installed
    make deps-verify
-   
+
    # Verify test environment ready
    make test-env-check
    ```
@@ -37,7 +37,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
 3. **Syntax & Style Validation**
    ```bash
    echo "🔍 Running syntax validation..."
-   
+
    # Language-specific linting
    if [[ -f "Makefile" && -n "$(grep lint Makefile)" ]]; then
        make lint
@@ -48,7 +48,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
    elif [[ -f "Cargo.toml" ]]; then
        cargo clippy -- -D warnings
    fi
-   
+
    # Format checking
    make format-check || echo "⚠️ Format issues detected"
    ```
@@ -56,17 +56,17 @@ Run comprehensive quality gates to ensure implementation meets all specification
 4. **Type Safety Validation**
    ```bash
    echo "🔍 Checking type safety..."
-   
+
    # TypeScript/JavaScript
    if [[ -f "tsconfig.json" ]]; then
        npx tsc --noEmit
    fi
-   
+
    # Python
    if [[ -f "pyproject.toml" ]] || [[ -f "setup.py" ]]; then
        mypy . --strict
    fi
-   
+
    # Go
    if [[ -f "go.mod" ]]; then
        go vet ./...
@@ -82,7 +82,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
        "cohesion": measure_cohesion(),
        "duplication": detect_duplication()
    }
-   
+
    for metric, value in metrics.items():
        if value > thresholds[metric]:
            log_warning(f"{metric} exceeds threshold: {value}")
@@ -93,7 +93,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
 6. **Unit Test Execution**
    ```bash
    echo "🧪 Running unit tests..."
-   
+
    # Run with coverage
    if [[ -f "Makefile" ]]; then
        make test-unit-coverage
@@ -105,7 +105,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
            npm test -- --coverage
        fi
    fi
-   
+
    # Validate coverage threshold
    coverage_result=$(get_coverage_percentage)
    if [[ $coverage_result -lt 85 ]]; then
@@ -117,13 +117,13 @@ Run comprehensive quality gates to ensure implementation meets all specification
 7. **Integration Test Execution**
    ```bash
    echo "🔗 Running integration tests..."
-   
+
    # Start test dependencies
    make test-deps-up || docker-compose -f test-compose.yml up -d
-   
+
    # Run integration suite
    make test-integration || npm run test:integration
-   
+
    # Cleanup
    make test-deps-down || docker-compose -f test-compose.yml down
    ```
@@ -131,17 +131,17 @@ Run comprehensive quality gates to ensure implementation meets all specification
 8. **End-to-End Test Execution**
    ```bash
    echo "🌐 Running E2E tests..."
-   
+
    # Start application in test mode
    make run-test-server &
    SERVER_PID=$!
-   
+
    # Wait for server ready
    wait_for_server localhost:8080
-   
+
    # Run E2E suite
    make test-e2e || npm run test:e2e
-   
+
    # Cleanup
    kill $SERVER_PID
    ```
@@ -151,7 +151,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
 9. **Performance Benchmarks**
    ```python
    echo "⚡ Running performance benchmarks..."
-   
+
    benchmarks = {
        "latency": {
            "p50": measure_latency(percentile=50),
@@ -165,7 +165,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
        },
        "cpu": measure_cpu_usage()
    }
-   
+
    # Validate against targets
    for metric, target in performance_targets.items():
        if not meets_target(benchmarks[metric], target):
@@ -175,7 +175,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
 10. **Load Testing**
     ```bash
     echo "📊 Running load tests..."
-    
+
     # Use appropriate load testing tool
     if command -v k6 &> /dev/null; then
         k6 run tests/load/spike-test.js
@@ -191,7 +191,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
 11. **Security Scanning**
     ```bash
     echo "🔒 Running security scans..."
-    
+
     # Dependency vulnerabilities
     if [[ -f "package.json" ]]; then
         npm audit --audit-level=moderate
@@ -203,12 +203,12 @@ Run comprehensive quality gates to ensure implementation meets all specification
         gosec ./...
         nancy go.sum
     fi
-    
+
     # SAST scanning
     if command -v semgrep &> /dev/null; then
         semgrep --config=auto .
     fi
-    
+
     # Secret scanning
     if command -v gitleaks &> /dev/null; then
         gitleaks detect --source . --verbose
@@ -218,7 +218,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
 12. **Permission & Access Control**
     ```python
     echo "🔐 Validating permissions..."
-    
+
     # Check for overly permissive settings
     check_file_permissions()
     validate_api_auth()
@@ -231,19 +231,19 @@ Run comprehensive quality gates to ensure implementation meets all specification
 13. **Documentation Completeness**
     ```bash
     echo "📚 Checking documentation..."
-    
+
     # API documentation
     if [[ -f "openapi.yaml" ]] || [[ -f "swagger.json" ]]; then
         swagger-cli validate openapi.yaml
     fi
-    
+
     # Code documentation coverage
     if [[ -f "package.json" ]]; then
         npx documentation coverage src/**/*.js
     elif [[ -f "setup.py" ]]; then
         pydocstyle . --count
     fi
-    
+
     # README validation
     if [[ -f "README.md" ]]; then
         markdownlint README.md
@@ -272,7 +272,7 @@ Run comprehensive quality gates to ensure implementation meets all specification
         "blocking_issues": get_blocking_issues(),
         "warnings": get_warnings()
     }
-    
+
     # Save report
     save_json("artifacts/validation-report.json", report)
     ```
@@ -301,13 +301,13 @@ validation_gates:
     - type_check_pass
     - unit_tests_pass
     - security_scan_clean
-    
+
   recommended:  # Should pass, warnings if not
     - coverage_above_80
     - integration_tests_pass
     - performance_targets_met
     - documentation_complete
-    
+
   optional:  # Nice to have
     - e2e_tests_pass
     - load_test_pass
@@ -361,17 +361,17 @@ Next Actions:
 def handle_gate_failure(gate_name, error):
     # Log detailed error
     log_error(f"Gate {gate_name} failed: {error}")
-    
+
     # Attempt auto-fix for known issues
     if can_auto_fix(gate_name, error):
         fix_result = auto_fix(gate_name, error)
         if fix_result.success:
             return rerun_gate(gate_name)
-    
+
     # Provide actionable feedback
     suggestions = get_fix_suggestions(gate_name, error)
     display_fix_guide(suggestions)
-    
+
     # Offer rollback option
     if is_critical(gate_name):
         prompt_rollback_option()

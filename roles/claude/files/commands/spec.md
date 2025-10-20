@@ -18,7 +18,7 @@ Your intelligent guide to the SPEC methodology and command workflow.
 
 SPEC uses the SPARC framework for structured development:
 S - Specification: Gather requirements
-P - Pseudocode: Design algorithms  
+P - Pseudocode: Design algorithms
 A - Architecture: Create technical blueprint
 R - Refinement: Optimize and improve
 C - Completion: Finalize and archive
@@ -45,62 +45,62 @@ def suggest_next_action():
     if not exists("SPECS/"):
         return """
         🎯 Next Step: Initialize your first SPEC feature
-        
+
         Run: /spec-init <feature-name> "<description>"
-        
+
         Example:
         /spec-init user-auth "Add JWT authentication to API"
         """
-    
+
     active_features = scan("SPECS/active/")
-    
+
     if not active_features:
         return """
         🎯 Next Step: Start a new feature
-        
+
         No active features found.
         Run: /spec-init <feature-name> "<description>"
         """
-    
+
     for feature in active_features:
         state = load(f"{feature}/.state/progress.json")
-        
+
         if state.phase == "specification":
             return f"""
             🎯 Next Step for {feature}: Create architecture
-            
+
             Specification complete. Time to design!
             Run: /spec-architect {feature}
             """
-        
+
         elif state.phase == "architecture":
             return f"""
             🎯 Next Step for {feature}: Start implementation
-            
+
             Architecture ready. Let's build!
             Run: /spec-implement {feature}
             """
-        
+
         elif state.phase == "implementation":
             if not state.validation_passed:
                 return f"""
                 🎯 Next Step for {feature}: Run validation
-                
+
                 Implementation needs validation.
                 Run: /spec-validate {feature}
                 """
             else:
                 return f"""
                 🎯 Next Step for {feature}: Refine implementation
-                
+
                 Validation passed! Time to optimize.
                 Run: /spec-refine {feature}
                 """
-        
+
         elif state.phase == "refinement":
             return f"""
             🎯 Next Step for {feature}: Complete feature
-            
+
             Refinement done. Ready to ship!
             Run: /spec-complete {feature}
             """
@@ -154,13 +154,13 @@ def show_feature_guide(feature_name):
     if not exists(f"SPECS/active/{feature_name}"):
         return f"""
         ❌ Feature '{feature_name}' not found
-        
+
         Available features:
         {list_active_features()}
-        
+
         To create new: /spec-init {feature_name}
         """
-    
+
     state = load_feature_state(feature_name)
     return generate_contextual_help(state)
 ```

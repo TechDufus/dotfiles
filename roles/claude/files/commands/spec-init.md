@@ -28,7 +28,7 @@ Create a comprehensive specification using SPARC methodology (Specification, Pse
    ├── agents/          # Specialized agent configs
    └── .sparc/          # Framework metadata
    ```
-   
+
    Generate template files if missing:
    - `templates/specification.md` - Requirements & constraints
    - `templates/pseudocode.md` - Implementation blueprint
@@ -37,7 +37,7 @@ Create a comprehensive specification using SPARC methodology (Specification, Pse
    - `templates/completion.md` - Finalization checklist
    - `templates/validation-gates.md` - Quality criteria
    - `templates/.progress.json` - State tracking schema
-   
+
    Display: "✅ SPECS infrastructure ready with SPARC templates"
 
 3. **Create Feature Workspace**
@@ -56,38 +56,38 @@ Create a comprehensive specification using SPARC methodology (Specification, Pse
 
 4. **Interactive Requirements Gathering**
    Progressive interrogation with context awareness:
-   
+
    **Problem Domain:**
    - What specific problem does this solve?
    - What's the current pain point or inefficiency?
    - What would success look like?
    - Are there existing workarounds?
-   
+
    **Stakeholders & Users:**
    - Primary users and their technical level?
    - Secondary beneficiaries?
    - Who maintains this long-term?
    - Integration touchpoints with other teams?
-   
+
    **Functional Requirements:**
    - Core functionality (must-have)?
    - Nice-to-have features?
    - Explicit non-goals?
    - User interaction flow?
-   
+
    **Non-Functional Requirements:**
    - Performance targets (latency, throughput)?
    - Scale expectations (users, data volume)?
    - Security constraints?
    - Compliance requirements?
    - Observability needs?
-   
+
    **Technical Constraints:**
    - Required tech stack components?
    - Forbidden dependencies?
    - API compatibility needs?
    - Platform limitations?
-   
+
    **Scope Definition:**
    - MVP deliverables?
    - Phase 2 considerations?
@@ -201,7 +201,7 @@ Create a comprehensive specification using SPARC methodology (Specification, Pse
 Next Commands:
    /spec-architect {feature-name}  - Detailed technical design
    /spec-status {feature-name}     - View progress & metrics
-   
+
 Or delegate to agents:
    @@spec-architect on SPECS/active/{feature-name}
 ```

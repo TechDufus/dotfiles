@@ -16,7 +16,7 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    ```python
    feature_name = parse_feature_name()
    checkpoint_id = parse_checkpoint_id()  # Optional, defaults to last stable
-   
+
    # Load checkpoint history
    checkpoints = load(".state/checkpoints.json")
    progress = load(".state/progress.json")
@@ -26,7 +26,7 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    If no checkpoint specified, show options:
    ```
    🔄 Available Checkpoints for {feature-name}:
-   
+
    ID: checkpoint-2024-01-15-14-30-00 [STABLE] ← (recommended)
    Phase: implementation
    Task: implement-api-endpoints
@@ -34,7 +34,7 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    Files: 12 modified, 8 added
    Tests: 15 passing
    Coverage: 87%
-   
+
    ID: checkpoint-2024-01-15-13-45-00
    Phase: implementation
    Task: create-data-models
@@ -42,7 +42,7 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    Files: 5 modified, 3 added
    Tests: 8 passing
    Coverage: 82%
-   
+
    ID: checkpoint-2024-01-15-12-00-00 [BASELINE]
    Phase: architecture-complete
    Status: ready-for-implementation
@@ -53,15 +53,15 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    ```python
    def validate_checkpoint(checkpoint_id):
        checkpoint = load_checkpoint(checkpoint_id)
-       
+
        # Verify checkpoint integrity
        if not verify_checksum(checkpoint):
            raise CheckpointCorrupted(checkpoint_id)
-       
+
        # Check if checkpoint is reachable
        if not can_rollback_to(checkpoint):
            raise CheckpointUnreachable(checkpoint_id)
-       
+
        # Warn about data loss
        changes_since = get_changes_since(checkpoint)
        if changes_since:
@@ -80,20 +80,20 @@ Safely revert implementation to a previous known-good state using checkpoint rec
        "time_lost": calculate_time_lost(),
        "commits_to_revert": []
    }
-   
+
    # Show what will be lost
    print(f"""
    ⚠️ Rollback Impact Analysis:
-   
+
    You will lose:
    • {len(impact['files_to_revert'])} file modifications
    • {len(impact['files_to_delete'])} new files
    • {len(impact['tests_affected'])} test additions
    • {impact['time_lost']} hours of work
-   
+
    Features that will be removed:
    {format_list(impact['features_lost'])}
-   
+
    Continue? [y/N]
    """)
    ```
@@ -107,7 +107,7 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    git stash pop
    git add -A
    git commit -m "Recovery point before rollback to {checkpoint_id}"
-   
+
    # Save recovery metadata
    save_recovery_point({
        "from_state": current_state,
@@ -125,15 +125,15 @@ Safely revert implementation to a previous known-good state using checkpoint rec
        # Phase 1: Revert modified files
        for file in checkpoint.modified_files:
            restore_file(file, checkpoint.version)
-       
+
        # Phase 2: Remove new files
        for file in checkpoint.new_files_since:
            safe_delete(file)
-       
+
        # Phase 3: Restore deleted files
        for file in checkpoint.deleted_files_since:
            restore_deleted(file)
-       
+
        # Phase 4: Reset permissions
        restore_permissions(checkpoint.permissions)
    ```
@@ -143,11 +143,11 @@ Safely revert implementation to a previous known-good state using checkpoint rec
    # Option 1: Soft rollback (preserve history)
    git checkout {checkpoint.commit}
    git checkout -b spec/{feature-name}-rolled-back
-   
+
    # Option 2: Hard rollback (rewrite history)
    # ⚠️ Only if no pushes since checkpoint
    git reset --hard {checkpoint.commit}
-   
+
    # Option 3: Revert commits (safest)
    for commit in {commits_since_checkpoint}; do
        git revert --no-edit $commit
@@ -161,7 +161,7 @@ Safely revert implementation to a previous known-good state using checkpoint rec
        # Reverse migrations
        for migration in reversed(checkpoint.migrations_since):
            run_migration_down(migration)
-       
+
        # Verify schema state
        verify_schema_matches(checkpoint.schema_snapshot)
    ```
@@ -190,11 +190,11 @@ Safely revert implementation to a previous known-good state using checkpoint rec
         for file, checksum in checkpoint.file_checksums.items():
             current = calculate_checksum(file)
             assert current == checksum
-        
+
         # Run checkpoint's validation
         validation_results = run_validation_gates(checkpoint.gates)
         assert validation_results.passed
-        
+
         # Verify tests pass
         test_results = run_tests(checkpoint.test_suite)
         assert test_results.all_passing
@@ -224,27 +224,27 @@ Safely revert implementation to a previous known-good state using checkpoint rec
     Present options to user:
     ```
     ✅ Rollback Complete
-    
+
     Current State:
     • Checkpoint: {checkpoint_id}
     • Phase: {phase}
     • Tasks Complete: {X}/{Y}
     • Tests Passing: {count}
     • Coverage: {percent}%
-    
+
     Recovery Options:
     1. Continue from this checkpoint
        → /spec-implement {feature-name}
-    
+
     2. Revise architecture
        → /spec-architect {feature-name}
-    
+
     3. Cherry-pick specific changes
        → git cherry-pick {commit-range}
-    
+
     4. View recovery branch
        → git checkout recovery/{feature}-{timestamp}
-    
+
     5. Abandon and restart
        → /spec-init {new-feature-name}
     ```
@@ -288,17 +288,17 @@ def handle_rollback_failure(error):
         previous = get_previous_checkpoint()
         if previous:
             return rollback_to(previous)
-    
+
     elif isinstance(error, GitConflict):
         # Create conflict resolution branch
         create_conflict_branch()
         log_conflicts()
         provide_resolution_guide()
-    
+
     elif isinstance(error, DatabaseMigrationError):
         # Restore database backup
         restore_database_backup(checkpoint.db_backup)
-    
+
     # If all else fails
     create_emergency_backup()
     provide_manual_recovery_instructions()
@@ -311,11 +311,11 @@ def handle_rollback_failure(error):
 
 📊 Rollback Summary:
    • Reverted 12 files
-   • Removed 3 new files  
+   • Removed 3 new files
    • Restored 2 deleted files
    • Reset 15 test files
    • Reverted 3 commits
-   
+
 ✅ Validation Status:
    • Syntax: ✓ Clean
    • Tests: ✓ 15 passing
@@ -325,7 +325,7 @@ def handle_rollback_failure(error):
 💾 Recovery Point Saved:
    Branch: recovery/{feature}-{timestamp}
    You can return to pre-rollback state anytime
-   
+
 📍 Current Position:
    Checkpoint: {checkpoint_id}
    Phase: implementation

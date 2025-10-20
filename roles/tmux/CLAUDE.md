@@ -81,7 +81,7 @@ The comprehensive tmux configuration file featuring:
 **Advanced installation logic with multiple fallbacks:**
 
 1. **Primary**: DNF package installation (requires sudo)
-2. **Fallback**: AppImage download to `~/.local/bin/tmux` 
+2. **Fallback**: AppImage download to `~/.local/bin/tmux`
 3. **Final**: Manual installation instructions with helpful links
 
 **Corporate Environment Support:**

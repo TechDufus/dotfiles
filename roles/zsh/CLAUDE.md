@@ -458,7 +458,7 @@ The role handles various installation scenarios:
     echo "Error: <tool> not found"
     return 1
   fi
-  
+
   # Use fzf integration if applicable
   <tool> list | fzf \
     --preview='<tool> show {}' \

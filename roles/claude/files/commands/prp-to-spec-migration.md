@@ -146,7 +146,7 @@ enhanced_keywords:
     - "decision rationale": Documented reasoning
     - "phase execution": Structured progression
     - "continuous validation": Ongoing quality checks
-  
+
   artifacts:
     - "specification/": Requirements & constraints
     - "pseudocode/": Implementation blueprints
@@ -154,7 +154,7 @@ enhanced_keywords:
     - "context/": Cached research
     - "validation/": Quality gates
     - ".state/": Progress tracking
-  
+
   metrics:
     - "velocity tracking": Speed measurement
     - "efficiency score": Resource utilization
@@ -206,7 +206,7 @@ mkdir -p SPECS/active/{feature-name}
 ```bash
 # Use PRP commands as aliases to SPEC
 alias /prp-init="/spec-init"
-alias /prp-build="/spec-architect" 
+alias /prp-build="/spec-architect"
 alias /prp-execute="/spec-implement"
 
 # Gradually adopt new commands
@@ -223,23 +223,23 @@ alias /prp-execute="/spec-implement"
 migrate_prp_to_spec() {
     local prp_file="$1"
     local feature_name=$(basename "$prp_file" .md)
-    
+
     echo "🔄 Migrating $prp_file to SPEC format..."
-    
+
     # Create SPEC structure
     mkdir -p "SPECS/active/$feature_name"/{specification,pseudocode,architecture,context,artifacts,validation,.state}
-    
+
     # Parse PRP content
     if [[ -f "$prp_file" ]]; then
         # Extract sections
         awk '/## Requirements/,/## /' "$prp_file" > "SPECS/active/$feature_name/specification/requirements.md"
         awk '/## Implementation/,/## /' "$prp_file" > "SPECS/active/$feature_name/pseudocode/initial.md"
         awk '/## Validation/,/## /' "$prp_file" > "SPECS/active/$feature_name/validation/gates.md"
-        
+
         # Copy research context
         grep -E "http|https" "$prp_file" > "SPECS/active/$feature_name/context/references.md"
     fi
-    
+
     # Initialize progress tracking
     cat > "SPECS/active/$feature_name/.state/progress.json" << EOF
 {
@@ -251,7 +251,7 @@ migrate_prp_to_spec() {
     "status": "migrated"
 }
 EOF
-    
+
     echo "✅ Migration complete: SPECS/active/$feature_name/"
     echo "Next: /spec-architect $feature_name"
 }
@@ -292,7 +292,7 @@ migrate_prp_to_spec "$1"
 **A:** Yes, PRP commands remain functional. Consider them legacy with SPEC as the recommended approach.
 
 ### Q: How long does migration take?
-**A:** 
+**A:**
 - New projects: Immediate (just use SPEC)
 - Existing PRPs: 10-15 minutes per feature to migrate
 - Team adoption: 1-2 weeks for comfort with new workflow

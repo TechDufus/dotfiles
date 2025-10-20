@@ -16,7 +16,7 @@ specific, actionable feedback.
 ## PR Reference Formats
 
 - `123` - PR in current repository
-- `#123` - PR in current repository  
+- `#123` - PR in current repository
 - `org/repo#123` - PR in specific repository
 - `https://github.com/org/repo/pull/123` - Full PR URL
 

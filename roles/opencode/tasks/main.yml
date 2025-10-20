@@ -1,0 +1,78 @@
+---
+- name: "{{ role_name }} | Ensure ~/.config/opencode directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/opencode"
+    state: directory
+    mode: '0755'
+
+- name: "{{ role_name }} | Check if opencode.json already exists"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+  register: opencode_config_file
+
+- name: "{{ role_name }} | Backup existing opencode.json if it exists and is not a symlink"
+  ansible.builtin.copy:
+    src: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/opencode.json.backup"
+    remote_src: true
+    mode: '0644'
+  when: opencode_config_file.stat.exists and not opencode_config_file.stat.islnk
+
+- name: "{{ role_name }} | Deploy opencode.json"
+  ansible.builtin.copy:
+    src: "opencode.json"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    mode: '0644'
+    backup: true
+
+- name: "{{ role_name }} | Check if ~/.config/opencode/scripts exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.config/opencode/scripts"
+  register: scripts_dir
+
+- name: "{{ role_name }} | Remove existing scripts directory if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/opencode/scripts"
+    state: absent
+  when: scripts_dir.stat.exists and not scripts_dir.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to opencode scripts"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/scripts"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/scripts"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Check if ~/.config/opencode/command exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.config/opencode/command"
+  register: command_dir
+
+- name: "{{ role_name }} | Remove existing command directory if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/opencode/command"
+    state: absent
+  when: command_dir.stat.exists and not command_dir.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to opencode commands"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/command"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/command"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Deploy global AGENTS.md"
+  ansible.builtin.copy:
+    src: "AGENTS.md"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    mode: '0644'
+    backup: true
+
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
+  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+  when: distribution_config.stat.exists

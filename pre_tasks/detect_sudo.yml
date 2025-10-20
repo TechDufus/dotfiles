@@ -17,7 +17,7 @@
     - name: Set package manager for macOS
       set_fact:
         detected_package_manager: brew
-      when: 
+      when:
         - ansible_distribution == 'MacOSX'
         - ansible_system == 'Darwin'
 
@@ -34,14 +34,14 @@
     - name: Set package manager for modern Fedora/RHEL
       set_fact:
         detected_package_manager: dnf
-      when: 
+      when:
         - ansible_distribution in ['Fedora', 'RedHat', 'CentOS', 'AlmaLinux', 'Rocky']
         - ansible_distribution == 'Fedora' or ansible_distribution_major_version | int >= 8
 
     - name: Set package manager for older RHEL/CentOS
       set_fact:
         detected_package_manager: yum
-      when: 
+      when:
         - ansible_distribution in ['RedHat', 'CentOS']
         - ansible_distribution_major_version | int < 8
 
@@ -55,7 +55,7 @@
     - name: Reset package manager if not found
       set_fact:
         detected_package_manager: none
-      when: 
+      when:
         - pm_check is defined
         - pm_check.rc is defined
         - pm_check.rc != 0

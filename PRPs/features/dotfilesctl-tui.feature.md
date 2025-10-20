@@ -244,7 +244,7 @@ Actions:
 
 ## References
 - [OpenTUI Documentation](https://github.com/sst/opentui)
-- [Ansible JSON Callback Plugin](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/json_callback.html)
+- [Ansible JSON Callback Plugin](https://docs.ansible.com/ansible/latest/plugins/callback.html)
 - [Catppuccin Mocha Color Palette](https://github.com/catppuccin/catppuccin)
 - Current implementation: `bin/dotfiles` script
 - Ansible playbook structure: `main.yml`, `roles/*/tasks/main.yml`

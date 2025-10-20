@@ -126,10 +126,10 @@ A subtle, smooth trailing effect that provides gentle visual feedback for cursor
 ```glsl
 // Available Catppuccin Mocha colors
 Sapphire: vec4(0.455, 0.780, 0.925, 1.0)  // Default
-Pink:     vec4(0.961, 0.761, 0.906, 1.0)  
-Mauve:    vec4(0.796, 0.651, 0.969, 1.0)  
-Red:      vec4(0.953, 0.545, 0.659, 1.0)  
-Green:    vec4(0.651, 0.890, 0.631, 1.0)  
+Pink:     vec4(0.961, 0.761, 0.906, 1.0)
+Mauve:    vec4(0.796, 0.651, 0.969, 1.0)
+Red:      vec4(0.953, 0.545, 0.659, 1.0)
+Green:    vec4(0.651, 0.890, 0.631, 1.0)
 // ... and more
 ```
 
@@ -264,7 +264,7 @@ The uninstall script handles both:
 
 ### Configuration Best Practices
 - **Comments**: Document complex settings and their effects
-- **Performance**: Balance visual effects with system performance  
+- **Performance**: Balance visual effects with system performance
 - **Compatibility**: Test with various Ghostty versions
 - **Accessibility**: Consider high contrast and readability needs
 - **Modularity**: Keep platform-specific settings separate
@@ -287,7 +287,7 @@ The uninstall script handles both:
 
 ### Shader Development
 - Seasonal cursor effects
-- Productivity-focused minimal effects  
+- Productivity-focused minimal effects
 - Performance-optimized versions for older hardware
 - Interactive effects based on typing patterns
 - Integration with terminal content (syntax highlighting colors)

@@ -167,7 +167,7 @@ K9s automatically detects and supports multiple Kubernetes contexts:
 ```bash
 # Resource Navigation
 :pods                        # View pods
-:svc                         # View services  
+:svc                         # View services
 :deploy                      # View deployments
 :dep                         # Using alias for deployments
 :ns                          # View namespaces

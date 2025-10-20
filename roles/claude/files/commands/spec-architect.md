@@ -57,12 +57,12 @@ Transform validated specifications into comprehensive technical architecture usi
    ```
    COMPONENT: {name}
    PURPOSE: {single responsibility}
-   
+
    INTERFACE:
      inputs: {typed parameters}
      outputs: {return types}
      errors: {exception types}
-   
+
    ALGORITHM:
      1. Validate inputs
         - Check {condition}
@@ -73,7 +73,7 @@ Transform validated specifications into comprehensive technical architecture usi
      3. Handle edge cases
         - If {condition}: {action}
      4. Return results
-   
+
    INTEGRATION:
      - Calls: {downstream services}
      - Called by: {upstream services}
@@ -100,13 +100,13 @@ Transform validated specifications into comprehensive technical architecture usi
        response_schema: {ref}
        auth: bearer_token
        rate_limit: 100/min
-   
+
    data_models:
      - entity: {name}
        attributes: {typed_fields}
        relations: {foreign_keys}
        indexes: {performance_keys}
-   
+
    infrastructure:
      compute: {requirements}
      storage: {requirements}
@@ -132,19 +132,19 @@ Transform validated specifications into comprehensive technical architecture usi
    - [ ] Configure dependencies
    - [ ] Initialize testing framework
    - [ ] Create CI/CD pipeline
-   
+
    ## Phase 2: Core Implementation (4-6 hours)
    - [ ] Implement data models
    - [ ] Build service layer
    - [ ] Create API endpoints
    - [ ] Add validation logic
-   
+
    ## Phase 3: Integration (2-3 hours)
    - [ ] Connect external services
    - [ ] Set up message queues
    - [ ] Configure monitoring
    - [ ] Add logging
-   
+
    ## Phase 4: Refinement (2-3 hours)
    - [ ] Performance optimization
    - [ ] Security hardening
@@ -170,17 +170,17 @@ Transform validated specifications into comprehensive technical architecture usi
         coverage_target: 85%
         critical_paths: 100%
         frameworks: [pytest, jest]
-      
+
       integration:
         api_tests: contract_based
         db_tests: transactional
         external_mocks: wiremock
-      
+
       e2e:
         user_journeys: 5
         browsers: [chrome, firefox]
         devices: [desktop, mobile]
-      
+
       performance:
         load_test: 1000_concurrent
         stress_test: 5x_normal_load
@@ -197,7 +197,7 @@ Transform validated specifications into comprehensive technical architecture usi
     make integration   # Integration tests
     make security      # Security scan
     make performance   # Performance benchmarks
-    
+
     # Manual gates (review required)
     - Architecture review approved
     - Security review passed

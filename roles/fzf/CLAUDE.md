@@ -8,7 +8,7 @@ The **fzf role** installs and configures fzf, a command-line fuzzy finder that d
 
 ### Key Features
 - **Cross-platform installation** supporting macOS, Ubuntu, and Fedora
-- **Shell integration** with zsh and bash for enhanced command-line workflows  
+- **Shell integration** with zsh and bash for enhanced command-line workflows
 - **Custom theming** using Catppuccin Mocha color scheme
 - **Extensive tool integrations** with git, tmux, kubernetes, and more
 - **Performance-optimized configuration** with intelligent preview handling
@@ -315,8 +315,8 @@ git show --color=always --stat --patch "$commit" | head -500
    ```zsh
    # Navigate to files
    Ctrl-T
-   
-   # Change to directory  
+
+   # Change to directory
    Alt-C
    ```
 
@@ -324,13 +324,13 @@ git show --color=always --stat --patch "$commit" | head -500
    ```zsh
    # Switch branches
    gco
-   
+
    # Browse commit history
    glog
-   
+
    # Manage stashes
    gstash
-   
+
    # Work with multiple worktrees
    gws  # switch worktrees
    gwn feature-branch  # create new worktree
@@ -426,10 +426,10 @@ function_name() {
     echo "Error: prerequisite not found"
     return 1
   fi
-  
+
   # Data preparation
   local data=$(prepare_data)
-  
+
   # FZF invocation with preview
   echo "$data" | fzf \
     --preview='preview_command {}' \

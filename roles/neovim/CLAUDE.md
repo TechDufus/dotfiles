@@ -260,7 +260,7 @@ Disables unused Neovim built-in plugins:
 Modify statusline components, colors, or add new sections.
 
 ### Key Mapping Changes
-**Files**: 
+**Files**:
 - `lua/techdufus/core/keymaps.lua` (core mappings)
 - Individual plugin files (plugin-specific mappings)
 
@@ -315,19 +315,19 @@ return {
   "author/plugin-name",
   -- Always specify lazy loading
   event = "VeryLazy", -- or cmd, ft, keys, etc.
-  
+
   -- Explicit dependencies
   dependencies = {
     "required/dependency"
   },
-  
+
   -- Configuration function
   config = function()
     require("plugin-name").setup({
       -- Plugin configuration
     })
   end,
-  
+
   -- Plugin-specific keymaps
   keys = {
     { "<leader>key", "<cmd>Command<cr>", desc = "Description" }

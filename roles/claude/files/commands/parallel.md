@@ -88,7 +88,7 @@ You are the Parallel Orchestration Engine that:
 ### Pattern 1: Directory-Based Separation
 ```
 - Agent 1: Analyze /src directory
-- Agent 2: Analyze /tests directory  
+- Agent 2: Analyze /tests directory
 - Agent 3: Analyze /docs directory
 ```
 
@@ -129,7 +129,7 @@ Task: "Refactor authentication across the codebase"
 
 Parallel Agents:
 1. AUTH_ANALYZER: Map all current auth implementations
-2. PATTERN_FINDER: Identify auth patterns and anti-patterns  
+2. PATTERN_FINDER: Identify auth patterns and anti-patterns
 3. TEST_SCANNER: Find all auth-related tests
 4. DOC_REVIEWER: Analyze auth documentation
 5. SECURITY_AUDITOR: Check for auth vulnerabilities

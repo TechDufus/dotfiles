@@ -50,7 +50,7 @@ roles/1password/
 #### 2. Directory Structure Creation
 Creates secure configuration directories with proper permissions:
 - `~/.config/` (755)
-- `~/.config/1Password/` (755) 
+- `~/.config/1Password/` (755)
 - `~/.config/1Password/ssh/` (755)
 
 #### 3. SSH Agent Configuration Deployment
@@ -249,12 +249,12 @@ The git role uses 1Password for:
   ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
   register: op_git_ssh_allowed_signers
   when: op_installed
-  
+
 - name: "1Password | Configure ~/.config/git/allowed_signers"
   ansible.builtin.blockinfile:
     path: "{{ ansible_user_dir }}/.config/git/allowed_signers"
     block: "{{ op_git_ssh_allowed_signers.stdout }}"
-    when: 
+    when:
       - op_installed
       - op_git_ssh_allowed_signers.rc == 0
 ```

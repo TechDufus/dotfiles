@@ -18,7 +18,7 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
        display_no_specs_message()
        suggest_initialization()
        exit()
-   
+
    # Load global metrics
    global_metrics = load("SPECS/.sparc/metrics.json")
    active_features = scan_dir("SPECS/active/")
@@ -37,65 +37,65 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
 
 3. **For Specific Feature**
    Load comprehensive state from `SPECS/active/{feature-name}/`:
-   
+
    ```
    ═══════════════════════════════════════════════════════════
    📋 Feature: {feature-name}
    ═══════════════════════════════════════════════════════════
-   
+
    📊 SPARC Phase Progress:
    ├─ S: Specification  ████████████████████ 100% ✅ (2.5 hrs)
-   ├─ P: Pseudocode    ████████████████████ 100% ✅ (1.5 hrs)  
+   ├─ P: Pseudocode    ████████████████████ 100% ✅ (1.5 hrs)
    ├─ A: Architecture  ████████████████████ 100% ✅ (3.0 hrs)
    ├─ R: Refinement    ████████░░░░░░░░░░░░  40% 🔄 (1.2/3 hrs)
    └─ C: Completion    ░░░░░░░░░░░░░░░░░░░░   0% ⬜ (0/2 hrs)
-   
+
    📍 Current Status:
    Phase: Refinement (iteration 2 of 3)
    Task: "Optimizing query performance"
    Started: 45 minutes ago
    Velocity: 1.2x estimated pace
-   
+
    🎯 Key Metrics:
    ├─ Overall Progress: 72% complete
    ├─ Time Investment: 8.2 hours (estimated: 12 hours)
    ├─ Efficiency Score: 8.5/10
    ├─ Quality Score: 9.2/10
    └─ Risk Level: Low 🟢
-   
+
    📈 Velocity Tracking:
    Week 1: ████████ 8 tasks/day
    Week 2: ██████████ 10 tasks/day (current)
    Trend: ↑ Accelerating
-   
+
    🔄 Active Checkpoints:
    Latest: checkpoint-2024-01-15-16-45-00 [STABLE]
    Previous: checkpoint-2024-01-15-14-30-00
    Rollback Available: Yes
-   
+
    ✅ Validation Gates (Last Run: 15 min ago):
    ├─ Syntax/Lint:     ✅ Passing
-   ├─ Type Safety:     ✅ No errors  
+   ├─ Type Safety:     ✅ No errors
    ├─ Unit Tests:      ✅ 47/47 passing (92% coverage)
    ├─ Integration:     ✅ 12/12 passing
    ├─ Performance:     ⚠️  p99 @ 105ms (target: <100ms)
    └─ Security:        ✅ No vulnerabilities
-   
+
    📝 Recent Decisions & Rationale:
    1. "Switched to connection pooling" - Reduced latency by 40%
    2. "Added Redis caching layer" - Improved throughput 3x
    3. "Refactored auth middleware" - Simplified code, better tests
-   
+
    🚧 Blockers & Risks:
    ├─ None currently active
    └─ Resolved (2): Database connection limits, API rate limiting
-   
+
    📋 Next Actions:
    1. [IN PROGRESS] Optimize database queries
    2. [QUEUED] Add request caching
    3. [QUEUED] Update performance benchmarks
    4. [PLANNED] Run load tests
-   
+
    💡 AI Insights:
    • Performance bottleneck identified in user lookup
    • Consider index on users.email field
@@ -105,12 +105,12 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
 
 4. **For All Features Dashboard**
    Show comprehensive overview:
-   
+
    ```
    ═══════════════════════════════════════════════════════════
    📊 SPECS Portfolio Dashboard
    ═══════════════════════════════════════════════════════════
-   
+
    🔄 Active Features (4):
    ┌──────────────────┬────────────────┬──────────┬──────────┐
    │ Feature          │ SPARC Progress │ Time     │ Health   │
@@ -120,22 +120,22 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
    │ data-migration   │ S✅P✅A✅R✅C🔄 │ 18/20h   │ 🟡 At Risk│
    │ cli-tool         │ S✅P🔄A⬜R⬜C⬜ │ 2.1/10h  │ 🟢 Good  │
    └──────────────────┴────────────────┴──────────┴──────────┘
-   
+
    📈 Portfolio Metrics:
    ├─ Total Active Tasks: 67 (41 completed, 26 remaining)
    ├─ Weekly Velocity: 18.5 tasks/week (↑12% from last week)
    ├─ Average Cycle Time: 4.8 days per feature
    ├─ Success Rate: 94% (16/17 features delivered)
    └─ Team Efficiency: 87% (actual vs estimated time)
-   
+
    🏆 Recently Completed (This Week):
    ✅ payment-integration - 3 days ago (12 hours, exceeded targets)
    ✅ notification-system - 5 days ago (8 hours, on schedule)
-   
+
    ⚠️ Attention Required:
    • data-migration: Performance gate failing (p99 > 200ms)
    • ui-dashboard: Waiting for design review (blocked 2 hours)
-   
+
    📅 Upcoming Milestones:
    • api-auth: Ready for completion tomorrow
    • cli-tool: Architecture review scheduled
@@ -147,9 +147,9 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
 5. **Timeline View** (`--format timeline`)
    ```
    📅 Feature Timeline (January 2024)
-   
+
    Week 1  │███████████░░░░░░░│ api-auth
-   Week 2  │░░░████████████░░░│ ui-dashboard  
+   Week 2  │░░░████████████░░░│ ui-dashboard
    Week 3  │░░░░░░███████████░│ data-migration
    Week 4  │░░░░░░░░░░████████│ cli-tool
            └──────────────────┘
@@ -159,7 +159,7 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
 6. **Burndown Chart** (`--format burndown`)
    ```
    📉 Sprint Burndown
-   
+
    100 │\
     80 │ \___
     60 │     \___
@@ -167,7 +167,7 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
     20 │             ●---actual
      0 │________________\●
        M  T  W  T  F  S  S
-   
+
    Remaining: 26 tasks
    Burn rate: 4.2 tasks/day
    Projected completion: Thursday
@@ -198,7 +198,7 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
 ## Status Indicators
 
 - 🟢 **Healthy**: On track, no blockers
-- 🟡 **At Risk**: Behind schedule or has warnings  
+- 🟡 **At Risk**: Behind schedule or has warnings
 - 🔴 **Critical**: Blocked or failing gates
 - 🔄 **In Progress**: Active development
 - ✅ **Complete**: All gates passed
@@ -211,7 +211,7 @@ Display real-time status, progress metrics, and actionable insights for spec-dri
 # View specific feature
 /spec-status api-auth
 
-# View all features  
+# View all features
 /spec-status all
 
 # Filter views

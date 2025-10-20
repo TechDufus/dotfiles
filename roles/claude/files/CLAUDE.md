@@ -61,7 +61,7 @@ For complex technical decisions, break down the problem, validate assumptions, a
 
 <important>
 - Question ambiguous requirements BEFORE implementing
-- Suggest simpler alternatives when appropriate  
+- Suggest simpler alternatives when appropriate
 - Clean up temporary files after tasks
 - NEVER create README.md unless explicitly requested
 - Use 1Password CLI (`op`) for ALL secret management

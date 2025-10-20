@@ -21,7 +21,7 @@ Execute the technical design and implement the feature with continuous validatio
    ```python
    # Load all specifications
    requirements = load("requirements.md")
-   design = load("design.md") 
+   design = load("design.md")
    tasks = load("tasks.md")
    validation = load("validation.md")
    progress = load(".progress.json")
@@ -36,7 +36,7 @@ Execute the technical design and implement the feature with continuous validatio
 
 3. **Phased Implementation**
    For each phase in tasks.md:
-   
+
    **Phase Execution:**
    - Mark phase as "in_progress"
    - Execute tasks in dependency order
@@ -49,18 +49,18 @@ Execute the technical design and implement the feature with continuous validatio
    for task in phase.tasks:
        # 1. Mark task in_progress
        update_progress(task, "in_progress")
-       
+
        # 2. Implement based on design
        implement_task(task, context)
-       
+
        # 3. Validate immediately
        result = run_validation(task.validation)
-       
+
        # 4. Fix if needed
        while not result.passed:
            fix_issues(result.errors)
            result = run_validation(task.validation)
-       
+
        # 5. Mark complete
        update_progress(task, "completed")
    ```
@@ -68,7 +68,7 @@ Execute the technical design and implement the feature with continuous validatio
 4. **Continuous Validation**
    After each task:
    - Syntax/lint checks
-   - Type checking  
+   - Type checking
    - Unit tests for new code
    - Integration smoke tests
    - Update coverage metrics

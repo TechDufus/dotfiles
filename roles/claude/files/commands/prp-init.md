@@ -59,60 +59,60 @@ Create a comprehensive feature file by analyzing the codebase and interrogating 
    Create a structured feature file with:
    ```markdown
    # Feature: [Name]
-   
+
    ## Overview
    [Brief description from initial input + gathered context]
-   
+
    ## Problem Statement
    [Why this feature is needed]
-   
+
    ## Users/Stakeholders
    [Who benefits and how]
-   
+
    ## Requirements
    ### Functional
    - [User-facing behaviors]
-   
+
    ### Non-Functional
    - Performance: [specifics]
    - Security: [considerations]
    - Scalability: [needs]
-   
+
    ## Technical Specification
    ### Architecture
    [How it fits in the system]
-   
+
    ### Dependencies
    - External: [libraries, APIs]
    - Internal: [modules, services]
-   
+
    ### Data Model
    [If applicable]
-   
+
    ### API Design
    [Endpoints, schemas if applicable]
-   
+
    ## Implementation Notes
    ### Patterns to Follow
    - [Reference specific files/patterns]
-   
+
    ### Testing Strategy
    - Unit: [approach]
    - Integration: [approach]
    - E2E: [if applicable]
-   
+
    ## Success Criteria
    - [ ] [Measurable outcomes]
-   
+
    ## Out of Scope
    - [What's not included]
-   
+
    ## Future Considerations
    - [Extensibility notes]
-   
+
    ## Examples
    [Code snippets, API calls, UI mockups if applicable]
-   
+
    ## References
    - [Relevant docs, similar features]
    ```

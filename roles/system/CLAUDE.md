@@ -45,14 +45,14 @@ roles/system/
 - **Packages**: jq
 - **Special Considerations**: Uses macOS-specific sudoers path
 
-### Ubuntu (Ubuntu.yml) 
+### Ubuntu (Ubuntu.yml)
 - **Package Manager**: APT
 - **Key Features**:
   - Full system update with autoremove and autoclean
   - WSL-specific win32yank installation for clipboard integration
   - Comprehensive package installation for system utilities
 - **Packages**: jq, open-iscsi
-- **WSL Integration**: 
+- **WSL Integration**:
   - Detects WSL environment via `ansible_host_environment_is_wsl`
   - Downloads and installs win32yank.exe v0.0.4 for clipboard sharing
   - Handles file placement in `/usr/local/bin/` with proper cleanup
@@ -98,7 +98,7 @@ compression-algorithm = zstd     # Best compression ratio
 
 ### Arch Linux (Archlinux.yml)
 - **Package Manager**: Pacman
-- **Key Features**: 
+- **Key Features**:
   - System update with latest packages
   - Minimal essential package installation
 - **Packages**: jq, open-iscsi, unzip
@@ -172,7 +172,7 @@ when: can_install_packages | default(false)
 
 ### Fallback Behaviors
 - **Package Installation**: Reports missing packages instead of failing
-- **WSL Tools**: Installs to `~/.local/bin/` instead of system directories  
+- **WSL Tools**: Installs to `~/.local/bin/` instead of system directories
 - **System Tweaks**: Skips privileged operations gracefully
 - **Status Reporting**: Clearly indicates what was skipped vs. completed
 
@@ -187,7 +187,7 @@ The hosts file management feature has been disabled and archived due to several 
 ### Known Issues (from TODO.md)
 1. **Hardcoded 1Password vault paths** specific to personal use
 2. **Repetitive code** for each host entry
-3. **No error handling** for missing 1Password entries  
+3. **No error handling** for missing 1Password entries
 4. **WSL handling is too simplistic**
 5. **Overwrites entire /etc/hosts file** (dangerous!)
 
@@ -202,7 +202,7 @@ The hosts file management feature has been disabled and archived due to several 
 system_custom_hosts:
   - name: "myapp.local"
     ip: "127.0.0.1"
-  - name: "database.local" 
+  - name: "database.local"
     ip: "192.168.1.100"
     source: "op://vault/item/field"  # Optional 1Password source
 
@@ -327,7 +327,7 @@ install_weak_deps=False
    - Windows username detection improvements
    - Enhanced clipboard integration
 
-### Low Priority Enhancements  
+### Low Priority Enhancements
 4. **Package Management Standardization**
    - Unified package list across platforms
    - Better handling of platform-specific packages
@@ -368,7 +368,7 @@ install_weak_deps=False
 # Check system role status
 dotfiles -t system -vvv
 
-# Verify sudo configuration  
+# Verify sudo configuration
 sudo visudo -c -f /etc/sudoers.d/$USER
 
 # Check WSL environment detection

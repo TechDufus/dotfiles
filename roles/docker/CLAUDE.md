@@ -24,7 +24,7 @@ The Docker role provides cross-platform Docker installation and configuration fo
 
 ### Ubuntu Installation
 - **Method**: Official Docker repository with GPG key verification
-- **Packages**: 
+- **Packages**:
   - `docker-ce` - Docker Community Edition
   - `docker-ce-cli` - Docker CLI
   - `containerd.io` - Container runtime
@@ -322,7 +322,7 @@ The role includes a comprehensive uninstallation script supporting:
 - Cleans user Docker configuration
 - Removes Docker Desktop container and preference files
 
-### Linux Cleanup  
+### Linux Cleanup
 - Stops and disables Docker service
 - Removes Docker packages (distribution-specific)
 - Deletes Docker data directories

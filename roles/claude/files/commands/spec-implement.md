@@ -32,13 +32,13 @@ Execute the technical architecture with test-driven development, continuous vali
    ```bash
    # Verify clean workspace
    git status --porcelain
-   
+
    # Check dependencies
    make deps-check
-   
+
    # Run baseline tests
    make test-baseline
-   
+
    # Create implementation branch
    git checkout -b spec/{feature-name}
    ```
@@ -65,25 +65,25 @@ Execute the technical architecture with test-driven development, continuous vali
    for task in tasks:
        # 1. Create checkpoint
        checkpoint = create_checkpoint(task.id)
-       
+
        # 2. Write failing tests first
        write_tests(task.acceptance_criteria)
        verify_tests_fail()
-       
+
        # 3. Implement minimal code
        implement_from_pseudocode(task.pseudocode)
-       
+
        # 4. Make tests pass
        while not all_tests_pass():
            refine_implementation()
-       
+
        # 5. Refactor if needed
        if needs_refactoring():
            refactor_with_tests()
-       
+
        # 6. Validate gates
        run_validation_gates(task.gates)
-       
+
        # 7. Update progress
        update_progress(task, "completed")
    ```
@@ -94,22 +94,22 @@ Execute the technical architecture with test-driven development, continuous vali
    # Component implementation
    class Component:
        """Implements pseudocode from architecture/pseudocode/detailed.md"""
-       
+
        def __init__(self):
            # Initialize per architecture/components.md
            pass
-       
+
        def process(self, input):
            # Follow algorithm from pseudocode
            # Step 1: Validate
            self._validate(input)
-           
+
            # Step 2: Transform
            result = self._transform(input)
-           
+
            # Step 3: Handle edge cases
            result = self._handle_edge_cases(result)
-           
+
            # Step 4: Return
            return result
    ```
@@ -121,19 +121,19 @@ Execute the technical architecture with test-driven development, continuous vali
    ```bash
    # Syntax & Style
    make lint || fix_lint_errors()
-   
+
    # Type Safety
    make typecheck || fix_type_errors()
-   
+
    # Unit Tests
    make test-unit || debug_test_failures()
-   
+
    # Integration Tests
    make test-integration || fix_integration_issues()
-   
+
    # Security Scan
    make security-scan || address_vulnerabilities()
-   
+
    # Performance Check
    make perf-check || optimize_bottlenecks()
    ```
@@ -176,13 +176,13 @@ Execute the technical architecture with test-driven development, continuous vali
     ```bash
     # Run full test suite
     make test-all
-    
+
     # Execute E2E scenarios
     make test-e2e
-    
+
     # Performance benchmarks
     make benchmark
-    
+
     # Security audit
     make security-full
     ```
@@ -216,17 +216,17 @@ Execute the technical architecture with test-driven development, continuous vali
         - lint: passing
         - typecheck: no_errors
         - complexity: within_limits
-      
+
       testing:
         - unit_coverage: ≥85%
         - integration: all_passing
         - e2e: scenarios_complete
-      
+
       performance:
         - latency_p99: <100ms
         - throughput: >1000rps
         - memory: <500MB
-      
+
       security:
         - vulnerabilities: none
         - secrets: none_exposed
@@ -247,14 +247,14 @@ try:
 except ImplementationError as e:
     # Document blocker
     log_blocker(task, e)
-    
+
     # Try alternative approach
     if has_alternative(task):
         implement_alternative(task)
     else:
         # Rollback to checkpoint
         rollback_to_checkpoint(task.checkpoint)
-        
+
         # Seek clarification
         request_user_input(task, e)
 ```

@@ -15,7 +15,7 @@ Analyzes GitHub issue hierarchies (EPICs, Stories, Tasks) to provide comprehensi
 ## Issue Reference Formats
 
 - `123` - Issue in current repository
-- `#123` - Issue in current repository  
+- `#123` - Issue in current repository
 - `org/repo#123` - Issue in specific repository
 - `https://github.com/org/repo/issues/123` - Full issue URL
 
@@ -79,7 +79,7 @@ When you run `/gh-issue-status`, I will:
    - Extract key information (blockers, progress, risks)
    - Identify dependencies and cross-references
    - Return a comprehensive analysis
-   
+
 3. **Deep Content Analysis** (via parallel agents):
    - **Issue Bodies**: Full text of each issue description
    - **Comments**: All discussion and updates
@@ -87,14 +87,14 @@ When you run `/gh-issue-status`, I will:
    - **Blockers**: Issues mentioned as blocking
    - **Dependencies**: Cross-referenced issues
    - **Technical Details**: Implementation notes, code references
-   
+
 4. **Aggregate and Synthesize**:
    - Combine reports from all parallel agents
    - Identify patterns across sub-issues
    - Detect systemic blockers or risks
    - Calculate accurate completion metrics
    - Generate actionable recommendations
-   
+
 5. **Generate Comprehensive Report** including:
    - **Executive Summary**: Synthesized from all agent analyses
    - **Detailed Status**: Per sub-issue summaries from agents
@@ -113,7 +113,7 @@ Overall Progress: ████████░░ 75% (6/8 complete)
 📈 Breakdown by Type:
 • Stories: 2/3 complete (67%)
 • Tasks: 4/5 complete (80%)
-• Bugs: 0/0 
+• Bugs: 0/0
 
 🔍 Key Insights (from parallel agent analysis):
 • Blocker: API authentication not configured (#29)
@@ -139,7 +139,7 @@ Agent Analysis Summary:
 • Recent: Discussion on auth approach (2 days ago)
 • Risk: No assigned developer for #340
 • Dependencies: Blocks production go-live
-• Technical Notes: 
+• Technical Notes:
   - SAML configuration needed
   - API gateway routes not configured
   - Missing integration tests

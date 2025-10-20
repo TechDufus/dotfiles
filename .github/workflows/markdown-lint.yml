@@ -27,20 +27,24 @@ jobs:
           cat > .markdownlint.json << EOF
           {
             "default": true,
-            "MD013": false,
-            "MD033": false,
-            "MD041": false,
+            "MD001": false,
+            "MD004": { "style": "consistent" },
+            "MD009": { "br_spaces": 2 },
             "MD012": false,
+            "MD013": false,
             "MD022": false,
+            "MD026": false,
+            "MD029": { "style": "ordered" },
             "MD031": false,
             "MD032": false,
+            "MD033": false,
+            "MD036": false,
             "MD040": false,
+            "MD041": false,
             "MD045": false,
+            "MD047": false,
             "MD051": false,
-            "MD058": false,
-            "MD001": false,
-            "MD026": false,
-            "MD047": false
+            "MD058": false
           }
           EOF
 

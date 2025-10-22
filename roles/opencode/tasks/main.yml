@@ -18,12 +18,18 @@
     mode: '0644'
   when: opencode_config_file.stat.exists and not opencode_config_file.stat.islnk
 
-- name: "{{ role_name }} | Deploy opencode.json"
-  ansible.builtin.copy:
-    src: "opencode.json"
+- name: "{{ role_name }} | Remove existing opencode.json if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    state: absent
+  when: opencode_config_file.stat.exists and not opencode_config_file.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to opencode.json"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/opencode.json"
     dest: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
-    mode: '0644'
-    backup: true
+    state: link
+    force: true
 
 - name: "{{ role_name }} | Check if ~/.config/opencode/scripts exists and is not a symlink"
   ansible.builtin.stat:
@@ -61,12 +67,31 @@
     state: link
     force: true
 
-- name: "{{ role_name }} | Deploy global AGENTS.md"
+- name: "{{ role_name }} | Check if AGENTS.md already exists"
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+  register: agents_file
+
+- name: "{{ role_name }} | Backup existing AGENTS.md if it exists and is not a symlink"
   ansible.builtin.copy:
-    src: "AGENTS.md"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    src: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md.backup"
+    remote_src: true
     mode: '0644'
-    backup: true
+  when: agents_file.stat.exists and not agents_file.stat.islnk
+
+- name: "{{ role_name }} | Remove existing AGENTS.md if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    state: absent
+  when: agents_file.stat.exists and not agents_file.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to AGENTS.md"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/AGENTS.md"
+    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    state: link
+    force: true
 
 - name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
   ansible.builtin.stat:

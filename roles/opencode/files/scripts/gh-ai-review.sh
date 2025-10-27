@@ -1,15 +1,34 @@
 #!/bin/bash
 
 # GitHub AI-Powered PR Review
-# Fetches PR diff and outputs it for AI analysis
-# This script is designed to be called by Claude for intelligent code review
-# Supports both analysis mode and comment generation mode
+# Intelligent PR analysis with adaptive strategies for any size PR
+# Supports summary-only mode, file filtering, and generated file exclusion
 
 set -euo pipefail
 
+# Default settings
+SUMMARY_ONLY=false
+FILE_PATTERNS=()
+SKIP_GENERATED=true
+
+# Generated/lock files to skip by default
+GENERATED_PATTERNS=(
+    "*lock.json"
+    "*.lock"
+    "Gemfile.lock"
+    "Pipfile.lock"
+    "poetry.lock"
+    "*.min.js"
+    "*.bundle.js"
+    "dist/*"
+    "build/*"
+    "node_modules/*"
+    "vendor/*"
+    ".next/*"
+    "out/*"
+)
+
 # Timeout for API calls (30 seconds)
-# Note: Not all gh commands support --request-timeout
-# We'll only use it where supported
 GH_TIMEOUT="--request-timeout 30"
 
 # Get current repository or use provided one
@@ -17,19 +36,17 @@ if [ -n "${GITHUB_REPOSITORY:-}" ]; then
     REPO="$GITHUB_REPOSITORY"
 else
     # Try to detect from git remote
-    # Note: gh repo view doesn't support --request-timeout flag
     REPO=$(gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"' 2>/dev/null || echo "")
     
-    # If gh repo view fails (e.g., in some environments), try git remote
+    # If gh repo view fails, try git remote
     if [ -z "$REPO" ]; then
-        # This works in both regular repos and git worktrees
         REPO=$(git remote get-url origin 2>/dev/null | sed -E 's|.*github.com[:/]([^/]+/[^/.]+)(\.git)?$|\1|' || echo "")
     fi
 fi
 
 # Usage function
 usage() {
-    echo "Usage: $0 <pr-reference>"
+    echo "Usage: $0 <pr-reference> [options]"
     echo ""
     echo "PR Reference formats:"
     echo "  123                    - PR in current repository"
@@ -37,19 +54,63 @@ usage() {
     echo "  org/repo#123           - PR in specific repository"
     echo "  https://github.com/... - Full PR URL"
     echo ""
+    echo "Options:"
+    echo "  --summary-only         Only output metadata and file list (no diffs)"
+    echo "  --files 'pattern'      Only include files matching pattern (can be used multiple times)"
+    echo "  --no-skip-generated    Include generated/lock files (default: skip them)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 123 --summary-only                  # Get overview for strategy decision"
+    echo "  $0 123 --files 'api/*'                 # Only review API files"
+    echo "  $0 123 --files '*.py' --files '*.js'   # Review Python and JavaScript files"
+    echo ""
     echo "Environment:"
     echo "  GITHUB_REPOSITORY: Override auto-detected repository (format: owner/repo)"
     echo ""
     exit 1
 }
 
-# Check parameters
+# Parse arguments
 if [ $# -lt 1 ]; then
     usage
 fi
 
-# Parse PR reference
+# Check for help flag first
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    usage
+fi
+
 PR_ARG="$1"
+shift
+
+# Parse optional flags
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --summary-only)
+            SUMMARY_ONLY=true
+            shift
+            ;;
+        --files)
+            if [ $# -lt 2 ]; then
+                echo "ERROR: --files requires a pattern argument" >&2
+                exit 1
+            fi
+            FILE_PATTERNS+=("$2")
+            shift 2
+            ;;
+        --no-skip-generated)
+            SKIP_GENERATED=false
+            shift
+            ;;
+        --help)
+            usage
+            ;;
+        *)
+            echo "ERROR: Unknown option: $1" >&2
+            usage
+            ;;
+    esac
+done
 
 # Parse PR reference format
 if [[ "$PR_ARG" =~ ^https://github.com/([^/]+/[^/]+)/pull/([0-9]+) ]]; then
@@ -95,6 +156,10 @@ echo "Base Branch: $(echo "$PR_INFO" | jq -r .baseRefName)"
 echo "Head Branch: $(echo "$PR_INFO" | jq -r .headRefName)"
 echo "Additions: $(echo "$PR_INFO" | jq -r .additions)"
 echo "Deletions: $(echo "$PR_INFO" | jq -r .deletions)"
+TOTAL_CHANGES=$(($(echo "$PR_INFO" | jq -r .additions) + $(echo "$PR_INFO" | jq -r .deletions)))
+echo "Total Changes: $TOTAL_CHANGES lines"
+FILE_COUNT=$(echo "$PR_INFO" | jq -r '.files | length')
+echo "Files Changed: $FILE_COUNT"
 echo ""
 
 # Output PR description
@@ -103,17 +168,89 @@ PR_BODY=$(echo "$PR_INFO" | jq -r '.body // "No description provided"')
 echo "$PR_BODY"
 echo ""
 
+# Filter files if needed
+ALL_FILES=$(echo "$PR_INFO" | jq -r '.files[] | .path')
+
+# Apply generated file filtering
+if [ "$SKIP_GENERATED" = true ]; then
+    FILTERED_FILES=""
+    while IFS= read -r file; do
+        SKIP=false
+        for pattern in "${GENERATED_PATTERNS[@]}"; do
+            # Convert glob pattern to regex
+            regex_pattern=$(echo "$pattern" | sed 's/\*/.*/')
+            if [[ "$file" =~ $regex_pattern ]]; then
+                SKIP=true
+                break
+            fi
+        done
+        if [ "$SKIP" = false ]; then
+            FILTERED_FILES="${FILTERED_FILES}${file}"$'\n'
+        fi
+    done <<< "$ALL_FILES"
+    ALL_FILES="$FILTERED_FILES"
+fi
+
+# Apply file pattern filtering if specified
+if [ ${#FILE_PATTERNS[@]} -gt 0 ]; then
+    PATTERN_FILTERED=""
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        for pattern in "${FILE_PATTERNS[@]}"; do
+            # Convert glob pattern to regex
+            regex_pattern=$(echo "$pattern" | sed 's/\*/.*/')
+            if [[ "$file" =~ $regex_pattern ]]; then
+                PATTERN_FILTERED="${PATTERN_FILTERED}${file}"$'\n'
+                break
+            fi
+        done
+    done <<< "$ALL_FILES"
+    ALL_FILES="$PATTERN_FILTERED"
+fi
+
 # Output changed files summary
 echo "=== CHANGED FILES ==="
-echo "$PR_INFO" | jq -r '.files[] | "\(.changeType): \(.path) (+\(.additions)/-\(.deletions))"'
+if [ -z "$ALL_FILES" ]; then
+    echo "No files match the specified criteria"
+else
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        FILE_INFO=$(echo "$PR_INFO" | jq -r --arg path "$file" '.files[] | select(.path == $path) | "\(.changeType): \(.path) (+\(.additions)/-\(.deletions))"')
+        echo "$FILE_INFO"
+    done <<< "$ALL_FILES"
+fi
 echo ""
 
-# Get the full diff with context
-echo "=== FULL DIFF ==="
-gh pr diff $PR_NUMBER --repo $PR_REPO || {
-    echo "ERROR: Could not fetch diff" >&2
-    exit 1
-}
+# If summary only, stop here
+if [ "$SUMMARY_ONLY" = true ]; then
+    echo "=== SUMMARY MODE ==="
+    echo "Use this information to decide review strategy:"
+    echo "  - Small PR (<500 lines): Fetch full diff for comprehensive review"
+    echo "  - Medium PR (500-2000 lines): Prioritized review with --files flag"
+    echo "  - Large PR (>2000 lines): Use /parallel for chunked review"
+    echo ""
+    exit 0
+fi
+
+# Get the diff (filtered if patterns specified)
+echo "=== DIFF ==="
+if [ -z "$ALL_FILES" ]; then
+    echo "No files to diff"
+else
+    # Build file list for gh pr diff
+    FILE_ARGS=""
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        FILE_ARGS="$FILE_ARGS $file"
+    done <<< "$ALL_FILES"
+    
+    if [ -n "$FILE_ARGS" ]; then
+        gh pr diff $PR_NUMBER --repo $PR_REPO -- $FILE_ARGS || {
+            echo "ERROR: Could not fetch diff" >&2
+            exit 1
+        }
+    fi
+fi
 echo ""
 
 # Get existing comments to avoid duplicate feedback
@@ -143,12 +280,11 @@ if [ -z "$FAILED_CHECKS" ]; then
     echo "No failed checks"
 else
     for CHECK_URL in $FAILED_CHECKS; do
-        # Extract run ID and job ID from URL (format: .../actions/runs/{run_id}/job/{job_id})
+        # Extract run ID and job ID from URL
         if [[ "$CHECK_URL" =~ /actions/runs/([0-9]+)/job/([0-9]+) ]]; then
             RUN_ID="${BASH_REMATCH[1]}"
             JOB_ID="${BASH_REMATCH[2]}"
             echo "=== Failed Check: $CHECK_URL ==="
-            # Get the workflow run logs summary
             gh run view $RUN_ID --repo $PR_REPO --json jobs --jq ".jobs[] | select(.databaseId == $JOB_ID) | \"Job: \(.name)\nConclusion: \(.conclusion)\nSteps:\n\(.steps[] | \"  - \(.name): \(.conclusion)\")\"" 2>/dev/null || echo "Could not fetch run details"
             echo ""
         fi

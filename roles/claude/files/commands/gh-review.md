@@ -1,11 +1,10 @@
 ---
-description: "AI-powered GitHub PR review: /gh-review <pr-reference>"
+description: "Intelligent AI-powered GitHub PR review: /gh-review <pr-reference>"
 ---
 
-# /gh-review
+# Intelligent PR Review
 
-Provides intelligent, AI-powered code review for GitHub pull requests with
-specific, actionable feedback.
+Provides adaptive, AI-powered code review for GitHub pull requests of any size.
 
 ## Usage
 
@@ -18,141 +17,273 @@ specific, actionable feedback.
 - `123` - PR in current repository
 - `#123` - PR in current repository
 - `org/repo#123` - PR in specific repository
-- `https://github.com/org/repo/pull/123` - Full PR URL
+- `https://github.com/org/repo/pull/123` - Full URL
 
-## Examples
+---
 
-### Basic Review
+## Implementation Strategy
 
-```bash
-/gh-review 42
-/gh-review TechDufus/dotfiles#100
-/gh-review "org/repo#123"
-/gh-review https://github.com/org/repo/pull/123
-```
+This command uses an intelligent, adaptive approach that automatically selects the best review strategy based on PR size and complexity.
 
-### Review a PR
+### Phase 1: Strategic Analysis (Always First)
+
+**Gather PR intelligence to decide strategy:**
 
 ```bash
-# Run the review to get comprehensive analysis
-/gh-review 136
-
-# Claude will analyze the code and provide:
-# - Summary of changes
-# - Code quality assessment
-# - Bug detection
-# - Security concerns
-# - Performance suggestions
-# - Best practices feedback
+!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --summary-only`
 ```
 
-## What This Command Does
+**Analyze the summary output:**
+- Total lines changed (additions + deletions)
+- Number of files changed
+- File types and structure
+- PR description (hints about scope)
 
-When you run `/gh-review`, I will:
+**Make strategic decision based on size:**
 
-1. **Fetch PR Details** - Get the complete diff, metadata, and existing comments
-2. **Analyze Code Changes** - Review the code for:
-   - **Code Quality**: Style consistency, naming conventions, code organization
-   - **Potential Bugs**: Logic errors, edge cases, null checks, error handling
-   - **Security Issues**: Input validation, authentication, authorization concerns
-   - **Performance**: Inefficient algorithms, unnecessary loops, resource usage
-   - **Best Practices**: Design patterns, SOLID principles, DRY violations
-   - **Testing**: Missing tests, test coverage, test quality
-   - **Documentation**: Missing or outdated comments, API docs
-   - **CI/CD Status**: Check GitHub Actions for failures and analyze why
+```
+IF total_changes < 500 AND files < 10:
+    → Use STRATEGY A: Full Review
+    
+ELSE IF total_changes < 2000 AND files < 30:
+    → Use STRATEGY B: Prioritized Review
+    
+ELSE IF total_changes >= 2000 OR files >= 30:
+    → Use STRATEGY C: Parallel Chunked Review
+```
 
-3. **Generate Specific Feedback** including:
-   - **Summary**: High-level overview of the changes
-   - **Strengths**: What's done well
-   - **Issues**: Specific problems with severity levels
-   - **Suggestions**: Concrete improvements with code examples
-   - **Questions**: Clarifications needed from the author
+---
+
+### Phase 2: Execute Selected Strategy
+
+#### **STRATEGY A: Full Review** (Small PRs <500 lines)
+
+For small, focused PRs - do comprehensive single-pass review:
+
+```bash
+!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS"`
+```
+
+Then provide complete review covering all aspects.
+
+---
+
+#### **STRATEGY B: Prioritized Review** (Medium PRs 500-2000 lines)
+
+For medium PRs - review in priority order:
+
+**Step 1: Identify Priority Files**
+Based on the file list, categorize:
+- **High Priority**: Security files (auth, permissions), core business logic
+- **Medium Priority**: Feature implementation, API changes
+- **Low Priority**: Tests, configs, documentation
+
+**Step 2: Review High Priority First**
+```bash
+!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'api/auth/*'`
+!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'core/*'`
+```
+
+**Step 3: Review Remaining Files**
+```bash
+!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files '*.py'`
+```
+
+**Step 4: Synthesize Findings**
+Combine all findings into unified review.
+
+---
+
+#### **STRATEGY C: Parallel Chunked Review** (Large PRs >2000 lines)
+
+For large PRs - use `/parallel` command to review chunks simultaneously:
+
+**Step 1: Analyze File Structure**
+Group files by logical concern based on paths:
+- Backend: `api/`, `models/`, `services/`
+- Frontend: `src/`, `components/`, `pages/`
+- Tests: `tests/`, `__tests__/`, `*.test.*`
+- Infrastructure: `config/`, `.github/`, `docker/`
+
+**Step 2: Design Parallel Agents**
+Create independent agents with non-overlapping file patterns.
+
+**Step 3: Execute Parallel Review**
+
+Example for full-stack PR:
+
+```markdown
+I've analyzed this large PR and will use a parallel review strategy.
+
+**PR Statistics:**
+- 3,500 lines changed across 45 files
+- Mix of Python backend + React frontend + tests
+
+**Parallel Review Strategy:**
+
+/parallel Review this large PR using specialized agents:
+
+**Agent 1 - Backend Review:**
+!`~/.claude/scripts/gh-ai-review.sh "$PR_REF" --files 'api/*' --files 'models/*'`
+
+Focus Areas:
+- Business logic correctness
+- Error handling and validation
+- Database query efficiency
+- Security (input validation, auth checks)
+
+**Agent 2 - Frontend Review:**
+!`~/.claude/scripts/gh-ai-review.sh "$PR_REF" --files 'src/components/*' --files 'src/pages/*'`
+
+Focus Areas:
+- React patterns and hooks usage
+- State management
+- Performance (unnecessary re-renders)
+- Accessibility
+
+**Agent 3 - Test Review:**
+!`~/.claude/scripts/gh-ai-review.sh "$PR_REF" --files 'tests/*' --files '*.test.py'`
+
+Focus Areas:
+- Test coverage gaps
+- Edge cases
+- Test quality and maintainability
+
+**Agent 4 - Infrastructure Review:**
+!`~/.claude/scripts/gh-ai-review.sh "$PR_REF" --files '.github/*' --files 'docker/*' --files '*.yml'`
+
+Focus Areas:
+- CI/CD pipeline changes
+- Configuration correctness
+- Security implications
+```
+
+**Step 4: Synthesize Agent Findings**
+
+After all agents complete, combine their findings:
+
+```markdown
+## 📊 Comprehensive PR Review
+
+### Backend Analysis (Agent 1)
+[Backend-specific findings]
+
+### Frontend Analysis (Agent 2)
+[Frontend-specific findings]
+
+### Test Coverage Analysis (Agent 3)
+[Test-specific findings]
+
+### Infrastructure Analysis (Agent 4)
+[Infrastructure findings]
+
+### 🔥 Critical Cross-Cutting Issues
+[Issues that span multiple areas]
+
+### 💡 Prioritized Recommendations
+[Synthesized action items from all agents]
+```
+
+---
 
 ## Review Output Format
 
-I'll provide comprehensive code analysis including:
+Regardless of strategy used, provide review in this format:
 
-- 📊 **Change Summary** - Overview of what the PR does
-- ✅ **Positive Aspects** - What's implemented well
-- 🔍 **Code Review Findings** organized by:
-  - 🐛 Bugs/Issues (with severity)
-  - 🎯 Suggestions (with examples)
-  - ❓ Questions for clarification
-- 🚦 **CI/CD Analysis** - GitHub Actions status and failure reasons
-- 📝 **Recommended Actions** - Specific next steps
+### 📊 Change Summary
+High-level overview of what the PR accomplishes
 
-The review focuses on providing actionable feedback with specific line
-references and code examples where appropriate.
+### ✅ Positive Aspects
+What's well-implemented:
+- Good patterns used
+- Strong test coverage
+- Clean architecture
 
-## Features
+### 🔍 Code Review Findings
 
-- **Intelligent Analysis**: Goes beyond syntax to understand intent and impact
-- **Context-Aware**: Considers the broader codebase and patterns
-- **Actionable Feedback**: Provides specific line numbers and code suggestions
-- **Severity Levels**: Prioritizes issues (Critical/High/Medium/Low)
-- **Learning**: Recognizes patterns from your codebase
+#### 🐛 Bugs/Issues (with severity)
+**Critical:**
+- [Issue with line number and explanation]
 
-## Environment Variables
+**High:**
+- [Issue with line number and explanation]
 
-- `GITHUB_REPOSITORY`: Override auto-detected repository (format: owner/repo)
+**Medium:**
+- [Issue with line number and explanation]
 
-## Implementation
+**Low:**
+- [Issue with line number and explanation]
 
-I'll execute the following command to fetch PR data:
+#### 🎯 Suggestions (with code examples)
+- [Improvement with specific code suggestion]
+- [Refactoring opportunity]
+- [Performance optimization]
 
-```bash
-~/.claude/scripts/gh-ai-review.sh "<pr-reference>"
+#### ❓ Questions for Author
+- [Clarification needed on design decision]
+- [Missing context about requirement]
+
+### 🚦 CI/CD Analysis
+- GitHub Actions status
+- Failure analysis if applicable
+- Breaking change assessment
+
+### 📝 Recommended Actions
+Prioritized, specific next steps:
+1. [Most critical action]
+2. [Important improvement]
+3. [Nice-to-have enhancement]
+
+---
+
+## Review Focus Areas
+
+**Always consider:**
+1. **Code Quality** - Naming, organization, readability
+2. **Bugs** - Logic errors, edge cases, null/undefined checks
+3. **Security** - Input validation, auth/authz, injection vulnerabilities
+4. **Performance** - Algorithm efficiency, database queries, caching
+5. **Best Practices** - SOLID principles, DRY, design patterns
+6. **Testing** - Coverage adequacy, test quality, missing scenarios
+7. **Documentation** - Code comments, API docs, README updates
+
+---
+
+## Strategy Selection Examples
+
+### Example 1: Small PR (300 lines, 5 files)
+```
+Analysis: 300 lines across 5 Python files
+Strategy: STRATEGY A - Full Review
+Reasoning: Small enough for comprehensive single-pass review
 ```
 
-Then I'll analyze the output to provide:
+### Example 2: Medium PR (1,500 lines, 20 files)
+```
+Analysis: 1,500 lines across 20 files (backend + tests)
+Strategy: STRATEGY B - Prioritized Review
+Reasoning: Review API changes first, then tests
+Groups: api/*.py → tests/*.py
+```
 
-1. **Code Quality Assessment**
-   - Identify style inconsistencies
-   - Flag naming convention violations
-   - Suggest better code organization
+### Example 3: Large PR (4,000 lines, 60 files)
+```
+Analysis: 4,000 lines across 60 files (full-stack feature)
+Strategy: STRATEGY C - Parallel Chunked Review
+Reasoning: Too large for single context window
+Agents:
+  1. Backend: api/, models/ (25 files)
+  2. Frontend: src/components/ (20 files)
+  3. Tests: tests/ (10 files)
+  4. Config: .github/, docker/ (5 files)
+```
 
-2. **Bug Detection**
-   - Find potential null pointer exceptions
-   - Identify missing error handling
-   - Detect logic errors and edge cases
+---
 
-3. **Security Analysis**
-   - Check for input validation issues
-   - Identify authentication/authorization problems
-   - Flag potential injection vulnerabilities
+## Notes
 
-4. **Performance Review**
-   - Identify inefficient algorithms
-   - Find unnecessary database queries
-   - Suggest caching opportunities
-
-5. **Best Practices Check**
-   - SOLID principle violations
-   - DRY (Don't Repeat Yourself) issues
-   - Missing abstractions
-
-### Script Location
-
-`~/.claude/scripts/gh-ai-review.sh`
-
-### What the script does
-
-1. Parses PR reference (number, #number, org/repo#number, or URL)
-2. Fetches PR metadata and full diff
-3. Gets existing review comments to avoid duplicates
-4. Checks GitHub Actions status and analyzes failures
-5. Outputs structured data for AI analysis
-
-### My Analysis Process
-
-1. Parse the diff to understand each change
-2. Analyze the context and impact
-3. Check against best practices and patterns
-4. Generate specific, actionable feedback
-5. Prioritize findings by severity
-6. Provide code examples for improvements
-
-**Important:** Always quote PR references containing `#`:
-
-- ✅ `/gh-review "org/repo#123"`
-- ❌ `/gh-review org/repo#123` (# treated as comment)
+- **Generated files are auto-skipped**: lockfiles, minified JS, build outputs
+- **Token efficiency**: Only fetch diffs when needed
+- **Scalable**: Handles PRs from 10 lines to 10,000+ lines
+- **Intelligent**: Automatically chooses the right approach
+- **Parallel-ready**: Uses `/parallel` command for large PRs

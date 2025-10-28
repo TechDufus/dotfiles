@@ -236,20 +236,38 @@ fi
 echo "=== DIFF ==="
 if [ -z "$ALL_FILES" ]; then
     echo "No files to diff"
+elif [ ${#FILE_PATTERNS[@]} -eq 0 ] && [ "$SKIP_GENERATED" = false ]; then
+    # No filtering needed, get full diff
+    gh pr diff $PR_NUMBER --repo $PR_REPO || {
+        echo "ERROR: Could not fetch diff" >&2
+        exit 1
+    }
 else
-    # Build file list for gh pr diff
-    FILE_ARGS=""
-    while IFS= read -r file; do
-        [ -z "$file" ] && continue
-        FILE_ARGS="$FILE_ARGS $file"
-    done <<< "$ALL_FILES"
-    
-    if [ -n "$FILE_ARGS" ]; then
-        gh pr diff $PR_NUMBER --repo $PR_REPO -- $FILE_ARGS || {
-            echo "ERROR: Could not fetch diff" >&2
-            exit 1
-        }
+    # Need to filter - get full diff and extract only matching files
+    FULL_DIFF=$(gh pr diff $PR_NUMBER --repo $PR_REPO 2>/dev/null)
+    if [ -z "$FULL_DIFF" ]; then
+        echo "ERROR: Could not fetch diff" >&2
+        exit 1
     fi
+    
+    # Parse and filter the diff
+    CURRENT_FILE=""
+    IN_MATCHING_FILE=false
+    while IFS= read -r line; do
+        # Check if this is a diff header for a new file
+        if [[ "$line" =~ ^diff\ --git\ a/(.*)\ b/(.*) ]]; then
+            FILE_PATH="${BASH_REMATCH[2]}"
+            # Check if this file is in our filtered list
+            if echo "$ALL_FILES" | grep -q "^$FILE_PATH$"; then
+                IN_MATCHING_FILE=true
+                echo "$line"
+            else
+                IN_MATCHING_FILE=false
+            fi
+        elif [ "$IN_MATCHING_FILE" = true ]; then
+            echo "$line"
+        fi
+    done <<< "$FULL_DIFF"
 fi
 echo ""
 

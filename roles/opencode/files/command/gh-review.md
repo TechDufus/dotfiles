@@ -124,7 +124,7 @@ I've analyzed this large PR and will use a parallel review strategy.
 /parallel Review this large PR using specialized agents:
 
 **Agent 1 - Backend Review:**
-!`~/.config/opencode/scripts/gh-ai-review.sh "$PR_REF" --files 'api/*' --files 'models/*'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'api/*' --files 'models/*'`
 
 Focus Areas:
 - Business logic correctness
@@ -133,7 +133,7 @@ Focus Areas:
 - Security (input validation, auth checks)
 
 **Agent 2 - Frontend Review:**
-!`~/.config/opencode/scripts/gh-ai-review.sh "$PR_REF" --files 'src/components/*' --files 'src/pages/*'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'src/components/*' --files 'src/pages/*'`
 
 Focus Areas:
 - React patterns and hooks usage
@@ -142,7 +142,7 @@ Focus Areas:
 - Accessibility
 
 **Agent 3 - Test Review:**
-!`~/.config/opencode/scripts/gh-ai-review.sh "$PR_REF" --files 'tests/*' --files '*.test.py'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'tests/*' --files '*.test.py'`
 
 Focus Areas:
 - Test coverage gaps
@@ -150,7 +150,7 @@ Focus Areas:
 - Test quality and maintainability
 
 **Agent 4 - Infrastructure Review:**
-!`~/.config/opencode/scripts/gh-ai-review.sh "$PR_REF" --files '.github/*' --files 'docker/*' --files '*.yml'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files '.github/*' --files 'docker/*' --files '*.yml'`
 
 Focus Areas:
 - CI/CD pipeline changes

@@ -1,2 +1,5 @@
 ---
-# macOS-specific Claude configuration can be added here if needed
+- name: "{{ role_name }} | MacOSX | Install claude-code via Homebrew"
+  community.general.homebrew_cask:
+    name: claude-code
+    state: present

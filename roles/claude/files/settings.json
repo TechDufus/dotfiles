@@ -912,12 +912,13 @@
       "Bash(web3:*)",
       "Bash(ipfs:*)",
       "Bash(gateway:*)",
-      "Bash(~/.claude/scripts/git-commit-helper.sh:*)",
-      "Bash(~/.claude/scripts/gh-create-issue.sh:*)",
-      "Bash(~/.claude/scripts/gh-link-sub-issue.sh:*)",
-      "Bash(~/.claude/scripts/gh-work-issue.sh:*)",
-      "Bash(~/.claude/scripts/gh-complete-fix.sh:*)",
-      "Bash(~/.claude/scripts/gh-ai-review.sh:*)"
+      "Bash(~/.claude/**)",
+      "Bash(~/.claude/skills/**)",
+      "Bash(~/.claude/scripts/**)",
+      "Read(~/.claude/**)",
+      "Read(/tmp/**)",
+      "Write(/tmp/**)",
+      "Bash(*:/tmp/**)"
     ],
     "deny": [
       "Bash(sudo:*)",

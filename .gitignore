@@ -1,5 +1,9 @@
 vault-password.txt
-/callback_plugins/__pycache__
+
+# Python cache directories
+__pycache__/
+*.pyc
+*.pyo
 
 roles/neovim/files/lazy-lock.json
 

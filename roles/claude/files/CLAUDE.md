@@ -33,11 +33,7 @@ For complex technical decisions, break down the problem, validate assumptions, a
 ## Git Standards
 
 <important>
-**Commit Format (Mandatory):**
-- Subject: max 50 chars, conventional (`fix:`, `feat:`, `docs:`)
-- Body: max 72 chars when used
-- NO AI attribution, branding, or emojis
-- Co-authored-by: humans only, not AI
+Commits follow conventional format and are validated by the git-commit-validator skill. No AI attribution or branding.
 </important>
 
 ## Technical Judgment
@@ -70,9 +66,6 @@ For complex technical decisions, break down the problem, validate assumptions, a
 ## Workflow Scripts
 
 **Available in `~/.claude/scripts/`:**
-
-**Git Enhancement:**
-- `git-commit-helper.sh "message"` - Validates conventional format
 
 **GitHub Issue Workflows:**
 - `gh-create-issue.sh "<title>" --body "<content>" [--parent <num>]` - Create with linking

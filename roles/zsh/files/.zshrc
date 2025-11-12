@@ -10,6 +10,7 @@ fi
 
 # Set default editor for OpenCode and other tools
 export EDITOR="nvim"
+export VISUAL="nvim"
 
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.

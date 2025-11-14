@@ -1,32 +1,14 @@
-- name: "BTOP | Install from GitHub Release"
-  ansible.builtin.include_role:
-    name: github_release
-  vars:
-    github_release_repo: "aristocratos/btop"
-    github_release_binary_name: "btop"
-    github_release_asset_name_pattern: "btop-x86_64-linux-musl.tbz"
-    github_release_asset_type: "tar.bz2"
-    github_release_extract_subpath: "btop/bin/btop"
+---
+- name: "BTOP | Ubuntu | Install btop package"
+  ansible.builtin.apt:
+    name: btop
+    state: present
+    update_cache: true
+  become: true
 
-- name: "BTOP | Remove old bpytop if installed"
+- name: "BTOP | Ubuntu | Remove old bpytop if installed"
   ansible.builtin.apt:
     name: bpytop
     state: absent
   become: true
   ignore_errors: true
-
-- name: "BTOP | Ensure btop directory structure exists"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    mode: "0755"
-    state: directory
-  loop:
-    - ~/.config
-    - ~/.config/btop
-
-- name: "BTOP | Copy btop config"
-  ansible.builtin.copy:
-    src: btop.conf
-    dest: ~/.config/btop/btop.conf
-    mode: "0644"
-

@@ -5,6 +5,7 @@
     upgrade: true
     state: latest
   become: true
+  when: can_install_packages | default(false)
 
 - name: "System | {{ ansible_distribution }} | Install"
   community.general.pacman:
@@ -14,3 +15,12 @@
       - unzip
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_distribution }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Package installation skipped due to missing sudo privileges"
+      - "The following packages would be installed with sudo: jq, open-iscsi, unzip"
+      - "Please run with sudo or contact your system administrator"
+  when: not (can_install_packages | default(false))

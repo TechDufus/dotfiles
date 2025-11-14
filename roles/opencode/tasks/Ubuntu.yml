@@ -9,6 +9,7 @@
   ansible.builtin.command: npm install -g opencode-ai
   when: npm_check.rc == 0
   changed_when: true
+  become: true
 
 - name: "{{ role_name }} | Ubuntu | Install via curl if npm not available"
   ansible.builtin.shell: curl -fsSL https://opencode.ai/install | bash

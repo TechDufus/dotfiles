@@ -1,0 +1,7 @@
+---
+- name: "SSH | Ubuntu | Install openssh-client"
+  ansible.builtin.apt:
+    name: openssh-client
+    state: present
+    update_cache: true
+  become: true

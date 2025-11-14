@@ -1,34 +1,111 @@
 ---
-- name: Helm | Add Helm GPG key
-  ansible.builtin.apt_key:
-    url: https://baltocdn.com/helm/signing.asc
-    state: present
-    keyring: /usr/share/keyrings/helm.gpg
-  become: true
+- name: "Helm | Ubuntu | Check if helm is already installed"
+  ansible.builtin.command: which helm
+  register: helm_check
+  changed_when: false
+  failed_when: false
 
-- name: Helm | Install apt-transport-https
-  ansible.builtin.apt:
-    name: apt-transport-https
-    state: present
-  become: true
+# Try APT repository method first
+- name: "Helm | Ubuntu | Install via APT repository"
+  when: helm_check.rc != 0
+  block:
+    - name: Helm | Ensure keyrings directory exists
+      ansible.builtin.file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+      become: true
 
-- name: Helm | Get OS Architecture
-  ansible.builtin.set_fact:
-    os_arch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+    - name: Helm | Download Helm GPG key
+      ansible.builtin.get_url:
+        url: https://baltocdn.com/helm/signing.asc
+        dest: /usr/share/keyrings/helm.gpg
+        mode: '0644'
+      become: true
+      register: helm_gpg_download
 
-- name: Helm | Add Helm APT repository
-  ansible.builtin.apt_repository:
-    repo: "deb [arch={{ os_arch }} signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
-    filename: helm-stable-debian
-  become: true
+    - name: Helm | Install apt-transport-https
+      ansible.builtin.apt:
+        name: apt-transport-https
+        state: present
+      become: true
 
-- name: Helm | Update APT cache
-  ansible.builtin.apt:
-    update_cache: true
-  become: true
+    - name: Helm | Get OS Architecture
+      ansible.builtin.set_fact:
+        os_arch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
-- name: Helm | Install Helm
-  ansible.builtin.apt:
-    name: helm
-    state: present
-  become: true
+    - name: Helm | Add Helm APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ os_arch }} signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
+        filename: helm-stable-debian
+      become: true
+
+    - name: Helm | Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+
+    - name: Helm | Install Helm
+      ansible.builtin.apt:
+        name: helm
+        state: present
+      become: true
+      register: helm_apt_install
+
+  rescue:
+    - name: "Helm | Ubuntu | APT installation failed, will try GitHub release"
+      ansible.builtin.debug:
+        msg: "APT repository unavailable, falling back to GitHub release installation"
+      register: helm_apt_failed
+
+# Fallback to GitHub release if APT method failed
+- name: "Helm | Ubuntu | Install from GitHub release"
+  when:
+    - helm_check.rc != 0
+    - helm_apt_failed is defined
+  block:
+    - name: "Helm | Get System Arch"
+      ansible.builtin.set_fact:
+        helm_arch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+
+    - name: "Helm | Get latest version"
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/helm/helm/releases/latest
+      register: helm_latest_version_json
+      changed_when: false
+
+    - name: "Helm | Set latest version"
+      ansible.builtin.set_fact:
+        helm_latest_version: "{{ helm_latest_version_json.json.tag_name }}"
+
+    - name: "Helm | Define helm package"
+      ansible.builtin.set_fact:
+        helm_package: "helm-{{ helm_latest_version }}-{{ ansible_system | lower }}-{{ helm_arch }}.tar.gz"
+
+    - name: "Helm | Download Helm"
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/{{ helm_package }}"
+        dest: "/tmp/{{ helm_package }}"
+        mode: "0644"
+
+    - name: "Helm | Extract helm archive"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ helm_package }}"
+        dest: /tmp
+        remote_src: true
+
+    - name: "Helm | Install helm to /usr/local/bin"
+      ansible.builtin.copy:
+        remote_src: true
+        src: "/tmp/{{ ansible_system | lower }}-{{ helm_arch }}/helm"
+        dest: /usr/local/bin/helm
+        mode: "0755"
+      become: true
+
+    - name: "Helm | Cleanup"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/{{ helm_package }}"
+        - "/tmp/{{ ansible_system | lower }}-{{ helm_arch }}"

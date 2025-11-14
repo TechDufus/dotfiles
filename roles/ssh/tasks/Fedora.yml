@@ -1,0 +1,6 @@
+---
+- name: "SSH | Fedora | Install openssh-clients"
+  ansible.builtin.dnf:
+    name: openssh-clients
+    state: present
+  become: true

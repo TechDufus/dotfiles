@@ -6,6 +6,7 @@
     autoremove: true
     autoclean: true
   become: true
+  when: can_install_packages | default(false)
 
 - name: "System | {{ ansible_distribution }} | Install"
   ansible.builtin.apt:
@@ -14,18 +15,46 @@
       - open-iscsi
     state: present
   become: true
+  when: can_install_packages | default(false)
 
-- name: System | Detecting win32yank
+- name: "System | {{ ansible_distribution }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Package installation skipped due to missing sudo privileges"
+      - "The following packages would be installed with sudo: jq, open-iscsi"
+      - "Please run with sudo or contact your system administrator"
+  when: not (can_install_packages | default(false))
+
+- name: System | Detecting win32yank (system)
   ansible.builtin.stat:
     path: /usr/local/bin/win32yank.exe
-  register: win32yank_installed
+  register: win32yank_system
+  when: ansible_host_environment_is_wsl
+
+- name: System | Detecting win32yank (user)
+  ansible.builtin.stat:
+    path: "{{ ansible_env.HOME }}/.local/bin/win32yank.exe"
+  register: win32yank_user
+  when: ansible_host_environment_is_wsl
+
+- name: System | Set win32yank installation facts
+  ansible.builtin.set_fact:
+    win32yank_installed: "{{ (win32yank_system.stat.exists | default(false)) or (win32yank_user.stat.exists | default(false)) }}"
+    win32yank_dest_dir: "{{ '/usr/local/bin' if (can_install_packages | default(false)) else ansible_env.HOME + '/.local/bin' }}"
   when: ansible_host_environment_is_wsl
 
 - name: "System | Install win32yank.exe"
   when:
     - ansible_host_environment_is_wsl
-    - not win32yank_installed.stat.exists
+    - not win32yank_installed
   block:
+    - name: System | Ensure destination directory exists
+      ansible.builtin.file:
+        path: "{{ win32yank_dest_dir }}"
+        state: directory
+        mode: "0755"
+      when: not (can_install_packages | default(false))
+
     - name: Download win32yank zip
       ansible.builtin.get_url:
         url: https://github.com/equalsraf/win32yank/releases/download/v0.0.4/win32yank-x64.zip
@@ -38,13 +67,17 @@
         dest: /tmp
         mode: "0755"
 
-    - name: System | Copy win32yank into path
+    - name: System | Copy win32yank into path (system)
       ansible.builtin.copy:
         remote_src: true
         src: /tmp/win32yank.exe
-        dest: /usr/local/bin/win32yank.exe
+        dest: "{{ win32yank_dest_dir }}/win32yank.exe"
         mode: "0755"
-      become: true
+      become: "{{ can_install_packages | default(false) }}"
+
+    - name: System | win32yank installation location
+      ansible.builtin.debug:
+        msg: "win32yank.exe installed to {{ win32yank_dest_dir }}/win32yank.exe"
 
     - name: System | Remove tmp files
       ansible.builtin.file:

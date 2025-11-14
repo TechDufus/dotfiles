@@ -45,7 +45,7 @@
   tasks:
     - name: Set roles
       ansible.builtin.set_fact:
-        run_roles: "{{ ansible_run_tags != ['all'] and ansible_run_tags or default_roles | difference(exclude_roles | default([])) | sort }}"
+        run_roles: "{% if ansible_run_tags | list == ['all'] %}{{ default_roles | difference(exclude_roles | default([])) | sort }}{% else %}{{ ansible_run_tags | list | difference(['all']) }}{% endif %}"
       tags:
         - always
 

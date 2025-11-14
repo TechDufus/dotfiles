@@ -14,17 +14,9 @@
     state: directory
     mode: "0700"
 
-- name: "SSH | Check 1Password availability"
-  block:
-    - name: "SSH | Deploy SSH keys from 1Password"
-      ansible.builtin.include_tasks: ssh_keys.yml
-      with_items: "{{ op.ssh.github.techdufus }}"
-      when: op_authenticated | default(false)
-
-    - name: "SSH | Warning - 1Password not authenticated"
-      ansible.builtin.debug:
-        msg: "SSH key deployment skipped - 1Password is not authenticated. Run 'op signin' to authenticate."
-      when: not (op_authenticated | default(false))
+- name: "SSH | Deploy SSH keys from 1Password"
+  ansible.builtin.include_tasks: ssh_keys.yml
+  with_items: "{{ op.ssh.github.techdufus }}"
   when: op_installed | default(false)
 
 - name: "SSH | Warning - 1Password not installed"

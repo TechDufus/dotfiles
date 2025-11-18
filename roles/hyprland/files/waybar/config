@@ -1,0 +1,165 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "spacing": 4,
+    "modules-left": ["hyprland/workspaces", "hyprland/submap", "hyprland/window"],
+    "modules-center": ["clock"],
+    "modules-right": ["idle_inhibitor", "mpris", "pulseaudio", "network", "disk", "cpu", "memory", "temperature", "backlight", "battery", "tray", "custom/power"],
+
+    "hyprland/workspaces": {
+        "format": "{name}",
+        "on-click": "activate",
+        "sort-by-number": true,
+        "persistent-workspaces": {
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "5": []
+        }
+    },
+
+    "hyprland/window": {
+        "format": "{}",
+        "max-length": 50,
+        "separate-outputs": true
+    },
+
+    "hyprland/submap": {
+        "format": " {}",
+        "tooltip": true,
+        "tooltip-format": "F13 Modal Mode: Press ESC to exit"
+    },
+
+    "tray": {
+        "icon-size": 18,
+        "spacing": 10
+    },
+
+    "clock": {
+        "timezone": "America/New_York",
+        "interval": 1,
+        "format": " {:%H:%M:%S}",
+        "format-alt": " {:%A, %B %d, %Y  %I:%M:%S %p}",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "on-click": "gnome-calendar",
+        "on-click-right": "mode"
+    },
+
+    "cpu": {
+        "format": " {usage}%",
+        "tooltip": true,
+        "interval": 2,
+        "on-click": "ghostty --class=htop -e htop"
+    },
+
+    "memory": {
+        "format": " {}%",
+        "tooltip": true,
+        "on-click": "ghostty --class=htop -e htop"
+    },
+
+    "temperature": {
+        "thermal-zone": 2,
+        "critical-threshold": 80,
+        "format-critical": " {temperatureC}°C",
+        "format": "{icon} {temperatureC}°C",
+        "format-icons": ["", "", ""]
+    },
+
+    "battery": {
+        "states": {
+            "good": 95,
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": " {capacity}%",
+        "format-plugged": " {capacity}%",
+        "format-alt": "{icon} {time}",
+        "format-icons": ["", "", "", "", ""]
+    },
+
+    "network": {
+        "format-wifi": " {essid} ({signalStrength}%)",
+        "format-ethernet": " {ifname}",
+        "tooltip-format": " {ifname} via {gwaddr}",
+        "format-linked": " {ifname} (No IP)",
+        "format-disconnected": "⚠ Disconnected",
+        "format-alt": "{ifname}: {ipaddr}/{cidr}",
+        "on-click-right": "nm-connection-editor"
+    },
+
+    "pulseaudio": {
+        "scroll-step": 5,
+        "format": "{icon} {volume}%",
+        "format-muted": " Muted",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        },
+        "on-click": "pavucontrol",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+    },
+
+    "idle_inhibitor": {
+        "format": "{icon}",
+        "format-icons": {
+            "activated": "",
+            "deactivated": ""
+        },
+        "tooltip": true,
+        "tooltip-format-activated": "Caffeine Mode: Screen won't sleep",
+        "tooltip-format-deactivated": "Normal Mode: Screen will sleep"
+    },
+
+    "mpris": {
+        "format": "{player_icon} {dynamic}",
+        "format-paused": "{status_icon} <i>{dynamic}</i>",
+        "player-icons": {
+            "default": "🎵",
+            "spotify": "",
+            "firefox": ""
+        },
+        "status-icons": {
+            "paused": ""
+        },
+        "dynamic-order": ["title", "artist"],
+        "dynamic-len": 40,
+        "on-click": "playerctl play-pause",
+        "on-click-right": "playerctl next",
+        "on-scroll-up": "playerctl volume 0.05+",
+        "on-scroll-down": "playerctl volume 0.05-"
+    },
+
+    "disk": {
+        "interval": 30,
+        "format": " {percentage_used}%",
+        "path": "/",
+        "tooltip": true,
+        "tooltip-format": "Disk Usage\nUsed: {used} / {total}\nFree: {free} ({percentage_free}%)",
+        "on-click": "ghostty --class=ncdu -e ncdu /"
+    },
+
+    "backlight": {
+        "device": "intel_backlight",
+        "format": "{icon} {percent}%",
+        "format-icons": ["", "", "", "", "", "", "", "", ""],
+        "on-scroll-up": "brightnessctl set 5%+",
+        "on-scroll-down": "brightnessctl set 5%-",
+        "tooltip": true,
+        "tooltip-format": "Brightness: {percent}%"
+    },
+
+    "custom/power": {
+        "format": "",
+        "tooltip": false,
+        "on-click": "~/.config/waybar/scripts/power-menu.sh"
+    }
+}

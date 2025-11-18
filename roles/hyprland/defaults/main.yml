@@ -1,0 +1,31 @@
+---
+# Hyprland Role Default Variables
+
+hyprland:
+  # Installation settings
+  installer:
+    repo: "https://github.com/JaKooLit/Ubuntu-Hyprland.git"
+    cache_dir: "{{ ansible_user_dir }}/.cache/hyprland-installer"
+
+  # Configuration paths
+  config_dir: "{{ ansible_user_dir }}/.config/hyprland"
+  waybar_config_dir: "{{ ansible_user_dir }}/.config/waybar"
+
+  # Preset options (used in files/scripts/preset.conf)
+  preset:
+    gtk_themes: true
+    bluetooth: true
+    thunar: true
+    zsh: false  # Already managed by dotfiles zsh role
+    sddm: false  # Keep existing login manager (GDM)
+    rog_utils: false
+    pokemon_colorscripts: false
+    nvidia: "auto"  # Auto-detect NVIDIA GPU
+
+  # Terminal emulator integration
+  terminal_emulators:
+    - kitty
+    - ghostty
+
+  # Cleanup installer cache after successful installation
+  cleanup_installer: false

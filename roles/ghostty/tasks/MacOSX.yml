@@ -4,29 +4,3 @@
     name: ghostty@tip
     state: present
     update_homebrew: true
-
-- name: "{{ role_name }} | macOS | Create Ghostty config directory"
-  ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/ghostty"
-    state: directory
-    mode: '0755'
-
-- name: "{{ role_name }} | macOS | Deploy Configuration"
-  ansible.builtin.copy:
-    src: config
-    dest: "{{ ansible_env.HOME }}/.config/ghostty/config"
-    mode: "0644"
-
-- name: "{{ role_name }} | macOS | Deploy Shaders directory"
-  ansible.builtin.copy:
-    src: shaders
-    dest: "{{ ansible_env.HOME }}/.config/ghostty/"
-    mode: "0644"
-    directory_mode: "0755"
-
-- name: "{{ role_name }} | macOS | Deploy Themes directory"
-  ansible.builtin.copy:
-    src: themes
-    dest: "{{ ansible_env.HOME }}/.config/ghostty/"
-    mode: "0644"
-    directory_mode: "0755"

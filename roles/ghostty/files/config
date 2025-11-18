@@ -40,3 +40,4 @@ auto-update-channel = tip
 
 # extras
 shell-integration-features = no-cursor
+class = ghostty

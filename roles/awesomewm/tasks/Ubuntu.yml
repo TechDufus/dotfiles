@@ -1,0 +1,27 @@
+---
+- name: "awesomewm | Ubuntu | Install AwesomeWM"
+  ansible.builtin.apt:
+    name:
+      - awesome
+      - xdotool
+    state: present
+    update_cache: true
+  become: true
+
+- name: "awesomewm | Ubuntu | Ensure ~/.config/awesome exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/awesome"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy Cell Management Config"
+  ansible.builtin.copy:
+    src: "config/cell-management/"
+    dest: "{{ ansible_user_dir }}/.config/awesome/cell-management/"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy rc.lua"
+  ansible.builtin.copy:
+    src: "config/rc.lua"
+    dest: "{{ ansible_user_dir }}/.config/awesome/rc.lua"
+    mode: "0644"

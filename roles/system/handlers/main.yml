@@ -10,3 +10,9 @@
     name: systemd-zram-setup@zram0
     state: restarted
   become: true
+
+- name: restart systemd-logind
+  ansible.builtin.systemd:
+    name: systemd-logind
+    state: restarted
+  become: true

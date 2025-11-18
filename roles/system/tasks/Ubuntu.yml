@@ -86,3 +86,20 @@
       loop:
         - /tmp/win32yank.zip
         - /tmp/win32yank.exe
+
+- name: "System | {{ ansible_distribution }} | Ensure logind.conf.d directory exists"
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    mode: "0755"
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_distribution }} | Configure power button to suspend"
+  ansible.builtin.copy:
+    src: logind.conf.d/power-button.conf
+    dest: /etc/systemd/logind.conf.d/power-button.conf
+    mode: "0644"
+  become: true
+  when: can_install_packages | default(false)
+  notify: restart systemd-logind

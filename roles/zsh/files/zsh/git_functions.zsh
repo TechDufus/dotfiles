@@ -18,7 +18,21 @@ ghelp() {
   echo -e "  ${YELLOW}gwd${NC}         - Interactive worktree deletion"
   echo -e "  ${YELLOW}gws${NC}         - Interactive worktree switcher"
   echo ""
-  
+
+  echo -e "${BOLD}${GREEN}Git Bisect Commands:${NC}"
+  echo -e "  ${YELLOW}gbisect${NC}     - Git bisect with visual enhancements (use 'gbisect help' for guide)"
+  echo -e "  ${YELLOW}gbisect-start${NC}   - Start bisect session with interactive commit selection"
+  echo -e "  ${YELLOW}gbisect-good${NC}    - Mark current commit as good"
+  echo -e "  ${YELLOW}gbisect-bad${NC}     - Mark current commit as bad"
+  echo -e "  ${YELLOW}gbisect-skip${NC}    - Skip current untestable commit"
+  echo -e "  ${YELLOW}gbisect-reset${NC}   - Exit bisect mode"
+  echo -e "  ${YELLOW}gbisect-progress${NC} - Show visual progress bar and statistics"
+  echo -e "  ${YELLOW}gbisect-log${NC}     - View enhanced bisect log with colors"
+  echo -e "  ${YELLOW}gbisect-status${NC}  - Show current bisect state"
+  echo -e "  ${YELLOW}gbisect-save${NC}    - Save bisect state for later"
+  echo -e "  ${YELLOW}gbisect-restore${NC} - Restore previously saved bisect state"
+  echo ""
+
   echo -e "${BOLD}${GREEN}Quick Commands:${NC}"
   echo -e "  ${YELLOW}gacp${NC} <msg>  - Add all, commit (signed), and push in one command"
   echo -e "  ${YELLOW}gacpgh${NC} <msg>- Same as gacp + create PR, approve, and merge"

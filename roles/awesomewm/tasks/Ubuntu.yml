@@ -1,12 +1,44 @@
 ---
-- name: "awesomewm | Ubuntu | Install AwesomeWM"
+- name: "awesomewm | Ubuntu | Install AwesomeWM and dependencies"
   ansible.builtin.apt:
     name:
       - awesome
       - xdotool
+      - flameshot
+      - brightnessctl  # For brightness widget
+      - luarocks       # Lua package manager
+      - lua-json       # JSON library for weather widget
+      - thunar         # Lightweight file manager
+      - pipx           # For rofimoji installation
     state: present
     update_cache: true
   become: true
+
+- name: "awesomewm | Ubuntu | Install rofimoji via pipx"
+  ansible.builtin.shell: |
+    pipx install rofimoji
+  args:
+    creates: "{{ ansible_user_dir }}/.local/bin/rofimoji"
+  become: false
+  changed_when: true
+
+- name: "awesomewm | Ubuntu | Install clipboard dependencies"
+  ansible.builtin.apt:
+    name:
+      - golang-go      # For building cliphist
+      - wl-clipboard   # Wayland clipboard utilities
+      - xclip          # X11 clipboard utilities
+    state: present
+  become: true
+
+- name: "awesomewm | Ubuntu | Install cliphist"
+  ansible.builtin.shell: |
+    export GOPATH="{{ ansible_user_dir }}/go"
+    export PATH="$PATH:{{ ansible_user_dir }}/go/bin"
+    go install go.senan.xyz/cliphist@latest
+  args:
+    creates: "{{ ansible_user_dir }}/go/bin/cliphist"
+  changed_when: true
 
 - name: "awesomewm | Ubuntu | Ensure ~/.config/awesome exists"
   ansible.builtin.file:
@@ -14,10 +46,36 @@
     state: directory
     mode: "0755"
 
+- name: "awesomewm | Ubuntu | Clone awesome-wm-widgets repository"
+  ansible.builtin.git:
+    repo: https://github.com/streetturtle/awesome-wm-widgets.git
+    dest: "{{ ansible_user_dir }}/.config/awesome/awesome-wm-widgets"
+    version: master
+    update: true
+
+- name: "awesomewm | Ubuntu | Clone awesome-cyclefocus module"
+  ansible.builtin.git:
+    repo: https://github.com/blueyed/awesome-cyclefocus.git
+    dest: "{{ ansible_user_dir }}/.config/awesome/cyclefocus"
+    version: master
+    update: true
+
 - name: "awesomewm | Ubuntu | Deploy Cell Management Config"
   ansible.builtin.copy:
     src: "config/cell-management/"
     dest: "{{ ansible_user_dir }}/.config/awesome/cell-management/"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy wibar configuration"
+  ansible.builtin.copy:
+    src: "config/wibar.lua"
+    dest: "{{ ansible_user_dir }}/.config/awesome/wibar.lua"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy Catppuccin Mocha Theme"
+  ansible.builtin.copy:
+    src: "config/themes/"
+    dest: "{{ ansible_user_dir }}/.config/awesome/themes/"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy rc.lua"
@@ -25,3 +83,83 @@
     src: "config/rc.lua"
     dest: "{{ ansible_user_dir }}/.config/awesome/rc.lua"
     mode: "0644"
+
+- name: "awesomewm | Ubuntu | Ensure rofi config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/rofi"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy rofi configuration"
+  ansible.builtin.copy:
+    src: "rofi/config.rasi"
+    dest: "{{ ansible_user_dir }}/.config/rofi/config.rasi"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy rofi Catppuccin theme"
+  ansible.builtin.copy:
+    src: "rofi/catppuccin-mocha.rasi"
+    dest: "{{ ansible_user_dir }}/.config/rofi/catppuccin-mocha.rasi"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Install GTK theme prerequisites"
+  ansible.builtin.apt:
+    name:
+      - sassc
+      - gnome-themes-extra
+      - gtk2-engines-murrine
+    state: present
+  become: true
+
+- name: "awesomewm | Ubuntu | Ensure ~/.themes directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.themes"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Download Catppuccin GTK install script"
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/catppuccin/gtk/main/install.py
+    dest: /tmp/catppuccin-gtk-install.py
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Install Catppuccin GTK Mocha theme"
+  ansible.builtin.shell: |
+    python3 /tmp/catppuccin-gtk-install.py mocha blue --dest {{ ansible_user_dir }}/.themes
+  args:
+    creates: "{{ ansible_user_dir }}/.themes/catppuccin-mocha-blue-standard+default"
+  changed_when: true
+
+- name: "awesomewm | Ubuntu | Ensure GTK3 config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/gtk-3.0"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Configure GTK3 dark theme"
+  ansible.builtin.copy:
+    content: |
+      [Settings]
+      gtk-theme-name=catppuccin-mocha-blue-standard+default
+      gtk-application-prefer-dark-theme=true
+      gtk-icon-theme-name=Papirus-Dark
+    dest: "{{ ansible_user_dir }}/.config/gtk-3.0/settings.ini"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Ensure GTK4 config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/gtk-4.0"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Symlink GTK4 theme assets"
+  ansible.builtin.file:
+    src: "{{ ansible_user_dir }}/.themes/catppuccin-mocha-blue-standard+default/gtk-4.0/{{ item }}"
+    dest: "{{ ansible_user_dir }}/.config/gtk-4.0/{{ item }}"
+    state: link
+    force: true
+  loop:
+    - assets
+    - gtk.css
+    - gtk-dark.css
+  ignore_errors: true

@@ -1,0 +1,206 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # ====================
+  # System Update Tasks
+  # ====================
+  update:
+    desc: Update package lists
+    platforms: [linux]
+    cmds:
+      - sudo apt-get update
+
+  upgrade:
+    desc: Upgrade installed packages with cleanup
+    platforms: [linux]
+    deps: [update]
+    cmds:
+      - sudo apt-get upgrade -y
+      - sudo apt-get autoremove -y
+
+  full-upgrade:
+    desc: Full system upgrade (dist-upgrade + cleanup)
+    platforms: [linux]
+    deps: [update]
+    cmds:
+      - sudo apt-get dist-upgrade -y
+      - sudo apt-get autoremove -y
+
+  clean-cache:
+    desc: Clean package download cache
+    platforms: [linux]
+    cmds:
+      - sudo apt-get clean
+      - sudo apt-get autoclean
+
+  # ====================
+  # System Maintenance
+  # ====================
+  clean-logs:
+    desc: Clean old system logs (keeps last 3 days)
+    platforms: [linux]
+    cmds:
+      - sudo journalctl --vacuum-time=3d
+      - echo "Log cleanup complete"
+
+  clean-temp:
+    desc: Clean temporary files
+    platforms: [linux]
+    cmds:
+      - sudo rm -rf /tmp/*
+      - sudo rm -rf /var/tmp/*
+      - echo "Temporary files cleaned"
+
+  disk-usage:
+    desc: Show disk usage analysis
+    platforms: [linux]
+    cmds:
+      - echo "=== Disk Usage by Mount Point ==="
+      - df -h
+      - echo ""
+      - echo "=== Largest Directories in Home ==="
+      - du -h ~/ --max-depth=1 2>/dev/null | sort -hr | head -n 20
+      - echo ""
+      - echo "=== Package Cache Size ==="
+      - du -sh /var/cache/apt/archives 2>/dev/null || echo "No cache found"
+
+  disk-usage-root:
+    desc: Show disk usage analysis for system (requires sudo)
+    platforms: [linux]
+    cmds:
+      - echo "=== Largest Directories in Root ==="
+      - sudo du -h / --max-depth=1 2>/dev/null | sort -hr | head -n 20
+      - echo ""
+      - echo "=== Journal Size ==="
+      - journalctl --disk-usage
+
+  clean-system:
+    desc: Comprehensive system cleanup (logs, temp, cache)
+    platforms: [linux]
+    cmds:
+      - task: clean-logs
+      - task: clean-temp
+      - task: clean-cache
+      - echo "System cleanup complete!"
+
+  # ====================
+  # Development Tools
+  # ====================
+  docker-clean:
+    desc: Clean Docker containers and images (keeps volumes)
+    platforms: [linux]
+    preconditions:
+      - sh: command -v docker
+        msg: "Docker is not installed"
+    cmds:
+      - docker container prune -f
+      - docker image prune -f
+      - echo "Docker cleanup complete (volumes preserved)"
+
+  docker-prune:
+    desc: Aggressive Docker cleanup (containers, images, networks, build cache)
+    platforms: [linux]
+    preconditions:
+      - sh: command -v docker
+        msg: "Docker is not installed"
+    prompt: This will remove ALL unused Docker resources. Continue?
+    cmds:
+      - docker system prune -a -f
+      - echo "Docker system pruned"
+
+  docker-nuke:
+    desc: "Nuclear Docker cleanup (WARNING: removes EVERYTHING including volumes)"
+    platforms: [linux]
+    preconditions:
+      - sh: command -v docker
+        msg: "Docker is not installed"
+    prompt: This will remove ALL Docker resources including volumes. Are you sure?
+    cmds:
+      - docker system prune -a --volumes -f
+      - echo "Docker completely cleaned"
+
+  npm-clean:
+    desc: Clean npm cache
+    platforms: [linux]
+    preconditions:
+      - sh: command -v npm
+        msg: "npm is not installed"
+    cmds:
+      - npm cache clean --force
+      - echo "npm cache cleaned"
+
+  pip-clean:
+    desc: Clean pip cache
+    platforms: [linux]
+    preconditions:
+      - sh: command -v pip
+        msg: "pip is not installed"
+    cmds:
+      - pip cache purge 2>/dev/null || pip3 cache purge 2>/dev/null || echo "No pip cache to clean"
+      - echo "pip cache cleaned"
+
+  cargo-clean:
+    desc: Clean Rust cargo cache and build artifacts
+    platforms: [linux]
+    preconditions:
+      - sh: command -v cargo
+        msg: "cargo is not installed"
+    cmds:
+      - cargo cache -a || echo "cargo-cache not installed, skipping"
+      - echo "Run 'cargo install cargo-cache' for better cleanup"
+
+  dev-clean:
+    desc: Clean all development tool caches (npm, pip, docker)
+    platforms: [linux]
+    cmds:
+      - task: npm-clean
+      - task: pip-clean
+      - task: cargo-clean
+      - task: docker-clean
+      - echo "Development tools cleaned"
+
+  # ====================
+  # Combined Maintenance
+  # ====================
+  deep-clean:
+    desc: Deep system cleanup (system + dev tools)
+    platforms: [linux]
+    cmds:
+      - task: clean-system
+      - task: dev-clean
+      - echo ""
+      - echo "=== Post-Cleanup Disk Usage ==="
+      - task: disk-usage
+
+  # ====================
+  # Service Management
+  # ====================
+  service-status:
+    desc: "Check service status (usage: task service-status -- <service-name>)"
+    platforms: [linux]
+    cmds:
+      - sudo systemctl status {{.CLI_ARGS}}
+
+  service-restart:
+    desc: "Restart a service (usage: task service-restart -- <service-name>)"
+    platforms: [linux]
+    cmds:
+      - sudo systemctl restart {{.CLI_ARGS}}
+      - sudo systemctl status {{.CLI_ARGS}}
+
+  service-logs:
+    desc: "View service logs (usage: task service-logs -- <service-name>)"
+    platforms: [linux]
+    cmds:
+      - sudo journalctl -u {{.CLI_ARGS}} -n 50 -f
+
+  failed-services:
+    desc: List all failed systemd services
+    platforms: [linux]
+    cmds:
+      - systemctl --failed

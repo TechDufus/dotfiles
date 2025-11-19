@@ -81,7 +81,7 @@ op:
 
 k8s:
   repo:
-    version: "v1.26"
+    version: "v1.34"
 
 helm:
   repos:

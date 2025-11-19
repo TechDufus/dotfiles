@@ -93,6 +93,12 @@ function M.position_client_in_cell(c, app_name, layout)
   -- Convert to pixel geometry
   local geom = grid.cell_to_geometry(primary_position, c.screen)
 
+  -- Clear conflicting properties before setting geometry
+  c.fullscreen = false
+  c.maximized = false
+  c.maximized_vertical = false
+  c.maximized_horizontal = false
+
   -- Apply geometry
   c.floating = true  -- Must float for manual positioning
   c.x = geom.x

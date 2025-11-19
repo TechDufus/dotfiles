@@ -1,0 +1,123 @@
+/**
+ * Catppuccin Mocha theme for Rofi
+ * Matches AwesomeWM Catppuccin theme
+ */
+
+* {
+    /* Catppuccin Mocha colors */
+    bg-col:  #1e1e2e;
+    bg-col-light: #313244;
+    border-col: #89b4fa;
+    selected-col: #313244;
+    blue: #89b4fa;
+    fg-col: #cdd6f4;
+    fg-col2: #f38ba8;
+    grey: #6c7086;
+    overlay0: #6c7086;
+    surface0: #313244;
+    text: #cdd6f4;
+    subtext0: #a6adc8;
+
+    width: 600px;
+}
+
+element-text, element-icon , mode-switcher {
+    background-color: inherit;
+    text-color:       inherit;
+}
+
+window {
+    height: 400px;
+    border: 2px;
+    border-color: @border-col;
+    background-color: @bg-col;
+    border-radius: 8px;
+}
+
+mainbox {
+    background-color: @bg-col;
+}
+
+inputbar {
+    children: [prompt,entry];
+    background-color: @bg-col;
+    border-radius: 5px;
+    padding: 8px;
+}
+
+prompt {
+    background-color: @blue;
+    padding: 8px 12px;
+    text-color: @bg-col;
+    border-radius: 4px;
+    margin: 0px 8px 0px 0px;
+}
+
+textbox-prompt-colon {
+    expand: false;
+    str: ":";
+}
+
+entry {
+    padding: 8px;
+    text-color: @fg-col;
+    background-color: @bg-col;
+    placeholder-color: @grey;
+    placeholder: "Search applications...";
+}
+
+listview {
+    border: 0px 0px 0px;
+    padding: 8px 0px 0px;
+    margin: 8px 0px 0px;
+    columns: 1;
+    lines: 8;
+    background-color: @bg-col;
+}
+
+element {
+    padding: 8px;
+    background-color: @bg-col;
+    text-color: @fg-col;
+    border-radius: 4px;
+}
+
+element-icon {
+    size: 28px;
+}
+
+element selected {
+    background-color: @selected-col;
+    text-color: @blue;
+}
+
+mode-switcher {
+    spacing: 0;
+}
+
+button {
+    padding: 10px;
+    background-color: @bg-col-light;
+    text-color: @grey;
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+}
+
+button selected {
+  background-color: @bg-col;
+  text-color: @blue;
+}
+
+message {
+    background-color: @bg-col-light;
+    margin: 8px;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+textbox {
+    padding: 6px;
+    margin: 20px 0px 0px 20px;
+    text-color: @blue;
+    background-color: @bg-col-light;
+}

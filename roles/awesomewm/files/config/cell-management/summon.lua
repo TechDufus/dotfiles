@@ -46,17 +46,16 @@ return function(app_name)
     local prev_client = helpers.find_client_by_class(previous_class)
     if prev_client then
       prev_client:jump_to()
-      local prev_app_name = helpers.find_app_by_class(previous_class)
-      if prev_app_name then
-        helpers.position_client_in_cell(prev_client, prev_app_name, current_layout)
-      end
+      prev_client:raise()  -- Ensure window comes to front
+      -- Don't reposition - respect user's manual window adjustments
     end
 
   -- Case 2: App exists with windows → activate and position
   elseif target_client then
     print("[DEBUG SUMMON] Case 2: Focus existing app")
     target_client:jump_to()
-    helpers.position_client_in_cell(target_client, app_name, current_layout)
+    target_client:raise()  -- Ensure window comes to front
+    -- Don't reposition - respect user's manual window adjustments
 
   -- Case 3: App not running → launch (positioning via awful.rules)
   else

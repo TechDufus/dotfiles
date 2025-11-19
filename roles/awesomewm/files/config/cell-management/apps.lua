@@ -15,7 +15,7 @@ return {
   Discord = {
     class = "discord",
     summon = "d",
-    exec = "discord",
+    exec = "flatpak run com.discordapp.Discord",
   },
   Spotify = {
     class = "Spotify",           -- Note: Spotify uses capital S
@@ -31,5 +31,10 @@ return {
     class = "1Password",         -- Note: capital P
     summon = "o",
     exec = "1password",
+  },
+  FileManager = {
+    class = "Thunar",
+    summon = "f",                -- F13 + f for files
+    exec = "thunar",
   },
 }

@@ -17,18 +17,10 @@
     state: directory
     mode: '0755'
 
-- name: "{{ role_name }} | Check if settings.json already exists"
+- name: "{{ role_name }} | Check if settings.json exists and is not a symlink"
   ansible.builtin.stat:
     path: "{{ ansible_env.HOME }}/.claude/settings.json"
   register: settings_file
-
-- name: "{{ role_name }} | Backup existing settings.json if it exists and is not a symlink"
-  ansible.builtin.copy:
-    src: "{{ ansible_env.HOME }}/.claude/settings.json"
-    dest: "{{ ansible_env.HOME }}/.claude/settings.json.backup"
-    remote_src: true
-    mode: '0644'
-  when: settings_file.stat.exists and not settings_file.stat.islnk
 
 - name: "{{ role_name }} | Remove existing settings.json if it's not a symlink"
   ansible.builtin.file:
@@ -36,13 +28,12 @@
     state: absent
   when: settings_file.stat.exists and not settings_file.stat.islnk
 
-- name: "{{ role_name }} | Deploy settings.json (copy, not symlink)"
-  ansible.builtin.copy:
-    src: "settings.json"
+- name: "{{ role_name }} | Create symlink to Claude settings.json"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/settings.json"
     dest: "{{ ansible_env.HOME }}/.claude/settings.json"
-    mode: '0644'
-    backup: true
-  when: not settings_file.stat.exists
+    state: link
+    force: true
 
 - name: "{{ role_name }} | Check if ~/.claude/scripts exists and is not a symlink"
   ansible.builtin.stat:

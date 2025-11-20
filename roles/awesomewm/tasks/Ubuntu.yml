@@ -66,6 +66,18 @@
     dest: "{{ ansible_user_dir }}/.config/awesome/cell-management/"
     mode: "0644"
 
+- name: "awesomewm | Ubuntu | Ensure scripts directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/awesome/scripts"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy X11 clipboard watcher script"
+  ansible.builtin.copy:
+    src: "scripts/x11-clipboard-watcher.sh"
+    dest: "{{ ansible_user_dir }}/.config/awesome/scripts/x11-clipboard-watcher.sh"
+    mode: "0755"
+
 - name: "awesomewm | Ubuntu | Deploy wibar configuration"
   ansible.builtin.copy:
     src: "config/wibar.lua"

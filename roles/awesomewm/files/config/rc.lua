@@ -26,9 +26,8 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
--- Start clipboard manager watchers (cliphist)
-awful.spawn.with_shell("wl-paste --type text --watch cliphist store")
-awful.spawn.with_shell("wl-paste --type image --watch cliphist store")
+-- Start clipboard manager watcher (cliphist with X11)
+awful.spawn.once("bash -c '~/.config/awesome/scripts/x11-clipboard-watcher.sh &'")
 -- }}}
 
 -- {{{ Error handling
@@ -365,7 +364,7 @@ globalkeys = gears.table.join(
 
   -- Clipboard history (like Raycast) - Cliphist with rofi
   awful.key({ modkey }, "v", function()
-    awful.spawn.with_shell("cliphist list | rofi -dmenu -display-columns 2 -p 'Clipboard' | cliphist decode | wl-copy")
+    awful.spawn.with_shell("cliphist list | rofi -dmenu -display-columns 2 -p 'Clipboard' | cliphist decode | xclip -selection clipboard")
   end, { description = "clipboard history", group = "launcher" }),
 
   awful.key({ modkey }, "x",

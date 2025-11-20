@@ -51,10 +51,10 @@ local macro_modal
 
 -- Build F16 macro keybindings
 local macro_bindings = {
-  -- s: Screenshot with flameshot
+  -- s: Screenshot with flameshot (copy to clipboard)
   {{}, 's', function()
     print("[DEBUG] F16 macro: Screenshot")
-    awful.spawn("flameshot gui")
+    awful.spawn("flameshot gui -c")  -- -c flag copies to clipboard
     if macro_modal then macro_modal:stop() end
   end},
 

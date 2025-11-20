@@ -26,7 +26,7 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
--- Flare launcher starts on-demand (Super+v) - no auto-start to avoid popup
+-- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
 -- }}}
 
 -- {{{ Error handling
@@ -349,7 +349,7 @@ globalkeys = gears.table.join(
     { description = "application launcher (rofi)", group = "launcher" }),
 
   -- Flare launcher (Raycast-like: clipboard, calculator, extensions, AI)
-  awful.key({ modkey }, "v", function()
+  awful.key({ modkey }, "space", function()
     awful.spawn("/home/techdufus/.local/bin/flare")
   end, { description = "flare launcher", group = "launcher" }),
 

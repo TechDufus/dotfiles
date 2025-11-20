@@ -26,8 +26,8 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
--- Start clipboard manager watcher (cliphist with X11)
-awful.spawn.once("bash -c '~/.config/awesome/scripts/x11-clipboard-watcher.sh &'")
+-- Start Flare launcher (Raycast-like launcher with clipboard, extensions, etc.)
+awful.spawn.once("/home/techdufus/.local/bin/flare")
 -- }}}
 
 -- {{{ Error handling
@@ -81,24 +81,10 @@ editor_cmd = terminal .. " -e " .. editor
 -- However, you can use another modifier like Mod1, but it may interact with others.
 modkey = "Mod4"
 
--- Table of layouts to cover with awful.layout.inc, order matters.
+-- CELL MANAGEMENT MODE: Only floating layout enabled
+-- All window positioning is handled by the cell-based layout system
 awful.layout.layouts = {
   awful.layout.suit.floating,
-  awful.layout.suit.tile,
-  awful.layout.suit.tile.left,
-  awful.layout.suit.tile.bottom,
-  awful.layout.suit.tile.top,
-  awful.layout.suit.fair,
-  awful.layout.suit.fair.horizontal,
-  awful.layout.suit.spiral,
-  awful.layout.suit.spiral.dwindle,
-  awful.layout.suit.max,
-  awful.layout.suit.max.fullscreen,
-  awful.layout.suit.magnifier,
-  awful.layout.suit.corner.nw,
-  -- awful.layout.suit.corner.ne,
-  -- awful.layout.suit.corner.sw,
-  -- awful.layout.suit.corner.se,
 }
 -- }}}
 
@@ -227,26 +213,27 @@ globalkeys = gears.table.join(
   awful.key({ modkey, }, "Escape", awful.tag.history.restore,
     { description = "go back", group = "tag" }),
 
-  awful.key({ modkey, }, "j",
-    function()
-      awful.client.focus.byidx(1)
-    end,
-    { description = "focus next by index", group = "client" }
-  ),
-  awful.key({ modkey, }, "k",
-    function()
-      awful.client.focus.byidx(-1)
-    end,
-    { description = "focus previous by index", group = "client" }
-  ),
+  -- DISABLED: Conflicts with cell management - use Hyper+hjkl instead
+  -- awful.key({ modkey, }, "j",
+  --   function()
+  --     awful.client.focus.byidx(1)
+  --   end,
+  --   { description = "focus next by index", group = "client" }
+  -- ),
+  -- awful.key({ modkey, }, "k",
+  --   function()
+  --     awful.client.focus.byidx(-1)
+  --   end,
+  --   { description = "focus previous by index", group = "client" }
+  -- ),
   awful.key({ modkey, }, "w", function() mymainmenu:show() end,
     { description = "show main menu", group = "awesome" }),
 
-  -- Layout manipulation
-  awful.key({ modkey, "Shift" }, "j", function() awful.client.swap.byidx(1) end,
-    { description = "swap with next client by index", group = "client" }),
-  awful.key({ modkey, "Shift" }, "k", function() awful.client.swap.byidx(-1) end,
-    { description = "swap with previous client by index", group = "client" }),
+  -- DISABLED: Layout manipulation conflicts with cell management
+  -- awful.key({ modkey, "Shift" }, "j", function() awful.client.swap.byidx(1) end,
+  --   { description = "swap with next client by index", group = "client" }),
+  -- awful.key({ modkey, "Shift" }, "k", function() awful.client.swap.byidx(-1) end,
+  --   { description = "swap with previous client by index", group = "client" }),
   awful.key({ modkey, "Control" }, "j", function() awful.screen.focus_relative(1) end,
     { description = "focus the next screen", group = "screen" }),
   awful.key({ modkey, "Control" }, "k", function() awful.screen.focus_relative(-1) end,
@@ -269,21 +256,22 @@ globalkeys = gears.table.join(
     { description = "reload awesome", group = "awesome" }),
   awful.key({ modkey, "Shift" }, "q", awesome.quit,
     { description = "quit awesome", group = "awesome" }),
-  awful.key({ modkey, }, "l", function() awful.tag.incmwfact(0.05) end,
-    { description = "increase master width factor", group = "layout" }),
-  -- Super + h removed (now used for minimize/hide)
-  awful.key({ modkey, "Shift" }, "h", function() awful.tag.incnmaster(1, nil, true) end,
-    { description = "increase the number of master clients", group = "layout" }),
-  awful.key({ modkey, "Shift" }, "l", function() awful.tag.incnmaster(-1, nil, true) end,
-    { description = "decrease the number of master clients", group = "layout" }),
-  awful.key({ modkey, "Control" }, "h", function() awful.tag.incncol(1, nil, true) end,
-    { description = "increase the number of columns", group = "layout" }),
-  awful.key({ modkey, "Control" }, "l", function() awful.tag.incncol(-1, nil, true) end,
-    { description = "decrease the number of columns", group = "layout" }),
-  awful.key({ modkey, }, "space", function() awful.layout.inc(1) end,
-    { description = "select next", group = "layout" }),
-  awful.key({ modkey, "Shift" }, "space", function() awful.layout.inc(-1) end,
-    { description = "select previous", group = "layout" }),
+
+  -- DISABLED: All default layout management - use cell-based layouts instead (Hyper+p/;/u)
+  -- awful.key({ modkey, }, "l", function() awful.tag.incmwfact(0.05) end,
+  --   { description = "increase master width factor", group = "layout" }),
+  -- awful.key({ modkey, "Shift" }, "h", function() awful.tag.incnmaster(1, nil, true) end,
+  --   { description = "increase the number of master clients", group = "layout" }),
+  -- awful.key({ modkey, "Shift" }, "l", function() awful.tag.incnmaster(-1, nil, true) end,
+  --   { description = "decrease the number of master clients", group = "layout" }),
+  -- awful.key({ modkey, "Control" }, "h", function() awful.tag.incncol(1, nil, true) end,
+  --   { description = "increase the number of columns", group = "layout" }),
+  -- awful.key({ modkey, "Control" }, "l", function() awful.tag.incncol(-1, nil, true) end,
+  --   { description = "decrease the number of columns", group = "layout" }),
+  -- awful.key({ modkey, }, "space", function() awful.layout.inc(1) end,
+  --   { description = "select next", group = "layout" }),
+  -- awful.key({ modkey, "Shift" }, "space", function() awful.layout.inc(-1) end,
+  --   { description = "select previous", group = "layout" }),
 
   awful.key({ modkey, "Control" }, "n",
     function()
@@ -361,10 +349,10 @@ globalkeys = gears.table.join(
   awful.key({ modkey }, "r", function() awful.spawn("rofi -show drun -show-icons") end,
     { description = "application launcher (rofi)", group = "launcher" }),
 
-  -- Clipboard history (like Raycast) - Cliphist with rofi
+  -- Flare launcher (Raycast-like: clipboard, calculator, extensions, AI)
   awful.key({ modkey }, "v", function()
-    awful.spawn.with_shell("cliphist list | rofi -dmenu -display-columns 2 -p 'Clipboard' | cliphist decode | xclip -selection clipboard")
-  end, { description = "clipboard history", group = "launcher" }),
+    awful.spawn("/home/techdufus/.local/bin/flare")
+  end, { description = "flare launcher", group = "launcher" }),
 
   awful.key({ modkey }, "x",
     function()

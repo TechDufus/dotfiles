@@ -22,23 +22,12 @@
   become: false
   changed_when: true
 
-- name: "awesomewm | Ubuntu | Install clipboard dependencies"
-  ansible.builtin.apt:
-    name:
-      - golang-go      # For building cliphist
-      - wl-clipboard   # Wayland clipboard utilities
-      - xclip          # X11 clipboard utilities
-    state: present
-  become: true
-
-- name: "awesomewm | Ubuntu | Install cliphist"
-  ansible.builtin.shell: |
-    export GOPATH="{{ ansible_user_dir }}/go"
-    export PATH="$PATH:{{ ansible_user_dir }}/go/bin"
-    go install go.senan.xyz/cliphist@latest
-  args:
-    creates: "{{ ansible_user_dir }}/go/bin/cliphist"
-  changed_when: true
+- name: "awesomewm | Ubuntu | Download Flare launcher"
+  ansible.builtin.get_url:
+    url: https://github.com/ByteAtATime/flare/releases/download/v0.1.0/flare_0.1.0_amd64.AppImage
+    dest: "{{ ansible_user_dir }}/.local/bin/flare"
+    mode: "0755"
+  register: flare_download
 
 - name: "awesomewm | Ubuntu | Ensure ~/.config/awesome exists"
   ansible.builtin.file:
@@ -65,18 +54,6 @@
     src: "config/cell-management/"
     dest: "{{ ansible_user_dir }}/.config/awesome/cell-management/"
     mode: "0644"
-
-- name: "awesomewm | Ubuntu | Ensure scripts directory exists"
-  ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/awesome/scripts"
-    state: directory
-    mode: "0755"
-
-- name: "awesomewm | Ubuntu | Deploy X11 clipboard watcher script"
-  ansible.builtin.copy:
-    src: "scripts/x11-clipboard-watcher.sh"
-    dest: "{{ ansible_user_dir }}/.config/awesome/scripts/x11-clipboard-watcher.sh"
-    mode: "0755"
 
 - name: "awesomewm | Ubuntu | Deploy wibar configuration"
   ansible.builtin.copy:

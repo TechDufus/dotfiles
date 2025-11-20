@@ -271,8 +271,7 @@ globalkeys = gears.table.join(
     { description = "quit awesome", group = "awesome" }),
   awful.key({ modkey, }, "l", function() awful.tag.incmwfact(0.05) end,
     { description = "increase master width factor", group = "layout" }),
-  awful.key({ modkey, }, "h", function() awful.tag.incmwfact(-0.05) end,
-    { description = "decrease master width factor", group = "layout" }),
+  -- Super + h removed (now used for minimize/hide)
   awful.key({ modkey, "Shift" }, "h", function() awful.tag.incnmaster(1, nil, true) end,
     { description = "increase the number of master clients", group = "layout" }),
   awful.key({ modkey, "Shift" }, "l", function() awful.tag.incnmaster(-1, nil, true) end,
@@ -399,13 +398,13 @@ clientkeys = gears.table.join(
     { description = "move to screen", group = "client" }),
   awful.key({ modkey, }, "t", function(c) c.ontop = not c.ontop end,
     { description = "toggle keep on top", group = "client" }),
-  awful.key({ modkey, }, "n",
+  awful.key({ modkey, }, "h",
     function(c)
       -- The client currently has the input focus, so it cannot be
       -- minimized, since minimized clients can't have the focus.
       c.minimized = true
     end,
-    { description = "minimize", group = "client" }),
+    { description = "minimize (hide)", group = "client" }),
   awful.key({ modkey, }, "m",
     function(c)
       c.maximized = not c.maximized

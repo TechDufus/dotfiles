@@ -26,8 +26,7 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
--- Start Flare launcher (Raycast-like launcher with clipboard, extensions, etc.)
-awful.spawn.once("/home/techdufus/.local/bin/flare")
+-- Flare launcher starts on-demand (Super+v) - no auto-start to avoid popup
 -- }}}
 
 -- {{{ Error handling

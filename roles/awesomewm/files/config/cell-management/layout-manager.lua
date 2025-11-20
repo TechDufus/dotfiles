@@ -125,9 +125,9 @@ function M.bind_to_cell()
         cell_index = tonumber(cell_index)
 
         if cell_index and cell_index >= 1 and cell_index <= #layout.cells then
-          -- Get cell definition
+          -- Get cell definition (now a direct position string, not an array)
           local cell_def = layout.cells[cell_index]
-          local geom = require("cell-management.grid").cell_to_geometry(cell_def[1], c.screen)
+          local geom = require("cell-management.grid").cell_to_geometry(cell_def, c.screen)
 
           -- Position client
           c.floating = true

@@ -87,8 +87,8 @@ function M.position_client_in_cell(c, app_name, layout)
     return
   end
 
-  -- Get primary position (first element)
-  local primary_position = cell_def[1]
+  -- Cell def is now the position string directly (no longer an array)
+  local primary_position = cell_def
 
   -- Convert to pixel geometry
   local geom = grid.cell_to_geometry(primary_position, c.screen)

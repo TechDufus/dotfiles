@@ -976,7 +976,6 @@
     ],
     "defaultMode": "acceptEdits"
   },
-  "model": "sonnet",
   "hooks": {
     "PreToolUse": [
       {
@@ -1031,5 +1030,6 @@
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "MCP_TIMEOUT": "30000",
     "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "3600000"
-  }
+  },
+  "model": "sonnet"
 }

@@ -17,8 +17,8 @@ return {
       Browser     = { cell = 2, open = true },
       Discord     = { cell = 3, open = true },
       Spotify     = { cell = 4, open = true },
-      FileManager = { cell = 6, open = true },  -- Thunar in cell 6
-      Obsidian    = { cell = 3 },               -- Don't auto-launch
+      FileManager = { cell = 5, open = true },  -- Thunar in cell 5
+      Obsidian    = { cell = 6 },               -- F13+n in cell 6 (don't auto-launch)
       OnePassword = { cell = 4 },
     },
   },

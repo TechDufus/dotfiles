@@ -54,7 +54,7 @@ local macro_bindings = {
   -- s: Screenshot with flameshot (copy to clipboard)
   {{}, 's', function()
     print("[DEBUG] F16 macro: Screenshot")
-    awful.spawn("flameshot gui -c")  -- -c flag copies to clipboard
+    awful.spawn("flameshot gui")  -- -c flag copies to clipboard
     if macro_modal then macro_modal:stop() end
   end},
 

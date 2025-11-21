@@ -25,7 +25,7 @@ return {
   Obsidian = {
     class = "obsidian",
     summon = "n",
-    exec = "obsidian",
+    exec = "flatpak run md.obsidian.Obsidian",
   },
   OnePassword = {
     class = "1Password",         -- Note: capital P

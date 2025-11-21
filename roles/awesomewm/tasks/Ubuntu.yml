@@ -5,11 +5,20 @@
       - awesome
       - xdotool
       - flameshot
-      - brightnessctl  # For brightness widget
-      - luarocks       # Lua package manager
-      - lua-json       # JSON library for weather widget
-      - thunar         # Lightweight file manager
-      - pipx           # For rofimoji installation
+      - brightnessctl      # For brightness widget
+      - luarocks           # Lua package manager
+      - lua-json           # JSON library for weather widget
+      - thunar             # Lightweight file manager
+      - pipx               # For rofimoji installation
+      - rofi               # Application launcher, layout picker
+      - i3lock             # Screen locker
+      - playerctl          # Media key controls (play/pause/next/prev)
+      - pulseaudio-utils   # Provides pactl for mic mute
+      - x11-xserver-utils  # Provides xset for keyboard repeat rate
+      - flatpak            # Required for Discord, Spotify, Obsidian
+      - papirus-icon-theme # Icon theme for UI
+      - procps             # Provides top, free for widgets
+      - iproute2           # Provides ip command for network widgets
     state: present
     update_cache: true
   become: true

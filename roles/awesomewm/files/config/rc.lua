@@ -26,6 +26,9 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
+-- Start clipboard manager daemon
+awful.spawn.once("copyq")
+
 -- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
 -- }}}
 
@@ -352,6 +355,11 @@ globalkeys = gears.table.join(
   awful.key({ modkey }, "space", function()
     awful.spawn("/home/techdufus/.local/bin/flare")
   end, { description = "flare launcher", group = "launcher" }),
+
+  -- Clipboard manager (CopyQ)
+  awful.key({ modkey }, "v", function()
+    awful.spawn("copyq toggle")
+  end, { description = "clipboard history", group = "launcher" }),
 
   awful.key({ modkey }, "x",
     function()

@@ -19,6 +19,7 @@
       - papirus-icon-theme # Icon theme for UI
       - procps             # Provides top, free for widgets
       - iproute2           # Provides ip command for network widgets
+      - copyq              # Clipboard manager (Super + v)
     state: present
     update_cache: true
   become: true

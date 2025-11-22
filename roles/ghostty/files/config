@@ -5,12 +5,12 @@ background-opacity = 1
 background-blur-radius = 20
 
 # Requires nightly version of ghostty
-# background-image = ~/OneDrive/Pictures/code-bgs/4k/kakashi-hatake.jpg
-background-image-opacity = 0.3
+background-image = ~/Pictures/tengen-uzui-dark-3840x2160-18405.jpg
+background-image-opacity = 0.15
 background-image-fit = cover
 
 # Font
-font-size = 20
+font-size = 15
 font-family = "BerkeleyMono Nerd Font"
 font-thicken = true
 bold-is-bright = true

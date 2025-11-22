@@ -8,9 +8,9 @@ return {
     exec = "ghostty",                 -- Command to launch
   },
   Browser = {
-    class = "brave-browser",
+    class = "brave-browser",                  -- Flatpak WM_CLASS (verify with xprop)
     summon = "b",
-    exec = "brave-browser",
+    exec = "flatpak run com.brave.Browser",   -- Flatpak command
   },
   Discord = {
     class = "discord",

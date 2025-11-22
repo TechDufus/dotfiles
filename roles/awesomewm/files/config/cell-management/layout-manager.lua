@@ -18,13 +18,13 @@ function M.switch_layout(index)
 
   print("[INFO] Switched to layout: " .. layout.name)
 
-  -- Reposition all open apps
+  -- Reposition all open apps (including multiple windows of same app)
   for app_name, app_config in pairs(layout.apps) do
     local app_def = require("cell-management.apps")[app_name]
     if app_def then
-      local client = helpers.find_client_by_class(app_def.class)
-      if client then
-        helpers.position_client_in_cell(client, app_name, layout)
+      local clients = helpers.find_all_clients_by_class(app_def.class)
+      for _, c in ipairs(clients) do
+        helpers.position_client_in_cell(c, app_name, layout)
       end
     end
   end

@@ -45,6 +45,20 @@ function M.find_client_by_class(wm_class)
   return nil
 end
 
+-- Find ALL clients by WM_CLASS (case-insensitive)
+-- Returns table of all matching clients (may be empty)
+function M.find_all_clients_by_class(wm_class)
+  if not wm_class then return {} end
+
+  local matches = {}
+  for _, c in ipairs(client.get()) do
+    if c.class and c.class:lower() == wm_class:lower() then
+      table.insert(matches, c)
+    end
+  end
+  return matches
+end
+
 -- Find app name by WM_CLASS (reverse lookup)
 function M.find_app_by_class(wm_class)
   if not wm_class then return nil end

@@ -26,7 +26,7 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
--- Start clipboard manager daemon
+-- Start clipboard manager daemon (CopyQ)
 awful.spawn.once("copyq")
 
 -- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
@@ -336,8 +336,8 @@ globalkeys = gears.table.join(
 
   -- Screenshot keys
   awful.key({}, "Print", function()
-    awful.spawn("flameshot gui")
-  end, { description = "screenshot area (interactive)", group = "screenshot" }),
+    awful.spawn("flameshot gui -c -s")
+  end, { description = "screenshot area to clipboard", group = "screenshot" }),
 
   awful.key({ "Shift" }, "Print", function()
     awful.spawn("flameshot full -c")
@@ -515,7 +515,7 @@ awful.rules.rules = {
     rule_any = {
       instance = {
         "DTA",     -- Firefox addon DownThemAll.
-        "copyq",   -- Includes session name in class.
+        "copyq",   -- CopyQ clipboard manager
         "pinentry",
       },
       class = {

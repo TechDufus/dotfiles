@@ -4,7 +4,40 @@ local gears = require("gears")
 local summon = require("cell-management.summon")
 local apps = require("cell-management.apps")
 local layout_manager = require("cell-management.layout-manager")
-local cyclefocus = require("cyclefocus")
+
+-- Simple same-class window cycling (no external dependencies)
+local function cycle_same_class()
+  local focused = client.focus
+  if not focused then return end
+
+  local target_class = focused.class
+  if not target_class then return end
+
+  -- Get all clients with same class
+  local same_class_clients = {}
+  for _, c in ipairs(client.get()) do
+    if c.class == target_class and not c.minimized then
+      table.insert(same_class_clients, c)
+    end
+  end
+
+  if #same_class_clients <= 1 then return end  -- Nothing to cycle
+
+  -- Find current index and cycle to next
+  local current_idx = 1
+  for i, c in ipairs(same_class_clients) do
+    if c == focused then
+      current_idx = i
+      break
+    end
+  end
+
+  local next_idx = (current_idx % #same_class_clients) + 1
+  local next_client = same_class_clients[next_idx]
+
+  next_client:jump_to()
+  next_client:raise()
+end
 
 -- Create F13 modal placeholder
 local summon_modal
@@ -43,18 +76,16 @@ summon_modal = awful.keygrabber {
   end,
 }
 
--- Configure cyclefocus for same-app window cycling
-cyclefocus.cycle_filters = { cyclefocus.filters.same_class }
 
 -- Create F16 macros modal placeholder
 local macro_modal
 
 -- Build F16 macro keybindings
 local macro_bindings = {
-  -- s: Screenshot with flameshot (copy to clipboard)
+  -- s: Screenshot with flameshot (auto-copy to clipboard on select)
   {{}, 's', function()
     print("[DEBUG] F16 macro: Screenshot")
-    awful.spawn("flameshot gui")  -- -c flag copies to clipboard
+    awful.spawn("flameshot gui -c -s")  -- -c = clipboard, -s = accept on select
     if macro_modal then macro_modal:stop() end
   end},
 
@@ -68,8 +99,8 @@ local macro_bindings = {
   -- a: Cycle through windows of same application
   {{}, 'a', function()
     print("[DEBUG] F16 macro: Cycle same app windows")
-    cyclefocus.cycle(1)  -- Cycle forward through same-class windows
     if macro_modal then macro_modal:stop() end
+    cycle_same_class()
   end},
 }
 

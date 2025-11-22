@@ -14,6 +14,7 @@
       - i3lock             # Screen locker
       - playerctl          # Media key controls (play/pause/next/prev)
       - pulseaudio-utils   # Provides pactl for mic mute
+      - libasound2-plugins # ALSA pulse plugin for volume widget (amixer -D pulse)
       - x11-xserver-utils  # Provides xset for keyboard repeat rate
       - flatpak            # Required for Discord, Spotify, Obsidian
       - papirus-icon-theme # Icon theme for UI
@@ -162,3 +163,35 @@
     - gtk.css
     - gtk-dark.css
   ignore_errors: true
+
+- name: "awesomewm | Ubuntu | Ensure Flameshot config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/flameshot"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy Flameshot configuration"
+  ansible.builtin.copy:
+    src: "flameshot/flameshot.ini"
+    dest: "{{ ansible_user_dir }}/.config/flameshot/flameshot.ini"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Ensure CopyQ config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/copyq"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy CopyQ configuration"
+  ansible.builtin.copy:
+    src: "copyq/copyq.conf"
+    dest: "{{ ansible_user_dir }}/.config/copyq/copyq.conf"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy CopyQ commands"
+  ansible.builtin.copy:
+    src: "copyq/copyq-commands.ini"
+    dest: "{{ ansible_user_dir }}/.config/copyq/copyq-commands.ini"
+    mode: "0644"
+
+

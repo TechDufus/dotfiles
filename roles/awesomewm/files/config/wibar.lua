@@ -1,6 +1,5 @@
--- wibar.lua - Modern status bar with awesome-wm-widgets integration
--- Catppuccin Mocha themed wibar for AwesomeWM
--- Redesigned with visual grouping, semantic colors, and improved typography
+-- wibar.lua - Flat status bar with Catppuccin Mocha theme
+-- Clean, minimal design with spaced widgets (no container backgrounds)
 
 local awful = require("awful")
 local gears = require("gears")
@@ -10,13 +9,9 @@ local beautiful = require("beautiful")
 -- Load awesome-wm-widgets
 local volume_widget = require("awesome-wm-widgets.volume-widget.volume")
 local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
-local cpu_widget = require("awesome-wm-widgets.cpu-widget.cpu-widget")
-local ram_widget = require("awesome-wm-widgets.ram-widget.ram-widget")
 local calendar_widget = require("awesome-wm-widgets.calendar-widget.calendar")
-local net_speed_widget = require("awesome-wm-widgets.net-speed-widget.net-speed")
 local logout_menu_widget = require("awesome-wm-widgets.logout-menu-widget.logout-menu")
 local fs_widget = require("awesome-wm-widgets.fs-widget.fs-widget")
-local apt_widget = require("awesome-wm-widgets.apt-widget.apt-widget")
 
 -- Only load battery on laptops (check if battery exists)
 local battery_widget = nil
@@ -31,8 +26,6 @@ local wibar_config = {}
 -- ============================================================================
 -- CATPPUCCIN MOCHA COLOR PALETTE
 -- ============================================================================
--- Using beautiful.* theme values where available, fallback to explicit values
--- Semantic color assignments for clarity and maintainability
 
 local colors = {
     -- Base colors
@@ -46,367 +39,280 @@ local colors = {
     subtext0 = "#a6adc8",
     subtext1 = "#bac2de",
 
-    -- Accent colors (semantic usage)
-    blue = "#89b4fa",      -- Controls, primary actions
-    sapphire = "#74c7ec",  -- Download, secondary info
-    sky = "#89dceb",       -- Upload, tertiary info
-    teal = "#94e2d5",      -- Success, positive states
-    green = "#a6e3a1",     -- Battery, resources (good)
-    yellow = "#f9e2af",    -- Warning, medium states
-    peach = "#fab387",     -- Important, highlighted info
-    maroon = "#eba0ac",    -- Critical low, errors
-    red = "#f38ba8",       -- Mute, errors, danger
-    pink = "#f5c2e7",      -- Special states
-    mauve = "#cba6f7",     -- Tertiary actions
-    lavender = "#b4befe",  -- Hints, secondary text
-
-    -- Transparency
-    transparent = "#00000000",
+    -- Accent colors
+    blue = "#89b4fa",
+    sapphire = "#74c7ec",
+    sky = "#89dceb",
+    teal = "#94e2d5",
+    green = "#a6e3a1",
+    yellow = "#f9e2af",
+    peach = "#fab387",
+    maroon = "#eba0ac",
+    red = "#f38ba8",
+    pink = "#f5c2e7",
+    mauve = "#cba6f7",
+    lavender = "#b4befe",
 }
 
 -- ============================================================================
--- TYPOGRAPHY HIERARCHY
+-- TYPOGRAPHY
 -- ============================================================================
--- Consistent font sizing and weights across the wibar
 
--- Font family configuration (change this to use a different font everywhere)
 local font_family = "BerkeleyMono Nerd Font"
 
 local fonts = {
-    clock = font_family .. " Bold 11",      -- Primary time display
-    data = font_family .. " 10",            -- Widget data (CPU/RAM/Net)
-    icon = font_family .. " 12",            -- Icon-only widgets
-    tag = font_family .. " Medium 11",      -- Workspace tags
+    clock = font_family .. " Bold 11",
+    data = font_family .. " 10",
+    icon = font_family .. " 12",
 }
 
 -- ============================================================================
 -- NERD FONT ICONS
 -- ============================================================================
--- Consistent icon set for all widgets using Nerd Fonts
 
 local icons = {
-    -- System widgets
-    cpu = "󰘚",        -- nf-md-cpu
-    ram = "󰍛",        -- nf-md-memory
-    disk = "󰋊",       -- nf-md-harddisk
-
-    -- Network
-    upload = "󰕒",     -- nf-md-upload
-    download = "󰇚",   -- nf-md-download
-
-    -- Updates
-    package = "󰏖",    -- nf-md-package_variant
-
-    -- Time
-    clock = "󰥔",      -- nf-md-clock
-    calendar = "󰃭",   -- nf-md-calendar
-
-    -- Separators
+    cpu = "󰘚",
+    ram = "󰍛",
+    disk = "󰋊",
+    upload = "󰕒",
+    download = "󰇚",
+    clock = "󰥔",
     dot = "•",
-    arrow_right = "",
-    arrow_left = "",
 }
 
 -- ============================================================================
--- SPACING CONSTANTS
+-- SPACING
 -- ============================================================================
--- Consistent spacing throughout the wibar (8px system)
 
 local spacing = {
-    wibar_height = 32,        -- Total wibar height
-    group = 8,                -- Between widget groups
-    widget = 4,               -- Between individual widgets
-    container_padding = 6,    -- Internal container padding
-    separator = 1,            -- Separator width
+    wibar_height = 28,
+    section = 16,      -- Between major sections
+    widget = 12,       -- Between widgets in same section
+    icon_gap = 6,      -- Between icon and value
 }
 
 -- ============================================================================
--- HELPER FUNCTIONS
+-- HELPER: Create spacing widget
 -- ============================================================================
 
--- Create a rounded container for widget groups
--- Provides visual grouping with background and rounded corners
-local function create_container(widget, bg_color, padding)
+local function create_spacer(width)
     return wibox.widget {
-        {
-            widget,
-            left = padding or spacing.container_padding,
-            right = padding or spacing.container_padding,
-            widget = wibox.container.margin,
-        },
-        bg = bg_color or colors.surface0,
-        shape = function(cr, width, height)
-            gears.shape.rounded_rect(cr, width, height, 6)
-        end,
+        forced_width = width or spacing.widget,
         widget = wibox.container.background,
     }
-end
-
--- Create a vertical separator between widget groups
-local function create_separator()
-    return wibox.widget {
-        widget = wibox.widget.separator,
-        orientation = 'vertical',
-        forced_width = spacing.separator,
-        color = colors.surface1,
-        visible = true,
-    }
-end
-
--- Create transparent padding/spacing
-local function create_padding(width)
-    return wibox.widget {
-        widget = wibox.widget.separator,
-        orientation = 'vertical',
-        forced_width = width or spacing.group,
-        color = colors.transparent,
-        visible = true,
-    }
-end
-
--- Create text widget with icon and data (for CPU/RAM/Net)
-local function create_text_widget(icon, text_widget, icon_color, text_color)
-    return wibox.widget {
-        {
-            markup = string.format('<span foreground="%s">%s</span>', icon_color or colors.blue, icon),
-            font = fonts.icon,
-            align = "center",
-            forced_width = 20,  -- Fixed width to prevent icon clipping
-            widget = wibox.widget.textbox,
-        },
-        {
-            text = " ",
-            widget = wibox.widget.textbox,
-        },
-        text_widget,
-        layout = wibox.layout.fixed.horizontal,
-    }
-end
-
--- Add hover effect to interactive widgets
-local function add_hover_effect(widget, hover_bg)
-    local original_bg = widget.bg
-    widget:connect_signal("mouse::enter", function()
-        widget.bg = hover_bg or colors.surface1
-    end)
-    widget:connect_signal("mouse::leave", function()
-        widget.bg = original_bg
-    end)
-    return widget
 end
 
 -- ============================================================================
 -- CALENDAR CONFIGURATION
 -- ============================================================================
 
-local catppuccin_calendar = {
+local calendar = calendar_widget({
     theme = 'naughty',
     placement = 'top_right',
-    radius = 12,
+    radius = 8,
     start_sunday = false,
     week_numbers = false,
-    auto_hide = true,
-    timeout = 3,
-}
+})
 
 -- ============================================================================
 -- WIDGET CONFIGURATIONS
 -- ============================================================================
 
--- Volume Widget - Arc style with blue accent
+-- Volume Widget - Arc style
 local volume_widget_display = volume_widget({
     widget_type = 'arc',
-    thickness = 3,
+    thickness = 2,
     main_color = colors.blue,
-    bg_color = colors.surface0,
+    bg_color = colors.surface1,
     mute_color = colors.red,
-    size = 22,
+    size = 18,
     device = 'pulse',
 })
 
--- Brightness Widget - Arc style with yellow accent
+-- Brightness Widget - Arc style
 local brightness_widget_display = brightness_widget({
     type = 'arc',
     program = 'brightnessctl',
     step = 5,
-    size = 22,
-    arc_thickness = 3,
+    size = 18,
+    arc_thickness = 2,
     tooltip = true,
 })
 
--- Battery Widget - Arc style with green/yellow/red states
+-- Battery Widget (laptops only)
 local battery_widget_display = nil
 if battery_widget then
     battery_widget_display = battery_widget({
         show_current_level = true,
-        arc_thickness = 3,
-        size = 22,
+        arc_thickness = 2,
+        size = 18,
         main_color = colors.green,
         low_level_color = colors.maroon,
         medium_level_color = colors.yellow,
     })
 end
 
--- CPU Widget - Icon + Text style (converting from graph)
-local cpu_text = wibox.widget {
-    text = "0%",
-    font = fonts.data,
-    align = "right",
-    forced_width = 40,  -- Fixed width to prevent jumping
-    widget = wibox.widget.textbox,
-}
-
--- Update CPU text from widget data
-awful.widget.watch('bash -c "top -bn1 | grep Cpu | sed \'s/.*, *\\([0-9.]*\\)%* id.*/\\1/\' | awk \'{print 100 - $1}\'"', 2,
-    function(widget, stdout)
-        local cpu_value = tonumber(stdout)
-        if cpu_value then
-            cpu_text.markup = string.format('<span foreground="%s">%.0f%%</span>', colors.blue, cpu_value)
-        end
-    end
-)
-
-local cpu_widget_display = create_text_widget(icons.cpu, cpu_text, colors.blue)
-
--- RAM Widget - Icon + Text style (converting from bar)
-local ram_text = wibox.widget {
-    text = "0%",
-    font = fonts.data,
-    align = "right",
-    forced_width = 40,  -- Fixed width to prevent jumping
-    widget = wibox.widget.textbox,
-}
-
--- Update RAM text from widget data
-awful.widget.watch('bash -c "free | grep Mem | awk \'{print ($3/$2) * 100.0}\'"', 2,
-    function(widget, stdout)
-        local ram_value = tonumber(stdout)
-        if ram_value then
-            ram_text.markup = string.format('<span foreground="%s">%.0f%%</span>', colors.green, ram_value)
-        end
-    end
-)
-
-local ram_widget_display = create_text_widget(icons.ram, ram_text, colors.green)
-
--- Network Speed Widget - Icon + Text with colored upload/download
-local net_upload_text = wibox.widget {
-    text = "0KB/s",
-    font = fonts.data,
-    align = "right",
-    forced_width = 65,  -- Fixed width to prevent jumping (fits "999.9MB/s")
-    widget = wibox.widget.textbox,
-}
-
-local net_download_text = wibox.widget {
-    text = "0KB/s",
-    font = fonts.data,
-    align = "right",
-    forced_width = 65,  -- Fixed width to prevent jumping (fits "999.9MB/s")
-    widget = wibox.widget.textbox,
-}
-
--- Update network speed text
-awful.widget.watch('bash -c "cat /sys/class/net/$(ip route | grep default | awk \'{print $5}\' | head -1)/statistics/tx_bytes"', 1,
-    function(widget, stdout)
-        local tx_bytes = tonumber(stdout)
-        if tx_bytes and widget.tx_prev then
-            local tx_rate = (tx_bytes - widget.tx_prev)
-            local tx_kb = tx_rate / 1024
-            if tx_kb < 1024 then
-                net_upload_text.markup = string.format('<span foreground="%s">%.0fKB/s</span>', colors.sky, tx_kb)
-            else
-                net_upload_text.markup = string.format('<span foreground="%s">%.1fMB/s</span>', colors.sky, tx_kb / 1024)
-            end
-        end
-        widget.tx_prev = tx_bytes
-    end
-)
-
-awful.widget.watch('bash -c "cat /sys/class/net/$(ip route | grep default | awk \'{print $5}\' | head -1)/statistics/rx_bytes"', 1,
-    function(widget, stdout)
-        local rx_bytes = tonumber(stdout)
-        if rx_bytes and widget.rx_prev then
-            local rx_rate = (rx_bytes - widget.rx_prev)
-            local rx_kb = rx_rate / 1024
-            if rx_kb < 1024 then
-                net_download_text.markup = string.format('<span foreground="%s">%.0fKB/s</span>', colors.sapphire, rx_kb)
-            else
-                net_download_text.markup = string.format('<span foreground="%s">%.1fMB/s</span>', colors.sapphire, rx_kb / 1024)
-            end
-        end
-        widget.rx_prev = rx_bytes
-    end
-)
-
-local net_speed_widget_display = wibox.widget {
-    {
-        markup = string.format('<span foreground="%s">%s</span>', colors.sky, icons.upload),
-        font = fonts.icon,
-        align = "center",
-        forced_width = 20,  -- Fixed width to prevent icon clipping
-        widget = wibox.widget.textbox,
-    },
-    {
-        text = " ",
-        widget = wibox.widget.textbox,
-    },
-    net_upload_text,
-    {
-        text = "  ",
-        widget = wibox.widget.textbox,
-    },
-    {
-        markup = string.format('<span foreground="%s">%s</span>', colors.sapphire, icons.download),
-        font = fonts.icon,
-        align = "center",
-        forced_width = 20,  -- Fixed width to prevent icon clipping
-        widget = wibox.widget.textbox,
-    },
-    {
-        text = " ",
-        widget = wibox.widget.textbox,
-    },
-    net_download_text,
-    layout = wibox.layout.fixed.horizontal,
-}
-
--- Filesystem Widget - Icon-only with tooltip
+-- Filesystem Widget
 local fs_widget_display = fs_widget({
     mounts = { '/', '/home' },
     timeout = 60,
 })
 
--- APT Widget - Icon with badge, hides when 0 updates
-local apt_widget_display = apt_widget({
-    interval = 600,  -- Check every 10 minutes
-})
-
--- Calendar Widget
-local calendar = calendar_widget(catppuccin_calendar)
-
--- Logout Menu Widget - Keep as-is with Catppuccin lock color
+-- Logout Menu Widget
 local logout_widget_display = logout_menu_widget({
     font = fonts.data,
     onlock = function() awful.spawn.with_shell('i3lock -c 1e1e2e') end,
 })
 
 -- ============================================================================
+-- CPU WIDGET
+-- ============================================================================
+
+local cpu_widget_display = wibox.widget {
+    {
+        {
+            markup = string.format('<span foreground="%s">%s</span>', colors.blue, icons.cpu),
+            font = fonts.icon,
+            widget = wibox.widget.textbox,
+        },
+        right = spacing.icon_gap,
+        widget = wibox.container.margin,
+    },
+    {
+        id = "value",
+        markup = string.format('<span foreground="%s">0%%</span>', colors.text),
+        font = fonts.data,
+        widget = wibox.widget.textbox,
+    },
+    layout = wibox.layout.fixed.horizontal,
+}
+
+awful.widget.watch('bash -c "top -bn1 | grep Cpu | sed \'s/.*, *\\([0-9.]*\\)%* id.*/\\1/\' | awk \'{print 100 - $1}\'"', 2,
+    function(widget, stdout)
+        local cpu_value = tonumber(stdout)
+        if cpu_value then
+            cpu_widget_display:get_children_by_id("value")[1].markup =
+                string.format('<span foreground="%s">%.0f%%</span>', colors.text, cpu_value)
+        end
+    end
+)
+
+-- ============================================================================
+-- RAM WIDGET
+-- ============================================================================
+
+local ram_widget_display = wibox.widget {
+    {
+        {
+            markup = string.format('<span foreground="%s">%s</span>', colors.green, icons.ram),
+            font = fonts.icon,
+            widget = wibox.widget.textbox,
+        },
+        right = spacing.icon_gap,
+        widget = wibox.container.margin,
+    },
+    {
+        id = "value",
+        markup = string.format('<span foreground="%s">0%%</span>', colors.text),
+        font = fonts.data,
+        widget = wibox.widget.textbox,
+    },
+    layout = wibox.layout.fixed.horizontal,
+}
+
+awful.widget.watch('bash -c "free | grep Mem | awk \'{print ($3/$2) * 100.0}\'"', 2,
+    function(widget, stdout)
+        local ram_value = tonumber(stdout)
+        if ram_value then
+            ram_widget_display:get_children_by_id("value")[1].markup =
+                string.format('<span foreground="%s">%.0f%%</span>', colors.text, ram_value)
+        end
+    end
+)
+
+-- ============================================================================
+-- NETWORK SPEED WIDGET
+-- ============================================================================
+
+local net_widget_display = wibox.widget {
+    -- Upload icon
+    {
+        {
+            markup = string.format('<span foreground="%s">%s</span>', colors.sky, icons.upload),
+            font = fonts.icon,
+            widget = wibox.widget.textbox,
+        },
+        right = spacing.icon_gap,
+        widget = wibox.container.margin,
+    },
+    -- Upload value
+    {
+        id = "upload",
+        markup = string.format('<span foreground="%s">0K</span>', colors.text),
+        font = fonts.data,
+        widget = wibox.widget.textbox,
+    },
+    create_spacer(spacing.widget),
+    -- Download icon
+    {
+        {
+            markup = string.format('<span foreground="%s">%s</span>', colors.sapphire, icons.download),
+            font = fonts.icon,
+            widget = wibox.widget.textbox,
+        },
+        right = spacing.icon_gap,
+        widget = wibox.container.margin,
+    },
+    -- Download value
+    {
+        id = "download",
+        markup = string.format('<span foreground="%s">0K</span>', colors.text),
+        font = fonts.data,
+        widget = wibox.widget.textbox,
+    },
+    layout = wibox.layout.fixed.horizontal,
+}
+
+-- Format bytes to human readable (compact)
+local function format_speed(bytes)
+    if bytes < 1024 then
+        return string.format("%.0fB", bytes)
+    elseif bytes < 1024 * 1024 then
+        return string.format("%.0fK", bytes / 1024)
+    else
+        return string.format("%.1fM", bytes / 1024 / 1024)
+    end
+end
+
+-- Track previous values for rate calculation
+local net_prev = { tx = 0, rx = 0 }
+
+awful.widget.watch('bash -c "cat /sys/class/net/$(ip route | grep default | awk \'{print $5}\' | head -1)/statistics/tx_bytes /sys/class/net/$(ip route | grep default | awk \'{print $5}\' | head -1)/statistics/rx_bytes 2>/dev/null"', 1,
+    function(widget, stdout)
+        local lines = {}
+        for line in stdout:gmatch("[^\n]+") do
+            table.insert(lines, tonumber(line) or 0)
+        end
+        if #lines >= 2 then
+            local tx, rx = lines[1], lines[2]
+            if net_prev.tx > 0 then
+                local tx_rate = tx - net_prev.tx
+                local rx_rate = rx - net_prev.rx
+                net_widget_display:get_children_by_id("upload")[1].markup =
+                    string.format('<span foreground="%s">%s</span>', colors.text, format_speed(tx_rate))
+                net_widget_display:get_children_by_id("download")[1].markup =
+                    string.format('<span foreground="%s">%s</span>', colors.text, format_speed(rx_rate))
+            end
+            net_prev.tx, net_prev.rx = tx, rx
+        end
+    end
+)
+
+-- ============================================================================
 -- CLOCK WIDGET
 -- ============================================================================
 
-local mytextclock = wibox.widget {
-    {
-        markup = string.format('<span foreground="%s">%s</span>', colors.blue, icons.clock),
-        font = fonts.icon,
-        align = "center",
-        forced_width = 20,  -- Fixed width to prevent icon clipping
-        widget = wibox.widget.textbox,
-    },
-    {
-        text = " ",
-        widget = wibox.widget.textbox,
-    },
+local clock_widget = wibox.widget {
     {
         format = "%a %b %d, %H:%M",
         font = fonts.clock,
@@ -415,29 +321,19 @@ local mytextclock = wibox.widget {
     layout = wibox.layout.fixed.horizontal,
 }
 
--- Attach calendar popup to clock (click handler only, no double-container)
--- The system_group will handle the container and hover effect
-mytextclock:connect_signal("button::press", function(_, _, _, button)
-    if button == 1 then  -- Left click
-        calendar.toggle()
-    end
+clock_widget:connect_signal("button::press", function(_, _, _, button)
+    if button == 1 then calendar.toggle() end
 end)
-
--- ============================================================================
--- KEYBOARD LAYOUT INDICATOR
--- ============================================================================
-
-local mykeyboardlayout = awful.widget.keyboardlayout()
 
 -- ============================================================================
 -- WIBAR CREATION
 -- ============================================================================
 
 function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
-    -- Create a promptbox for each screen
+    -- Promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
 
-    -- Create an imagebox widget for layout indicator
+    -- Layout indicator
     s.mylayoutbox = awful.widget.layoutbox(s)
     s.mylayoutbox:buttons(gears.table.join(
         awful.button({}, 1, function() awful.layout.inc(1) end),
@@ -446,14 +342,14 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
         awful.button({}, 5, function() awful.layout.inc(-1) end)
     ))
 
-    -- Create a taglist widget
+    -- Taglist (hidden for cell-based workflow, but available)
     s.mytaglist = awful.widget.taglist {
         screen = s,
         filter = awful.widget.taglist.filter.all,
         buttons = taglist_buttons,
     }
 
-    -- Create a tasklist widget (icons only)
+    -- Tasklist (icons only, centered)
     s.mytasklist = awful.widget.tasklist {
         screen = s,
         filter = awful.widget.tasklist.filter.currenttags,
@@ -468,7 +364,7 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
                     id = 'icon_role',
                     widget = wibox.widget.imagebox,
                 },
-                margins = 4,
+                margins = 3,
                 widget = wibox.container.margin,
             },
             id = 'background_role',
@@ -476,7 +372,11 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
         },
     }
 
-    -- Create the wibox
+    -- System tray
+    local systray = wibox.widget.systray()
+    systray:set_base_size(16)
+
+    -- Create the wibar
     s.mywibox = awful.wibar({
         position = "top",
         screen = s,
@@ -487,117 +387,58 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
     })
 
     -- ========================================================================
-    -- WIDGET GROUP ASSEMBLY
-    -- ========================================================================
-
-    -- Group 1: System Monitoring (CPU, RAM, Net)
-    local monitoring_group = create_container(
-        wibox.widget {
-            cpu_widget_display,
-            create_padding(spacing.widget),
-            create_separator(),
-            create_padding(spacing.widget),
-            ram_widget_display,
-            create_padding(spacing.widget),
-            create_separator(),
-            create_padding(spacing.widget),
-            net_speed_widget_display,
-            layout = wibox.layout.fixed.horizontal,
-        },
-        colors.surface0
-    )
-
-    -- Group 2: Storage & Updates (Filesystem, APT)
-    local storage_group = create_container(
-        wibox.widget {
-            fs_widget_display,
-            create_padding(spacing.widget),
-            create_separator(),
-            create_padding(spacing.widget),
-            apt_widget_display,
-            layout = wibox.layout.fixed.horizontal,
-        },
-        colors.surface0
-    )
-
-    -- Group 3: Controls (Battery, Brightness, Volume)
-    local controls_widgets = {
-        layout = wibox.layout.fixed.horizontal,
-    }
-
-    -- Add battery if available
-    if battery_widget_display then
-        table.insert(controls_widgets, battery_widget_display)
-        table.insert(controls_widgets, create_padding(spacing.widget))
-        table.insert(controls_widgets, create_separator())
-        table.insert(controls_widgets, create_padding(spacing.widget))
-    end
-
-    -- Add brightness
-    table.insert(controls_widgets, brightness_widget_display)
-    table.insert(controls_widgets, create_padding(spacing.widget))
-    table.insert(controls_widgets, create_separator())
-    table.insert(controls_widgets, create_padding(spacing.widget))
-
-    -- Add volume
-    table.insert(controls_widgets, volume_widget_display)
-
-    local controls_group = create_container(
-        wibox.widget(controls_widgets),
-        colors.surface0
-    )
-
-    -- Group 4: System Tray
-    local systray = wibox.widget.systray()
-    systray:set_base_size(20)
-
-    -- Group 5: Time & System (Keyboard, Clock, Logout)
-    local system_group = create_container(
-        wibox.widget {
-            mykeyboardlayout,
-            create_padding(spacing.widget),
-            create_separator(),
-            create_padding(spacing.widget),
-            mytextclock,
-            create_padding(spacing.widget),
-            create_separator(),
-            create_padding(spacing.widget),
-            logout_widget_display,
-            layout = wibox.layout.fixed.horizontal,
-        },
-        colors.surface0
-    )
-
-    -- Add hover effect to system group
-    system_group = add_hover_effect(system_group, colors.surface1)
-
-    -- ========================================================================
-    -- FINAL WIBAR LAYOUT
+    -- FLAT LAYOUT - No container backgrounds, clean spacing
     -- ========================================================================
 
     s.mywibox:setup {
         layout = wibox.layout.align.horizontal,
+
+        -- LEFT: Monitoring widgets
         {
-            -- Left widgets: Prompt only (taglist hidden)
             layout = wibox.layout.fixed.horizontal,
-            create_padding(spacing.group),
-            s.mypromptbox,
+            create_spacer(spacing.section),
+            cpu_widget_display,
+            create_spacer(spacing.widget),
+            ram_widget_display,
+            create_spacer(spacing.section),
+            net_widget_display,
+            create_spacer(spacing.section),
         },
-        -- Middle widget: Tasklist
-        s.mytasklist,
+
+        -- CENTER: Tasklist
         {
-            -- Right widgets: All widget groups
+            s.mytasklist,
+            halign = "center",
+            widget = wibox.container.place,
+        },
+
+        -- RIGHT: Controls, systray, clock, logout
+        {
             layout = wibox.layout.fixed.horizontal,
-            monitoring_group,
-            create_padding(spacing.group),
-            storage_group,
-            create_padding(spacing.group),
-            controls_group,
-            create_padding(spacing.group),
+
+            -- Disk usage
+            fs_widget_display,
+            create_spacer(spacing.section),
+
+            -- Controls (battery if laptop, brightness, volume)
+            battery_widget_display and battery_widget_display or nil,
+            battery_widget_display and create_spacer(spacing.widget) or nil,
+            brightness_widget_display,
+            create_spacer(spacing.widget),
+            volume_widget_display,
+            create_spacer(spacing.section),
+
+            -- System tray
             systray,
-            create_padding(spacing.group),
-            system_group,
-            create_padding(spacing.group),
+            create_spacer(spacing.section),
+
+            -- Clock
+            clock_widget,
+            create_spacer(spacing.widget),
+
+            -- Logout
+            logout_widget_display,
+            create_spacer(spacing.section),
         },
     }
 end
@@ -605,7 +446,6 @@ end
 -- ============================================================================
 -- EXPORTS
 -- ============================================================================
--- Export widget modules for keybindings in rc.lua
 
 wibar_config.volume_widget = volume_widget
 wibar_config.brightness_widget = brightness_widget

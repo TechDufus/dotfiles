@@ -86,8 +86,8 @@ local icons = {
 
 local spacing = {
     wibar_height = 28,
-    section = 16,      -- Between major sections
-    widget = 12,       -- Between widgets in same section
+    section = 24,      -- Between major sections
+    widget = 16,       -- Between widgets in same section
     icon_gap = 6,      -- Between icon and value
 }
 
@@ -97,8 +97,10 @@ local spacing = {
 
 local function create_spacer(width)
     return wibox.widget {
+        orientation = 'vertical',
         forced_width = width or spacing.widget,
-        widget = wibox.container.background,
+        opacity = 0,
+        widget = wibox.widget.separator,
     }
 end
 
@@ -175,7 +177,8 @@ local cpu_widget_display = wibox.widget {
             font = fonts.icon,
             widget = wibox.widget.textbox,
         },
-        right = spacing.icon_gap,
+        left = 2,   -- Nerd Font icons need extra space
+        right = spacing.icon_gap + 2,
         widget = wibox.container.margin,
     },
     {
@@ -208,7 +211,8 @@ local ram_widget_display = wibox.widget {
             font = fonts.icon,
             widget = wibox.widget.textbox,
         },
-        right = spacing.icon_gap,
+        left = 2,
+        right = spacing.icon_gap + 2,
         widget = wibox.container.margin,
     },
     {
@@ -242,7 +246,8 @@ local net_widget_display = wibox.widget {
             font = fonts.icon,
             widget = wibox.widget.textbox,
         },
-        right = spacing.icon_gap,
+        left = 2,
+        right = spacing.icon_gap + 2,
         widget = wibox.container.margin,
     },
     -- Upload value
@@ -260,7 +265,8 @@ local net_widget_display = wibox.widget {
             font = fonts.icon,
             widget = wibox.widget.textbox,
         },
-        right = spacing.icon_gap,
+        left = 2,
+        right = spacing.icon_gap + 2,
         widget = wibox.container.margin,
     },
     -- Download value
@@ -314,9 +320,13 @@ awful.widget.watch('bash -c "cat /sys/class/net/$(ip route | grep default | awk 
 
 local clock_widget = wibox.widget {
     {
-        format = "%a %b %d, %H:%M",
-        font = fonts.clock,
-        widget = wibox.widget.textclock,
+        {
+            format = "%a %b %d, %H:%M",
+            font = fonts.clock,
+            widget = wibox.widget.textclock,
+        },
+        left = 4,  -- Prevent overlap from systray
+        widget = wibox.container.margin,
     },
     layout = wibox.layout.fixed.horizontal,
 }

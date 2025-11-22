@@ -21,6 +21,11 @@
       - procps             # Provides top, free for widgets
       - iproute2           # Provides ip command for network widgets
       - copyq              # Clipboard manager (Super + v)
+      # Standalone settings tools (no GNOME deps)
+      - pavucontrol        # Audio/mic/speaker settings
+      - arandr             # Display/monitor layout
+      - lxappearance       # GTK themes/fonts/icons
+      - blueman            # Bluetooth manager
     state: present
     update_cache: true
   become: true

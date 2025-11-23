@@ -102,6 +102,15 @@ local macro_bindings = {
     if macro_modal then macro_modal:stop() end
     cycle_same_class()
   end},
+
+  -- g: GUI Settings menu (rofi picker)
+  {{}, 'g', function()
+    print("[DEBUG] F16 macro: Settings menu")
+    if macro_modal then macro_modal:stop() end
+    awful.spawn.easy_async_with_shell([[
+      printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
+    ]], function() end)
+  end},
 }
 
 -- Initialize the F16 macro modal

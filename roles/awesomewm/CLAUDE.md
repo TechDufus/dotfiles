@@ -339,6 +339,17 @@ The grid system uses `screen.workarea` which should exclude the status bar. If w
    }
    ```
 
+## Settings Tools (No GNOME Required)
+
+| Setting | Command | Description |
+|---------|---------|-------------|
+| Audio/Mic/Speaker | `pavucontrol` | Default devices, volume levels |
+| Display/Monitors | `arandr` | Screen layout, resolution, rotation |
+| GTK Themes/Fonts | `lxappearance` | Appearance, icons, cursor |
+| Bluetooth | `blueman-manager` | Pairing, connections |
+| Network | `nm-connection-editor` | WiFi, VPN, Ethernet |
+| Profile Picture | Log into GNOME once, or use AccountsService |
+
 ## Uninstalling
 
 **Remove configuration only**:

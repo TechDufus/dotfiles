@@ -23,6 +23,10 @@ end
 
 local wibar_config = {}
 
+-- Notification modules (loaded lazily to avoid circular dependency)
+local notifications = nil
+local dnd = nil
+
 -- ============================================================================
 -- CATPPUCCIN MOCHA COLOR PALETTE
 -- ============================================================================
@@ -61,9 +65,9 @@ local colors = {
 local font_family = "BerkeleyMono Nerd Font"
 
 local fonts = {
-    clock = font_family .. " Bold 11",
-    data = font_family .. " 10",
-    icon = font_family .. " 12",
+    clock = font_family .. " Bold 15",
+    data = font_family .. " 14",
+    icon = font_family .. " 16",
 }
 
 -- ============================================================================
@@ -71,6 +75,7 @@ local fonts = {
 -- ============================================================================
 
 local icons = {
+    launcher = "󰀻",
     cpu = "󰘚",
     ram = "󰍛",
     disk = "󰋊",
@@ -78,6 +83,8 @@ local icons = {
     download = "󰇚",
     clock = "󰥔",
     dot = "•",
+    dnd_normal = "󰂚",    -- Bell icon
+    dnd_enabled = "󰂛",   -- Bell-off icon
 }
 
 -- ============================================================================
@@ -85,7 +92,7 @@ local icons = {
 -- ============================================================================
 
 local spacing = {
-    wibar_height = 28,
+    wibar_height = 36,
     section = 24,      -- Between major sections
     widget = 16,       -- Between widgets in same section
     icon_gap = 6,      -- Between icon and value
@@ -131,15 +138,25 @@ local volume_widget_display = volume_widget({
     device = 'pulse',
 })
 
--- Brightness Widget - Arc style
-local brightness_widget_display = brightness_widget({
-    type = 'arc',
-    program = 'brightnessctl',
-    step = 5,
-    size = 18,
-    arc_thickness = 2,
-    tooltip = true,
-})
+-- Brightness Widget - Arc style (laptops only - check for backlight hardware)
+local brightness_widget_display = nil
+local has_backlight = false
+local backlight_handle = io.popen("ls /sys/class/backlight/ 2>/dev/null")
+if backlight_handle then
+    local backlight_result = backlight_handle:read("*a")
+    backlight_handle:close()
+    has_backlight = backlight_result ~= nil and backlight_result ~= ""
+end
+if has_backlight then
+    brightness_widget_display = brightness_widget({
+        type = 'arc',
+        program = 'brightnessctl',
+        step = 5,
+        size = 18,
+        arc_thickness = 2,
+        tooltip = true,
+    })
+end
 
 -- Battery Widget (laptops only)
 local battery_widget_display = nil
@@ -154,9 +171,45 @@ if battery_widget then
     })
 end
 
--- Filesystem Widget
+-- Filesystem Widget - Auto-detect real disk mounts
+local function get_disk_mounts()
+    local mounts = {}
+    local dominated_types = {
+        ext4 = true, ext3 = true, ext2 = true,
+        xfs = true, btrfs = true, zfs = true,
+        ntfs = true, fuseblk = true,
+        exfat = true, f2fs = true, jfs = true, reiserfs = true,
+    }
+
+    local handle = io.popen("df -T 2>/dev/null | tail -n +2")
+    if handle then
+        for line in handle:lines() do
+            local fs, fstype, size, used, avail, percent, mount =
+                line:match("(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(.+)")
+            if fstype and dominated_types[fstype] and mount then
+                table.insert(mounts, mount)
+            end
+        end
+        handle:close()
+    end
+
+    -- Ensure root is always first if present
+    table.sort(mounts, function(a, b)
+        if a == "/" then return true end
+        if b == "/" then return false end
+        return a < b
+    end)
+
+    -- Fallback to root if nothing detected
+    if #mounts == 0 then
+        mounts = { "/" }
+    end
+
+    return mounts
+end
+
 local fs_widget_display = fs_widget({
-    mounts = { '/', '/home' },
+    mounts = get_disk_mounts(),
     timeout = 60,
 })
 
@@ -165,6 +218,26 @@ local logout_widget_display = logout_menu_widget({
     font = fonts.data,
     onlock = function() awful.spawn.with_shell('i3lock -c 1e1e2e') end,
 })
+
+-- ============================================================================
+-- LAUNCHER WIDGET (Start Menu)
+-- ============================================================================
+
+local launcher_widget = wibox.widget {
+    {
+        {
+            markup = string.format('<span foreground="%s">%s</span>', colors.mauve, icons.launcher),
+            font = fonts.icon,
+            widget = wibox.widget.textbox,
+        },
+        left = 4,
+        right = 4,
+        widget = wibox.container.margin,
+    },
+    layout = wibox.layout.fixed.horizontal,
+}
+
+-- Click handler will be connected in create_wibar (needs access to mymainmenu)
 
 -- ============================================================================
 -- CPU WIDGET
@@ -177,7 +250,7 @@ local cpu_widget_display = wibox.widget {
             font = fonts.icon,
             widget = wibox.widget.textbox,
         },
-        left = 2,   -- Nerd Font icons need extra space
+        left = 2,
         right = spacing.icon_gap + 2,
         widget = wibox.container.margin,
     },
@@ -190,12 +263,26 @@ local cpu_widget_display = wibox.widget {
     layout = wibox.layout.fixed.horizontal,
 }
 
-awful.widget.watch('bash -c "top -bn1 | grep Cpu | sed \'s/.*, *\\([0-9.]*\\)%* id.*/\\1/\' | awk \'{print 100 - $1}\'"', 2,
+local cpu_prev = { total = 0, idle = 0 }
+
+awful.widget.watch('bash -c "grep \'^cpu \' /proc/stat"', 2,
     function(widget, stdout)
-        local cpu_value = tonumber(stdout)
-        if cpu_value then
+        local user, nice, system, idle, iowait, irq, softirq, steal =
+            stdout:match('cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)')
+
+        if user then
+            local total = user + nice + system + idle + iowait + irq + softirq + steal
+            local diff_idle = idle - cpu_prev.idle
+            local diff_total = total - cpu_prev.total
+            local usage = 0
+            if diff_total > 0 then
+                usage = math.floor((1 - diff_idle / diff_total) * 100 + 0.5)
+            end
+            cpu_prev.total = total
+            cpu_prev.idle = idle
+
             cpu_widget_display:get_children_by_id("value")[1].markup =
-                string.format('<span foreground="%s">%.0f%%</span>', colors.text, cpu_value)
+                string.format('<span foreground="%s">%d%%</span>', colors.text, usage)
         end
     end
 )
@@ -209,10 +296,11 @@ local ram_widget_display = wibox.widget {
         {
             markup = string.format('<span foreground="%s">%s</span>', colors.green, icons.ram),
             font = fonts.icon,
+            forced_width = 20,
             widget = wibox.widget.textbox,
         },
         left = 2,
-        right = spacing.icon_gap + 2,
+        right = spacing.icon_gap,
         widget = wibox.container.margin,
     },
     {
@@ -336,12 +424,80 @@ clock_widget:connect_signal("button::press", function(_, _, _, button)
 end)
 
 -- ============================================================================
+-- DND (DO NOT DISTURB) WIDGET
+-- ============================================================================
+
+local dnd_widget = wibox.widget {
+    {
+        {
+            id = "icon",
+            markup = string.format('<span foreground="%s">%s</span>', colors.blue, icons.dnd_normal),
+            font = fonts.icon,
+            forced_width = 24,
+            widget = wibox.widget.textbox,
+        },
+        left = 4,
+        right = 4,
+        widget = wibox.container.margin,
+    },
+    layout = wibox.layout.fixed.horizontal,
+}
+
+-- Update icon based on DND state
+local function update_dnd_icon()
+    if not dnd then return end
+    local icon_widget = dnd_widget:get_children_by_id("icon")[1]
+    if dnd.is_enabled() then
+        icon_widget.markup = string.format('<span foreground="%s">%s</span>', colors.red, icons.dnd_enabled)
+    else
+        icon_widget.markup = string.format('<span foreground="%s">%s</span>', colors.blue, icons.dnd_normal)
+    end
+end
+
+-- Click handlers (modules loaded lazily on first interaction)
+dnd_widget:connect_signal("button::press", function(_, _, _, button)
+    -- Lazy load notifications module
+    if not notifications then
+        notifications = require("notifications")
+        dnd = notifications.dnd
+        -- Connect signal now that module is loaded
+        dnd.connect_signal("state::changed", function()
+            update_dnd_icon()
+        end)
+    end
+
+    if button == 1 then  -- Left click: toggle DND
+        dnd.toggle()
+    end
+end)
+
+-- Hover effect
+dnd_widget:connect_signal("mouse::enter", function()
+    if not dnd then return end
+    local icon_widget = dnd_widget:get_children_by_id("icon")[1]
+    local color = dnd.is_enabled() and colors.maroon or colors.sapphire
+    local icon = dnd.is_enabled() and icons.dnd_enabled or icons.dnd_normal
+    icon_widget.markup = string.format('<span foreground="%s">%s</span>', color, icon)
+end)
+
+dnd_widget:connect_signal("mouse::leave", function()
+    update_dnd_icon()
+end)
+
+-- ============================================================================
 -- WIBAR CREATION
 -- ============================================================================
 
-function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
+function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmenu)
     -- Promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
+
+    -- Connect launcher click handler (needs mainmenu from rc.lua)
+    if mainmenu then
+        launcher_widget:buttons(awful.util.table.join(
+            awful.button({}, 1, function() mainmenu:show() end)
+        ))
+    end
 
     -- Layout indicator
     s.mylayoutbox = awful.widget.layoutbox(s)
@@ -403,9 +559,11 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
     s.mywibox:setup {
         layout = wibox.layout.align.horizontal,
 
-        -- LEFT: Monitoring widgets
+        -- LEFT: Launcher + Monitoring widgets
         {
             layout = wibox.layout.fixed.horizontal,
+            create_spacer(spacing.widget),
+            launcher_widget,
             create_spacer(spacing.section),
             cpu_widget_display,
             create_spacer(spacing.widget),
@@ -430,17 +588,25 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
             fs_widget_display,
             create_spacer(spacing.section),
 
-            -- Controls (battery if laptop, brightness, volume)
+            -- Controls (battery if laptop, brightness if laptop, volume)
             battery_widget_display and battery_widget_display or nil,
             battery_widget_display and create_spacer(spacing.widget) or nil,
-            brightness_widget_display,
-            create_spacer(spacing.widget),
+            brightness_widget_display and brightness_widget_display or nil,
+            brightness_widget_display and create_spacer(spacing.widget) or nil,
             volume_widget_display,
             create_spacer(spacing.section),
 
-            -- System tray
-            systray,
+            -- System tray (vertically centered)
+            {
+                systray,
+                valign = 'center',
+                widget = wibox.container.place,
+            },
             create_spacer(spacing.section),
+
+            -- DND (notifications) widget
+            dnd_widget,
+            create_spacer(spacing.widget),
 
             -- Clock
             clock_widget,

@@ -9,6 +9,8 @@
       - luarocks           # Lua package manager
       - lua-json           # JSON library for weather widget
       - thunar             # Lightweight file manager
+      - tumbler            # Thumbnail service for Thunar
+      - ristretto          # Lightweight image viewer (Xfce)
       - pipx               # For rofimoji installation
       - rofi               # Application launcher, layout picker
       - i3lock             # Screen locker
@@ -71,10 +73,22 @@
     dest: "{{ ansible_user_dir }}/.config/awesome/cell-management/"
     mode: "0644"
 
+- name: "awesomewm | Ubuntu | Deploy Notifications Config"
+  ansible.builtin.copy:
+    src: "config/notifications/"
+    dest: "{{ ansible_user_dir }}/.config/awesome/notifications/"
+    mode: "0644"
+
 - name: "awesomewm | Ubuntu | Deploy wibar configuration"
   ansible.builtin.copy:
     src: "config/wibar.lua"
     dest: "{{ ansible_user_dir }}/.config/awesome/wibar.lua"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy window switcher"
+  ansible.builtin.copy:
+    src: "config/window-switcher.lua"
+    dest: "{{ ansible_user_dir }}/.config/awesome/window-switcher.lua"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy Catppuccin Mocha Theme"

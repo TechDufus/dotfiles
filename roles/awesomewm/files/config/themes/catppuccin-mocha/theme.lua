@@ -102,7 +102,14 @@ theme.notification_fg           = mocha.text
 theme.notification_border_color = mocha.blue
 theme.notification_border_width = dpi(2)
 theme.notification_opacity      = 0.95
-theme.notification_margin       = dpi(10)
+theme.notification_margin       = dpi(16)
+theme.notification_icon_size    = dpi(48)
+theme.notification_max_width    = dpi(400)
+theme.notification_max_height   = dpi(200)
+theme.notification_font         = "BerkeleyMono Nerd Font 11"
+theme.notification_shape        = function(cr, w, h)
+    require("gears").shape.rounded_rect(cr, w, h, dpi(12))
+end
 
 -- Hotkeys popup
 theme.hotkeys_bg                = mocha.base

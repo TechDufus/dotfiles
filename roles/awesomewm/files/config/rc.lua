@@ -22,6 +22,9 @@ require("awful.hotkeys_popup.keys")
 local debian = require("debian.menu")
 local has_fdo, freedesktop = pcall(require, "freedesktop")
 
+-- Window switcher (Alt+Tab style)
+local window_switcher = require("window-switcher")
+
 -- {{{ Startup commands
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
@@ -70,6 +73,9 @@ local cell_management = require("cell-management")
 
 -- Load modern wibar configuration
 local wibar_config = require("wibar")
+
+-- Load notification system
+local notifications = require("notifications")
 
 -- This is used later as the default terminal and editor to run.
 terminal = "ghostty"
@@ -192,7 +198,7 @@ awful.screen.connect_for_each_screen(function(s)
   awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
 
   -- Create the modern wibar with all widgets
-  wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons)
+  wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mymainmenu)
 end)
 -- }}}
 
@@ -244,12 +250,14 @@ globalkeys = gears.table.join(
     { description = "jump to urgent client", group = "client" }),
   awful.key({ modkey, }, "Tab",
     function()
-      awful.client.focus.history.previous()
-      if client.focus then
-        client.focus:raise()
-      end
+      window_switcher.show(1)
     end,
-    { description = "go back", group = "client" }),
+    { description = "cycle to next window", group = "client" }),
+  awful.key({ modkey, "Shift" }, "Tab",
+    function()
+      window_switcher.show(-1)
+    end,
+    { description = "cycle to previous window", group = "client" }),
 
   -- Standard program
   awful.key({ modkey, }, "Return", function() awful.spawn(terminal) end,
@@ -487,6 +495,9 @@ clientbuttons = gears.table.join(
 -- Add cell-management keybindings
 local keybindings = require("cell-management.keybindings")
 globalkeys = gears.table.join(globalkeys, keybindings.globalkeys)
+
+-- Add notification keybindings
+globalkeys = gears.table.join(globalkeys, notifications.globalkeys)
 
 -- Set keys
 root.keys(globalkeys)

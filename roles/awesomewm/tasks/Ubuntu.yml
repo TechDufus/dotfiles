@@ -28,6 +28,7 @@
       - arandr             # Display/monitor layout
       - lxappearance       # GTK themes/fonts/icons
       - blueman            # Bluetooth manager
+      - xfce4-power-manager # Power/battery/screen timeout settings
     state: present
     update_cache: true
   become: true

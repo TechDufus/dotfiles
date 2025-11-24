@@ -108,7 +108,7 @@ local macro_bindings = {
     print("[DEBUG] F16 macro: Settings menu")
     if macro_modal then macro_modal:stop() end
     awful.spawn.easy_async_with_shell([[
-      printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
+      printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" "Power (xfce4-power-manager-settings)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
     ]], function() end)
   end},
 }

@@ -348,6 +348,7 @@ The grid system uses `screen.workarea` which should exclude the status bar. If w
 | GTK Themes/Fonts | `lxappearance` | Appearance, icons, cursor |
 | Bluetooth | `blueman-manager` | Pairing, connections |
 | Network | `nm-connection-editor` | WiFi, VPN, Ethernet |
+| Power/Battery | `xfce4-power-manager-settings` | Screen timeout, sleep, power button |
 | Profile Picture | Log into GNOME once, or use AccountsService |
 
 ## Uninstalling

@@ -15,5 +15,5 @@ enable_example_feature: false
 example_provides_appimage: false
 
 # User settings (usually overridden in group_vars/all.yml)
-# user_name: "{{ ansible_user_id }}"
+# user_name: "{{ ansible_facts['user_id'] }}"
 # user_email: "user@example.com"

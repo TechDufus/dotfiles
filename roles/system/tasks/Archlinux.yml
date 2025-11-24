@@ -1,5 +1,5 @@
 ---
-- name: "System | {{ ansible_distribution }} | Update pacman"
+- name: "System | {{ ansible_facts['distribution'] }} | Update pacman"
   community.general.pacman:
     update_cache: true
     upgrade: true
@@ -7,7 +7,7 @@
   become: true
   when: can_install_packages | default(false)
 
-- name: "System | {{ ansible_distribution }} | Install"
+- name: "System | {{ ansible_facts['distribution'] }} | Install"
   community.general.pacman:
     name:
       - jq
@@ -17,7 +17,7 @@
   become: true
   when: can_install_packages | default(false)
 
-- name: "System | {{ ansible_distribution }} | Packages skipped (no sudo)"
+- name: "System | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
   ansible.builtin.debug:
     msg:
       - "⚠️  Package installation skipped due to missing sudo privileges"

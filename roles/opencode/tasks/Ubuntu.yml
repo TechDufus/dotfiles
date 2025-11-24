@@ -15,5 +15,5 @@
   ansible.builtin.shell: curl -fsSL https://opencode.ai/install | bash
   when: npm_check.rc != 0
   args:
-    creates: "{{ ansible_env.HOME }}/.local/bin/opencode"
+    creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/opencode"
   changed_when: true

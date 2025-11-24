@@ -7,7 +7,7 @@
     name: example
     state: restarted
   become: true
-  when: ansible_service_mgr == "systemd"
+  when: ansible_facts['service_mgr'] == "systemd"
 
 - name: Reload example config
   ansible.builtin.command: "{{ role_name }} reload"

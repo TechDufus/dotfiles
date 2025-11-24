@@ -32,7 +32,7 @@
 
     - name: Helm | Get OS Architecture
       ansible.builtin.set_fact:
-        os_arch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+        os_arch: "{{ ansible_facts['machine'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
     - name: Helm | Add Helm APT repository
       ansible.builtin.apt_repository:
@@ -66,7 +66,7 @@
   block:
     - name: "Helm | Get System Arch"
       ansible.builtin.set_fact:
-        helm_arch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+        helm_arch: "{{ ansible_facts['machine'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
     - name: "Helm | Get latest version"
       ansible.builtin.uri:
@@ -80,7 +80,7 @@
 
     - name: "Helm | Define helm package"
       ansible.builtin.set_fact:
-        helm_package: "helm-{{ helm_latest_version }}-{{ ansible_system | lower }}-{{ helm_arch }}.tar.gz"
+        helm_package: "helm-{{ helm_latest_version }}-{{ ansible_facts['system'] | lower }}-{{ helm_arch }}.tar.gz"
 
     - name: "Helm | Download Helm"
       ansible.builtin.get_url:
@@ -97,7 +97,7 @@
     - name: "Helm | Install helm to /usr/local/bin"
       ansible.builtin.copy:
         remote_src: true
-        src: "/tmp/{{ ansible_system | lower }}-{{ helm_arch }}/helm"
+        src: "/tmp/{{ ansible_facts['system'] | lower }}-{{ helm_arch }}/helm"
         dest: /usr/local/bin/helm
         mode: "0755"
       become: true
@@ -108,4 +108,4 @@
         state: absent
       loop:
         - "/tmp/{{ helm_package }}"
-        - "/tmp/{{ ansible_system | lower }}-{{ helm_arch }}"
+        - "/tmp/{{ ansible_facts['system'] | lower }}-{{ helm_arch }}"

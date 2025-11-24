@@ -1,20 +1,20 @@
 ---
 # Zsh installation with intelligent fallback for Fedora/RHEL
 
-- name: "Zsh | {{ ansible_distribution }} | Check if zsh is already installed"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | Check if zsh is already installed"
   ansible.builtin.command: which zsh
   register: zsh_check
   changed_when: false
   failed_when: false
   no_log: true
 
-- name: "Zsh | {{ ansible_distribution }} | Get current shell"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | Get current shell"
   ansible.builtin.command: echo $SHELL
   register: current_shell
   changed_when: false
 
 # System-wide installation with sudo
-- name: "Zsh | {{ ansible_distribution }} | System installation"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | System installation"
   when:
     - can_install_packages | default(false)
   block:
@@ -28,7 +28,7 @@
 
     - name: "Zsh | Set as default shell (requires sudo)"
       ansible.builtin.user:
-        name: "{{ ansible_user_id }}"
+        name: "{{ ansible_facts['user_id'] }}"
         shell: /usr/bin/zsh
       become: true
       when:
@@ -37,7 +37,7 @@
       register: zsh_shell_change
 
 # User-local installation without sudo
-- name: "Zsh | {{ ansible_distribution }} | User-local installation"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | User-local installation"
   when:
     - not (can_install_packages | default(false))
     - zsh_check.rc != 0
@@ -48,8 +48,8 @@
         state: directory
         mode: '0755'
       loop:
-        - "{{ ansible_env.HOME }}/.local/bin"
-        - "{{ ansible_env.HOME }}/.local/src"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/src"
 
     - name: "Zsh | Check for build dependencies"
       ansible.builtin.command: "which {{ item }}"
@@ -102,30 +102,30 @@
           - "Zsh configurations will be installed but inactive"
 
 # Configure zsh regardless of installation method
-- name: "Zsh | {{ ansible_distribution }} | Configure zsh"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | Configure zsh"
   block:
     - name: "Zsh | Create config directory"
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.config/zsh"
+        path: "{{ ansible_facts['env']['HOME'] }}/.config/zsh"
         state: directory
         mode: '0755'
 
     - name: "Zsh | Deploy .zshrc"
       ansible.builtin.copy:
         src: ".zshrc"
-        dest: "{{ ansible_env.HOME }}/.zshrc"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.zshrc"
         mode: '0644'
         backup: yes
 
     - name: "Zsh | Check if we need to update PATH for local install"
       ansible.builtin.lineinfile:
-        path: "{{ ansible_env.HOME }}/.zshrc"
+        path: "{{ ansible_facts['env']['HOME'] }}/.zshrc"
         line: 'export PATH="$HOME/.local/bin:$PATH"'
         state: present
       when: not (can_install_packages | default(false))
 
 # Report installation status
-- name: "Zsh | {{ ansible_distribution }} | Report installation status"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | Report installation status"
   ansible.builtin.debug:
     msg:
       - "Zsh installation status:"
@@ -135,7 +135,7 @@
       - "- Configuration files: ✓ Deployed to home directory"
       - "- Current shell: {{ current_shell.stdout }}"
 
-- name: "Zsh | {{ ansible_distribution }} | Manual installation instructions"
+- name: "Zsh | {{ ansible_facts['distribution'] }} | Manual installation instructions"
   ansible.builtin.debug:
     msg:
       - "Note: To use zsh after manual installation:"

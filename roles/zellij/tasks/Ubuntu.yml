@@ -38,7 +38,7 @@
   block:
     - name: "Zellij | Define zellij_file"
       ansible.builtin.set_fact:
-        zellij_file: "zellij-{{ ansible_machine }}-unknown-linux-musl"
+        zellij_file: "zellij-{{ ansible_facts['machine'] }}-unknown-linux-musl"
 
     - name: "Zellij | Ensure clean download destination"
       ansible.builtin.file:
@@ -87,12 +87,12 @@
 
 - name: "Zellij | Ensure zellij config directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/zellij"
+    path: "{{ ansible_facts['user_dir'] }}/.config/zellij"
     state: directory
     mode: u=rwx,g=rx,o=rx
 
 - name: "Zellij | Copy config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/zellij/config.yml"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/zellij/config.yml"
     src: "config.kdl"
     mode: u=rwx,g=rx,o=rx

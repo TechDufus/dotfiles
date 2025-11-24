@@ -1,7 +1,7 @@
 ---
 # Neovim installation with intelligent fallback for Fedora/RHEL
 
-- name: "Neovim | {{ ansible_distribution }} | Check if nvim is already installed"
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Check if nvim is already installed"
   ansible.builtin.command: which nvim
   register: nvim_check
   changed_when: false
@@ -9,12 +9,12 @@
   no_log: true
 
 # System-wide installation with sudo
-- name: "Neovim | {{ ansible_distribution }} | System installation"
+- name: "Neovim | {{ ansible_facts['distribution'] }} | System installation"
   when:
     - can_install_packages | default(false)
     - nvim_check.rc != 0
   block:
-    - name: "Neovim | {{ ansible_distribution }} | Install dependencies"
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
       ansible.builtin.dnf:
         name:
           - cmake
@@ -31,7 +31,7 @@
       become: true
       register: nvim_deps_install
 
-    - name: "Neovim | {{ ansible_distribution }} | Install from repository"
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install from repository"
       ansible.builtin.dnf:
         name: neovim
         state: present
@@ -39,7 +39,7 @@
       register: nvim_system_install
 
 # User-local installation without sudo
-- name: "Neovim | {{ ansible_distribution }} | User-local installation"
+- name: "Neovim | {{ ansible_facts['distribution'] }} | User-local installation"
   when:
     - not (can_install_packages | default(false))
     - nvim_check.rc != 0
@@ -50,9 +50,9 @@
         state: directory
         mode: '0755'
       loop:
-        - "{{ ansible_env.HOME }}/.local/bin"
-        - "{{ ansible_env.HOME }}/.local/share"
-        - "{{ ansible_env.HOME }}/.local/lib"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/share"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/lib"
 
     - name: "Neovim | Get latest release version"
       ansible.builtin.uri:
@@ -68,18 +68,18 @@
     - name: "Neovim | Download AppImage"
       ansible.builtin.get_url:
         url: "https://github.com/neovim/neovim/releases/download/{{ nvim_version }}/nvim.appimage"
-        dest: "{{ ansible_env.HOME }}/.local/bin/nvim"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/nvim"
         mode: '0755'
       register: nvim_user_install
 
     - name: "Neovim | Create nvim symlink for vim compatibility"
       ansible.builtin.file:
-        src: "{{ ansible_env.HOME }}/.local/bin/nvim"
-        dest: "{{ ansible_env.HOME }}/.local/bin/vim"
+        src: "{{ ansible_facts['env']['HOME'] }}/.local/bin/nvim"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/vim"
         state: link
 
 # Install essential tools that don't require sudo
-- name: "Neovim | {{ ansible_distribution }} | Install user-local tools"
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Install user-local tools"
   when: nvim_check.rc == 0 or nvim_user_install is succeeded or nvim_system_install is succeeded
   block:
     - name: "Neovim | Check for ripgrep"
@@ -102,9 +102,9 @@
         - name: "Neovim | Download and extract ripgrep"
           ansible.builtin.unarchive:
             src: "https://github.com/BurntSushi/ripgrep/releases/download/{{ rg_latest_release.json.tag_name }}/ripgrep-{{ rg_latest_release.json.tag_name }}-x86_64-unknown-linux-musl.tar.gz"
-            dest: "{{ ansible_env.HOME }}/.local"
+            dest: "{{ ansible_facts['env']['HOME'] }}/.local"
             remote_src: yes
-            creates: "{{ ansible_env.HOME }}/.local/bin/rg"
+            creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/rg"
             extra_opts:
               - --strip-components=1
               - --wildcards
@@ -113,7 +113,7 @@
               - 's/.*\//bin\//'
 
 # Report installation status
-- name: "Neovim | {{ ansible_distribution }} | Report installation status"
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Report installation status"
   ansible.builtin.debug:
     msg:
       - "Neovim installation status:"

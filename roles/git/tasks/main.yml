@@ -1,11 +1,11 @@
 ---
-- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
   register: distribution_config
 
-- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
-  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
 - name: "Git | Set color.ui"
@@ -108,7 +108,7 @@
   community.general.git_config:
     name: user.signingkey
     scope: global
-    value: "{{ ansible_user_dir }}/.ssh/id_ed25519.pub"
+    value: "{{ ansible_facts['user_dir'] }}/.ssh/id_ed25519.pub"
 
 - name: "Git | Set gpg.format"
   community.general.git_config:
@@ -130,7 +130,7 @@
 
 - name: "Git | Ensure ~/.config/git/allowed_signers exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/git"
+    path: "{{ ansible_facts['user_dir'] }}/.config/git"
     state: directory
     mode: "0755"
 
@@ -144,7 +144,7 @@
 
 - name: "1Password | Configure ~/.config/git/allowed_signers"
   ansible.builtin.blockinfile:
-    path: "{{ ansible_user_dir }}/.config/git/allowed_signers"
+    path: "{{ ansible_facts['user_dir'] }}/.config/git/allowed_signers"
     block: "{{ op_git_ssh_allowed_signers.stdout }}"
     mode: "0600"
     create: true
@@ -157,7 +157,7 @@
   community.general.git_config:
     name: gpg.ssh.allowedSignersFile
     scope: global
-    value: "{{ ansible_user_dir }}/.config/git/allowed_signers"
+    value: "{{ ansible_facts['user_dir'] }}/.config/git/allowed_signers"
 
 - name: "Git | Set undo alias"
   community.general.git_config:
@@ -175,11 +175,11 @@
 - name: "Git | Copy global.commit.template"
   ansible.builtin.copy:
     src: global.commit.template
-    dest: "{{ ansible_user_dir }}/.config/git/commit_template"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/git/commit_template"
     mode: "0644"
 
 - name: "Git | Set commit.template"
   community.general.git_config:
     name: commit.template
     scope: global
-    value: "{{ ansible_user_dir }}/.config/git/commit_template"
+    value: "{{ ansible_facts['user_dir'] }}/.config/git/commit_template"

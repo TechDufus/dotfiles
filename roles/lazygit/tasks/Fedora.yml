@@ -1,13 +1,13 @@
 ---
 # Lazygit installation for Fedora/RHEL using github_release role
 
-- name: "LAZYGIT | {{ ansible_distribution }} | Check if lazygit is installed"
+- name: "LAZYGIT | {{ ansible_facts['distribution'] }} | Check if lazygit is installed"
   ansible.builtin.command: which lazygit
   register: lazygit_check
   changed_when: false
   failed_when: false
 
-- name: "LAZYGIT | {{ ansible_distribution }} | Install from GitHub Release"
+- name: "LAZYGIT | {{ ansible_facts['distribution'] }} | Install from GitHub Release"
   ansible.builtin.include_role:
     name: github_release
   vars:
@@ -20,7 +20,7 @@
     github_release_binary_mode: "0755"
     github_release_requires_sudo: "{{ can_install_packages | default(false) }}"
 
-- name: "LAZYGIT | {{ ansible_distribution }} | Report installation"
+- name: "LAZYGIT | {{ ansible_facts['distribution'] }} | Report installation"
   ansible.builtin.debug:
     msg: |
       Lazygit installation:

@@ -32,7 +32,7 @@
   become: true
   when: 
     - not nala_is_installed
-    - ansible_distribution_major_version|int < 24
+    - ansible_facts['distribution_major_version']|int < 24
 
 - name: "Nala | Install Nala (Ubuntu 24+)"
   ansible.builtin.apt:
@@ -42,7 +42,7 @@
   become: true
   when: 
     - not nala_is_installed
-    - ansible_distribution_major_version|int >= 24
+    - ansible_facts['distribution_major_version']|int >= 24
 
 - name: "Nala | Install Nala (Ubuntu 22)"
   ansible.builtin.apt:
@@ -52,7 +52,7 @@
   become: true
   when: 
     - not nala_is_installed
-    - ansible_distribution_major_version == "22"
+    - ansible_facts['distribution_major_version'] == "22"
 
 - name: "Nala | Install Nala-legacy (Ubuntu 20)"
   apt:
@@ -62,4 +62,4 @@
   become: true
   when: 
     - not nala_is_installed
-    - ansible_distribution_major_version == "20"
+    - ansible_facts['distribution_major_version'] == "20"

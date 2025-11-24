@@ -6,5 +6,5 @@
 
 - name: Bash | Cleanup oh-my-bash install script
   ansible.builtin.file:
-    path: /{{ ansible_user_dir }}/oh-my-bash.install.sh
+    path: /{{ ansible_facts['user_dir'] }}/oh-my-bash.install.sh
     state: absent

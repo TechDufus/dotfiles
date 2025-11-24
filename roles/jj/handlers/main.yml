@@ -1,10 +1,10 @@
 ---
 - name: Cleanup jj downloaded tar
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.ansible_tmp/{{ jj_file }}.tar.gz"
+    path: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/{{ jj_file }}.tar.gz"
     state: absent
 
 - name: Remove extracted jj directory
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.ansible_tmp/jj"
+    path: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/jj"
     state: absent

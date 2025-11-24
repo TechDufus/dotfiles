@@ -2,7 +2,7 @@
 # Docker installation - REQUIRES SUDO/ADMIN ACCESS
 # Based on official Docker documentation: https://docs.docker.com/engine/install/ubuntu/#installation-methods
 
-- name: "Docker | {{ ansible_distribution }} | Check sudo availability"
+- name: "Docker | {{ ansible_facts['distribution'] }} | Check sudo availability"
   ansible.builtin.debug:
     msg:
       - "⚠️  DOCKER INSTALLATION REQUIREMENTS:"
@@ -23,12 +23,12 @@
       - "4. Use a cloud-based development environment"
       - "{% endif %}"
 
-- name: "Docker | {{ ansible_distribution }} | Skip if no sudo"
+- name: "Docker | {{ ansible_facts['distribution'] }} | Skip if no sudo"
   meta: end_play
   when: not (has_sudo | default(false))
 
 # Only proceed if we have sudo access
-- name: "Docker | {{ ansible_distribution }} | Installation with sudo"
+- name: "Docker | {{ ansible_facts['distribution'] }} | Installation with sudo"
   when: has_sudo | default(false)
   block:
     - name: "Docker | Update APT cache"
@@ -61,7 +61,7 @@
 
     - name: "Docker | Add Docker's stable repository"
       ansible.builtin.apt_repository:
-        repo: deb [arch={{ dpkg_architecture.stdout }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        repo: deb [arch={{ dpkg_architecture.stdout }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable
         mode: "0644"
       become: true
 
@@ -90,13 +90,13 @@
       ansible.builtin.user:
         append: true
         groups: docker
-        name: "{{ ansible_env['USER'] }}"
+        name: "{{ ansible_facts['env']['USER'] }}"
       become: true
       register: docker_group_add
 
     - name: "Docker | Ensure docker data directory exists"
       ansible.builtin.file:
-        path: "{{ ansible_user_dir }}/.local/lib/docker"
+        path: "{{ ansible_facts['user_dir'] }}/.local/lib/docker"
         state: directory
         mode: "0710"
       become: true

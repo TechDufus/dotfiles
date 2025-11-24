@@ -6,7 +6,7 @@
 
 - name: "K9s | Copy config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/Library/Application Support/k9s/{{ item }}"
+    dest: "{{ ansible_facts['user_dir'] }}/Library/Application Support/k9s/{{ item }}"
     src: "{{ item }}"
     mode: "0644"
   loop:
@@ -16,7 +16,7 @@
 
 - name: "K9s | Copy skin config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/Library/Application Support/k9s/skins/{{ item }}"
+    dest: "{{ ansible_facts['user_dir'] }}/Library/Application Support/k9s/skins/{{ item }}"
     src: "{{ item }}"
     mode: "0644"
   loop:

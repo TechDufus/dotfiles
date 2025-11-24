@@ -36,8 +36,8 @@
 
 - name: "NVM | Check current nvm version"
   ansible.builtin.shell: |
-    if [ -f "{{ ansible_env.HOME }}/.nvm/nvm.sh" ]; then
-      cd "{{ ansible_env.HOME }}/.nvm" && git describe --tags 2>/dev/null || echo "none"
+    if [ -f "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh" ]; then
+      cd "{{ ansible_facts['env']['HOME'] }}/.nvm" && git describe --tags 2>/dev/null || echo "none"
     else
       echo "not-installed"
     fi
@@ -49,7 +49,7 @@
   ansible.builtin.shell: >
     set -o pipefail && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/{{ nvm_latest_release }}/install.sh | bash
   args:
-    creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+    creates: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
     executable: /bin/bash
   when: 
     - nvm_latest_release is defined
@@ -58,7 +58,7 @@
 
 - name: "NVM | Get normalized Node.js version"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     # Convert lts/* to actual version number
     if [ "{{ nvm_node_version }}" = "lts/*" ]; then
@@ -74,18 +74,18 @@
 
 - name: "NVM | Check if Node.js version is already installed"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
   register: node_version_installed
   when: node_version_normalized is not skipped
 
 - name: "NVM | Install Node.js version"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     nvm install {{ nvm_node_version }}
   args:
     executable: /bin/bash
-    creates: "{{ ansible_env.HOME }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
+    creates: "{{ ansible_facts['env']['HOME'] }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
   when: 
     - node_version_normalized is not skipped
     - not (node_version_installed.stat.exists | default(false))
@@ -93,7 +93,7 @@
 
 - name: "NVM | Check current default Node.js version"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     nvm alias default 2>/dev/null | grep -oE 'default -> (.+)' | sed 's/default -> //' || echo "none"
   args:
@@ -104,7 +104,7 @@
 
 - name: "NVM | Set default Node.js version"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     nvm alias default {{ nvm_node_version }}
   args:
@@ -118,7 +118,7 @@
 
 - name: "NVM | Verify Node.js installation"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     echo "Node: $(node --version 2>/dev/null || echo 'not found')"
     echo "npm: $(npm --version 2>/dev/null || echo 'not found')"

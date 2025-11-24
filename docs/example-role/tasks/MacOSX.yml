@@ -21,7 +21,7 @@
 - name: "{{ role_name }} | MacOSX | Set macOS-specific config"
   ansible.builtin.copy:
     src: "macos-specific-config.plist"
-    dest: "{{ ansible_user_dir }}/Library/Preferences/com.example.{{ role_name }}.plist"
+    dest: "{{ ansible_facts['user_dir'] }}/Library/Preferences/com.example.{{ role_name }}.plist"
     mode: "0644"
   when: example_brew_install is succeeded
 

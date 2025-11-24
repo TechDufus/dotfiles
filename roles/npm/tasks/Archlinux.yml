@@ -3,7 +3,7 @@
 
 - name: "NPM | Archlinux | Check for nvm installation"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
   register: nvm_check
 
 - name: "NPM | Archlinux | Determine Node.js source"
@@ -24,7 +24,7 @@
   block:
     - name: "NPM | Check Node.js installation via nvm"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         node --version 2>/dev/null || echo "not-installed"
       args:
@@ -38,7 +38,7 @@
 
     - name: "NPM | Update npm to latest version (nvm)"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         npm install -g npm@latest
       args:
@@ -87,18 +87,18 @@
             state: directory
             mode: '0755'
           loop:
-            - "{{ ansible_env.HOME }}/.local"
-            - "{{ ansible_env.HOME }}/.local/bin"
-            - "{{ ansible_env.HOME }}/.local/lib"
-            - "{{ ansible_env.HOME }}/.npm-global"
+            - "{{ ansible_facts['env']['HOME'] }}/.local"
+            - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+            - "{{ ansible_facts['env']['HOME'] }}/.local/lib"
+            - "{{ ansible_facts['env']['HOME'] }}/.npm-global"
 
         - name: "NPM | Get System Arch"
           ansible.builtin.set_fact:
-            nodejs_arch: "{{ ansible_machine | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
+            nodejs_arch: "{{ ansible_facts['machine'] | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
 
         - name: "NPM | Register Package Name"
           ansible.builtin.set_fact:
-            nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_system | lower }}-{{ nodejs_arch }}"
+            nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_facts['system'] | lower }}-{{ nodejs_arch }}"
 
         - name: "NPM | Download NodeJS"
           ansible.builtin.get_url:
@@ -109,7 +109,7 @@
         - name: "NPM | Extract NodeJS to user directory"
           ansible.builtin.unarchive:
             src: /tmp/{{ nodejs_package_name }}.tar.xz
-            dest: "{{ ansible_env.HOME }}/.local"
+            dest: "{{ ansible_facts['env']['HOME'] }}/.local"
             remote_src: true
             extra_opts: "--strip-components=1"
           register: npm_user_install
@@ -117,7 +117,7 @@
         - name: "NPM | Configure npm for user-local packages"
           ansible.builtin.shell: |
             export PATH="${HOME}/.local/bin:${PATH}"
-            npm config set prefix '{{ ansible_env.HOME }}/.npm-global'
+            npm config set prefix '{{ ansible_facts['env']['HOME'] }}/.npm-global'
           args:
             executable: /bin/bash
           when: npm_user_install is succeeded
@@ -126,7 +126,7 @@
 - name: "NPM | Archlinux | Configure NPM"
   block:
     - name: "NPM | Set global package directory for non-sudo"
-      ansible.builtin.command: npm config set prefix '{{ ansible_env.HOME }}/.npm-global'
+      ansible.builtin.command: npm config set prefix '{{ ansible_facts['env']['HOME'] }}/.npm-global'
       when: 
         - not (can_install_packages | default(false))
         - not use_nvm
@@ -134,7 +134,7 @@
     - name: "NPM | Apply npm configuration settings"
       ansible.builtin.shell: |
         {% if use_nvm %}
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         {% endif %}
         {% for key, value in npm_config.items() %}
@@ -149,13 +149,13 @@
         content: |
           # NPM Configuration
           {% if not can_install_packages | default(false) and not use_nvm %}
-          prefix={{ ansible_env.HOME }}/.npm-global
+          prefix={{ ansible_facts['env']['HOME'] }}/.npm-global
           {% endif %}
           init-author-name={{ git_user_name | default('') }}
           {% for key, value in npm_config.items() %}
           {{ key }}={{ value }}
           {% endfor %}
-        dest: "{{ ansible_env.HOME }}/.npmrc"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.npmrc"
         mode: '0644'
 
 # Install global packages
@@ -167,7 +167,7 @@
 
     - name: "NPM | Install global packages (nvm)"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         npm install -g {{ item }}
       args:

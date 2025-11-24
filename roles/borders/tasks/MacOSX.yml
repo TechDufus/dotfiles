@@ -11,14 +11,14 @@
 
 - name: "{{ role_name }} | macOS | Create borders config directory"
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/borders"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/borders"
     state: directory
     mode: '0755'
 
 - name: "{{ role_name }} | macOS | Deploy bordersrc configuration"
   ansible.builtin.copy:
     src: bordersrc
-    dest: "{{ ansible_env.HOME }}/.config/borders/bordersrc"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/borders/bordersrc"
     mode: '0755'
     backup: yes
 

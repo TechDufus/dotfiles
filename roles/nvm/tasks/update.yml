@@ -11,7 +11,7 @@
 
 - name: "NVM | Update | Get current nvm version"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     nvm --version
   args:
@@ -34,7 +34,7 @@
 
 - name: "NVM | Update | Update nvm to latest version"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     cd "$NVM_DIR"
     git fetch --tags origin
     git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`
@@ -45,7 +45,7 @@
 
 - name: "NVM | Update | Update Node.js to latest LTS"
   ansible.builtin.shell: |
-    export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
     nvm install lts/* --reinstall-packages-from=current
     nvm alias default lts/*

@@ -42,7 +42,7 @@
     - name: "{{ role_name }} | Download binary"
       ansible.builtin.get_url:
         url: "https://github.com/org/{{ tool_name }}/releases/download/{{ version }}/{{ tool_name }}-linux-amd64"
-        dest: "{{ ansible_env.HOME }}/.local/bin/{{ tool_name }}"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/{{ tool_name }}"
         mode: '0755'
       register: binary_install
 
@@ -53,16 +53,16 @@
         - name: "{{ role_name }} | Download source"
           ansible.builtin.git:
             repo: "https://github.com/org/{{ tool_name }}.git"
-            dest: "{{ ansible_env.HOME }}/.local/src/{{ tool_name }}"
+            dest: "{{ ansible_facts['env']['HOME'] }}/.local/src/{{ tool_name }}"
             version: "{{ version }}"
 
         - name: "{{ role_name }} | Build and install"
           ansible.builtin.shell: |
-            cd {{ ansible_env.HOME }}/.local/src/{{ tool_name }}
-            ./configure --prefix={{ ansible_env.HOME }}/.local
+            cd {{ ansible_facts['env']['HOME'] }}/.local/src/{{ tool_name }}
+            ./configure --prefix={{ ansible_facts['env']['HOME'] }}/.local
             make && make install
           args:
-            creates: "{{ ansible_env.HOME }}/.local/bin/{{ tool_name }}"
+            creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/{{ tool_name }}"
 
     # Option C: Manual installation instructions
     - name: "{{ role_name }} | Manual installation required"
@@ -84,19 +84,19 @@
   block:
     - name: "{{ role_name }} | Create config directory"
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.config/{{ tool_name }}"
+        path: "{{ ansible_facts['env']['HOME'] }}/.config/{{ tool_name }}"
         state: directory
         mode: '0755'
 
     - name: "{{ role_name }} | Deploy user configuration"
       ansible.builtin.copy:
         src: "{{ tool_name }}.conf"
-        dest: "{{ ansible_env.HOME }}/.config/{{ tool_name }}/config"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/{{ tool_name }}/config"
         mode: '0644'
 
     - name: "{{ role_name }} | Ensure ~/.local/bin is in PATH"
       ansible.builtin.lineinfile:
-        path: "{{ ansible_env.HOME }}/.{{ ansible_env.SHELL | basename }}rc"
+        path: "{{ ansible_facts['env']['HOME'] }}/.{{ ansible_facts['env']['SHELL'] | basename }}rc"
         line: 'export PATH="${HOME}/.local/bin:${PATH}"'
         state: present
       when: not (can_install_packages | default(false))
@@ -138,14 +138,14 @@
 # For package managers (npm, pip, gem):
 # - name: "{{ role_name }} | Configure for user-local packages"
 #   ansible.builtin.shell: |
-#     {{ tool_name }} config set prefix '{{ ansible_env.HOME }}/.{{ tool_name }}-global'
+#     {{ tool_name }} config set prefix '{{ ansible_facts['env']['HOME'] }}/.{{ tool_name }}-global'
 #   when: not (can_install_packages | default(false))
 
 # For shell tools that only need config files:
 # - name: "{{ role_name }} | Deploy configuration"
 #   ansible.builtin.copy:
 #     src: "{{ item }}"
-#     dest: "{{ ansible_env.HOME }}/.{{ item }}"
+#     dest: "{{ ansible_facts['env']['HOME'] }}/.{{ item }}"
 #     mode: '0644'
 #   loop:
 #     - ".{{ tool_name }}rc"

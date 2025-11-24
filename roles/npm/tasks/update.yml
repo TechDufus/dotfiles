@@ -3,7 +3,7 @@
 
 - name: "NPM | Update | Check for nvm"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
   register: nvm_check
 
 - name: "NPM | Update | Determine Node.js source"
@@ -14,7 +14,7 @@
   block:
     - name: "NPM | Update npm to latest (nvm)"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         npm install -g npm@latest
       args:
@@ -48,7 +48,7 @@
   block:
     - name: "NPM | List outdated packages (nvm)"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         npm outdated -g --depth=0 || true
       args:
@@ -75,7 +75,7 @@
     - name: "NPM | Get list of global packages"
       ansible.builtin.shell: |
         {% if use_nvm %}
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         {% endif %}
         npm list -g --depth=0 --json | jq -r '.dependencies | keys[]' | grep -v "^npm$"
@@ -86,7 +86,7 @@
 
     - name: "NPM | Update global packages (nvm)"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         npm update -g {{ item }}
       args:
@@ -127,7 +127,7 @@
   block:
     - name: "NPM | Run npm-check-updates (nvm)"
       ansible.builtin.shell: |
-        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         ncu -g
       args:

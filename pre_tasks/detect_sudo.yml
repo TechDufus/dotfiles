@@ -18,32 +18,32 @@
       set_fact:
         detected_package_manager: brew
       when:
-        - ansible_distribution == 'MacOSX'
-        - ansible_system == 'Darwin'
+        - ansible_facts['distribution'] == 'MacOSX'
+        - ansible_facts['system'] == 'Darwin'
 
     - name: Set package manager for Ubuntu/Debian
       set_fact:
         detected_package_manager: apt
-      when: ansible_distribution in ['Ubuntu', 'Debian']
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
 
     - name: Set package manager for Arch
       set_fact:
         detected_package_manager: pacman
-      when: ansible_distribution == 'Archlinux'
+      when: ansible_facts['distribution'] == 'Archlinux'
 
     - name: Set package manager for modern Fedora/RHEL
       set_fact:
         detected_package_manager: dnf
       when:
-        - ansible_distribution in ['Fedora', 'RedHat', 'CentOS', 'AlmaLinux', 'Rocky']
-        - ansible_distribution == 'Fedora' or ansible_distribution_major_version | int >= 8
+        - ansible_facts['distribution'] in ['Fedora', 'RedHat', 'CentOS', 'AlmaLinux', 'Rocky']
+        - ansible_facts['distribution'] == 'Fedora' or ansible_facts['distribution_major_version'] | int >= 8
 
     - name: Set package manager for older RHEL/CentOS
       set_fact:
         detected_package_manager: yum
       when:
-        - ansible_distribution in ['RedHat', 'CentOS']
-        - ansible_distribution_major_version | int < 8
+        - ansible_facts['distribution'] in ['RedHat', 'CentOS']
+        - ansible_facts['distribution_major_version'] | int < 8
 
     - name: Verify detected package manager exists
       command: "which {{ detected_package_manager }}"
@@ -176,7 +176,7 @@
     msg: "Note: Homebrew on macOS does not require or accept sudo. Package installation is possible without privilege escalation."
   when:
     - detected_package_manager == 'brew'
-    - ansible_distribution == 'MacOSX'
+    - ansible_facts['distribution'] == 'MacOSX'
 
 - name: Warning when no privilege escalation available
   debug:

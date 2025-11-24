@@ -1,103 +1,103 @@
 ---
 - name: "{{ role_name }} | Ensure ~/.config/opencode directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/opencode"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode"
     state: directory
     mode: '0755'
 
 - name: "{{ role_name }} | Check if opencode.json already exists"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/opencode.json"
   register: opencode_config_file
 
 - name: "{{ role_name }} | Backup existing opencode.json if it exists and is not a symlink"
   ansible.builtin.copy:
-    src: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/opencode.json.backup"
+    src: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/opencode.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/opencode.json.backup"
     remote_src: true
     mode: '0644'
   when: opencode_config_file.stat.exists and not opencode_config_file.stat.islnk
 
 - name: "{{ role_name }} | Remove existing opencode.json if it's not a symlink"
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/opencode.json"
     state: absent
   when: opencode_config_file.stat.exists and not opencode_config_file.stat.islnk
 
 - name: "{{ role_name }} | Create symlink to opencode.json"
   ansible.builtin.file:
     src: "{{ role_path }}/files/opencode.json"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/opencode.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/opencode.json"
     state: link
     force: true
 
 - name: "{{ role_name }} | Check if ~/.config/opencode/scripts exists and is not a symlink"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.config/opencode/scripts"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/scripts"
   register: scripts_dir
 
 - name: "{{ role_name }} | Remove existing scripts directory if it's not a symlink"
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/opencode/scripts"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/scripts"
     state: absent
   when: scripts_dir.stat.exists and not scripts_dir.stat.islnk
 
 - name: "{{ role_name }} | Create symlink to opencode scripts"
   ansible.builtin.file:
     src: "{{ role_path }}/files/scripts"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/scripts"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/scripts"
     state: link
     force: true
 
 - name: "{{ role_name }} | Check if ~/.config/opencode/command exists and is not a symlink"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.config/opencode/command"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/command"
   register: command_dir
 
 - name: "{{ role_name }} | Remove existing command directory if it's not a symlink"
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/opencode/command"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/command"
     state: absent
   when: command_dir.stat.exists and not command_dir.stat.islnk
 
 - name: "{{ role_name }} | Create symlink to opencode commands"
   ansible.builtin.file:
     src: "{{ role_path }}/files/command"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/command"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/command"
     state: link
     force: true
 
 - name: "{{ role_name }} | Check if AGENTS.md already exists"
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
   register: agents_file
 
 - name: "{{ role_name }} | Backup existing AGENTS.md if it exists and is not a symlink"
   ansible.builtin.copy:
-    src: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md.backup"
+    src: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md.backup"
     remote_src: true
     mode: '0644'
   when: agents_file.stat.exists and not agents_file.stat.islnk
 
 - name: "{{ role_name }} | Remove existing AGENTS.md if it's not a symlink"
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
     state: absent
   when: agents_file.stat.exists and not agents_file.stat.islnk
 
 - name: "{{ role_name }} | Create symlink to AGENTS.md"
   ansible.builtin.file:
     src: "{{ role_path }}/files/AGENTS.md"
-    dest: "{{ ansible_env.HOME }}/.config/opencode/AGENTS.md"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
     state: link
     force: true
 
-- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
   register: distribution_config
 
-- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
-  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists

@@ -1,13 +1,13 @@
 ---
 # K9s installation for Fedora/RHEL using github_release role
 
-- name: "K9s | {{ ansible_distribution }} | Check if k9s is installed"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Check if k9s is installed"
   ansible.builtin.command: which k9s
   register: k9s_check
   changed_when: false
   failed_when: false
 
-- name: "K9s | {{ ansible_distribution }} | Install from GitHub Release"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Install from GitHub Release"
   ansible.builtin.include_role:
     name: github_release
   vars:
@@ -20,35 +20,35 @@
     github_release_binary_mode: "0755"
     github_release_requires_sudo: "{{ can_install_packages | default(false) }}"
 
-- name: "K9s | {{ ansible_distribution }} | Ensure k9s config directory exists"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Ensure k9s config directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/k9s"
+    path: "{{ ansible_facts['user_dir'] }}/.config/k9s"
     state: directory
     mode: "0755"
 
-- name: "K9s | {{ ansible_distribution }} | Ensure k9s skins directory exists"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Ensure k9s skins directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/k9s/skins"
+    path: "{{ ansible_facts['user_dir'] }}/.config/k9s/skins"
     state: directory
     mode: "0755"
 
-- name: "K9s | {{ ansible_distribution }} | Copy skin config"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Copy skin config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/k9s/skins/catppuccin_mocha.yaml"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/k9s/skins/catppuccin_mocha.yaml"
     src: "catppuccin_mocha.yaml"
     mode: "0644"
 
-- name: "K9s | {{ ansible_distribution }} | Copy config"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Copy config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/k9s/config.yaml"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/k9s/config.yaml"
     src: "config.yaml"
     mode: "0644"
 
-- name: "K9s | {{ ansible_distribution }} | Report installation status"
+- name: "K9s | {{ ansible_facts['distribution'] }} | Report installation status"
   ansible.builtin.debug:
     msg:
       - "K9s installation status:"
       - "- Status: {{ '✓ Installed' if k9s_check.rc == 0 else '✓ Newly installed' }}"
-      - "- Location: {{ ansible_user_dir }}/.local/bin/k9s"
+      - "- Location: {{ ansible_facts['user_dir'] }}/.local/bin/k9s"
       - "- Config: ~/.config/k9s/"
       - "- Sudo used: {{ '✓' if can_install_packages | default(false) else '✗ (installed to user directory)' }}"

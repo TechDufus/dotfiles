@@ -1,14 +1,14 @@
 ---
 # Git installation with sudo fallback for Ubuntu/Debian
 
-- name: "Git | {{ ansible_distribution }} | Check if git is already installed"
+- name: "Git | {{ ansible_facts['distribution'] }} | Check if git is already installed"
   ansible.builtin.command: which git
   register: git_check
   changed_when: false
   failed_when: false
   no_log: true
 
-- name: "Git | {{ ansible_distribution }} | Install git (system package)"
+- name: "Git | {{ ansible_facts['distribution'] }} | Install git (system package)"
   ansible.builtin.apt:
     name:
       - git
@@ -19,14 +19,14 @@
     - git_check.rc != 0
   register: git_system_install
 
-- name: "Git | {{ ansible_distribution }} | Alternative git installation (no sudo)"
+- name: "Git | {{ ansible_facts['distribution'] }} | Alternative git installation (no sudo)"
   when:
     - not (can_install_packages | default(false))
     - git_check.rc != 0
   block:
     - name: "Git | Create ~/.local/bin directory"
       ansible.builtin.file:
-        path: "{{ ansible_env.HOME }}/.local/bin"
+        path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
         state: directory
         mode: '0755'
 
@@ -48,7 +48,7 @@
           - ""
 
           - "Some dotfiles features will not work without git."
-- name: "Git | {{ ansible_distribution }} | Report installation status"
+- name: "Git | {{ ansible_facts['distribution'] }} | Report installation status"
   ansible.builtin.debug:
     msg:
       - "Git installation status:"

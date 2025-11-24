@@ -1,5 +1,5 @@
 ---
-- name: "System | {{ ansible_distribution }} | Update APT Repos and Upgrade APT Packages"
+- name: "System | {{ ansible_facts['distribution'] }} | Update APT Repos and Upgrade APT Packages"
   ansible.builtin.apt:
     update_cache: true
     upgrade: full
@@ -8,7 +8,7 @@
   become: true
   when: can_install_packages | default(false)
 
-- name: "System | {{ ansible_distribution }} | Install"
+- name: "System | {{ ansible_facts['distribution'] }} | Install"
   ansible.builtin.apt:
     name:
       - jq
@@ -17,7 +17,7 @@
   become: true
   when: can_install_packages | default(false)
 
-- name: "System | {{ ansible_distribution }} | Packages skipped (no sudo)"
+- name: "System | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
   ansible.builtin.debug:
     msg:
       - "⚠️  Package installation skipped due to missing sudo privileges"
@@ -33,14 +33,14 @@
 
 - name: System | Detecting win32yank (user)
   ansible.builtin.stat:
-    path: "{{ ansible_env.HOME }}/.local/bin/win32yank.exe"
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin/win32yank.exe"
   register: win32yank_user
   when: ansible_host_environment_is_wsl
 
 - name: System | Set win32yank installation facts
   ansible.builtin.set_fact:
     win32yank_installed: "{{ (win32yank_system.stat.exists | default(false)) or (win32yank_user.stat.exists | default(false)) }}"
-    win32yank_dest_dir: "{{ '/usr/local/bin' if (can_install_packages | default(false)) else ansible_env.HOME + '/.local/bin' }}"
+    win32yank_dest_dir: "{{ '/usr/local/bin' if (can_install_packages | default(false)) else ansible_facts['env']['HOME'] + '/.local/bin' }}"
   when: ansible_host_environment_is_wsl
 
 - name: "System | Install win32yank.exe"
@@ -87,7 +87,7 @@
         - /tmp/win32yank.zip
         - /tmp/win32yank.exe
 
-- name: "System | {{ ansible_distribution }} | Ensure logind.conf.d directory exists"
+- name: "System | {{ ansible_facts['distribution'] }} | Ensure logind.conf.d directory exists"
   ansible.builtin.file:
     path: /etc/systemd/logind.conf.d
     state: directory
@@ -95,7 +95,7 @@
   become: true
   when: can_install_packages | default(false)
 
-- name: "System | {{ ansible_distribution }} | Configure power button to suspend"
+- name: "System | {{ ansible_facts['distribution'] }} | Configure power button to suspend"
   ansible.builtin.copy:
     src: logind.conf.d/power-button.conf
     dest: /etc/systemd/logind.conf.d/power-button.conf

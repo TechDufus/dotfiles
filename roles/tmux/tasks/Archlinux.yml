@@ -1,5 +1,5 @@
 ---
-- name: "Tmux | {{ ansible_distribution }} | Install tmux"
+- name: "Tmux | {{ ansible_facts['distribution'] }} | Install tmux"
   community.general.pacman:
     name: tmux
     state: present

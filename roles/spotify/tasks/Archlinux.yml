@@ -1,5 +1,5 @@
 ---
-- name: "Spotify | {{ ansible_distribution }} | Install Spotify"
+- name: "Spotify | {{ ansible_facts['distribution'] }} | Install Spotify"
   community.general.pacman:
     name: spotify-launcher
     state: present

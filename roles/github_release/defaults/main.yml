@@ -18,8 +18,8 @@ github_release_asset_name_pattern: ""  # If empty, will auto-detect based on OS/
 github_release_asset_type: "auto"  # Options: auto, tar.gz, zip, deb, rpm, binary, AppImage
 
 # Platform detection (automatically set, can be overridden)
-github_release_os: "{{ ansible_system | lower }}"  # linux, darwin, windows
-github_release_arch: "{{ ansible_machine }}"  # x86_64, aarch64, arm64, etc.
+github_release_os: "{{ ansible_facts['system'] | lower }}"  # linux, darwin, windows
+github_release_arch: "{{ ansible_facts['machine'] }}"  # x86_64, aarch64, arm64, etc.
 
 # Asset naming patterns (used for auto-detection)
 github_release_os_map:
@@ -38,8 +38,8 @@ github_release_temp_dir: "/tmp"
 
 # Installation options
 github_release_become: true  # Use sudo for installation
-github_release_owner: "{{ ansible_user_id | default('root') }}"
-github_release_group: "{{ ansible_user_gid | default(ansible_user_id) | default('root') }}"
+github_release_owner: "{{ ansible_facts['user_id'] | default('root') }}"
+github_release_group: "{{ ansible_facts['user_gid'] | default(ansible_facts['user_id']) | default('root') }}"
 
 # Cleanup
 github_release_cleanup: true  # Clean up downloaded files after installation

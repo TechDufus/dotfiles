@@ -1,11 +1,11 @@
 ---
-# - name: "Tldr | Checking for Distribution Config: {{ ansible_distribution }}"
+# - name: "Tldr | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
 #   ansible.builtin.stat:
-#     path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+#     path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
 #   register: tldr_distribution_config
 #
-# - name: "Tldr | Run Tasks: {{ ansible_distribution }}"
-#   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+# - name: "Tldr | Run Tasks: {{ ansible_facts['distribution'] }}"
+#   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
 
 - name: "Tldr | Download Latest Version JSON"
   ansible.builtin.uri:

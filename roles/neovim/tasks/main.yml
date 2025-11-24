@@ -1,16 +1,16 @@
 ---
-- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
   register: distribution_config
 
-- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
-  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
 - name: "Neovim | Check if nvim config exists"
   ansible.builtin.stat:
-    path: "{{ ansible_user_dir }}/.config/nvim"
+    path: "{{ ansible_facts['user_dir'] }}/.config/nvim"
   register: nvim_config_stat
 
 - name: "Neovim | Backup existing config if not a symlink"
@@ -18,37 +18,37 @@
     - nvim_config_stat.stat.exists
     - not nvim_config_stat.stat.islnk
   ansible.builtin.command:
-    cmd: "mv {{ ansible_user_dir }}/.config/nvim {{ ansible_user_dir }}/.config/nvim.backup-{{ ansible_date_time.epoch }}"
+    cmd: "mv {{ ansible_facts['user_dir'] }}/.config/nvim {{ ansible_facts['user_dir'] }}/.config/nvim.backup-{{ ansible_date_time.epoch }}"
   args:
-    creates: "{{ ansible_user_dir }}/.config/nvim.backup-{{ ansible_date_time.epoch }}"
+    creates: "{{ ansible_facts['user_dir'] }}/.config/nvim.backup-{{ ansible_date_time.epoch }}"
 
 - name: "Neovim | Config folder"
   ansible.builtin.file:
     mode: "0755"
-    path: "{{ ansible_user_dir }}/.config/nvim"
+    path: "{{ ansible_facts['user_dir'] }}/.config/nvim"
     state: directory
   when: not nvim_config_stat.stat.exists or not nvim_config_stat.stat.islnk
 
 - name: "Neovim | Create symlink to role files directory"
   ansible.builtin.file:
     src: "{{ role_path }}/files"
-    dest: "{{ ansible_user_dir }}/.config/nvim"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/nvim"
     state: link
     force: true
 
 # - name: "Neovim | Copy init.lua"
 #   ansible.builtin.copy:
-#     dest: "{{ ansible_user_dir }}/.config/nvim/init.lua"
+#     dest: "{{ ansible_facts['user_dir'] }}/.config/nvim/init.lua"
 #     src: "init.lua"
 #     mode: "0644"
 #
 # - name: "Neovim | Copy .luarc.json"
 #   ansible.builtin.copy:
-#     dest: "{{ ansible_user_dir }}/.config/nvim/.luarc.json"
+#     dest: "{{ ansible_facts['user_dir'] }}/.config/nvim/.luarc.json"
 #     src: ".luarc.json"
 #     mode: "0644"
 # - name: "Neovim | Copy modules"
 #   ansible.builtin.copy:
-#     dest: "{{ ansible_user_dir }}/.config/nvim/lua"
+#     dest: "{{ ansible_facts['user_dir'] }}/.config/nvim/lua"
 #     src: "lua/"
 #     mode: "0644"

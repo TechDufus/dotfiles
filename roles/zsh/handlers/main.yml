@@ -1,5 +1,5 @@
 ---
 - name: ZSH | Cleanup oh-my-zsh install script
   ansible.builtin.file:
-    path: /{{ ansible_user_dir }}/oh-my-zsh.install.sh
+    path: /{{ ansible_facts['user_dir'] }}/oh-my-zsh.install.sh
     state: absent

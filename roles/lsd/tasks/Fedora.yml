@@ -1,14 +1,14 @@
 ---
 # LSD (LSDeluxe) installation for Fedora/RHEL
 
-- name: "LSD | {{ ansible_distribution }} | Check if lsd is installed"
+- name: "LSD | {{ ansible_facts['distribution'] }} | Check if lsd is installed"
   ansible.builtin.command: which lsd
   register: lsd_check
   changed_when: false
   failed_when: false
 
 # Try system package first (lsd is available in Fedora repos)
-- name: "LSD | {{ ansible_distribution }} | Install from system package"
+- name: "LSD | {{ ansible_facts['distribution'] }} | Install from system package"
   ansible.builtin.dnf:
     name: lsd
     state: present
@@ -20,7 +20,7 @@
   failed_when: false
 
 # Fallback to GitHub release if system package fails or no sudo
-- name: "LSD | {{ ansible_distribution }} | Install from GitHub Release"
+- name: "LSD | {{ ansible_facts['distribution'] }} | Install from GitHub Release"
   when: 
     - lsd_check.rc != 0
     - (not (can_install_packages | default(false))) or (lsd_system_install is failed)
@@ -36,7 +36,7 @@
     github_release_binary_mode: "0755"
     github_release_requires_sudo: "{{ can_install_packages | default(false) }}"
 
-- name: "LSD | {{ ansible_distribution }} | Report installation status"
+- name: "LSD | {{ ansible_facts['distribution'] }} | Report installation status"
   ansible.builtin.debug:
     msg: |
       LSD installation status:

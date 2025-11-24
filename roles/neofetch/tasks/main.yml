@@ -1,21 +1,21 @@
 ---
-- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
   register: distribution_config
 
-- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
-  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
-- name: "Neofetch | {{ ansible_distribution }} | Ensure .config directory exists"
+- name: "Neofetch | {{ ansible_facts['distribution'] }} | Ensure .config directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/neofetch"
+    path: "{{ ansible_facts['user_dir'] }}/.config/neofetch"
     state: directory
     mode: "0755"
 
-- name: "Neofetch | {{ ansible_distribution }} | Copy config file"
+- name: "Neofetch | {{ ansible_facts['distribution'] }} | Copy config file"
   ansible.builtin.copy:
     src: config
-    dest: "{{ ansible_user_dir }}/.config/neofetch/config"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/neofetch/config"
     mode: "0644"

@@ -1,7 +1,7 @@
 ---
 - name: "Bash | Detect oh-my-bash"
   ansible.builtin.stat:
-    path: "{{ ansible_user_dir }}/.oh-my-bash"
+    path: "{{ ansible_facts['user_dir'] }}/.oh-my-bash"
   register: ohmybash
 
 - name: "Bash | Register oh-my-bash state"
@@ -18,7 +18,7 @@
     - name: "Bash | Download oh-my-bash Install Script"
       ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh
-        dest: /{{ ansible_user_dir }}/oh-my-bash.install.sh
+        dest: /{{ ansible_facts['user_dir'] }}/oh-my-bash.install.sh
         force: true
         mode: "0755"
       notify:
@@ -26,23 +26,23 @@
 
     - name: "Bash | Run the install script"
       ansible.builtin.script:
-        cmd: /{{ ansible_user_dir }}/oh-my-bash.install.sh
+        cmd: /{{ ansible_facts['user_dir'] }}/oh-my-bash.install.sh
 
 - name: "Bash | Copy .bashrc"
   ansible.builtin.copy:
     src: ".bashrc"
-    dest: "{{ ansible_user_dir }}/.bashrc"
+    dest: "{{ ansible_facts['user_dir'] }}/.bashrc"
     mode: "0644"
 
 - name: "Bash | Copy .profile"
   ansible.builtin.copy:
     src: ".profile"
-    dest: "{{ ansible_user_dir }}/.profile"
+    dest: "{{ ansible_facts['user_dir'] }}/.profile"
     mode: "0644"
 
 - name: "Bash | Copy custom bash config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/"
     src: "bash"
     mode: "0644"
     directory_mode: "0755"
@@ -50,20 +50,20 @@
 
 - name: "Bash | Copy custom bash theme"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.oh-my-bash/custom/"
+    dest: "{{ ansible_facts['user_dir'] }}/.oh-my-bash/custom/"
     src: "themes"
     directory_mode: "0755"
     mode: "0644"
     force: true
 
-- name: "Bash | {{ ansible_distribution }} | Identify distribution config"
+- name: "Bash | {{ ansible_facts['distribution'] }} | Identify distribution config"
   ansible.builtin.stat:
-    path: "{{ role_path }}/files/os/{{ ansible_distribution }}"
+    path: "{{ role_path }}/files/os/{{ ansible_facts['distribution'] }}"
   register: bash_os_distribution_config
 
-- name: "Bash | {{ ansible_os_family }} | Identify os family config"
+- name: "Bash | {{ ansible_facts['os_family'] }} | Identify os family config"
   ansible.builtin.stat:
-    path: "{{ role_path }}/files/os/{{ ansible_os_family }}"
+    path: "{{ role_path }}/files/os/{{ ansible_facts['os_family'] }}"
   register: bash_os_family_config
   when: not bash_os_distribution_config.stat.exists
 
@@ -73,7 +73,7 @@
 
 - name: "Bash | Copy custom bash config for os: {{ bash_os_config.stat.path | basename }}"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/bash/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/bash/"
     src: "{{ bash_os_config.stat.path }}/"
     mode: "0644"
     force: true

@@ -1,5 +1,5 @@
 ---
-- name: "Tmate | {{ ansible_distribution }} | Install Tmate"
+- name: "Tmate | {{ ansible_facts['distribution'] }} | Install Tmate"
   community.general.pacman:
     name: tmate
     state: present

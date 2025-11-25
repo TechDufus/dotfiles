@@ -96,7 +96,7 @@ Combine all findings into unified review.
 
 #### **STRATEGY C: Parallel Chunked Review** (Large PRs >2000 lines)
 
-For large PRs - use `/parallel` command to review chunks simultaneously:
+For large PRs - use parallel Task calls to review chunks simultaneously:
 
 **Step 1: Analyze File Structure**
 Group files by logical concern based on paths:
@@ -110,52 +110,13 @@ Create independent agents with non-overlapping file patterns.
 
 **Step 3: Execute Parallel Review**
 
-Example for full-stack PR:
+Launch multiple Task tool calls in a single message:
 
-```markdown
-I've analyzed this large PR and will use a parallel review strategy.
-
-**PR Statistics:**
-- 3,500 lines changed across 45 files
-- Mix of Python backend + React frontend + tests
-
-**Parallel Review Strategy:**
-
-/parallel Review this large PR using specialized agents:
-
-**Agent 1 - Backend Review:**
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'api/*' --files 'models/*'`
-
-Focus Areas:
-- Business logic correctness
-- Error handling and validation
-- Database query efficiency
-- Security (input validation, auth checks)
-
-**Agent 2 - Frontend Review:**
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'src/components/*' --files 'src/pages/*'`
-
-Focus Areas:
-- React patterns and hooks usage
-- State management
-- Performance (unnecessary re-renders)
-- Accessibility
-
-**Agent 3 - Test Review:**
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'tests/*' --files '*.test.py'`
-
-Focus Areas:
-- Test coverage gaps
-- Edge cases
-- Test quality and maintainability
-
-**Agent 4 - Infrastructure Review:**
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files '.github/*' --files 'docker/*' --files '*.yml'`
-
-Focus Areas:
-- CI/CD pipeline changes
-- Configuration correctness
-- Security implications
+```
+Task(subagent_type: "general-purpose", prompt: "Review backend files (api/*, models/*) for: business logic, error handling, security")
+Task(subagent_type: "general-purpose", prompt: "Review frontend files (src/components/*, src/pages/*) for: React patterns, state, performance")
+Task(subagent_type: "general-purpose", prompt: "Review test files (tests/*, *.test.*) for: coverage gaps, edge cases, quality")
+Task(subagent_type: "general-purpose", prompt: "Review infrastructure files (.github/*, docker/*, *.yml) for: CI/CD, security, best practices")
 ```
 
 **Step 4: Synthesize Agent Findings**
@@ -286,4 +247,4 @@ Agents:
 - **Token efficiency**: Only fetch diffs when needed
 - **Scalable**: Handles PRs from 10 lines to 10,000+ lines
 - **Intelligent**: Automatically chooses the right approach
-- **Parallel-ready**: Uses `/parallel` command for large PRs
+- **Parallel-ready**: Uses native Task tool for parallel review of large PRs

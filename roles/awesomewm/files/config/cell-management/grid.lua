@@ -3,12 +3,13 @@
 -- NOTE: AwesomeWM's useless_gap is applied automatically - no manual margins needed
 
 local helpers = require("cell-management.helpers")
+local config = require("cell-management.config")
 local awful = require("awful")
 
 local M = {}
 
--- Virtual grid size (resolution-independent)
-local GRID_W, GRID_H = 80, 40
+-- Virtual grid size from shared config
+local GRID_W, GRID_H = config.grid.width, config.grid.height
 
 -- Convert virtual grid cell to pixel coordinates
 -- cell: string like "0,0 52x40" or table {x=0, y=0, w=52, h=40}
@@ -19,8 +20,7 @@ function M.cell_to_geometry(cell, screen)
   screen = screen or awful.screen.primary
 
   if not screen then
-    print("[ERROR] No screen found")
-    return {x=0, y=0, width=1920, height=1080}  -- Fallback
+    return nil
   end
 
   local workarea = screen.workarea  -- Excludes status bar

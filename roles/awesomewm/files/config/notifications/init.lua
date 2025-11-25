@@ -7,11 +7,12 @@ local naughty = require("naughty")
 local rules = require("notifications.rules")
 local dnd = require("notifications.dnd")
 local display = require("notifications.display")
+local config = require("cell-management.config")
 
 local M = {}
 
--- Hyper key definition (matching cell-management/keybindings.lua)
-local hyper = { 'Shift', 'Mod4', 'Mod1', 'Control' }
+-- Use shared hyper key definition
+local hyper = config.hyper
 
 -- Export globalkeys for rc.lua to register
 M.globalkeys = gears.table.join(
@@ -40,8 +41,6 @@ function M.init()
     naughty.config.presets.normal = {
         timeout = 5,
     }
-
-    print("[notifications] Notification system initialized")
 end
 
 -- Export modules for external access

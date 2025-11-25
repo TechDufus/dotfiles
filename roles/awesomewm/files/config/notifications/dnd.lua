@@ -36,14 +36,12 @@ end
 function M.enable()
     state.enabled = true
     M.emit_signal("state::changed", true)
-    print("[notifications.dnd] DND enabled")
 end
 
 -- Disable DND and show queued notifications
 function M.disable()
     state.enabled = false
     M.emit_signal("state::changed", false)
-    print("[notifications.dnd] DND disabled, processing " .. #state.queue .. " queued notifications")
 
     -- Process queued notifications
     for _, n_args in ipairs(state.queue) do
@@ -84,7 +82,6 @@ function M.queue_notification(n)
 
     table.insert(state.queue, n_data)
     M.emit_signal("queue::changed", #state.queue)
-    print("[notifications.dnd] Queued notification: " .. (n.title or "untitled"))
 end
 
 -- Get queue count

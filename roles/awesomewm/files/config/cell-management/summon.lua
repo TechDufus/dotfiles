@@ -18,23 +18,14 @@ end)
 -- 3. App doesn't exist → launch app (positioning via awful.rules)
 return function(app_name)
   local app_config = apps[app_name]
-  if not app_config then
-    print("[WARN] Unknown app: " .. tostring(app_name))
-    return
-  end
+  if not app_config then return end
 
   local current_client = client.focus
   local current_class = current_client and current_client.class or nil
   local previous_class = state.get_previous_client_class()
-  local current_layout = state.get_current_layout()
-
-  print(string.format("[DEBUG SUMMON] App: %s, Looking for class: %s", app_name, app_config.class))
-  print(string.format("[DEBUG SUMMON] Current class: %s, Previous class: %s",
-    tostring(current_class), tostring(previous_class)))
 
   -- Find existing client matching app
   local target_client = helpers.find_client_by_class(app_config.class)
-  print(string.format("[DEBUG SUMMON] Target client found: %s", tostring(target_client ~= nil)))
 
   -- Case 1: Target app is focused and we have history → toggle back
   if current_class and
@@ -42,24 +33,19 @@ return function(app_name)
      previous_class and
      previous_class:lower() ~= app_config.class:lower() then
 
-    print("[DEBUG SUMMON] Case 1: Toggle back to previous app")
     local prev_client = helpers.find_client_by_class(previous_class)
     if prev_client then
       prev_client:jump_to()
-      prev_client:raise()  -- Ensure window comes to front
-      -- Don't reposition - respect user's manual window adjustments
+      prev_client:raise()
     end
 
-  -- Case 2: App exists with windows → activate and position
+  -- Case 2: App exists with windows → activate
   elseif target_client then
-    print("[DEBUG SUMMON] Case 2: Focus existing app")
     target_client:jump_to()
-    target_client:raise()  -- Ensure window comes to front
-    -- Don't reposition - respect user's manual window adjustments
+    target_client:raise()
 
   -- Case 3: App not running → launch (positioning via awful.rules)
   else
-    print("[DEBUG SUMMON] Case 3: Launching new app: " .. app_config.exec)
     awful.spawn(app_config.exec)
   end
 end

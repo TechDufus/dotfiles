@@ -141,10 +141,8 @@ theme.wibar_height      = dpi(28)
 theme.bg_systray        = mocha.base
 theme.systray_icon_spacing = dpi(4)
 
--- Wallpaper (uncomment and set your image path)
--- theme.wallpaper = gfs.get_configuration_dir() .. "themes/catppuccin-mocha/wallpaper.jpg"
--- Or use absolute path:
-theme.wallpaper = "/home/techdufus/Pictures/tengen-uzui-dark-3840x2160-18405.jpg"
+-- Wallpaper
+theme.wallpaper = os.getenv("HOME") .. "/Pictures/tengen-uzui-dark-3840x2160-18405.jpg"
 
 -- Layout icons (using text symbols as fallback)
 theme.layout_fairh      = "[]="

@@ -28,23 +28,23 @@ local notifications = nil
 local dnd = nil
 
 -- ============================================================================
--- CATPPUCCIN MOCHA COLOR PALETTE
+-- COLORS - Derived from theme with fallbacks
 -- ============================================================================
 
 local colors = {
-    -- Base colors
-    base = beautiful.bg_normal or "#1e1e2e",
-    surface0 = beautiful.bg_focus or "#313244",
-    surface1 = "#45475a",
+    -- Base colors (from theme)
+    base = beautiful.bg_normal,
+    surface0 = beautiful.bg_focus,
+    surface1 = beautiful.taglist_bg_hover or "#45475a",
     surface2 = "#585b70",
 
-    -- Text colors
-    text = beautiful.fg_normal or "#cdd6f4",
+    -- Text colors (from theme)
+    text = beautiful.fg_normal,
     subtext0 = "#a6adc8",
     subtext1 = "#bac2de",
 
-    -- Accent colors
-    blue = "#89b4fa",
+    -- Accent colors (matching theme)
+    blue = beautiful.fg_focus or "#89b4fa",
     sapphire = "#74c7ec",
     sky = "#89dceb",
     teal = "#94e2d5",
@@ -52,9 +52,9 @@ local colors = {
     yellow = "#f9e2af",
     peach = "#fab387",
     maroon = "#eba0ac",
-    red = "#f38ba8",
+    red = beautiful.bg_urgent or "#f38ba8",
     pink = "#f5c2e7",
-    mauve = "#cba6f7",
+    mauve = beautiful.hotkeys_modifiers_fg or "#cba6f7",
     lavender = "#b4befe",
 }
 
@@ -216,7 +216,7 @@ local fs_widget_display = fs_widget({
 -- Logout Menu Widget
 local logout_widget_display = logout_menu_widget({
     font = fonts.data,
-    onlock = function() awful.spawn.with_shell('i3lock -c 1e1e2e') end,
+    onlock = function() awful.spawn.with_shell('i3lock -c ' .. colors.base:gsub("#", "")) end,
 })
 
 -- ============================================================================

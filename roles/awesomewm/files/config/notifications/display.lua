@@ -11,18 +11,18 @@ local dnd = require("notifications.dnd")
 
 local M = {}
 
--- Catppuccin Mocha colors (matching wibar.lua)
+-- Colors derived from theme
 local colors = {
-    base = beautiful.notification_bg or "#1e1e2e",
-    surface0 = "#313244",
-    surface1 = "#45475a",
-    text = beautiful.notification_fg or "#cdd6f4",
+    base = beautiful.notification_bg or beautiful.bg_normal,
+    surface0 = beautiful.bg_focus,
+    surface1 = beautiful.taglist_bg_hover or "#45475a",
+    text = beautiful.notification_fg or beautiful.fg_normal,
     subtext0 = "#a6adc8",
-    blue = "#89b4fa",
+    blue = beautiful.fg_focus or beautiful.notification_border_color,
     green = "#a6e3a1",
-    red = "#f38ba8",
+    red = beautiful.bg_urgent,
     yellow = "#f9e2af",
-    mauve = "#cba6f7",
+    mauve = beautiful.hotkeys_modifiers_fg,
 }
 
 -- Urgency color mapping
@@ -95,9 +95,6 @@ function M.init()
             args.app_name = args.freedesktop_hints["desktop-entry"]
         end
 
-        -- Debug logging
-        print("[notifications.display] Notification from: " .. (args.app_name or "unknown"))
-
         -- Check DND mode
         if dnd.is_enabled() then
             -- Critical notifications bypass DND
@@ -109,8 +106,7 @@ function M.init()
 
         -- Check if app is muted
         if is_muted(args.app_name) then
-            print("[notifications.display] Muted notification from: " .. (args.app_name or "unknown"))
-            return nil  -- Don't show notification
+            return nil
         end
 
         -- Get app-specific settings
@@ -149,8 +145,6 @@ function M.init()
         -- Return modified args to show the notification
         return args
     end
-
-    print("[notifications.display] Initialized notification display handler with notify_callback")
 end
 
 return M

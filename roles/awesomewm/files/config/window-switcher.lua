@@ -8,18 +8,18 @@ local beautiful = require("beautiful")
 
 local window_switcher = {}
 
--- Configuration
+-- Configuration (using theme colors)
 local config = {
     icon_size = 48,
     icon_margin = 8,
     border_width = 2,
     border_radius = 12,
-    bg_color = "#1e1e2e",           -- Catppuccin base
-    border_color = "#45475a",        -- Catppuccin surface1
-    highlight_color = "#89b4fa",     -- Catppuccin blue
-    text_color = "#cdd6f4",          -- Catppuccin text
-    font = "BerkeleyMono Nerd Font 10",
-    hide_delay = 1.5,                -- Seconds to hide after last action
+    bg_color = beautiful.bg_normal,
+    border_color = beautiful.taglist_bg_hover or "#45475a",
+    highlight_color = beautiful.fg_focus,
+    text_color = beautiful.fg_normal,
+    font = beautiful.font,
+    hide_delay = 1.5,
 }
 
 -- State

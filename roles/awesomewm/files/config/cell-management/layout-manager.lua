@@ -16,8 +16,6 @@ function M.switch_layout(index)
   state.set_current_layout_index(index)
   local layout = state.get_current_layout()
 
-  print("[INFO] Switched to layout: " .. layout.name)
-
   -- Reposition all open apps (including multiple windows of same app)
   for app_name, app_config in pairs(layout.apps) do
     local app_def = require("cell-management.apps")[app_name]
@@ -135,8 +133,6 @@ function M.bind_to_cell()
           c.y = geom.y
           c.width = geom.width
           c.height = geom.height
-
-          print(string.format("[INFO] Moved %s to cell %d", c.class or "unknown", cell_index))
         end
       end
 

@@ -30,18 +30,11 @@ end
 function M.find_client_by_class(wm_class)
   if not wm_class then return nil end
 
-  print(string.format("[DEBUG HELPERS] Searching for class: %s", wm_class))
-  local all_clients = client.get()
-  print(string.format("[DEBUG HELPERS] Total clients: %d", #all_clients))
-
-  for _, c in ipairs(all_clients) do
-    print(string.format("[DEBUG HELPERS]   Client class: %s", tostring(c.class)))
+  for _, c in ipairs(client.get()) do
     if c.class and c.class:lower() == wm_class:lower() then
-      print(string.format("[DEBUG HELPERS] MATCH FOUND for: %s", wm_class))
       return c
     end
   end
-  print(string.format("[DEBUG HELPERS] NO MATCH for: %s", wm_class))
   return nil
 end
 
@@ -70,15 +63,6 @@ function M.find_app_by_class(wm_class)
     end
   end
   return nil
-end
-
--- Table flip utility (swap keys/values)
-function M.table_flip(t)
-  local flipped = {}
-  for k, v in pairs(t) do
-    flipped[v] = k
-  end
-  return flipped
 end
 
 -- Position client in its assigned cell

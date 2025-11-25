@@ -9,22 +9,15 @@ return {
     left_center  = '19,0 8x40',
     center       = '22,0 36x40',
     right        = '58,0 22x40',
-    right_hidden = '45,5 30x30', -- This is a full 1920x1080 on a 5120x1440 screen
-    left_hidden  = '5,5 30x30',  -- This is a full 1920x1080 on a 5120x1440 screen
   },
 
   thirds = {
-    -- left   = '0,0 1706x1440',
-    -- center = '1707,0 1706x1440',
-    -- right  = '3414,0 1706x1440',
-    left   = '0,0 54x40',
-    center = '54,0 53x40',
-    right  = '106,0 54x40',
+    left   = '0,0 27x40',
+    center = '27,0 26x40',
+    right  = '53,0 27x40',
   },
 
   halves = {
-    -- left  = '0,0 2560x1440',
-    -- right = '2560,0 2560x1440',
     left  = '0,0 40x40',
     right = '40,0 40x40',
   },

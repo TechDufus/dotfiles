@@ -13,8 +13,6 @@ local summon = require("cell-management.summon")
 -- Load keybindings (registers global keys)
 require("cell-management.keybindings")
 
-print("[INFO] Cell management system loaded")
-
 -- Return public API (for future extensions)
 return {
   state = state,

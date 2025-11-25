@@ -84,3 +84,43 @@ Commits follow conventional format and are validated by the git-commit-validator
 - **Emergency Fixes**: Can bypass workflows when critical
 - **Context Matters**: Explain when standard workflows don't fit
 </important>
+
+## Unified Work Command
+
+**Primary entry point:** `/work <task>` - Intelligent routing for all development work.
+
+Flags:
+- `--quick` - Skip analysis, direct execution
+- `--structured` - Force structured mode with TodoWrite
+- `--parallel` - Force parallel decomposition
+- `--status` - Show active work
+
+The `/work` command automatically:
+1. Analyzes task complexity
+2. Routes to optimal strategy (quick, research, parallel, structured)
+3. Validates continuously
+4. Captures learnings
+
+---
+
+## Active Work
+<!-- Auto-updated by /work when in structured mode -->
+<!-- Clear this section when task completes -->
+
+## Learned Patterns
+<!-- Append when notable patterns discovered -->
+<!-- Format:
+### YYYY-MM-DD - <category>
+- Task: <what was done>
+- Pattern: <reusable insight>
+- Files: <relevant locations>
+-->
+
+## Decisions Log
+<!-- Append when significant choices made -->
+<!-- Format:
+### YYYY-MM-DD - <decision>
+- Context: <situation>
+- Chosen: <option selected>
+- Rationale: <why>
+-->

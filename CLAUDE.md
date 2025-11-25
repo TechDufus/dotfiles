@@ -330,3 +330,27 @@ dotfiles --check
 6. Commit changes with descriptive message
 
 This comprehensive guide should help Claude understand and work effectively with this dotfiles repository.
+
+---
+
+## Active Work
+<!-- Auto-updated by /work when in structured mode -->
+<!-- Clear this section when task completes -->
+
+## Learned Patterns
+<!-- Append when notable patterns discovered -->
+<!-- Format:
+### YYYY-MM-DD - <category>
+- Task: <what was done>
+- Pattern: <reusable insight>
+- Files: <relevant locations>
+-->
+
+## Decisions Log
+<!-- Append when significant choices made -->
+<!-- Format:
+### YYYY-MM-DD - <decision>
+- Context: <situation>
+- Chosen: <option selected>
+- Rationale: <why>
+-->

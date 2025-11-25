@@ -8,17 +8,17 @@ local beautiful = require("beautiful")
 
 local window_switcher = {}
 
--- Configuration (using theme colors)
+-- Configuration (using theme colors with fallbacks)
 local config = {
     icon_size = 48,
     icon_margin = 8,
     border_width = 2,
     border_radius = 12,
-    bg_color = beautiful.bg_normal,
+    bg_color = beautiful.bg_normal or "#1e1e2e",
     border_color = beautiful.taglist_bg_hover or "#45475a",
-    highlight_color = beautiful.fg_focus,
-    text_color = beautiful.fg_normal,
-    font = beautiful.font,
+    highlight_color = beautiful.fg_focus or "#89b4fa",
+    text_color = beautiful.fg_normal or "#cdd6f4",
+    font = beautiful.font or "sans 10",
     hide_delay = 1.5,
 }
 

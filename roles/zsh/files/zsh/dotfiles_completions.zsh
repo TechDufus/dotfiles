@@ -45,13 +45,16 @@ __dotfiles_completion() {
 
     # Define the command line options
     _arguments -C \
+        '-h[Show help message]' \
+        '--help[Show help message]' \
+        '--version[Show version information]' \
         '-t[Run specific roles]:role:->roles' \
         '--skip-tags[Skip specific roles]:role:->roles' \
         '--uninstall[Uninstall a role]:role:->uninstall' \
         '--delete[Uninstall and delete a role]:role:->delete' \
         '--check[Run in check mode (dry run)]' \
         '--list-tags[List all available tags]' \
-        '-v[Verbose mode (can be specified multiple times)]' \
+        '-v[Verbose mode (passed to ansible-playbook)]' \
         '-vv[More verbose output]' \
         '-vvv[Most verbose output]' \
         '*:argument:->args'
@@ -85,36 +88,4 @@ __dotfiles_completion() {
 }
 
 # Register the completion function
-# Simple registration - same as Fedora system
 compdef __dotfiles_completion dotfiles
-
-# COMMENTED OUT FOR TESTING - Complex tmux timing fix
-# If completions work after reboot, this whole section can be removed
-# () {
-#     # Helper function to register the completion
-#     local register_completion() {
-#         compdef __dotfiles_completion dotfiles
-#     }
-#
-#     if [[ -n "$TMUX" ]]; then
-#         # In tmux: defer registration until shell is interactive
-#         # This uses ZSH's hook system to run code before the first prompt
-#         autoload -Uz add-zsh-hook
-#         
-#         # Define a function that will run once at the first prompt
-#         local _register_dotfiles_completion() {
-#             register_completion
-#             # Remove this hook after running once (-d flag)
-#             # This prevents the registration from running on every prompt
-#             add-zsh-hook -d precmd _register_dotfiles_completion
-#         }
-#         
-#         # Add our function to the precmd hook list
-#         add-zsh-hook precmd _register_dotfiles_completion
-#     else
-#         # Regular terminal: register immediately
-#         # No timing issues here, so we can register right away
-#         register_completion
-#     fi
-# }
-

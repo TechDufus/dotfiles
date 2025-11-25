@@ -43,8 +43,8 @@ cd ~/.dotfiles && git pull
 # Bootstrap on new machine (auto-installs prerequisites)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/<username>/dotfiles/main/bin/bootstrap)"
 
-# Force reinstall everything
-ansible-playbook main.yml --force
+# Force reinstall Ansible Galaxy dependencies
+ansible-galaxy install -r requirements/common.yml --force
 ```
 
 ### Role Development
@@ -173,11 +173,8 @@ Always prefix tasks with the role name:
 
 ## Hidden Context
 
-### ZSH Completions Timing Issue
-ZSH completions can be overwritten by zinit's cdreplay. This is especially problematic in tmux:
-- tmux starts → PTY creation → .zshrc → compinit → custom completions fail
-- **Solution**: Load custom completions AFTER zinit's replay or use zinit's snippet management
-- Alternative: Use precmd hook to defer registration until shell is ready
+### ZSH Completions
+ZSH completions are registered after zinit's cdreplay to ensure proper initialization order. Custom completions (like `dotfiles_completions.zsh`) use simple `compdef` registration.
 
 ### 1Password Vault Migration
 The project migrated from ansible-vault to 1Password for better secret rotation:
@@ -272,7 +269,7 @@ The `bin/dotfiles` script is more than a wrapper:
 - **Idempotency**: Always use `changed_when` appropriately to track state changes
 - **OS Compatibility**: Test on target OS - not all roles support all distributions
 - **Symlink vs Copy**: Prefer symlinks for config directories to maintain version control
-- **Tab Completion**: Complex timing issues in tmux - see ZSH role for solutions
+- **Tab Completion**: Completions load after zinit's cdreplay for proper initialization
 - **Package Versions**: Some packages (like termshark) need specific versions due to dependencies
 - **System Dependencies**: Never uninstall git, python, or other critical system packages
 - **Dual Config Files**: Some roles have both generic and OS-specific configs (e.g., `kitty.conf` and `kitty_MacOSX.conf`)

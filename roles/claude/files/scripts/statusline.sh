@@ -39,31 +39,14 @@ OS_ICON_COLOR="${BRIGHT_WHITE}" # Bright white for OS icon
 
 input=$(cat)
 
-# Model information
-get_model_name() { echo "$input" | jq -r '.model.display_name // empty'; }
-get_model_id() { echo "$input" | jq -r '.model.id // empty'; }
-
-# Workspace information
+# Parse all JSON fields at once for performance
 get_current_dir() { echo "$input" | jq -r '.workspace.current_dir // empty'; }
 get_project_dir() { echo "$input" | jq -r '.workspace.project_dir // empty'; }
-
-# Session and hook information
-get_session_id() { echo "$input" | jq -r '.session_id // empty'; }
-get_hook_event() { echo "$input" | jq -r '.hook_event_name // empty'; }
-get_transcript_path() { echo "$input" | jq -r '.transcript_path // empty'; }
-
-# Working directory (legacy field)
-get_cwd() { echo "$input" | jq -r '.cwd // empty'; }
-
-# Version information (if available)
-get_version() { echo "$input" | jq -r '.version // empty'; }
-
-# Cost and usage information (new fields)
+get_model_name() { echo "$input" | jq -r '.model.display_name // empty'; }
 get_total_cost() { echo "$input" | jq -r '.cost.total_cost_usd // empty'; }
 get_api_duration() { echo "$input" | jq -r '.cost.total_api_duration_ms // empty'; }
 get_lines_added() { echo "$input" | jq -r '.cost.total_lines_added // empty'; }
 get_lines_removed() { echo "$input" | jq -r '.cost.total_lines_removed // empty'; }
-get_output_style() { echo "$input" | jq -r '.output_style.name // empty'; }
 
 # Get Claude's current directory from the input JSON
 CLAUDE_DIR=$(get_current_dir)
@@ -86,21 +69,11 @@ API_DURATION=$(get_api_duration)
 LINES_ADDED=$(get_lines_added)
 LINES_REMOVED=$(get_lines_removed)
 
-# Format cost display with color coding
+# Format cost display
 COST_DISPLAY=""
 if [[ -n "$COST" ]]; then
-  # Format cost: $0.01 for < $1, $1.23 for >= $1
-  if (( $(echo "$COST < 1" | bc -l) )); then
-    COST_FORMATTED=$(printf "$%.2f" "$COST")
-  else
-    COST_FORMATTED=$(printf "$%.2f" "$COST")
-  fi
-  
-  # Simple color for cost display (just for visibility, not warning)
-  # Using cyan to match directory color - clean and informational
-  COST_COLOR="${BRIGHT_CYAN}"
-  
-  COST_DISPLAY="${TEXT_DIM} | ${COST_COLOR}${COST_FORMATTED}"
+  COST_FORMATTED=$(printf "$%.2f" "$COST")
+  COST_DISPLAY="${TEXT_DIM} | ${BRIGHT_CYAN}${COST_FORMATTED}"
 fi
 
 # Format API duration (convert ms to seconds)
@@ -301,17 +274,13 @@ fi
 # Use └─ as the line connector for the second line
 CONNECTOR="${TEXT_DIM}└─ "
 
-# Only adapt what metrics to show based on terminal width, not dir/git formatting
+# Adapt metrics based on terminal width
 if [[ $TERM_WIDTH -gt 120 ]]; then
-  # Full format: Show all metrics
-  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
-  printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${COST_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}${RESET}"
-elif [[ $TERM_WIDTH -gt 80 ]]; then
-  # Medium format: Show dir, git, model, and cost only
-  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
-  printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
+  METRICS="${COST_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}"
 else
-  # Compact format: Show dir, git, model, and cost only (same as medium)
-  printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
-  printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${COST_DISPLAY}${RESET}"
+  METRICS="${COST_DISPLAY}"
 fi
+
+# Output statusline
+printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
+printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${METRICS}${RESET}"

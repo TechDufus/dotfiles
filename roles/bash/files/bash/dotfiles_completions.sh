@@ -10,7 +10,7 @@ _dotfiles() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     
     # Main options
-    opts="-t --skip-tags --uninstall --delete --check --list-tags -v -vv -vvv"
+    opts="-h --help --version -t --skip-tags --uninstall --delete --check --list-tags -v -vv -vvv"
     
     case "${prev}" in
         -t|--skip-tags)

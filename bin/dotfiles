@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck shell=bash
+# shellcheck disable=SC2034  # Unused variables are exported for child scripts
 
 # Catppuccin Mocha color codes
 NC='\033[0m'
@@ -40,6 +42,7 @@ BLUE="$CAT_BLUE"
 PURPLE="$CAT_MAUVE"
 CYAN="$CAT_TEAL"
 WHITE="$CAT_TEXT"
+ORANGE="$CAT_PEACH"
 LBLACK="$CAT_SURFACE0"
 LRED="$CAT_RED"
 LGREEN="$CAT_GREEN"
@@ -67,8 +70,27 @@ RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 set -e
 
+# Check for tput (required for cursor control)
+if ! command -v tput &> /dev/null; then
+  echo -e "${CAT_RED}Error: 'tput' is required but not found.${NC}"
+  echo -e "${CAT_SUBTEXT1}Please install ncurses (Ubuntu: apt install ncurses-bin, Arch: pacman -S ncurses)${NC}"
+  exit 1
+fi
+
+# Early check for help/version flags (before setup)
+for arg in "$@"; do
+  case $arg in
+    -h|--help)
+      SHOW_HELP=true
+      ;;
+    --version)
+      SHOW_VERSION=true
+      ;;
+  esac
+done
+
 # Cleanup function for exit
-function cleanup() {
+cleanup() {
   # Kill spinner if running
   if [[ $SPINNER_PID != "" ]]; then
     kill $SPINNER_PID 2>/dev/null
@@ -85,16 +107,61 @@ trap cleanup EXIT INT TERM
 VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
 OP_INSTALLED=false
 OP_AUTHENTICATED=false
-OP_VAULT_SECRET=""
-ID=""
 DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
+DOTFILES_VERSION="1.0.0"
 # Spinner PID tracking
 SPINNER_PID=""
 
+# Show usage/help information
+show_help() {
+  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} - Ansible-based dotfiles management"
+  echo ""
+  echo -e "${CAT_BLUE}USAGE:${NC}"
+  echo "    dotfiles [OPTIONS] [-- ANSIBLE_ARGS]"
+  echo ""
+  echo -e "${CAT_BLUE}OPTIONS:${NC}"
+  echo -e "    ${CAT_GREEN}-h, --help${NC}              Show this help message"
+  echo -e "    ${CAT_GREEN}--version${NC}               Show version information"
+  echo -e "    ${CAT_GREEN}--uninstall <role>${NC}      Uninstall a role (cleanup only)"
+  echo -e "    ${CAT_GREEN}--delete <role>${NC}         Uninstall and delete a role from dotfiles"
+  echo -e "    ${CAT_GREEN}-v, -vv, -vvv${NC}           Verbose mode (passed to ansible-playbook)"
+  echo ""
+  echo -e "${CAT_BLUE}EXAMPLES:${NC}"
+  echo -e "    ${CAT_SUBTEXT1}# Run full dotfiles installation${NC}"
+  echo "    dotfiles"
+  echo ""
+  echo -e "    ${CAT_SUBTEXT1}# Install specific roles only${NC}"
+  echo "    dotfiles -t neovim,git,tmux"
+  echo ""
+  echo -e "    ${CAT_SUBTEXT1}# Dry run (test without applying)${NC}"
+  echo "    dotfiles --check"
+  echo ""
+  echo -e "    ${CAT_SUBTEXT1}# Uninstall a role${NC}"
+  echo "    dotfiles --uninstall neovim"
+  echo ""
+  echo -e "    ${CAT_SUBTEXT1}# Delete a role completely${NC}"
+  echo "    dotfiles --delete old_role"
+  echo ""
+  echo -e "${CAT_BLUE}ANSIBLE ARGUMENTS:${NC}"
+  echo "    All arguments not recognized by dotfiles are passed to ansible-playbook."
+  echo "    Common options: -t <tags>, --check, -vvv, --list-tags"
+  echo ""
+  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/TechDufus/dotfiles${NC}"
+}
+
+# Show version information
+show_version() {
+  local git_hash=""
+  if [[ -d "$DOTFILES_DIR/.git" ]]; then
+    git_hash=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  fi
+  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
+}
+
 # Spinner function that runs in background
-function _spinner() {
+_spinner() {
   local task_text="$1"
   local chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
   local delay=0.08
@@ -117,7 +184,7 @@ function _spinner() {
 }
 
 # Start a new task with spinner
-function __task {
+__task() {
   # if a task is running, complete it first
   if [[ $TASK != "" ]] && [[ $SPINNER_PID != "" ]]; then
     _task_done
@@ -135,7 +202,7 @@ function __task {
 }
 
 # _cmd performs commands with error checking
-function _cmd {
+_cmd() {
   #create log if it doesn't exist
   if ! [[ -f $DOTFILES_LOG ]]; then
     touch $DOTFILES_LOG
@@ -161,9 +228,10 @@ function _cmd {
     printf "\r\033[K${CAT_RED} [✗]  ${CAT_TEXT}${TASK}${NC}\n"
 
     # Show error details
-    while read line; do
-      printf "      ${CAT_MAROON}${line}${NC}\n"
-    done < $DOTFILES_LOG
+    local line
+    while read -r line; do
+      printf "      ${CAT_MAROON}%s${NC}\n" "$line"
+    done < "$DOTFILES_LOG"
     printf "\n"
 
     # remove log file
@@ -173,11 +241,11 @@ function _cmd {
   fi
 }
 
-function _clear_task {
+_clear_task() {
   TASK=""
 }
 
-function _task_done {
+_task_done() {
   # Kill spinner if running
   if [[ $SPINNER_PID != "" ]]; then
     kill $SPINNER_PID 2>/dev/null
@@ -193,7 +261,7 @@ function _task_done {
   _clear_task
 }
 
-function ubuntu_setup() {
+ubuntu_setup() {
   # Source os-release to get VERSION_ID
   if [ -f /etc/os-release ]; then
     source /etc/os-release
@@ -226,7 +294,7 @@ function ubuntu_setup() {
   fi
 }
 
-function arch_setup() {
+arch_setup() {
   if ! [ -x "$(command -v ansible)" ]; then
     __task "Installing Ansible (This may take a few minutes)"
     _cmd "sudo pacman -Sy --noconfirm"
@@ -256,7 +324,7 @@ function arch_setup() {
   _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
 }
 
-function fedora_setup() {
+fedora_setup() {
   if ! [ -x "$(command -v ansible)" ]; then
     __task "Installing Ansible (This may take a few minutes)"
     _cmd "sudo dnf install -y ansible"
@@ -280,7 +348,7 @@ function fedora_setup() {
   fi
 }
 
-function macos_setup() {
+macos_setup() {
   if ! [ -x "$(command -v brew)" ]; then
     __task "Installing Homebrew (This may take 5-10 minutes)"
     _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
@@ -315,7 +383,7 @@ update_ansible_galaxy() {
   _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
 }
 
-function confirmVaultAccess() {
+confirmVaultAccess() {
   __task "Checking for 1Password CLI"
   if ! command -v op >/dev/null 2>&1; then
     printf "${OVERWRITE}${CAT_RED} [X]  ${CAT_TEXT}Checking for 1Password CLI\n"
@@ -339,7 +407,7 @@ detect_os() {
   fi
 }
 
-function print_banner() {
+print_banner() {
   echo ""
   echo -e "${CAT_SAPPHIRE}  ████████╗███████╗ ██████╗██╗  ██╗██████╗ ██╗   ██╗███████╗██╗   ██╗███████╗${NC}"
   echo -e "${CAT_SAPPHIRE}  ╚══██╔══╝██╔════╝██╔════╝██║  ██║██╔══██╗██║   ██║██╔════╝██║   ██║██╔════╝${NC}"
@@ -356,6 +424,17 @@ function print_banner() {
   echo -e "${CAT_BLUE}      ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
   echo ""
 }
+
+# Handle early exit for help/version (before banner and setup)
+if [[ "${SHOW_HELP:-}" == "true" ]]; then
+  show_help
+  exit 0
+fi
+
+if [[ "${SHOW_VERSION:-}" == "true" ]]; then
+  show_version
+  exit 0
+fi
 
 print_banner
 
@@ -399,11 +478,27 @@ REMAINING_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    --version)
+      show_version
+      exit 0
+      ;;
     --uninstall)
+      if [[ -z "$2" || "$2" == -* ]]; then
+        echo -e "${RED} [✗]  ${CAT_TEXT}Error: --uninstall requires a role name${NC}"
+        exit 1
+      fi
       UNINSTALL_ROLE="$2"
       shift 2
       ;;
     --delete)
+      if [[ -z "$2" || "$2" == -* ]]; then
+        echo -e "${RED} [✗]  ${CAT_TEXT}Error: --delete requires a role name${NC}"
+        exit 1
+      fi
       DELETE_ROLE="$2"
       shift 2
       ;;
@@ -421,12 +516,12 @@ run_uninstall_script() {
   local uninstall_script="$role_dir/uninstall.sh"
 
   if [[ ! -d "$role_dir" ]]; then
-    echo -e "${RED} [✗]  ${WHITE}Error: Role '${role}' not found${NC}"
+    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${role}' not found${NC}"
     return 1
   fi
 
   if [[ ! -f "$uninstall_script" ]]; then
-    echo -e "${RED} [✗]  ${WHITE}Error: Role '${role}' does not have an uninstall script${NC}"
+    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${role}' does not have an uninstall script${NC}"
     return 1
   fi
 
@@ -451,18 +546,18 @@ run_uninstall_script() {
 # Handle uninstall (cleanup only)
 if [[ -n "$UNINSTALL_ROLE" ]]; then
   # Confirm uninstall
-  echo -e "${YELLOW} [?]  ${WHITE}This will uninstall ${BOLD}${CAT_MAUVE}${UNINSTALL_ROLE}${NC}."
+  echo -e "${YELLOW} [?]  ${CAT_TEXT}This will uninstall ${BOLD}${CAT_MAUVE}${UNINSTALL_ROLE}${NC}."
   read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     if run_uninstall_script "$UNINSTALL_ROLE"; then
-      echo -e "${GREEN} [✓]  ${WHITE}${UNINSTALL_ROLE} has been uninstalled${NC}"
+      echo -e "${GREEN} [✓]  ${CAT_TEXT}${UNINSTALL_ROLE} has been uninstalled${NC}"
     else
       popd 2>&1 > /dev/null
       exit 1
     fi
   else
-    echo -e "${YELLOW} [!]  ${WHITE}Uninstall cancelled${NC}"
+    echo -e "${YELLOW} [!]  ${CAT_TEXT}Uninstall cancelled${NC}"
   fi
   popd 2>&1 > /dev/null
   exit 0
@@ -475,17 +570,17 @@ if [[ -n "$DELETE_ROLE" ]]; then
 
   # Check if role exists
   if [[ ! -d "$ROLE_DIR" ]]; then
-    echo -e "${RED} [✗]  ${WHITE}Error: Role '${DELETE_ROLE}' not found${NC}"
+    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${DELETE_ROLE}' not found${NC}"
     popd 2>&1 > /dev/null
     exit 1
   fi
 
   # Confirm delete
   if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-    echo -e "${YELLOW} [?]  ${WHITE}This will uninstall ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} and ${BOLD}${CAT_RED}DELETE${NC} the role from your dotfiles."
+    echo -e "${YELLOW} [?]  ${CAT_TEXT}This will uninstall ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} and ${BOLD}${CAT_RED}DELETE${NC} the role from your dotfiles."
   else
-    echo -e "${YELLOW} [?]  ${WHITE}This will ${BOLD}${CAT_RED}DELETE${NC} the role ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} from your dotfiles."
-    echo -e "${YELLOW}      ${WHITE}Note: No uninstall script exists, so only the role directory will be removed.${NC}"
+    echo -e "${YELLOW} [?]  ${CAT_TEXT}This will ${BOLD}${CAT_RED}DELETE${NC} the role ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} from your dotfiles."
+    echo -e "${YELLOW}      ${CAT_TEXT}Note: No uninstall script exists, so only the role directory will be removed.${NC}"
   fi
 
   read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
@@ -494,7 +589,7 @@ if [[ -n "$DELETE_ROLE" ]]; then
     # Run uninstall script if it exists
     if [[ -f "$UNINSTALL_SCRIPT" ]]; then
       if ! run_uninstall_script "$DELETE_ROLE"; then
-        echo -e "${YELLOW} [!]  ${WHITE}Uninstall script failed, but continuing with deletion...${NC}"
+        echo -e "${YELLOW} [!]  ${CAT_TEXT}Uninstall script failed, but continuing with deletion...${NC}"
       fi
     fi
 
@@ -502,7 +597,12 @@ if [[ -n "$DELETE_ROLE" ]]; then
     if grep -q "^  - $DELETE_ROLE$" "$DOTFILES_DIR/group_vars/all.yml"; then
       __task "Removing $DELETE_ROLE from configuration"
       cp "$DOTFILES_DIR/group_vars/all.yml" "$DOTFILES_DIR/group_vars/all.yml.bak"
-      sed -i '' "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
+      # Use portable sed -i syntax (macOS requires '', Linux doesn't)
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
+      else
+        sed -i "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
+      fi
       _task_done
     fi
 
@@ -512,18 +612,18 @@ if [[ -n "$DELETE_ROLE" ]]; then
     _task_done
 
     if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-      echo -e "${GREEN} [✓]  ${WHITE}${DELETE_ROLE} has been uninstalled and deleted${NC}"
+      echo -e "${GREEN} [✓]  ${CAT_TEXT}${DELETE_ROLE} has been uninstalled and deleted${NC}"
     else
-      echo -e "${GREEN} [✓]  ${WHITE}${DELETE_ROLE} has been deleted${NC}"
+      echo -e "${GREEN} [✓]  ${CAT_TEXT}${DELETE_ROLE} has been deleted${NC}"
     fi
   else
-    echo -e "${YELLOW} [!]  ${WHITE}Delete cancelled${NC}"
+    echo -e "${YELLOW} [!]  ${CAT_TEXT}Delete cancelled${NC}"
   fi
   popd 2>&1 > /dev/null
   exit 0
 fi
 
-update_ansible_galaxy $ID
+update_ansible_galaxy "$dotfiles_os"
 
 # confirmVaultAccess
 

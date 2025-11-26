@@ -11,3 +11,28 @@
     flatpakrepo_url: "https://flathub.org/repo/flathub.flatpakrepo"
     state: present
   become: true
+
+- name: "Flatpak | Detect desktop environment"
+  ansible.builtin.command: systemctl get-default
+  register: flatpak_systemd_target
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "Flatpak | Set desktop environment fact"
+  ansible.builtin.set_fact:
+    flatpak_is_desktop: "{{ flatpak_systemd_target.stdout == 'graphical.target' and not ansible_host_environment_is_wsl }}"
+
+- name: "Flatpak | Install desktop applications"
+  community.general.flatpak:
+    name: "{{ item }}"
+    state: present
+    remote: flathub
+  loop:
+    - com.brave.Browser
+    - com.discordapp.Discord
+    - com.spotify.Client
+    - md.obsidian.Obsidian
+    - com.valvesoftware.Steam
+  when: flatpak_is_desktop
+  become: true

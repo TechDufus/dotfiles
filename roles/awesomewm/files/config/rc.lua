@@ -29,6 +29,12 @@ local window_switcher = require("window-switcher")
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
+-- Remap Caps Lock to F13 for laptop keyboard support
+-- This allows the summon modal (F13) to work on keyboards without F13 key
+-- The remapping is idempotent - safe to run multiple times
+awful.spawn.once("setxkbmap -option caps:none")
+awful.spawn.once("xmodmap -e 'keycode 66 = F13'")
+
 -- Start clipboard manager daemon (CopyQ)
 awful.spawn.once("copyq")
 

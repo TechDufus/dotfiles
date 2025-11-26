@@ -31,9 +31,9 @@ dotfiles -t awesomewm -vvv
 
 ## Keyboard Shortcuts
 
-### Application Summoning (F13 Modal)
+### Application Summoning (F13 / Caps Lock Modal)
 
-Press **F13** to enter summon mode, then press a letter key:
+Press **F13** (or **Caps Lock** on laptop keyboards) to enter summon mode, then press a letter key:
 
 - **F13 + t** → Ghostty Terminal
 - **F13 + b** → Brave Browser
@@ -203,7 +203,22 @@ journalctl -f
 
 ### F13 key not working
 
-**Option 1: Use F14 instead**
+**Automatic: Caps Lock is remapped to F13**
+
+As of v1.1, Caps Lock is automatically remapped to F13 on startup. This enables the summon modal on standard laptop keyboards without a dedicated F13 key.
+
+- Press **Caps Lock** to enter summon mode (same as F13)
+- The original Caps Lock function is disabled (use Shift for capitals)
+- Remapping runs once at AwesomeWM startup via `xmodmap`
+
+**If Caps Lock doesn't work as F13:**
+```bash
+# Manually apply the remapping
+setxkbmap -option caps:none
+xmodmap -e 'keycode 66 = F13'
+```
+
+**Alternative: Use F14 instead**
 
 Edit `~/.config/awesome/cell-management/keybindings.lua`:
 ```lua
@@ -211,10 +226,6 @@ awful.key({}, 'F14', function()  -- Change F13 to F14
   summon_modal:start()
 end),
 ```
-
-**Option 2: Remap another key to F13**
-
-Use `xmodmap` or your keyboard settings to remap an unused key to F13.
 
 ### Hyper key hard to press
 

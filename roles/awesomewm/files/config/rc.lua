@@ -31,9 +31,10 @@ awful.spawn.once("xset r rate 300 40")
 
 -- Remap Caps Lock to F13 for laptop keyboard support
 -- This allows the summon modal (F13) to work on keyboards without F13 key
--- The remapping is idempotent - safe to run multiple times
-awful.spawn.once("setxkbmap -option caps:none")
-awful.spawn.once("xmodmap -e 'keycode 66 = F13'")
+-- Must run in sequence: setxkbmap first (disables capslock), then xmodmap (remaps to F13)
+-- Runs on every startup/reload to ensure remapping persists after any setxkbmap changes
+-- Small delay ensures X server is ready to accept the remapping
+awful.spawn.with_shell("sleep 0.2 && setxkbmap -option caps:none && xmodmap -e 'keycode 66 = F13'")
 
 -- Start clipboard manager daemon (CopyQ)
 awful.spawn.once("copyq")

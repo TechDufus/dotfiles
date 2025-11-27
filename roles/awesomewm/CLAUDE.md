@@ -33,22 +33,33 @@ dotfiles -t awesomewm -vvv
 
 ### Application Summoning (F13 / Caps Lock Modal)
 
-Press **F13** (or **Caps Lock** on laptop keyboards) to enter summon mode, then press a letter key:
+Press a trigger key to enter summon mode, then press a letter key to focus/launch an app:
 
-- **F13 + t** → Ghostty Terminal
-- **F13 + b** → Brave Browser
-- **F13 + d** → Discord
-- **F13 + s** → Spotify (Music)
-- **F13 + n** → Obsidian (Notes)
-- **F13 + o** → 1Password
+| Keyboard Type | Summon (F13) | Macros (F16) |
+|---------------|--------------|--------------|
+| **Laptop** (no F13 key) | CapsLock | CapsLock double-tap (within 150ms) |
+| **External** (with F13/F16) | F13 | F16 |
 
-**Toggle Behavior**: Press the summon key twice to toggle back to the previous app.
+**Summon Keys:**
+- **t** → Ghostty Terminal
+- **b** → Brave Browser
+- **d** → Discord
+- **s** → Spotify (Music)
+- **n** → Obsidian (Notes)
+- **o** → 1Password
+
+**Laptop Usage (CapsLock):**
+- Single tap + key → Summon app (e.g., CapsLock → t → Ghostty)
+- Fast combo → Works too (CapsLock + t pressed quickly → Ghostty immediately)
+- Double-tap → Macro mode (CapsLock → CapsLock → s → Screenshot)
+
+**Toggle Behavior**: Summon the same app twice to toggle back to the previous app.
 
 **Example**:
-1. F13 + t → Ghostty focuses
-2. F13 + b → Brave focuses
-3. F13 + t → Ghostty focuses (toggle)
-4. F13 + t → Brave focuses (toggle back)
+1. CapsLock + t → Ghostty focuses
+2. CapsLock + b → Brave focuses
+3. CapsLock + t → Ghostty focuses (toggle)
+4. CapsLock + t → Brave focuses (toggle back)
 
 ### Window Focus Navigation (Hyper + hjkl)
 
@@ -201,30 +212,37 @@ tail -f ~/.xsession-errors
 journalctl -f
 ```
 
-### F13 key not working
+### F13/CapsLock not working
 
-**Automatic: Caps Lock is remapped to F13**
+**Laptop Keyboards (CapsLock → F13 remapping)**
 
-As of v1.1, Caps Lock is automatically remapped to F13 on startup. This enables the summon modal on standard laptop keyboards without a dedicated F13 key.
+CapsLock is automatically remapped to F13 on every AwesomeWM startup/reload. This enables:
+- **Single tap** (or tap + key) → Summon modal
+- **Double-tap** (within 150ms) → Macro modal
+- Original CapsLock function is disabled (use Shift for capitals)
 
-- Press **Caps Lock** to enter summon mode (same as F13)
-- The original Caps Lock function is disabled (use Shift for capitals)
-- Remapping runs once at AwesomeWM startup via `xmodmap`
-
-**If Caps Lock doesn't work as F13:**
+**If CapsLock doesn't work:**
 ```bash
-# Manually apply the remapping
-setxkbmap -option caps:none
-xmodmap -e 'keycode 66 = F13'
+# Verify remapping is active
+xmodmap -pke | grep "keycode  66"
+# Should show: keycode  66 = F13
+
+# Manually apply if needed
+setxkbmap -option caps:none && xmodmap -e 'keycode 66 = F13'
 ```
 
-**Alternative: Use F14 instead**
+**External Keyboards (with physical F13/F16 keys)**
+
+If your keyboard has F13/F16 keys, they work directly - no remapping needed. The CapsLock remapping won't interfere.
+
+**Adjusting double-tap timing**
 
 Edit `~/.config/awesome/cell-management/keybindings.lua`:
 ```lua
-awful.key({}, 'F14', function()  -- Change F13 to F14
-  summon_modal:start()
-end),
+local double_tap = {
+  timeout = 0.15,  -- Change to 0.2 for more forgiving timing
+  -- ...
+}
 ```
 
 ### Hyper key hard to press

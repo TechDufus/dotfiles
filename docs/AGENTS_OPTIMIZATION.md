@@ -2,7 +2,7 @@
 
 ## Overview
 
-Comprehensive optimization of AGENTS.md following OpenCode best practices from https://opencode.ai/docs/rules.
+Comprehensive optimization of AGENTS.md following OpenCode best practices from <https://opencode.ai/docs/rules>.
 
 ## Changes Applied
 

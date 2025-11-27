@@ -378,7 +378,7 @@ The grid system uses `screen.workarea` which should exclude the status bar. If w
 | Bluetooth | `blueman-manager` | Pairing, connections |
 | Network | `nm-connection-editor` | WiFi, VPN, Ethernet |
 | Power/Battery | `xfce4-power-manager-settings` | Screen timeout, sleep, power button |
-| Profile Picture | Log into GNOME once, or use AccountsService |
+| Profile Picture | N/A | Log into GNOME once, or use AccountsService |
 
 ## Uninstalling
 
@@ -401,9 +401,9 @@ rm -rf ~/.config/awesome
 - **Hammerspoon Role**: `roles/hammerspoon/` (macOS reference)
 
 ### External Documentation
-- **AwesomeWM API**: https://awesomewm.org/doc/api/
-- **AwesomeWM Wiki**: https://wiki.archlinux.org/title/Awesome
-- **Lua Reference**: http://www.lua.org/manual/5.3/
+- **AwesomeWM API**: <https://awesomewm.org/doc/api/>
+- **AwesomeWM Wiki**: <https://wiki.archlinux.org/title/Awesome>
+- **Lua Reference**: <http://www.lua.org/manual/5.3/>
 
 ## Support
 

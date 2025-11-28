@@ -17,3 +17,6 @@ roles/claude/files/agents/raft-*.md
 
 # Crush directory
 .crush/
+
+# Claude session snapshots (personal work state)
+.claude/snapshots/

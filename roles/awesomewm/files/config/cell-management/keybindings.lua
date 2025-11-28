@@ -137,7 +137,7 @@ local macro_bindings = {
 
   -- e: Emoji picker with bemoji
   {{}, 'e', function()
-    awful.spawn("bemoji -c")
+    awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -c")
     if macro_modal then macro_modal:stop() end
   end},
 

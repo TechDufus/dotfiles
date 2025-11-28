@@ -543,7 +543,7 @@ When modifying this role:
 
 ## License
 
-Part of the [dotfiles](https://github.com/username/dotfiles) repository. See repository LICENSE for details.
+Part of the [dotfiles](https://github.com/TechDufus/dotfiles) repository. See repository LICENSE for details.
 
 ---
 

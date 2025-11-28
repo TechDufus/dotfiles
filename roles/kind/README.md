@@ -169,4 +169,4 @@ docker system prune
 
 ---
 
-*Part of the [dotfiles](https://github.com/yourusername/dotfiles) automated development environment setup.*
+*Part of the [dotfiles](https://github.com/TechDufus/dotfiles) automated development environment setup.*

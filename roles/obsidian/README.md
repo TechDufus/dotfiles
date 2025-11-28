@@ -163,4 +163,4 @@ Modify the repository URL in both `MacOSX.yml` and `Ubuntu.yml`:
 
 ---
 
-**Part of:** [techdufus/dotfiles](https://github.com/techdufus/dotfiles)
+**Part of:** [TechDufus/dotfiles](https://github.com/TechDufus/dotfiles)

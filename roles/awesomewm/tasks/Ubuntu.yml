@@ -11,7 +11,7 @@
       - thunar             # Lightweight file manager
       - tumbler            # Thumbnail service for Thunar
       - ristretto          # Lightweight image viewer (Xfce)
-      - pipx               # For rofimoji installation
+      - curl               # For bemoji installation
       - rofi               # Application launcher, layout picker
       - i3lock             # Screen locker
       - playerctl          # Media key controls (play/pause/next/prev)
@@ -33,11 +33,17 @@
     update_cache: true
   become: true
 
-- name: "awesomewm | Ubuntu | Install rofimoji via pipx"
+- name: "awesomewm | Ubuntu | Install bemoji emoji picker"
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/marty-oehme/bemoji/main/bemoji
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/bemoji"
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Download bemoji emoji database"
   ansible.builtin.shell: |
-    pipx install rofimoji
+    {{ ansible_facts['user_dir'] }}/.local/bin/bemoji -D emoji
   args:
-    creates: "{{ ansible_facts['user_dir'] }}/.local/bin/rofimoji"
+    creates: "{{ ansible_facts['user_dir'] }}/.local/share/bemoji/emojis.txt"
   become: false
   changed_when: true
 

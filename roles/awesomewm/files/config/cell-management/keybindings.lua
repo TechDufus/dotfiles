@@ -135,9 +135,9 @@ local macro_bindings = {
     if macro_modal then macro_modal:stop() end
   end},
 
-  -- e: Emoji picker with rofimoji
+  -- e: Emoji picker with bemoji
   {{}, 'e', function()
-    awful.spawn("rofimoji")
+    awful.spawn("bemoji -c")
     if macro_modal then macro_modal:stop() end
   end},
 

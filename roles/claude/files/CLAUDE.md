@@ -6,6 +6,11 @@
 - No README.md unless explicitly requested
 - Clean up temp files after tasks
 
+## Git Behavior
+- **NEVER commit unless explicitly requested** - always ask first
+- Skip local build/test runs when CI/CD exists - just commit and push
+- Delete obsolete code rather than deprecating - trust git history
+
 ## Workflow Scripts (`~/.claude/scripts/`)
 - `gh-create-issue.sh "<title>" --body "<content>" [--parent <num>]`
 - `gh-work-issue.sh <issue-number> [branch-name]`

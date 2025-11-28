@@ -6,69 +6,8 @@ local apps = require("cell-management.apps")
 local layout_manager = require("cell-management.layout-manager")
 local user_config = require("cell-management.config")
 
--- Forward declaration for modals (defined later)
+-- Forward declaration for modals (referenced before definition)
 local summon_modal, macro_modal
-
--- Double-tap detection state for F13 key (CapsLock remapped)
--- Single tap = summon modal, Double tap = macro modal
-local double_tap = {
-  timeout = 0.15,  -- 150ms window for double-tap
-  timer = nil,
-  grabber = nil,
-}
-
--- Clean up double-tap wait state (timer + keygrabber)
-local function cleanup_double_tap()
-  if double_tap.timer then
-    double_tap.timer:stop()
-    double_tap.timer = nil
-  end
-  if double_tap.grabber then
-    awful.keygrabber.stop(double_tap.grabber)
-    double_tap.grabber = nil
-  end
-end
-
--- Handle F13 key press with double-tap detection
--- During wait period, keygrabber captures all keys:
---   - F13 again = macro modal (double-tap)
---   - Any summon key = immediate summon (no delay)
---   - Other key = open summon modal
---   - Timeout = open summon modal
-local function handle_f13_press()
-  -- Start keygrabber to detect keys during wait period
-  double_tap.grabber = awful.keygrabber.run(function(_, key, event)
-    if event ~= "press" then return end
-
-    -- F13/CapsLock pressed again = double-tap → macro modal
-    if key == "F13" or key == "Caps_Lock" then
-      cleanup_double_tap()
-      if macro_modal then macro_modal:start() end
-      return
-    end
-
-    -- Any other key pressed - cancel wait
-    cleanup_double_tap()
-
-    -- Check if it's a summon key → execute immediately
-    for app_name, app_cfg in pairs(apps) do
-      if app_cfg.summon == key then
-        summon(app_name)
-        return
-      end
-    end
-
-    -- Not a summon key → open summon modal for user to pick
-    if summon_modal then summon_modal:start() end
-  end)
-
-  -- Start timeout timer - if no key pressed, open summon modal
-  double_tap.timer = gears.timer.start_new(double_tap.timeout, function()
-    cleanup_double_tap()
-    if summon_modal then summon_modal:start() end
-    return false  -- Don't repeat
-  end)
-end
 
 -- Simple same-class window cycling (no external dependencies)
 local function cycle_same_class()
@@ -104,66 +43,91 @@ local function cycle_same_class()
   next_client:raise()
 end
 
--- Build summon modal keybindings dynamically
-local summon_bindings = {}
-for app_name, app_cfg in pairs(apps) do
-  table.insert(summon_bindings, {
-    {}, app_cfg.summon,
-    function()
-      summon(app_name)
-      if summon_modal then summon_modal:stop() end
-    end
-  })
-end
-
 -- Initialize the F13 modal (summon_modal declared at top for double-tap logic)
--- NOTE: timeout = 1 provides auto-exit after 1 second (mimics Hammerspoon)
+-- Handles double-tap: if F13/CapsLock pressed while modal is open, switch to macro modal
 summon_modal = awful.keygrabber {
-  keybindings = summon_bindings,
   stop_key = 'Escape',
   stop_event = 'press',
-  timeout = 1,
+  timeout = 1,  -- 1 second timeout for modal auto-close
   autostart = false,
+  keypressed_callback = function(self, mod, key, event)
+    -- Double-tap detection: F13 pressed again while summon modal is open
+    -- This enables CapsLock double-tap on laptop keyboards to access macro modal
+    if key == "F13" or key == "Caps_Lock" then
+      self:stop()
+      gears.timer.delayed_call(function()
+        if macro_modal then macro_modal:start() end
+      end)
+      return
+    end
+
+    -- Check if it's a summon key
+    for app_name, app_cfg in pairs(apps) do
+      if app_cfg.summon == key then
+        local app = app_name  -- Capture for closure
+        self:stop()
+        gears.timer.delayed_call(function()
+          summon(app)
+        end)
+        return
+      end
+    end
+    -- Any non-summon key also stops the modal
+    self:stop()
+  end,
 }
 
-
--- Build F16 macro keybindings (macro_modal declared at top for double-tap logic)
-local macro_bindings = {
-  -- s: Screenshot with flameshot
-  {{}, 's', function()
-    awful.spawn("flameshot gui -c -s")
-    if macro_modal then macro_modal:stop() end
-  end},
-
-  -- e: Emoji picker with bemoji
-  {{}, 'e', function()
-    awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -c")
-    if macro_modal then macro_modal:stop() end
-  end},
-
-  -- a: Cycle through windows of same application
-  {{}, 'a', function()
-    if macro_modal then macro_modal:stop() end
-    cycle_same_class()
-  end},
-
-  -- g: GUI Settings menu (rofi picker)
-  {{}, 'g', function()
-    if macro_modal then macro_modal:stop() end
-    awful.spawn.easy_async_with_shell([[
-      printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" "Power (xfce4-power-manager-settings)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
-    ]], function() end)
-  end},
-}
 
 -- Initialize the F16 macro modal
 -- NOTE: timeout = 1 provides auto-exit after 1 second (mimics Hammerspoon)
+-- Uses keypressed_callback with delayed_call pattern for clean keygrabber release
 macro_modal = awful.keygrabber {
-  keybindings = macro_bindings,
   stop_key = 'Escape',
   stop_event = 'press',
   timeout = 1,
   autostart = false,
+  keypressed_callback = function(self, mod, key, event)
+    -- s: Screenshot with flameshot
+    if key == 's' then
+      self:stop()
+      gears.timer.delayed_call(function()
+        awful.spawn("flameshot gui -c -s")
+      end)
+      return
+    end
+
+    -- e: Emoji picker with bemoji
+    if key == 'e' then
+      self:stop()
+      gears.timer.delayed_call(function()
+        awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -c --hist-limit 5")
+      end)
+      return
+    end
+
+    -- a: Cycle through windows of same application
+    if key == 'a' then
+      self:stop()
+      gears.timer.delayed_call(function()
+        cycle_same_class()
+      end)
+      return
+    end
+
+    -- g: GUI Settings menu (rofi picker)
+    if key == 'g' then
+      self:stop()
+      gears.timer.delayed_call(function()
+        awful.spawn.easy_async_with_shell([[
+          printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" "Power (xfce4-power-manager-settings)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
+        ]], function() end)
+      end)
+      return
+    end
+
+    -- Any non-macro key stops the modal
+    self:stop()
+  end,
 }
 
 -- Use shared hyper key definition
@@ -173,19 +137,18 @@ local hyper = user_config.hyper
 local M = {}
 
 M.globalkeys = gears.table.join(
-  -- F13 modal triggers with double-tap detection (hierarchy of fallbacks)
-  -- Single tap = summon modal, Double tap (within 150ms) = macro modal
+  -- F13 modal triggers - direct summon modal
   awful.key({}, 'XF86Tools', function()
-    handle_f13_press()
-  end, {description = 'Summon/Macro mode (XF86Tools)', group = 'launcher'}),
+    summon_modal:start()
+  end, {description = 'Summon mode (XF86Tools)', group = 'launcher'}),
 
   awful.key({}, '#191', function()
-    handle_f13_press()
-  end, {description = 'Summon/Macro mode (keycode 191)', group = 'launcher'}),
+    summon_modal:start()
+  end, {description = 'Summon mode (keycode 191)', group = 'launcher'}),
 
   awful.key({}, 'F13', function()
-    handle_f13_press()
-  end, {description = 'Summon/Macro mode (F13)', group = 'launcher'}),
+    summon_modal:start()
+  end, {description = 'Summon mode (F13)', group = 'launcher'}),
 
   -- F16 macro modal triggers (hierarchy of fallbacks)
   awful.key({}, 'F16', function()

@@ -138,7 +138,6 @@ Traditional APT output can be verbose and difficult to parse. Nala provides:
 ## Links
 
 - [Official GitHub Repository](https://github.com/volitank/nala)
-- [Volian Repository](https://deb.volian.org/volian/)
 - [Nala Documentation](https://gitlab.com/volian/nala/-/wikis/home)
 
 ## License

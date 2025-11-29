@@ -4,7 +4,7 @@
 
 ## Overview
 
-This role configures a feature-rich Bash shell environment with [Oh My Bash](https://ohmybash.nntoan.com/) as the framework, [Starship](https://starship.rs/) prompt, and over 1,100 lines of custom shell functions, aliases, and completions. It provides a consistent, powerful command-line experience across multiple platforms with specialized tooling for git, Docker, Kubernetes, and more.
+This role configures a feature-rich Bash shell environment with [Oh My Bash](https://github.com/ohmybash/oh-my-bash) as the framework, [Starship](https://starship.rs/) prompt, and over 1,100 lines of custom shell functions, aliases, and completions. It provides a consistent, powerful command-line experience across multiple platforms with specialized tooling for git, Docker, Kubernetes, and more.
 
 ## Supported Platforms
 

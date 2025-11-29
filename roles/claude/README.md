@@ -287,7 +287,7 @@ ansible-playbook -t claude ~/.dotfiles/main.yml
 
 | Requirement | Purpose | Optional? |
 |------------|---------|-----------|
-| [Claude Code CLI](https://claude.ai/code) | Core application | No - installed by role on macOS |
+| Claude Code CLI | Core application | No - installed by role on macOS |
 | GitHub CLI (`gh`) | GitHub integration commands | Yes - for `/gh-*` commands |
 | 1Password CLI (`op`) | Secrets management | Yes - for 1Password integration |
 | Ansible | Role execution | No - required for dotfiles |

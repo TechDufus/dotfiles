@@ -76,7 +76,7 @@ graph TD
     B -->|"where is X"| E[Research Mode]
     B -->|"A and B and C"| F[Parallel Mode]
     B -->|"implement feature"| G[Structured Mode]
-    C --> H[/gh-work]
+    C --> H["gh-work"]
     D --> I[Direct Execution]
     E --> J[Explore Subagent]
     F --> K[Concurrent Tasks]

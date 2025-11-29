@@ -126,7 +126,6 @@ Each OS uses its native font packaging:
 - [Powerline Documentation](https://powerline.readthedocs.io/)
 - [Powerline Fonts Repository](https://github.com/powerline/fonts)
 - [Nerd Fonts](https://www.nerdfonts.com/) - Extended font collection with even more glyphs
-- [Homebrew Fonts](https://github.com/Homebrew/homebrew-cask-fonts)
 
 ## Troubleshooting
 

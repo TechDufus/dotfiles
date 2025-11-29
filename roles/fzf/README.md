@@ -150,8 +150,6 @@ export FZF_DEFAULT_OPTS=" \
 --multi"
 ```
 
-![Catppuccin Mocha Theme](https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/palette/mocha.png)
-
 ## Integration with Other Tools
 
 ### Git Enhanced Workflows

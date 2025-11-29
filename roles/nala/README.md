@@ -117,8 +117,6 @@ sudo nala history undo <id>
 ## Technical Notes
 
 ### Repository Details
-- **Volian Repository**: <https://deb.volian.org/volian/>
-- **GPG Key**: <https://deb.volian.org/volian/scar.key>
 - **Keyring Location**: `/etc/apt/trusted.gpg.d/volian-archive-scar-unstable.gpg`
 
 ### Detection Logic

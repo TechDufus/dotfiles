@@ -354,9 +354,8 @@ export EDITOR='nvim'  # Both local and SSH sessions
 
 ## Links
 
-- [Oh My Bash Documentation](https://github.com/ohmybash/oh-my-bash)
+- [Oh My Bash](https://github.com/ohmybash/oh-my-bash)
 - [Starship Prompt](https://starship.rs/)
-- [Bash Reference Manual](https://www.gnu.org/software/bash/manual/)
 - [Zoxide](https://github.com/ajeetdsouza/zoxide)
 - [Bashmarks](https://github.com/huyng/bashmarks)
 

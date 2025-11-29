@@ -1,6 +1,6 @@
 # tmate
 
-Installs [tmate](https://tmate.io/), instant terminal sharing via SSH.
+Installs tmate, instant terminal sharing via SSH.
 
 Supported on macOS (Homebrew), Ubuntu (APT), and Arch (Pacman).
 

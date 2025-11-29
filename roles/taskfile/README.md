@@ -214,7 +214,6 @@ This role uses no custom variables - all configuration is embedded in the OS-spe
 - [Task Official Documentation](https://taskfile.dev)
 - [Task GitHub Repository](https://github.com/go-task/task)
 - [Task Installation Guide](https://taskfile.dev/installation)
-- [Taskfile Schema Reference](https://taskfile.dev/api)
 
 ## Notes
 

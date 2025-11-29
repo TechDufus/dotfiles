@@ -116,8 +116,6 @@ These tasks are left to the user for security and flexibility reasons. WireGuard
 
 - [WireGuard Official Site](https://www.wireguard.com/)
 - [WireGuard Quick Start](https://www.wireguard.com/quickstart/)
-- [WireGuard Documentation](https://git.zx2c4.com/wireguard-tools/about/src/man/)
-- [wg-quick Manual](https://git.zx2c4.com/wireguard-tools/about/src/man/wg-quick.8)
 
 ## Security Notes
 

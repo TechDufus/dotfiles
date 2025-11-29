@@ -1,6 +1,6 @@
 # 🤖 Claude Code Configuration
 
-> A batteries-included [Claude Code](https://claude.ai/code) setup with intelligent workflow routing, GitHub automation, and self-improving patterns.
+> A batteries-included Claude Code setup with intelligent workflow routing, GitHub automation, and self-improving patterns.
 
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-blue.svg)](https://www.apple.com/macos/)
 [![Ansible Role](https://img.shields.io/badge/ansible-role-red.svg)](https://www.ansible.com/)

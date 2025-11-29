@@ -88,8 +88,6 @@ graph LR
 ## 📚 Official Documentation
 
 - [SSHFS GitHub Repository](https://github.com/libfuse/sshfs)
-- [SSHFS Man Page](https://linux.die.net/man/1/sshfs)
-- [FUSE Documentation](https://www.kernel.org/doc/html/latest/filesystems/fuse.html)
 
 ## 💡 Use Cases
 

@@ -54,8 +54,6 @@ default_roles:
   - tmux
   - sesh
   # - tshark
-  - warp
-  - whalebrew
   # - zellij
   - zoxide
   - zsh

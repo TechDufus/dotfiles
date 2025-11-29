@@ -427,12 +427,13 @@ xprop WM_CLASS
 ```
 
 **Common WM_CLASS values:**
-- Ghostty: `com.mitchellh.ghostty`
+- Ghostty: `com.mitchellh.ghostty` (full app ID, not just `ghostty`)
 - Brave: `brave-browser`
 - Discord: `discord`
 - Spotify: `Spotify` (capital S!)
 - Obsidian: `obsidian`
 - 1Password: `1Password` (capital P!)
+- Thunar: `Thunar` (capital T!)
 
 ### Hyper key too hard to press
 

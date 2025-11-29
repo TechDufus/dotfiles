@@ -36,7 +36,7 @@ This role provides a modern, feature-rich tmux environment with:
 - `vim-tmux-navigator` - Seamless vim/tmux pane navigation
 - `catppuccin/tmux` - Beautiful color theme
 - `tmux-fzf-url` - URL extraction with fzf
-- `sainnhe/tmux-fzf` - Enhanced fzf integration
+- `sainnhe/tmux/fzf` - Enhanced fzf integration
 
 ## What Gets Configured
 

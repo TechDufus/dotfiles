@@ -322,12 +322,12 @@ The role uses Ansible's standard OS detection pattern:
 
 ## Links
 
-- **Neovim**: https://neovim.io/
-- **lazy.nvim**: https://github.com/folke/lazy.nvim
-- **Mason**: https://github.com/williamboman/mason.nvim
-- **Telescope**: https://github.com/nvim-telescope/telescope.nvim
-- **Catppuccin**: https://github.com/catppuccin/nvim
-- **Avante (Claude Code)**: https://github.com/yetone/avante.nvim
+- [Neovim](https://neovim.io/)
+- [lazy.nvim](https://github.com/folke/lazy.nvim)
+- [Mason](https://github.com/williamboman/mason.nvim)
+- [Telescope](https://github.com/nvim-telescope/telescope.nvim)
+- [Catppuccin](https://github.com/catppuccin/nvim)
+- [Avante (Claude Code)](https://github.com/yetone/avante.nvim)
 
 ---
 

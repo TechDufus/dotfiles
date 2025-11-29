@@ -151,10 +151,10 @@ Modify the repository URL in both `MacOSX.yml` and `Ubuntu.yml`:
 
 ## Official Documentation
 
-- **Obsidian Website:** https://obsidian.md/
-- **Obsidian Help:** https://help.obsidian.md/
-- **Community Plugins:** https://obsidian.md/plugins
-- **Obsidian Forum:** https://forum.obsidian.md/
+- [Obsidian Website](https://obsidian.md/)
+- [Obsidian Help](https://help.obsidian.md/)
+- [Community Plugins](https://obsidian.md/plugins)
+- [Obsidian Forum](https://forum.obsidian.md/)
 
 ## Related Roles
 

@@ -97,9 +97,9 @@ Define applications with their WM_CLASS and summon keys:
 
 ```lua
 Terminal = {
-  class = "ghostty",    -- WM_CLASS (verify with xprop)
-  summon = "t",         -- F13 + t
-  exec = "ghostty",     -- Launch command
+  class = "com.mitchellh.ghostty",  -- WM_CLASS (verify with xprop)
+  summon = "t",                     -- F13 + t
+  exec = "ghostty",                 -- Launch command
 },
 ```
 
@@ -273,12 +273,13 @@ MyApp = {
 ```
 
 **Common WM_CLASS values**:
-- Ghostty: `ghostty`
+- Ghostty: `com.mitchellh.ghostty` (full app ID, not just `ghostty`)
 - Brave: `brave-browser`
 - Discord: `discord`
 - Spotify: `Spotify` (capital S!)
 - Obsidian: `obsidian`
 - 1Password: `1Password` (capital P!)
+- Thunar: `Thunar` (capital T!)
 
 ### Windows overlap status bar
 

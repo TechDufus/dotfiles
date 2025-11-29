@@ -1,5 +1,0 @@
----
-- name: "WARP | MacOSX | Install warp"
-  community.general.homebrew_cask:
-    name: warp
-    state: present

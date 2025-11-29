@@ -41,7 +41,7 @@
 
 - name: "awesomewm | Ubuntu | Download bemoji emoji database"
   ansible.builtin.shell: |
-    {{ ansible_facts['user_dir'] }}/.local/bin/bemoji -D emoji
+    {{ ansible_facts['user_dir'] }}/.local/bin/bemoji -D all
   args:
     creates: "{{ ansible_facts['user_dir'] }}/.local/share/bemoji/emojis.txt"
   become: false

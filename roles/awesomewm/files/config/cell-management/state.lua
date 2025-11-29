@@ -8,6 +8,7 @@ local state = {
   current_layout_index = 1,
   previous_client_class = nil,
   app_to_cell_overrides = {},  -- User manual assignments via Hyper+u
+  last_focused_client_by_class = {},  -- Track most recent client per WM_CLASS
 }
 
 -- Get current layout
@@ -52,6 +53,18 @@ end
 -- Set app-to-cell override
 function M.set_app_cell_override(app_name, cell_index)
   state.app_to_cell_overrides[app_name] = cell_index
+end
+
+-- Get last focused client for a WM_CLASS
+function M.get_last_focused_client(wm_class)
+  if not wm_class then return nil end
+  return state.last_focused_client_by_class[wm_class:lower()]
+end
+
+-- Set last focused client for a WM_CLASS
+function M.set_last_focused_client(wm_class, c)
+  if not wm_class then return end
+  state.last_focused_client_by_class[wm_class:lower()] = c
 end
 
 return M

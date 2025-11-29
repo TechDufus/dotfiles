@@ -329,7 +329,7 @@ globalkeys = gears.table.join(
   end, { description = "screenshot full screen to file", group = "screenshot" }),
 
   -- Prompt (rofi application launcher)
-  awful.key({ modkey }, "r", function() awful.spawn("rofi -show drun -show-icons") end,
+  awful.key({ "Mod1" }, "space", function() awful.spawn("rofi -show drun -show-icons") end,
     { description = "application launcher (rofi)", group = "launcher" }),
 
   -- Flare launcher (Raycast-like: clipboard, calculator, extensions, AI)

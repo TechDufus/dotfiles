@@ -46,6 +46,8 @@
     creates: "{{ ansible_facts['user_dir'] }}/.local/share/bemoji/emojis.txt"
   become: false
   changed_when: true
+  # bemoji -D outputs to stderr and returns exit code 1 even on success
+  failed_when: false
 
 - name: "awesomewm | Ubuntu | Download Flare launcher"
   ansible.builtin.get_url:

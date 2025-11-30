@@ -5,6 +5,7 @@ local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
+local dpi = beautiful.xresources.apply_dpi
 
 -- Load awesome-wm-widgets
 local volume_widget = require("awesome-wm-widgets.volume-widget.volume")
@@ -66,7 +67,7 @@ local font_family = "BerkeleyMono Nerd Font"
 
 local fonts = {
     clock = font_family .. " Bold 15",
-    data = font_family .. " 14",
+    data = font_family .. " 11",
     icon = font_family .. " 16",
 }
 
@@ -92,10 +93,10 @@ local icons = {
 -- ============================================================================
 
 local spacing = {
-    wibar_height = 36,
-    section = 24,      -- Between major sections
-    widget = 16,       -- Between widgets in same section
-    icon_gap = 6,      -- Between icon and value
+    wibar_height = dpi(28),
+    section = dpi(24),      -- Between major sections
+    widget = dpi(16),       -- Between widgets in same section
+    icon_gap = dpi(6),      -- Between icon and value
 }
 
 -- ============================================================================
@@ -258,7 +259,6 @@ local cpu_widget_display = wibox.widget {
         id = "value",
         markup = string.format('<span foreground="%s">0%%</span>', colors.text),
         font = fonts.data,
-        forced_width = 42,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     layout = wibox.layout.fixed.horizontal,
@@ -297,18 +297,16 @@ local ram_widget_display = wibox.widget {
         {
             markup = string.format('<span foreground="%s">%s</span>', colors.green, icons.ram),
             font = fonts.icon,
-            forced_width = 20,
+            forced_width = dpi(22),
             widget = wibox.widget.textbox,
         },
-        left = 2,
-        right = spacing.icon_gap,
+        right = dpi(4),
         widget = wibox.container.margin,
     },
     {
         id = "value",
         markup = string.format('<span foreground="%s">0%%</span>', colors.text),
         font = fonts.data,
-        forced_width = 42,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     layout = wibox.layout.fixed.horizontal,
@@ -345,7 +343,6 @@ local net_widget_display = wibox.widget {
         id = "upload",
         markup = string.format('<span foreground="%s">0K</span>', colors.text),
         font = fonts.data,
-        forced_width = 52,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     create_spacer(spacing.widget),
@@ -365,7 +362,6 @@ local net_widget_display = wibox.widget {
         id = "download",
         markup = string.format('<span foreground="%s">0K</span>', colors.text),
         font = fonts.data,
-        forced_width = 52,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     layout = wibox.layout.fixed.horizontal,
@@ -413,7 +409,7 @@ awful.widget.watch('bash -c "cat /sys/class/net/$(ip route | grep default | awk 
 local clock_widget = wibox.widget {
     {
         {
-            format = "%a %b %d, %H:%M",
+            format = "%a %b %d, %I:%M %p",
             font = fonts.clock,
             widget = wibox.widget.textclock,
         },
@@ -437,14 +433,14 @@ local dnd_widget = wibox.widget {
             id = "icon",
             markup = string.format('<span foreground="%s">%s</span>', colors.blue, icons.dnd_normal),
             font = fonts.icon,
-            forced_width = 20,
-            forced_height = 20,
+            forced_width = dpi(20),
+            forced_height = dpi(20),
             align = "center",
             valign = "center",
             widget = wibox.widget.textbox,
         },
-        left = 4,
-        right = 4,
+        left = dpi(4),
+        right = dpi(4),
         widget = wibox.container.margin,
     },
     valign = "center",
@@ -542,7 +538,7 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
         filter = awful.widget.tasklist.filter.currenttags,
         buttons = tasklist_buttons,
         layout = {
-            spacing = 8,
+            spacing = dpi(8),
             layout = wibox.layout.fixed.horizontal,
         },
         widget_template = {
@@ -550,16 +546,16 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
                 {
                     {
                         id = 'icon_role',
-                        forced_height = 24,
-                        forced_width = 24,
+                        forced_height = dpi(24),
+                        forced_width = dpi(24),
                         widget = wibox.widget.imagebox,
                     },
                     {
                         id = 'fallback_icon',
                         markup = string.format('<span foreground="%s">󰣆</span>', colors.subtext0),
                         font = font_family .. " 18",
-                        forced_height = 24,
-                        forced_width = 24,
+                        forced_height = dpi(24),
+                        forced_width = dpi(24),
                         align = "center",
                         valign = "center",
                         visible = false,
@@ -567,7 +563,7 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
                     },
                     layout = wibox.layout.stack,
                 },
-                margins = 3,
+                margins = dpi(3),
                 widget = wibox.container.margin,
             },
             id = 'background_role',
@@ -628,18 +624,21 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
             nil,
 
             -- RIGHT: Controls, systray, clock, logout
+            -- Conditional widgets (battery, brightness) at far left so missing ones don't leave gaps
             {
                 layout = wibox.layout.fixed.horizontal,
 
-                -- Disk usage
-                fs_widget_display,
-                create_spacer(spacing.section),
-
-                -- Controls (battery if laptop, brightness if laptop, volume)
+                -- Laptop-only widgets (at far left edge)
                 battery_widget_display and battery_widget_display or nil,
                 battery_widget_display and create_spacer(spacing.widget) or nil,
                 brightness_widget_display and brightness_widget_display or nil,
-                brightness_widget_display and create_spacer(spacing.widget) or nil,
+                brightness_widget_display and create_spacer(spacing.section) or nil,
+
+                -- Disk usage
+                fs_widget_display,
+                create_spacer(spacing.widget),
+
+                -- Volume
                 volume_widget_display,
                 create_spacer(spacing.section),
 

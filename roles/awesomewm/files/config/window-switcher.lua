@@ -19,14 +19,13 @@ local config = {
     highlight_color = beautiful.fg_focus or "#89b4fa",
     text_color = beautiful.fg_normal or "#cdd6f4",
     font = beautiful.font or "sans 10",
-    hide_delay = 1.5,
 }
 
 -- State
 local popup = nil
 local clients_list = {}
 local current_index = 1
-local hide_timer = nil
+local keygrabber_active = false
 
 -- Create the popup widget
 local function create_popup()
@@ -48,14 +47,32 @@ local function create_popup()
     })
 end
 
--- Get all clients (including minimized/hidden)
+-- Get all clients sorted by most recently focused (MRU order)
 local function get_clients()
     local cls = {}
 
-    for _, c in ipairs(client.get()) do
+    -- Use focus history for MRU ordering
+    local history = awful.client.focus.history.list
+    for _, c in ipairs(history) do
         -- Include all clients except special ones (like desktop widgets)
-        if c.type == "normal" or c.type == "dialog" then
+        if c.valid and (c.type == "normal" or c.type == "dialog") then
             table.insert(cls, c)
+        end
+    end
+
+    -- Also add any clients not in history (newly created, never focused)
+    for _, c in ipairs(client.get()) do
+        if c.type == "normal" or c.type == "dialog" then
+            local found = false
+            for _, h in ipairs(cls) do
+                if h == c then
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                table.insert(cls, c)
+            end
         end
     end
 
@@ -64,15 +81,35 @@ end
 
 -- Create icon widget for a client
 local function create_client_icon(c, is_selected)
+    -- Determine if we have a valid icon
+    local has_icon = c.icon ~= nil or beautiful.awesome_icon ~= nil
+
+    -- Create either an image icon or a fallback text icon
+    local icon_content
+    if has_icon then
+        icon_content = wibox.widget {
+            image = c.icon or beautiful.awesome_icon,
+            forced_width = config.icon_size,
+            forced_height = config.icon_size,
+            widget = wibox.widget.imagebox,
+        }
+    else
+        -- Fallback: show a generic window icon (Nerd Font)
+        icon_content = wibox.widget {
+            markup = string.format('<span foreground="%s">󰣆</span>', config.text_color),
+            font = "BerkeleyMono Nerd Font 32",
+            forced_width = config.icon_size,
+            forced_height = config.icon_size,
+            align = "center",
+            valign = "center",
+            widget = wibox.widget.textbox,
+        }
+    end
+
     local icon_widget = wibox.widget {
         {
             {
-                {
-                    image = c.icon or beautiful.awesome_icon,
-                    forced_width = config.icon_size,
-                    forced_height = config.icon_size,
-                    widget = wibox.widget.imagebox,
-                },
+                icon_content,
                 margins = config.icon_margin,
                 widget = wibox.container.margin,
             },
@@ -118,36 +155,76 @@ local function update_popup()
     popup.visible = true
 end
 
--- Reset hide timer
-local function reset_hide_timer()
-    if hide_timer then
-        hide_timer:stop()
-    end
+-- Start keygrabber to detect when Super is released
+local function start_keygrabber()
+    if keygrabber_active then return end
+    keygrabber_active = true
 
-    hide_timer = gears.timer.start_new(config.hide_delay, function()
-        if popup then
-            popup.visible = false
+    awful.keygrabber.run(function(mod, key, event)
+        -- On Super release, focus the selected window and hide the popup
+        if event == "release" and (key == "Super_L" or key == "Super_R") then
+            keygrabber_active = false
+            -- Focus the selected window NOW
+            local selected = clients_list[current_index]
+            if selected and selected.valid then
+                if selected.minimized then
+                    selected.minimized = false
+                end
+                if not selected:isvisible() then
+                    selected:move_to_tag(awful.screen.focused().selected_tag)
+                end
+                selected:emit_signal("request::activate", "window_switcher", { raise = true })
+            end
+            -- Hide popup
+            if popup then
+                popup.visible = false
+            end
+            awful.keygrabber.stop()
+            return true
         end
-        return false
+
+        -- Handle Tab press while holding Super
+        if event == "press" then
+            local has_super = false
+            for _, m in ipairs(mod) do
+                if m == "Mod4" then has_super = true; break end
+            end
+
+            if has_super and key == "Tab" then
+                -- Check for Shift
+                local has_shift = false
+                for _, m in ipairs(mod) do
+                    if m == "Shift" then has_shift = true; break end
+                end
+
+                if has_shift then
+                    window_switcher.cycle(-1)
+                else
+                    window_switcher.cycle(1)
+                end
+                return true
+            end
+
+            -- Escape cancels
+            if key == "Escape" then
+                keygrabber_active = false
+                if popup then
+                    popup.visible = false
+                end
+                awful.keygrabber.stop()
+                return true
+            end
+        end
+
+        return true
     end)
 end
 
--- Show the switcher and cycle
-function window_switcher.show(direction)
-    clients_list = get_clients()
-
+-- Cycle through windows (used by keygrabber while popup is visible)
+-- Only updates the visual selection - does NOT focus until Super is released
+function window_switcher.cycle(direction)
     if #clients_list == 0 then
         return
-    end
-
-    -- Find current client index
-    local focused = client.focus
-    current_index = 1
-    for i, c in ipairs(clients_list) do
-        if c == focused then
-            current_index = i
-            break
-        end
     end
 
     -- Cycle to next/previous
@@ -158,24 +235,40 @@ function window_switcher.show(direction)
         current_index = #clients_list
     end
 
-    -- Focus the selected client (and show if hidden/minimized)
-    local selected = clients_list[current_index]
-    if selected then
-        -- Unminimize if needed
-        if selected.minimized then
-            selected.minimized = false
+    -- Only update the popup visual - don't focus yet
+    update_popup()
+end
+
+-- Show the switcher (called on first Super+Tab)
+function window_switcher.show(direction)
+    -- Only fetch fresh client list if switcher is not already visible
+    -- This prevents focus history from scrambling the order mid-switch
+    if not popup or not popup.visible then
+        clients_list = get_clients()
+
+        if #clients_list == 0 then
+            return
         end
-        -- Move to current tag if on different tag
-        if not selected:isvisible() then
-            selected:move_to_tag(awful.screen.focused().selected_tag)
+
+        -- Find current client index (starting point)
+        local focused = client.focus
+        current_index = 1
+        for i, c in ipairs(clients_list) do
+            if c == focused then
+                current_index = i
+                break
+            end
         end
-        -- Focus and raise
-        selected:emit_signal("request::activate", "window_switcher", { raise = true })
+
+        -- Start keygrabber to detect Super release
+        start_keygrabber()
     end
+
+    -- Cycle to the next/previous window
+    window_switcher.cycle(direction)
 
     -- Update and show popup
     update_popup()
-    reset_hide_timer()
 end
 
 -- Hide the switcher
@@ -183,10 +276,7 @@ function window_switcher.hide()
     if popup then
         popup.visible = false
     end
-    if hide_timer then
-        hide_timer:stop()
-        hide_timer = nil
-    end
+    keygrabber_active = false
 end
 
 return window_switcher

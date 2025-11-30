@@ -258,6 +258,7 @@ local cpu_widget_display = wibox.widget {
         id = "value",
         markup = string.format('<span foreground="%s">0%%</span>', colors.text),
         font = fonts.data,
+        forced_width = 42,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     layout = wibox.layout.fixed.horizontal,
@@ -307,6 +308,7 @@ local ram_widget_display = wibox.widget {
         id = "value",
         markup = string.format('<span foreground="%s">0%%</span>', colors.text),
         font = fonts.data,
+        forced_width = 42,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     layout = wibox.layout.fixed.horizontal,
@@ -343,6 +345,7 @@ local net_widget_display = wibox.widget {
         id = "upload",
         markup = string.format('<span foreground="%s">0K</span>', colors.text),
         font = fonts.data,
+        forced_width = 52,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     create_spacer(spacing.widget),
@@ -362,6 +365,7 @@ local net_widget_display = wibox.widget {
         id = "download",
         markup = string.format('<span foreground="%s">0K</span>', colors.text),
         font = fonts.data,
+        forced_width = 52,  -- Fixed width prevents layout shift
         widget = wibox.widget.textbox,
     },
     layout = wibox.layout.fixed.horizontal,
@@ -433,14 +437,18 @@ local dnd_widget = wibox.widget {
             id = "icon",
             markup = string.format('<span foreground="%s">%s</span>', colors.blue, icons.dnd_normal),
             font = fonts.icon,
-            forced_width = 24,
+            forced_width = 20,
+            forced_height = 20,
+            align = "center",
+            valign = "center",
             widget = wibox.widget.textbox,
         },
         left = 4,
         right = 4,
         widget = wibox.container.margin,
     },
-    layout = wibox.layout.fixed.horizontal,
+    valign = "center",
+    widget = wibox.container.place,
 }
 
 -- Update icon based on DND state
@@ -515,7 +523,20 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
         buttons = taglist_buttons,
     }
 
-    -- Tasklist (icons only, centered)
+    -- Helper: Update fallback icon visibility based on whether app has an icon
+    local function update_tasklist_icon(self, c)
+        local icon_widget = self:get_children_by_id('icon_role')[1]
+        local fallback = self:get_children_by_id('fallback_icon')[1]
+        if c.icon == nil then
+            fallback.visible = true
+            icon_widget.visible = false
+        else
+            fallback.visible = false
+            icon_widget.visible = true
+        end
+    end
+
+    -- Tasklist (icons only, centered) with fallback for missing icons
     s.mytasklist = awful.widget.tasklist {
         screen = s,
         filter = awful.widget.tasklist.filter.currenttags,
@@ -527,14 +548,32 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
         widget_template = {
             {
                 {
-                    id = 'icon_role',
-                    widget = wibox.widget.imagebox,
+                    {
+                        id = 'icon_role',
+                        forced_height = 24,
+                        forced_width = 24,
+                        widget = wibox.widget.imagebox,
+                    },
+                    {
+                        id = 'fallback_icon',
+                        markup = string.format('<span foreground="%s">󰣆</span>', colors.subtext0),
+                        font = font_family .. " 18",
+                        forced_height = 24,
+                        forced_width = 24,
+                        align = "center",
+                        valign = "center",
+                        visible = false,
+                        widget = wibox.widget.textbox,
+                    },
+                    layout = wibox.layout.stack,
                 },
                 margins = 3,
                 widget = wibox.container.margin,
             },
             id = 'background_role',
             widget = wibox.container.background,
+            create_callback = function(self, c) update_tasklist_icon(self, c) end,
+            update_callback = function(self, c) update_tasklist_icon(self, c) end,
         },
     }
 
@@ -553,68 +592,77 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
     })
 
     -- ========================================================================
-    -- FLAT LAYOUT - No container backgrounds, clean spacing
+    -- STACKED LAYOUT - Tasklist truly centered on screen
     -- ========================================================================
 
     s.mywibox:setup {
-        layout = wibox.layout.align.horizontal,
+        layout = wibox.layout.stack,
 
-        -- LEFT: Launcher + Monitoring widgets
-        {
-            layout = wibox.layout.fixed.horizontal,
-            create_spacer(spacing.widget),
-            launcher_widget,
-            create_spacer(spacing.section),
-            cpu_widget_display,
-            create_spacer(spacing.widget),
-            ram_widget_display,
-            create_spacer(spacing.section),
-            net_widget_display,
-            create_spacer(spacing.section),
-        },
-
-        -- CENTER: Tasklist
+        -- LAYER 1 (bottom): Tasklist - truly centered on full screen width
         {
             s.mytasklist,
             halign = "center",
+            valign = "center",
             widget = wibox.container.place,
         },
 
-        -- RIGHT: Controls, systray, clock, logout
+        -- LAYER 2 (top): Left and right widgets
         {
-            layout = wibox.layout.fixed.horizontal,
+            layout = wibox.layout.align.horizontal,
 
-            -- Disk usage
-            fs_widget_display,
-            create_spacer(spacing.section),
-
-            -- Controls (battery if laptop, brightness if laptop, volume)
-            battery_widget_display and battery_widget_display or nil,
-            battery_widget_display and create_spacer(spacing.widget) or nil,
-            brightness_widget_display and brightness_widget_display or nil,
-            brightness_widget_display and create_spacer(spacing.widget) or nil,
-            volume_widget_display,
-            create_spacer(spacing.section),
-
-            -- System tray (vertically centered)
+            -- LEFT: Launcher + Monitoring widgets
             {
-                systray,
-                valign = 'center',
-                widget = wibox.container.place,
+                layout = wibox.layout.fixed.horizontal,
+                create_spacer(spacing.widget),
+                launcher_widget,
+                create_spacer(spacing.section),
+                cpu_widget_display,
+                create_spacer(spacing.widget),
+                ram_widget_display,
+                create_spacer(spacing.section),
+                net_widget_display,
+                create_spacer(spacing.section),
             },
-            create_spacer(spacing.section),
 
-            -- DND (notifications) widget
-            dnd_widget,
-            create_spacer(spacing.widget),
+            -- CENTER: Empty (tasklist is in bottom layer)
+            nil,
 
-            -- Clock
-            clock_widget,
-            create_spacer(spacing.widget),
+            -- RIGHT: Controls, systray, clock, logout
+            {
+                layout = wibox.layout.fixed.horizontal,
 
-            -- Logout
-            logout_widget_display,
-            create_spacer(spacing.section),
+                -- Disk usage
+                fs_widget_display,
+                create_spacer(spacing.section),
+
+                -- Controls (battery if laptop, brightness if laptop, volume)
+                battery_widget_display and battery_widget_display or nil,
+                battery_widget_display and create_spacer(spacing.widget) or nil,
+                brightness_widget_display and brightness_widget_display or nil,
+                brightness_widget_display and create_spacer(spacing.widget) or nil,
+                volume_widget_display,
+                create_spacer(spacing.section),
+
+                -- System tray (vertically centered)
+                {
+                    systray,
+                    valign = 'center',
+                    widget = wibox.container.place,
+                },
+                create_spacer(spacing.section),
+
+                -- DND (notifications) widget
+                dnd_widget,
+                create_spacer(spacing.widget),
+
+                -- Clock
+                clock_widget,
+                create_spacer(spacing.widget),
+
+                -- Logout
+                logout_widget_display,
+                create_spacer(spacing.section),
+            },
         },
     }
 end

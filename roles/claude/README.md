@@ -70,17 +70,21 @@ All configuration files are symlinked from this role to enable version control:
 
 ```mermaid
 graph TD
-    A[Task Input] --> B{Workflow Router}
-    B -->|"#123"| C[GitHub Mode]
-    B -->|"fix typo"| D[Quick Mode]
-    B -->|"where is X"| E[Research Mode]
-    B -->|"A and B and C"| F[Parallel Mode]
-    B -->|"implement feature"| G[Structured Mode]
-    C --> H["gh-work"]
-    D --> I[Direct Execution]
-    E --> J[Explore Subagent]
-    F --> K[Concurrent Tasks]
-    G --> L[Plan + TodoWrite]
+    A[Task Input] --> B{GitHub Linked?}
+    B -->|"#123, issue #N"| C[Fetch Issue + Create Branch]
+    B -->|"no issue ref"| D{Workflow Router}
+    C --> D
+    D -->|"fix typo"| E[Quick Mode]
+    D -->|"where is X"| F[Research Mode]
+    D -->|"A and B and C"| G[Parallel Mode]
+    D -->|"implement feature"| H[Structured Mode]
+    E --> I[Direct Execution]
+    F --> J[Explore Subagent]
+    G --> K[Concurrent Tasks]
+    H --> L[Plan + TodoWrite]
+    I & J & K & L --> M{GitHub Linked?}
+    M -->|yes| N[Commit + Push + PR]
+    M -->|no| O[Done]
 ```
 
 **Security:**
@@ -113,7 +117,6 @@ graph TD
 
 | Command | Purpose | Workflow |
 |---------|---------|----------|
-| `/gh-work <issue>` | End-to-end issue fixing | View issue → branch → implement → test → commit → push → PR |
 | `/gh-issue <title>` | Create GitHub issues | Parent/child linking, hierarchy support |
 | `/gh-issue-status <issue>` | Analyze issue hierarchies | EPIC → Story → Task visualization, `--comment`, `--update-body` |
 | `/gh-link <parent> <child>` | Link issues in relationships | `--force` to override existing links |
@@ -176,7 +179,7 @@ All paths are symlinked from this role, enabling version control and cross-machi
 /work where is auth handled?      → Research mode (Explore subagent)
 /work update tests AND fix docs   → Parallel mode (concurrent tasks)
 /work implement OAuth2            → Structured mode (plan + TodoWrite)
-/work #42                         → GitHub mode (delegates to /gh-work)
+/work #42                         → GitHub-linked (branch → implement → commit → PR)
 ```
 
 ### Session Management

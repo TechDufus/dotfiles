@@ -26,19 +26,27 @@ Evaluate the task against these patterns:
 
 | Signal | Classification |
 |--------|---------------|
-| GitHub reference (`#123`, "issue", "PR", "bug fix") | **GitHub** |
 | Single file, obvious change, "typo", "rename" | **Quick** |
 | "what is", "where is", "find", "how does" | **Research** |
 | Multiple independent items, "and also", numbered list | **Parallel** |
 | Multi-file, "feature", "implement", tests needed | **Structured** |
 | Vague, ambiguous, multiple interpretations | **Unclear** |
 
-### Step 2: Execute by Classification
+### GitHub-Linked Detection
 
-#### GitHub → Delegate
-```
-Invoke: /gh-work <issue-number>
-```
+If task references GitHub issues/PRs (`#123`, "issue #N", "fix #N"), apply GitHub workflow as bookends:
+
+**Before execution:**
+1. Fetch issue: `gh issue view <number> --json title,body,labels,comments`
+2. Create branch: `git checkout -b <type>/issue-<num>-<slug>`
+
+**After execution:**
+1. Commit: `<type>: <description> (closes #<num>)`
+2. Push and create PR linking to issue
+
+The actual implementation routes through normal classification below.
+
+### Step 2: Execute by Classification
 
 #### Quick → Direct Execution
 - Execute immediately without ceremony

@@ -79,6 +79,7 @@ local icons = {
     launcher = "󰀻",
     cpu = "󰘚",
     ram = "󰍛",
+    gpu = "󰢮",           -- Graphics card icon
     disk = "󰋊",
     upload = "󰕒",
     download = "󰇚",
@@ -266,12 +267,24 @@ local cpu_widget_display = wibox.widget {
 
 local cpu_prev = { total = 0, idle = 0 }
 
-awful.widget.watch('bash -c "grep \'^cpu \' /proc/stat"', 2,
-    function(widget, stdout)
+-- CPU update using native Lua file read (no shell spawning)
+local cpu_timer = gears.timer {
+    timeout = 3,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        local f = io.open("/proc/stat", "r")
+        if not f then return end
+        local line = f:read("*l")
+        f:close()
+
         local user, nice, system, idle, iowait, irq, softirq, steal =
-            stdout:match('cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)')
+            line:match('cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)')
 
         if user then
+            user, nice, system, idle = tonumber(user), tonumber(nice), tonumber(system), tonumber(idle)
+            iowait, irq, softirq, steal = tonumber(iowait), tonumber(irq), tonumber(softirq), tonumber(steal)
+
             local total = user + nice + system + idle + iowait + irq + softirq + steal
             local diff_idle = idle - cpu_prev.idle
             local diff_total = total - cpu_prev.total
@@ -286,7 +299,7 @@ awful.widget.watch('bash -c "grep \'^cpu \' /proc/stat"', 2,
                 string.format('<span foreground="%s">%d%%</span>', colors.text, usage)
         end
     end
-)
+}
 
 -- ============================================================================
 -- RAM WIDGET
@@ -312,15 +325,109 @@ local ram_widget_display = wibox.widget {
     layout = wibox.layout.fixed.horizontal,
 }
 
-awful.widget.watch('bash -c "free | grep Mem | awk \'{print ($3/$2) * 100.0}\'"', 2,
-    function(widget, stdout)
-        local ram_value = tonumber(stdout)
-        if ram_value then
+-- RAM update using native Lua file read (no shell spawning)
+local ram_timer = gears.timer {
+    timeout = 3,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        local f = io.open("/proc/meminfo", "r")
+        if not f then return end
+        local content = f:read("*a")
+        f:close()
+
+        local mem_total = tonumber(content:match("MemTotal:%s+(%d+)"))
+        local mem_available = tonumber(content:match("MemAvailable:%s+(%d+)"))
+
+        if mem_total and mem_available and mem_total > 0 then
+            local usage = ((mem_total - mem_available) / mem_total) * 100
             ram_widget_display:get_children_by_id("value")[1].markup =
-                string.format('<span foreground="%s">%.0f%%</span>', colors.text, ram_value)
+                string.format('<span foreground="%s">%.0f%%</span>', colors.text, usage)
         end
     end
-)
+}
+
+-- ============================================================================
+-- GPU WIDGET (NVIDIA only - hidden when no GPU present)
+-- ============================================================================
+
+-- Check for NVIDIA GPU (nvidia-smi availability)
+local has_nvidia_gpu = false
+local nvidia_check = io.popen("which nvidia-smi 2>/dev/null")
+if nvidia_check then
+    local nvidia_path = nvidia_check:read("*a")
+    nvidia_check:close()
+    has_nvidia_gpu = nvidia_path ~= nil and nvidia_path ~= ""
+end
+
+local gpu_widget_display = nil
+
+if has_nvidia_gpu then
+    gpu_widget_display = wibox.widget {
+        -- GPU icon
+        {
+            {
+                markup = string.format('<span foreground="%s">%s</span>', colors.peach, icons.gpu),
+                font = fonts.icon,
+                widget = wibox.widget.textbox,
+            },
+            left = 2,
+            right = spacing.icon_gap + 2,
+            widget = wibox.container.margin,
+        },
+        -- GPU utilization
+        {
+            id = "util",
+            markup = string.format('<span foreground="%s">0%%</span>', colors.text),
+            font = fonts.data,
+            widget = wibox.widget.textbox,
+        },
+        -- VRAM usage
+        {
+            {
+                id = "vram",
+                markup = string.format('<span foreground="%s"> 0G</span>', colors.subtext0),
+                font = fonts.data,
+                widget = wibox.widget.textbox,
+            },
+            left = spacing.icon_gap,
+            widget = wibox.container.margin,
+        },
+        -- Temperature
+        {
+            {
+                id = "temp",
+                markup = string.format('<span foreground="%s"> 0°</span>', colors.subtext0),
+                font = fonts.data,
+                widget = wibox.widget.textbox,
+            },
+            left = spacing.icon_gap,
+            widget = wibox.container.margin,
+        },
+        layout = wibox.layout.fixed.horizontal,
+    }
+
+    -- Update GPU stats via nvidia-smi
+    awful.widget.watch(
+        'nvidia-smi --query-gpu=utilization.gpu,memory.used,temperature.gpu --format=csv,noheader,nounits',
+        2,
+        function(widget, stdout)
+            local util, vram_mb, temp = stdout:match("(%d+),%s*(%d+),%s*(%d+)")
+            if util then
+                gpu_widget_display:get_children_by_id("util")[1].markup =
+                    string.format('<span foreground="%s">%s%%</span>', colors.text, util)
+
+                -- Convert MB to GB for display
+                local vram_gb = tonumber(vram_mb) / 1024
+                gpu_widget_display:get_children_by_id("vram")[1].markup =
+                    string.format('<span foreground="%s"> %.1fG</span>', colors.subtext0, vram_gb)
+
+                gpu_widget_display:get_children_by_id("temp")[1].markup =
+                    string.format('<span foreground="%s"> %s°</span>', colors.subtext0, temp)
+            end
+        end
+    )
+end
 
 -- ============================================================================
 -- NETWORK SPEED WIDGET
@@ -378,29 +485,59 @@ local function format_speed(bytes)
     end
 end
 
--- Track previous values for rate calculation
-local net_prev = { tx = 0, rx = 0 }
+-- Detect default network interface ONCE at startup (not every update)
+local default_iface = nil
+local iface_handle = io.popen("ip route show default 2>/dev/null | head -1")
+if iface_handle then
+    local route_line = iface_handle:read("*l")
+    iface_handle:close()
+    if route_line then
+        default_iface = route_line:match("dev%s+(%S+)")
+    end
+end
 
-awful.widget.watch('bash -c "cat /sys/class/net/$(ip route | grep default | awk \'{print $5}\' | head -1)/statistics/tx_bytes /sys/class/net/$(ip route | grep default | awk \'{print $5}\' | head -1)/statistics/rx_bytes 2>/dev/null"', 1,
-    function(widget, stdout)
-        local lines = {}
-        for line in stdout:gmatch("[^\n]+") do
-            table.insert(lines, tonumber(line) or 0)
+-- Track previous values for rate calculation
+local net_prev = { tx = 0, rx = 0, time = 0 }
+
+-- Network update using native Lua file read (no shell spawning per update)
+local net_timer = gears.timer {
+    timeout = 2,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        if not default_iface then return end
+
+        local tx_path = "/sys/class/net/" .. default_iface .. "/statistics/tx_bytes"
+        local rx_path = "/sys/class/net/" .. default_iface .. "/statistics/rx_bytes"
+
+        local tx_file = io.open(tx_path, "r")
+        local rx_file = io.open(rx_path, "r")
+        if not tx_file or not rx_file then
+            if tx_file then tx_file:close() end
+            if rx_file then rx_file:close() end
+            return
         end
-        if #lines >= 2 then
-            local tx, rx = lines[1], lines[2]
-            if net_prev.tx > 0 then
-                local tx_rate = tx - net_prev.tx
-                local rx_rate = rx - net_prev.rx
+
+        local tx = tonumber(tx_file:read("*l")) or 0
+        local rx = tonumber(rx_file:read("*l")) or 0
+        tx_file:close()
+        rx_file:close()
+
+        local now = os.time()
+        if net_prev.time > 0 then
+            local elapsed = now - net_prev.time
+            if elapsed > 0 then
+                local tx_rate = (tx - net_prev.tx) / elapsed
+                local rx_rate = (rx - net_prev.rx) / elapsed
                 net_widget_display:get_children_by_id("upload")[1].markup =
                     string.format('<span foreground="%s">%s</span>', colors.text, format_speed(tx_rate))
                 net_widget_display:get_children_by_id("download")[1].markup =
                     string.format('<span foreground="%s">%s</span>', colors.text, format_speed(rx_rate))
             end
-            net_prev.tx, net_prev.rx = tx, rx
         end
+        net_prev.tx, net_prev.rx, net_prev.time = tx, rx, now
     end
-)
+}
 
 -- ============================================================================
 -- CLOCK WIDGET
@@ -615,6 +752,9 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
                 cpu_widget_display,
                 create_spacer(spacing.widget),
                 ram_widget_display,
+                -- GPU widget (desktop only - hidden on laptops without NVIDIA GPU)
+                gpu_widget_display and create_spacer(spacing.widget) or nil,
+                gpu_widget_display and gpu_widget_display or nil,
                 create_spacer(spacing.section),
                 net_widget_display,
                 create_spacer(spacing.section),

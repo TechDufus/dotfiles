@@ -4,7 +4,7 @@
 
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-blue.svg)](https://www.apple.com/macos/)
 [![Ansible Role](https://img.shields.io/badge/ansible-role-red.svg)](https://www.ansible.com/)
-[![Commands: 18](https://img.shields.io/badge/commands-18-green.svg)](#commands)
+[![Commands: 17](https://img.shields.io/badge/commands-17-green.svg)](#commands)
 [![Skills: 3](https://img.shields.io/badge/skills-3-purple.svg)](#skills)
 [![Scripts: 11](https://img.shields.io/badge/scripts-11-orange.svg)](#helper-scripts)
 
@@ -57,7 +57,7 @@ All configuration files are symlinked from this role to enable version control:
 ~/.claude/
 ├── settings.json         # Core settings (permissions, hooks, 900+ allowed operations)
 ├── CLAUDE.md            # Global user memory and project standards
-├── commands/            # 18 slash command definitions
+├── commands/            # 17 slash command definitions
 ├── skills/              # 3 built-in skills (git-commit-validator, workflow-router, skill-creator)
 ├── scripts/             # 11 GitHub workflow scripts (1,634 lines of shell)
 ├── hooks/               # Lifecycle hooks (PreToolUse, Stop, SubagentStop, Notification)
@@ -70,21 +70,24 @@ All configuration files are symlinked from this role to enable version control:
 
 ```mermaid
 graph TD
-    A[Task Input] --> B{GitHub Linked?}
-    B -->|"#123, issue #N"| C[Fetch Issue + Create Branch]
-    B -->|"no issue ref"| D{Workflow Router}
-    C --> D
-    D -->|"fix typo"| E[Quick Mode]
-    D -->|"where is X"| F[Research Mode]
-    D -->|"A and B and C"| G[Parallel Mode]
-    D -->|"implement feature"| H[Structured Mode]
-    E --> I[Direct Execution]
-    F --> J[Explore Subagent]
-    G --> K[Concurrent Tasks]
-    H --> L[Plan + TodoWrite]
-    I & J & K & L --> M{GitHub Linked?}
-    M -->|yes| N[Commit + Push + PR]
-    M -->|no| O[Done]
+    A["/work task"] --> B[workflow-router skill]
+    B --> C{GitHub Linked?}
+    C -->|"#123, issue #N"| D[Fetch Issue + Create Branch]
+    C -->|"no issue ref"| E{Classify Task}
+    D --> E
+    E -->|"fix typo"| F[Quick Mode]
+    E -->|"where is X"| G[Research Mode]
+    E -->|"2-3 independent"| H[Parallel Mode]
+    E -->|"4+ streams"| I[Orchestrated Mode]
+    E -->|"sequential deps"| J[Structured Mode]
+    F --> K[Direct Execution]
+    G --> L[Explore Subagent]
+    H --> M[Concurrent Tasks]
+    I --> N[Wave-based Delegation]
+    J --> O[Plan + TodoWrite]
+    K & L & M & N & O --> P{GitHub Linked?}
+    P -->|yes| Q[Commit + Push + PR]
+    P -->|no| R[Done]
 ```
 
 **Security:**
@@ -140,14 +143,17 @@ Reusable capabilities that extend Claude's behavior:
 
 | Skill | When It Activates | Functionality |
 |-------|-------------------|---------------|
+| **workflow-router** | Via `/work` command or explicitly | **Canonical routing engine.** Task classification (< 30s): Quick/Research/Parallel/Orchestrated/Structured modes. GitHub-linked detection, sub-agent delegation, validation, learning patterns |
 | **git-commit-validator** | Every `git commit` operation | Enforces conventional commits (type/scope/description), 50/72 char limits, blocks AI attribution/branding, validates via script |
-| **workflow-router** | Complex tasks requiring analysis | Task classification (< 30s): GitHub/Quick/Research/Parallel/Structured routing, validation integration, learning pattern tracking |
 | **skill-creator** | Creating new skills | Guided workflow with best practice templates, skill.md generation, testing helpers |
+
+**Architecture Note:** The `workflow-router` skill is the canonical source of routing logic. The `/work` command is a thin wrapper that invokes this skill. Other commands can reuse the same routing engine.
 
 **Usage:**
 ```bash
-# Skills are invoked automatically or explicitly
+# Skills are invoked via commands or explicitly
 claude
+/work implement user authentication    # Invokes workflow-router skill
 > Use the git-commit-validator skill to check this message: "feat: add auth"
 ```
 
@@ -174,11 +180,15 @@ All paths are symlinked from this role, enabling version control and cross-machi
 
 ### The `/work` Router
 
+The `/work` command invokes the `workflow-router` skill, which analyzes tasks and routes to the optimal mode:
+
 ```
 /work fix typo in README          → Quick mode (direct execution)
 /work where is auth handled?      → Research mode (Explore subagent)
-/work update tests AND fix docs   → Parallel mode (concurrent tasks)
-/work implement OAuth2            → Structured mode (plan + TodoWrite)
+/work update tests AND fix docs   → Parallel mode (2-3 concurrent tasks)
+/work implement OAuth2 + docs + config + migration
+                                  → Orchestrated mode (4+ wave-based delegation)
+/work implement feature with DB   → Structured mode (sequential: schema → code → tests)
 /work #42                         → GitHub-linked (branch → implement → commit → PR)
 ```
 
@@ -279,7 +289,7 @@ ansible-playbook -t claude ~/.dotfiles/main.yml
 2. **Creates ~/.claude directory** if it doesn't exist
 3. **Symlinks configuration** from role files to `~/.claude/`:
    - `settings.json` (permissions, hooks, environment)
-   - `commands/` (18 slash commands)
+   - `commands/` (17 slash commands)
    - `scripts/` (11 workflow scripts)
    - `skills/` (3 built-in skills)
    - `hooks/` (lifecycle hooks)

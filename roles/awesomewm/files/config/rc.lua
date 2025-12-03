@@ -39,6 +39,9 @@ awful.spawn.with_shell("sleep 0.2 && setxkbmap -option caps:none && xmodmap -e '
 -- Start clipboard manager daemon (CopyQ)
 awful.spawn.once("copyq")
 
+-- Start polkit authentication agent for 1Password system auth
+awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1")
+
 -- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
 -- }}}
 

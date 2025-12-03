@@ -29,6 +29,7 @@
       - lxappearance       # GTK themes/fonts/icons
       - blueman            # Bluetooth manager
       - xfce4-power-manager # Power/battery/screen timeout settings
+      - policykit-1-gnome  # Polkit auth agent for 1Password system auth
     state: present
     update_cache: true
   become: true

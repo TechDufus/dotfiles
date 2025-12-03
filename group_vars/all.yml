@@ -31,8 +31,8 @@ default_roles:
   - neofetch
   - neovim
   - nerdfetch
+  - nvm  # Must run before npm
   - npm
-  - nvm
   - obsidian
   - opencode
   - podman

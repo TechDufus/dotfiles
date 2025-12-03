@@ -56,7 +56,7 @@
         executable: /bin/bash
       register: latest_npm_version
       changed_when: false
-      when: 
+      when:
         - npm_update_npm
         - nvm_node_check.stdout != 'not-installed'
 
@@ -67,7 +67,7 @@
         npm install -g npm@latest
       args:
         executable: /bin/bash
-      when: 
+      when:
         - npm_update_npm
         - nvm_node_check.stdout != 'not-installed'
         - current_npm_version.stdout != latest_npm_version.stdout

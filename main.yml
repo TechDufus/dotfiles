@@ -46,7 +46,7 @@
     - name: Set roles
       ansible.builtin.set_fact:
         # yamllint disable-line rule:line-length
-        run_roles: "{% if ansible_run_tags | list == ['all'] %}{{ default_roles | difference(exclude_roles | default([])) | sort }}{% else %}{{ ansible_run_tags | list | difference(['all']) }}{% endif %}"
+        run_roles: "{% if ansible_run_tags | list == ['all'] %}{{ default_roles | reject('in', exclude_roles | default([])) | list }}{% else %}{{ default_roles | select('in', ansible_run_tags) | list }}{% endif %}"
       tags:
         - always
 

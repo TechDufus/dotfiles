@@ -278,32 +278,48 @@ local cpu_widget_display = wibox.widget {
 
 local cpu_prev = { total = 0, idle = 0 }
 
--- Detect CPU thermal zone at startup (check for coretemp or other CPU sensors)
+-- Detect CPU thermal sensor at startup
+-- Checks: thermal_zone (laptops), hwmon k10temp/coretemp (AMD/Intel), fallback thermal_zone0
 local cpu_thermal_path = nil
-local thermal_check = io.popen("ls /sys/class/thermal/thermal_zone*/type 2>/dev/null")
-if thermal_check then
-    for zone_type_path in thermal_check:lines() do
-        local zone_file = io.open(zone_type_path, "r")
-        if zone_file then
-            local zone_type = zone_file:read("*l")
-            zone_file:close()
-            -- Look for x86_pkg_temp (Intel package temp) or other CPU-related zones
-            if zone_type and (zone_type:match("x86_pkg") or zone_type:match("coretemp") or
-                              zone_type:match("cpu") or zone_type:match("CPU")) then
-                cpu_thermal_path = zone_type_path:gsub("/type$", "/temp")
-                break
-            end
-        end
-    end
-    thermal_check:close()
+
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then f:close() return true end
+    return false
 end
--- Fallback to thermal_zone0 if no specific CPU zone found
-if not cpu_thermal_path then
-    local fallback = io.open("/sys/class/thermal/thermal_zone0/temp", "r")
-    if fallback then
-        fallback:close()
-        cpu_thermal_path = "/sys/class/thermal/thermal_zone0/temp"
+
+local function read_file(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local content = f:read("*l")
+    f:close()
+    return content
+end
+
+-- Check thermal_zone (laptops/Intel) then hwmon (desktops/AMD)
+local i = 0
+while not cpu_thermal_path do
+    local zone_type = read_file("/sys/class/thermal/thermal_zone" .. i .. "/type")
+    if not zone_type then break end
+    if zone_type:match("x86_pkg") then
+        cpu_thermal_path = "/sys/class/thermal/thermal_zone" .. i .. "/temp"
     end
+    i = i + 1
+end
+
+i = 0
+while not cpu_thermal_path do
+    local name = read_file("/sys/class/hwmon/hwmon" .. i .. "/name")
+    if not name then break end
+    if name == "k10temp" or name == "coretemp" then
+        local path = "/sys/class/hwmon/hwmon" .. i .. "/temp1_input"
+        if file_exists(path) then cpu_thermal_path = path end
+    end
+    i = i + 1
+end
+
+if not cpu_thermal_path and file_exists("/sys/class/thermal/thermal_zone0/temp") then
+    cpu_thermal_path = "/sys/class/thermal/thermal_zone0/temp"
 end
 
 -- CPU update using native Lua file read (no shell spawning)

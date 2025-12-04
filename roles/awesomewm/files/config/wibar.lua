@@ -262,10 +262,49 @@ local cpu_widget_display = wibox.widget {
         font = fonts.data,
         widget = wibox.widget.textbox,
     },
+    -- Temperature
+    {
+        {
+            id = "temp",
+            markup = string.format('<span foreground="%s"> 0°</span>', colors.subtext0),
+            font = fonts.data,
+            widget = wibox.widget.textbox,
+        },
+        left = spacing.icon_gap,
+        widget = wibox.container.margin,
+    },
     layout = wibox.layout.fixed.horizontal,
 }
 
 local cpu_prev = { total = 0, idle = 0 }
+
+-- Detect CPU thermal zone at startup (check for coretemp or other CPU sensors)
+local cpu_thermal_path = nil
+local thermal_check = io.popen("ls /sys/class/thermal/thermal_zone*/type 2>/dev/null")
+if thermal_check then
+    for zone_type_path in thermal_check:lines() do
+        local zone_file = io.open(zone_type_path, "r")
+        if zone_file then
+            local zone_type = zone_file:read("*l")
+            zone_file:close()
+            -- Look for x86_pkg_temp (Intel package temp) or other CPU-related zones
+            if zone_type and (zone_type:match("x86_pkg") or zone_type:match("coretemp") or
+                              zone_type:match("cpu") or zone_type:match("CPU")) then
+                cpu_thermal_path = zone_type_path:gsub("/type$", "/temp")
+                break
+            end
+        end
+    end
+    thermal_check:close()
+end
+-- Fallback to thermal_zone0 if no specific CPU zone found
+if not cpu_thermal_path then
+    local fallback = io.open("/sys/class/thermal/thermal_zone0/temp", "r")
+    if fallback then
+        fallback:close()
+        cpu_thermal_path = "/sys/class/thermal/thermal_zone0/temp"
+    end
+end
 
 -- CPU update using native Lua file read (no shell spawning)
 local cpu_timer = gears.timer {
@@ -297,6 +336,20 @@ local cpu_timer = gears.timer {
 
             cpu_widget_display:get_children_by_id("value")[1].markup =
                 string.format('<span foreground="%s">%d%%</span>', colors.text, usage)
+        end
+
+        -- Read CPU temperature
+        if cpu_thermal_path then
+            local temp_file = io.open(cpu_thermal_path, "r")
+            if temp_file then
+                local temp_raw = temp_file:read("*l")
+                temp_file:close()
+                if temp_raw then
+                    local temp = math.floor(tonumber(temp_raw) / 1000 + 0.5)
+                    cpu_widget_display:get_children_by_id("temp")[1].markup =
+                        string.format('<span foreground="%s"> %d°</span>', colors.subtext0, temp)
+                end
+            end
         end
     end
 }

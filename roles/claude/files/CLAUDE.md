@@ -23,3 +23,11 @@
 - **Full workflow**: features, bugs, team projects
 - **Direct commits OK**: typos, docs, config
 - **Emergency**: bypass when critical
+
+## PR Description Rules
+- Concise and to the point (2-3 short paragraphs max)
+- Human-style writing, not AI/formal style
+- No emojis
+- No unnecessary sections (like "Result" or "Testing")
+- Focus on what changed and why
+- ALWAYS create PRs as drafts (`gh pr create --draft`)

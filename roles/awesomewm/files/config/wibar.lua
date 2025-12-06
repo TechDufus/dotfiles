@@ -5,6 +5,7 @@ local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
+local naughty = require("naughty")
 local dpi = beautiful.xresources.apply_dpi
 
 -- Load awesome-wm-widgets
@@ -161,7 +162,110 @@ if has_backlight then
 end
 
 -- Battery Widget (laptops only)
+-- Uses upower for time-to-empty estimation (more reliable than acpi on many laptops)
+-- Right-click for power profile menu (uses powerprofilesctl)
 local battery_widget_display = nil
+local battery_notification = nil
+
+-- Helper function to show battery status using upower (includes time estimation)
+local function show_battery_status_upower()
+    awful.spawn.easy_async_with_shell(
+        [[upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null | grep -E '(state|percentage|time to|energy-rate)' | sed 's/^[ \t]*//' | head -6]],
+        function(stdout, _, _, _)
+            naughty.destroy(battery_notification)
+            if stdout and stdout ~= "" then
+                -- Format the output nicely
+                local formatted = stdout:gsub("^%s+", ""):gsub("%s+$", "")
+                battery_notification = naughty.notify({
+                    text = formatted,
+                    title = "Battery Status",
+                    timeout = 5,
+                    width = 250,
+                    position = "top_right",
+                })
+            end
+        end
+    )
+end
+
+-- Power profile menu (auto-detects available profiles via powerprofilesctl)
+local power_profile_menu = nil
+
+local function toggle_power_profile_menu()
+    -- Toggle: if menu exists and visible, hide it
+    if power_profile_menu then
+        power_profile_menu:hide()
+        power_profile_menu = nil
+        return
+    end
+
+    awful.spawn.easy_async_with_shell(
+        [[powerprofilesctl list 2>/dev/null]],
+        function(stdout, _, _, exit_code)
+            if exit_code ~= 0 or not stdout or stdout == "" then
+                naughty.notify({
+                    title = "Power Profiles",
+                    text = "powerprofilesctl not available",
+                    timeout = 3,
+                })
+                return
+            end
+
+            -- Parse profiles and find active one
+            -- Profile lines start with "* " (active) or "  " (inactive), then profile name and colon
+            -- Detail lines are indented with 4+ spaces (like "    PlatformDriver:") - skip these
+            local profiles = {}
+            local active_profile = nil
+            for line in stdout:gmatch("[^\r\n]+") do
+                -- Only match lines with 0-2 leading spaces (not indented detail lines)
+                local is_active, profile = line:match("^(%s?%*?)%s?([%w%-]+):$")
+                if profile and not line:match("^%s%s%s%s") then
+                    table.insert(profiles, profile)
+                    if is_active and is_active:match("%*") then
+                        active_profile = profile
+                    end
+                end
+            end
+
+            -- Build menu items
+            local menu_items = {}
+            for _, profile in ipairs(profiles) do
+                local label = profile
+                if profile == active_profile then
+                    label = "● " .. profile  -- Radio button indicator
+                else
+                    label = "○ " .. profile
+                end
+                table.insert(menu_items, {
+                    label,
+                    function()
+                        awful.spawn.with_shell("powerprofilesctl set " .. profile)
+                        naughty.notify({
+                            title = "Power Profile",
+                            text = "Switched to: " .. profile,
+                            timeout = 2,
+                        })
+                    end
+                })
+            end
+
+            -- Show the menu (auto-hides on click outside)
+            power_profile_menu = awful.menu({
+                items = menu_items,
+                theme = { width = 150 },
+            })
+            power_profile_menu:show()
+
+            -- Clear reference when menu hides (enables toggle behavior)
+            power_profile_menu.wibox:connect_signal("property::visible", function(w)
+                if not w.visible then
+                    power_profile_menu = nil
+                end
+            end)
+        end
+    )
+end
+
 if battery_widget then
     battery_widget_display = battery_widget({
         show_current_level = true,
@@ -170,7 +274,21 @@ if battery_widget then
         main_color = colors.green,
         low_level_color = colors.maroon,
         medium_level_color = colors.yellow,
+        show_notification_mode = "off",  -- Disable built-in acpi tooltip
     })
+    -- Hover: show battery details with time estimation
+    battery_widget_display:connect_signal("mouse::enter", function()
+        show_battery_status_upower()
+    end)
+    battery_widget_display:connect_signal("mouse::leave", function()
+        naughty.destroy(battery_notification)
+    end)
+    -- Right-click: power profile menu (toggle)
+    battery_widget_display:connect_signal("button::press", function(_, _, _, button)
+        if button == 3 then  -- Right click
+            toggle_power_profile_menu()
+        end
+    end)
 end
 
 -- Filesystem Widget - Auto-detect real disk mounts

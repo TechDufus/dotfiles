@@ -1,9 +1,14 @@
 -- layouts.lua - Layout definitions with cell and app assignments
 local positions = require("cell-management.positions")
 
+-- Layout metadata for resolution-based auto-selection
+-- Layouts can specify their preferred resolution (optional)
+-- Resolution detection in init.lua will select the first matching layout
+
 return {
   {
     name = "4K Workspace",
+    min_width = 2560,  -- Only auto-select on 2560+ width screens
     cells = {
       positions.fourk.left_large,         -- Cell 1
       positions.fourk.right_side,         -- Cell 2
@@ -20,6 +25,25 @@ return {
       FileManager = { cell = 5, open = true },  -- Thunar in cell 5
       Obsidian    = { cell = 6 },               -- F13+n in cell 6 (don't auto-launch)
       OnePassword = { cell = 4 },
+    },
+  },
+  {
+    name = "HD Workspace",
+    min_width = 0,     -- Default for smaller screens (1080p, 1440p)
+    max_width = 2559,  -- Don't auto-select on 4K+
+    cells = {
+      positions.hd.left_main,         -- Cell 1: Terminal (60%)
+      positions.hd.right_side,        -- Cell 2: Browser (40%)
+      positions.hd.float_center,      -- Cell 4: Floating utilities
+    },
+    apps = {
+      Terminal    = { cell = 1, open = true },
+      Browser     = { cell = 2, open = true },
+      Discord     = { cell = 3, open = true },
+      Spotify     = { cell = 3, open = true },
+      FileManager = { cell = 3 },
+      Obsidian    = { cell = 3 },
+      OnePassword = { cell = 3 },
     },
   },
   {

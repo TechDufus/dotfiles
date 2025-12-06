@@ -34,6 +34,19 @@
     update_cache: true
   become: true
 
+- name: "awesomewm | Ubuntu | Add user to video group for backlight control"
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    groups: video
+    append: true
+  become: true
+
+- name: "awesomewm | Ubuntu | Install upower for battery time estimation"
+  ansible.builtin.apt:
+    name: upower
+    state: present
+  become: true
+
 - name: "awesomewm | Ubuntu | Install bemoji emoji picker"
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/marty-oehme/bemoji/main/bemoji

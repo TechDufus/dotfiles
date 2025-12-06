@@ -114,6 +114,12 @@
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/window-switcher.lua"
     mode: "0644"
 
+- name: "awesomewm | Ubuntu | Deploy icon resolver"
+  ansible.builtin.copy:
+    src: "config/icon-resolver.lua"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/icon-resolver.lua"
+    mode: "0644"
+
 - name: "awesomewm | Ubuntu | Deploy Catppuccin Mocha Theme"
   ansible.builtin.copy:
     src: "config/themes/"

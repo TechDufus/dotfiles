@@ -7,6 +7,7 @@ local wibox = require("wibox")
 local beautiful = require("beautiful")
 local naughty = require("naughty")
 local dpi = beautiful.xresources.apply_dpi
+local icon_resolver = require("icon-resolver")
 
 -- Load awesome-wm-widgets
 local volume_widget = require("awesome-wm-widgets.volume-widget.volume")
@@ -843,16 +844,29 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
         buttons = taglist_buttons,
     }
 
-    -- Helper: Update fallback icon visibility based on whether app has an icon
+    -- Helper: Update tasklist icon using high-resolution icon lookup
+    -- Tries: 1) Desktop file icon (GNOME-style), 2) c.icon (_NET_WM_ICON), 3) Fallback
     local function update_tasklist_icon(self, c)
         local icon_widget = self:get_children_by_id('icon_role')[1]
         local fallback = self:get_children_by_id('fallback_icon')[1]
-        if c.icon == nil then
+
+        -- Try high-resolution icon lookup first
+        local icon_path = icon_resolver.get_icon_path(c)
+
+        if icon_path then
+            -- Use high-res icon from desktop file / icon theme
+            icon_widget.image = icon_path
+            icon_widget.visible = true
+            fallback.visible = false
+        elseif c.icon then
+            -- Fall back to _NET_WM_ICON (may be low-res but better than nothing)
+            icon_widget.image = c.icon
+            icon_widget.visible = true
+            fallback.visible = false
+        else
+            -- No icon found, show fallback
             fallback.visible = true
             icon_widget.visible = false
-        else
-            fallback.visible = false
-            icon_widget.visible = true
         end
     end
 

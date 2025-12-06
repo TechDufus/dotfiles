@@ -5,6 +5,7 @@ local awful = require("awful")
 local wibox = require("wibox")
 local gears = require("gears")
 local beautiful = require("beautiful")
+local icon_resolver = require("icon-resolver")
 
 local window_switcher = {}
 
@@ -81,20 +82,29 @@ end
 
 -- Create icon widget for a client
 local function create_client_icon(c, is_selected)
-    -- Determine if we have a valid icon
-    local has_icon = c.icon ~= nil or beautiful.awesome_icon ~= nil
+    -- Try high-resolution icon lookup first (GNOME-style via desktop files)
+    -- Falls back to c.icon (_NET_WM_ICON), then to generic icon
+    local icon_surface = icon_resolver.get_icon_surface(c, config.icon_size)
 
     -- Create either an image icon or a fallback text icon
     local icon_content
-    if has_icon then
+    if icon_surface then
         icon_content = wibox.widget {
-            image = c.icon or beautiful.awesome_icon,
+            image = icon_surface,
+            forced_width = config.icon_size,
+            forced_height = config.icon_size,
+            widget = wibox.widget.imagebox,
+        }
+    elseif beautiful.awesome_icon then
+        -- Use theme's default icon as secondary fallback
+        icon_content = wibox.widget {
+            image = beautiful.awesome_icon,
             forced_width = config.icon_size,
             forced_height = config.icon_size,
             widget = wibox.widget.imagebox,
         }
     else
-        -- Fallback: show a generic window icon (Nerd Font)
+        -- Final fallback: show a generic window icon (Nerd Font)
         icon_content = wibox.widget {
             markup = string.format('<span foreground="%s">󰣆</span>', config.text_color),
             font = "BerkeleyMono Nerd Font 32",

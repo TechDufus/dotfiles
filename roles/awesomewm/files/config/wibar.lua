@@ -334,10 +334,82 @@ local fs_widget_display = fs_widget({
     timeout = 60,
 })
 
+-- ============================================================================
+-- GRACEFUL SHUTDOWN HELPERS
+-- ============================================================================
+
+-- Gracefully close all clients then execute a command
+-- This sends WM_DELETE_WINDOW to each app, allowing them to save state
+local function graceful_shutdown(final_command)
+    local all_clients = client.get()
+
+    -- If no clients, just run the command immediately
+    if #all_clients == 0 then
+        awful.spawn.with_shell(final_command)
+        return
+    end
+
+    -- Track remaining clients
+    local remaining = #all_clients
+
+    -- Timer for force-shutdown fallback (10 seconds max wait)
+    local timeout_timer = gears.timer {
+        timeout = 10,
+        single_shot = true,
+        callback = function()
+            naughty.notify({
+                preset = naughty.config.presets.normal,
+                title = "Shutdown",
+                text = "Timeout reached, forcing shutdown...",
+                timeout = 2
+            })
+            -- Give the notification time to display
+            gears.timer.start_new(1, function()
+                awful.spawn.with_shell(final_command)
+                return false
+            end)
+        end
+    }
+
+    -- Connect to client removal signal to track when all clients are gone
+    local function check_complete()
+        if #client.get() == 0 then
+            timeout_timer:stop()
+            -- Small delay to ensure everything is cleaned up
+            gears.timer.start_new(0.5, function()
+                awful.spawn.with_shell(final_command)
+                return false
+            end)
+        end
+    end
+
+    -- Watch for client removal
+    client.connect_signal("unmanage", check_complete)
+
+    -- Start the timeout timer
+    timeout_timer:start()
+
+    -- Show notification
+    naughty.notify({
+        preset = naughty.config.presets.normal,
+        title = "Shutdown",
+        text = "Closing " .. remaining .. " application(s) gracefully...",
+        timeout = 3
+    })
+
+    -- Send graceful close signal to all clients
+    for _, c in ipairs(all_clients) do
+        -- c:kill() sends WM_DELETE_WINDOW, allowing apps to save and close properly
+        c:kill()
+    end
+end
+
 -- Logout Menu Widget
 local logout_widget_display = logout_menu_widget({
     font = fonts.data,
     onlock = function() awful.spawn.with_shell('i3lock -c ' .. colors.base:gsub("#", "")) end,
+    onpoweroff = function() graceful_shutdown("systemctl poweroff") end,
+    onreboot = function() graceful_shutdown("systemctl reboot") end,
 })
 
 -- ============================================================================

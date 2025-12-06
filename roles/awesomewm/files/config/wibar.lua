@@ -284,9 +284,9 @@ if battery_widget then
     battery_widget_display:connect_signal("mouse::leave", function()
         naughty.destroy(battery_notification)
     end)
-    -- Right-click: power profile menu (toggle)
+    -- Left-click: power profile menu (toggle)
     battery_widget_display:connect_signal("button::press", function(_, _, _, button)
-        if button == 3 then  -- Right click
+        if button == 1 then  -- Left click
             toggle_power_profile_menu()
         end
     end)

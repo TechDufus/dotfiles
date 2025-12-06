@@ -19,12 +19,13 @@ conflict-marker-style = "diff"
 relative-timestamps = true
 
 [git]
-# Automatic local bookmark creation
-auto-local-bookmark = true
-
 # Default remotes for fetch and push
 default-push-remote = "origin"
 default-fetch-remote = "origin"
+
+[remotes.origin]
+# Automatically track all bookmarks from origin
+auto-track-bookmarks = "glob:*"
 
 [signing]
 # Enable signing for all commits

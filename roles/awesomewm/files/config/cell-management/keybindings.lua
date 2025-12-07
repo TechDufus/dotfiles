@@ -100,7 +100,7 @@ macro_modal = awful.keygrabber {
     if key == 'e' then
       self:stop()
       gears.timer.delayed_call(function()
-        awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -c --hist-limit 5")
+        awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -cn --hist-limit 5")
       end)
       return
     end

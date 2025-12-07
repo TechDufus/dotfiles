@@ -16,3 +16,11 @@
     name: systemd-logind
     state: restarted
   become: true
+
+- name: restart fprintd
+  ansible.builtin.systemd:
+    name: fprintd
+    state: restarted
+    enabled: true
+  become: true
+  failed_when: false

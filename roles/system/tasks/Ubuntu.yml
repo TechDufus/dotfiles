@@ -103,3 +103,137 @@
   become: true
   when: can_install_packages | default(false)
   notify: restart systemd-logind
+
+# Fingerprint Reader Support
+# Automatically detects fingerprint hardware and installs fprintd for PAM authentication
+# Detection covers USB, i2c-hid, and SPI fingerprint readers
+- name: "System | {{ ansible_facts['distribution'] }} | Detect fingerprint reader hardware"
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    # Method 1: Check USB devices for known fingerprint reader vendors
+    # Synaptics (06cb), Validity/Synaptics (138a), Elan (04f3), Goodix (27c6), AuthenTec (147e), FocalTech (2808)
+    for vendor in 06cb 138a 04f3 27c6 147e 2808; do
+      for vfile in /sys/bus/usb/devices/*/idVendor; do
+        if [[ -f "$vfile" ]] && grep -q "^${vendor}$" "$vfile" 2>/dev/null; then
+          # Check if this USB device has a fingerprint-related product string
+          pfile="${vfile%idVendor}product"
+          if [[ -f "$pfile" ]] && grep -qi finger "$pfile" 2>/dev/null; then
+            echo "found_usb"
+            exit 0
+          fi
+          # Also check by known product IDs for fingerprint readers
+          prodfile="${vfile%idVendor}idProduct"
+          if [[ -f "$prodfile" ]]; then
+            prod=$(cat "$prodfile")
+            # Known fingerprint reader products (not touchpads)
+            case "$vendor:$prod" in
+              06cb:00bd|06cb:00be|06cb:00df|06cb:00f0|06cb:00f9|06cb:00fc|06cb:0104|06cb:0123|06cb:015f|06cb:0168)
+                echo "found_usb"
+                exit 0
+                ;;
+              138a:*|04f3:0c*|27c6:5*|147e:*)
+                echo "found_usb"
+                exit 0
+                ;;
+            esac
+          fi
+        fi
+      done
+    done
+
+    # Method 2: Check for libfprint-supported devices via udev
+    if [[ -d /run/udev/data ]]; then
+      if grep -r -l "ID_FINGERPRINT_READER=1" /run/udev/data/ 2>/dev/null | head -1 | grep -q .; then
+        echo "found_udev"
+        exit 0
+      fi
+    fi
+
+    # Method 3: Check hidraw devices for fingerprint readers (i2c-hid devices)
+    for uevent in /sys/class/hidraw/*/device/uevent; do
+      if [[ -f "$uevent" ]]; then
+        # Check if HID_NAME contains fingerprint
+        if grep -qi "finger" "$uevent" 2>/dev/null; then
+          echo "found_hidraw"
+          exit 0
+        fi
+      fi
+    done
+
+    # Method 4: Check if fprintd can detect a device (requires fprintd installed)
+    if command -v fprintd-list &>/dev/null; then
+      if fprintd-list "$(whoami)" 2>&1 | grep -q "found"; then
+        echo "found_fprintd"
+        exit 0
+      fi
+    fi
+
+    echo "not_found"
+  args:
+    executable: /bin/bash
+  register: fingerprint_hardware_check
+  changed_when: false
+  failed_when: false
+
+- name: "System | {{ ansible_facts['distribution'] }} | Set fingerprint hardware fact"
+  ansible.builtin.set_fact:
+    has_fingerprint_reader: "{{ fingerprint_hardware_check.stdout is defined and fingerprint_hardware_check.stdout.startswith('found') }}"
+
+- name: "System | {{ ansible_facts['distribution'] }} | Fingerprint reader detected"
+  ansible.builtin.debug:
+    msg: "Fingerprint reader hardware detected ({{ fingerprint_hardware_check.stdout }}) - configuring fprintd authentication"
+  when: has_fingerprint_reader | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Install fingerprint authentication packages"
+  ansible.builtin.apt:
+    name:
+      - fprintd
+      - libpam-fprintd
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - has_fingerprint_reader | default(false)
+  notify: restart fprintd
+
+- name: "System | {{ ansible_facts['distribution'] }} | Enable PAM fingerprint authentication"
+  ansible.builtin.command: pam-auth-update --enable fprintd
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - has_fingerprint_reader | default(false)
+  register: pam_update_result
+  changed_when: pam_update_result.rc == 0
+  failed_when: false
+
+# Always deploy the enrollment script - useful for manual setup or when switching machines
+- name: "System | {{ ansible_facts['distribution'] }} | Ensure ~/.local/bin exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: "System | {{ ansible_facts['distribution'] }} | Deploy fingerprint enrollment helper script"
+  ansible.builtin.copy:
+    src: scripts/fingerprint-enroll.sh
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/fingerprint-enroll"
+    mode: "0755"
+
+- name: "System | {{ ansible_facts['distribution'] }} | Fingerprint setup complete"
+  ansible.builtin.debug:
+    msg:
+      - "✓ Fingerprint authentication is now configured"
+      - "Run 'fingerprint-enroll' to register your fingerprints"
+      - "You can then use your fingerprint for sudo, login, and other authentication"
+  when:
+    - has_fingerprint_reader | default(false)
+    - can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | No fingerprint reader detected"
+  ansible.builtin.debug:
+    msg:
+      - "No fingerprint reader hardware detected - skipping fprintd installation"
+      - "The fingerprint-enroll helper script is available at ~/.local/bin/fingerprint-enroll"
+      - "If you have a fingerprint reader, try running: sudo apt install fprintd libpam-fprintd"
+  when: not (has_fingerprint_reader | default(false))

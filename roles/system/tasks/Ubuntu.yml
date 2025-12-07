@@ -56,6 +56,8 @@
     state: stopped
   loop:
     - ModemManager.service  # Not needed unless using mobile broadband
+    - snapd.service         # Snap daemon - disable if not using snaps
+    - snapd.socket          # Snap socket activation
   become: true
   when: can_install_packages | default(false)
   failed_when: false  # Don't fail if service doesn't exist

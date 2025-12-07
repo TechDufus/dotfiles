@@ -164,105 +164,214 @@ end
 
 -- Battery Widget (laptops only)
 -- Uses upower for time-to-empty estimation (more reliable than acpi on many laptops)
--- Right-click for power profile menu (uses powerprofilesctl)
+-- Left-click shows combined battery info + power profile popup
 local battery_widget_display = nil
-local battery_notification = nil
+local battery_popup = nil
 
--- Helper function to show battery status using upower (includes time estimation)
-local function show_battery_status_upower()
-    awful.spawn.easy_async_with_shell(
-        [[upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null | grep -E '(state|percentage|time to|energy-rate)' | sed 's/^[ \t]*//' | head -6]],
-        function(stdout, _, _, _)
-            naughty.destroy(battery_notification)
-            if stdout and stdout ~= "" then
-                -- Format the output nicely
-                local formatted = stdout:gsub("^%s+", ""):gsub("%s+$", "")
-                battery_notification = naughty.notify({
-                    text = formatted,
-                    title = "Battery Status",
-                    timeout = 5,
-                    width = 250,
-                    position = "top_right",
-                })
-            end
-        end
-    )
-end
-
--- Power profile menu (auto-detects available profiles via powerprofilesctl)
-local power_profile_menu = nil
-
-local function toggle_power_profile_menu()
-    -- Toggle: if menu exists and visible, hide it
-    if power_profile_menu then
-        power_profile_menu:hide()
-        power_profile_menu = nil
+-- Combined battery info + power profile popup
+local function toggle_battery_popup(widget_geometry)
+    -- Toggle: if popup exists, hide it
+    if battery_popup then
+        battery_popup.visible = false
+        battery_popup = nil
         return
     end
 
-    awful.spawn.easy_async_with_shell(
-        [[powerprofilesctl list 2>/dev/null]],
-        function(stdout, _, _, exit_code)
-            if exit_code ~= 0 or not stdout or stdout == "" then
-                naughty.notify({
-                    title = "Power Profiles",
-                    text = "powerprofilesctl not available",
-                    timeout = 3,
-                })
-                return
-            end
+    -- Capture mouse position for popup placement
+    local mouse_coords = mouse.coords()
 
-            -- Parse profiles and find active one
-            -- Profile lines start with "* " (active) or "  " (inactive), then profile name and colon
-            -- Detail lines are indented with 4+ spaces (like "    PlatformDriver:") - skip these
-            local profiles = {}
-            local active_profile = nil
-            for line in stdout:gmatch("[^\r\n]+") do
-                -- Only match lines with 0-2 leading spaces (not indented detail lines)
-                local is_active, profile = line:match("^(%s?%*?)%s?([%w%-]+):$")
-                if profile and not line:match("^%s%s%s%s") then
-                    table.insert(profiles, profile)
-                    if is_active and is_active:match("%*") then
-                        active_profile = profile
-                    end
+    -- Fetch both battery info and power profiles concurrently
+    local battery_info = nil
+    local profiles_info = nil
+    local active_profile = nil
+    local profiles_list = {}
+
+    local function build_popup()
+        -- Wait until both async calls complete
+        if battery_info == nil or profiles_info == nil then
+            return
+        end
+
+        -- Build popup content
+        local popup_widgets = {
+            layout = wibox.layout.fixed.vertical,
+            spacing = dpi(8),
+        }
+
+        -- Battery status section
+        if battery_info and battery_info ~= "" then
+            -- Header
+            table.insert(popup_widgets, wibox.widget {
+                markup = string.format('<span foreground="%s" font_weight="bold">Battery Status</span>', colors.blue),
+                font = fonts.data,
+                widget = wibox.widget.textbox,
+            })
+
+            -- Battery info lines
+            for line in battery_info:gmatch("[^\r\n]+") do
+                local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
+                if trimmed ~= "" then
+                    table.insert(popup_widgets, wibox.widget {
+                        markup = string.format('<span foreground="%s">%s</span>', colors.text, trimmed),
+                        font = fonts.data,
+                        widget = wibox.widget.textbox,
+                    })
                 end
             end
 
-            -- Build menu items
-            local menu_items = {}
-            for _, profile in ipairs(profiles) do
-                local label = profile
-                if profile == active_profile then
-                    label = "● " .. profile  -- Radio button indicator
-                else
-                    label = "○ " .. profile
-                end
-                table.insert(menu_items, {
-                    label,
-                    function()
+            -- Separator
+            table.insert(popup_widgets, wibox.widget {
+                forced_height = dpi(8),
+                widget = wibox.container.background,
+            })
+        end
+
+        -- Power profiles section
+        if #profiles_list > 0 then
+            -- Header
+            table.insert(popup_widgets, wibox.widget {
+                markup = string.format('<span foreground="%s" font_weight="bold">Power Profile</span>', colors.green),
+                font = fonts.data,
+                widget = wibox.widget.textbox,
+            })
+
+            -- Profile buttons
+            for _, profile in ipairs(profiles_list) do
+                local is_active = (profile == active_profile)
+                local indicator = is_active and "●" or "○"
+                local color = is_active and colors.green or colors.subtext0
+
+                local profile_widget = wibox.widget {
+                    {
+                        {
+                            markup = string.format('<span foreground="%s">%s %s</span>', color, indicator, profile),
+                            font = fonts.data,
+                            widget = wibox.widget.textbox,
+                        },
+                        left = dpi(4),
+                        right = dpi(4),
+                        top = dpi(2),
+                        bottom = dpi(2),
+                        widget = wibox.container.margin,
+                    },
+                    bg = colors.base,
+                    widget = wibox.container.background,
+                }
+
+                -- Hover effect
+                profile_widget:connect_signal("mouse::enter", function(w)
+                    w.bg = colors.surface1
+                end)
+                profile_widget:connect_signal("mouse::leave", function(w)
+                    w.bg = colors.base
+                end)
+
+                -- Click to set profile
+                profile_widget:connect_signal("button::press", function(_, _, _, button)
+                    if button == 1 then
                         awful.spawn.with_shell("powerprofilesctl set " .. profile)
                         naughty.notify({
                             title = "Power Profile",
                             text = "Switched to: " .. profile,
                             timeout = 2,
                         })
+                        -- Close popup after selection
+                        if battery_popup then
+                            battery_popup.visible = false
+                            battery_popup = nil
+                        end
                     end
-                })
+                end)
+
+                table.insert(popup_widgets, profile_widget)
             end
-
-            -- Show the menu (auto-hides on click outside)
-            power_profile_menu = awful.menu({
-                items = menu_items,
-                theme = { width = 150 },
+        elseif profiles_info == "unavailable" then
+            table.insert(popup_widgets, wibox.widget {
+                markup = string.format('<span foreground="%s" style="italic">Power profiles unavailable</span>', colors.subtext0),
+                font = fonts.data,
+                widget = wibox.widget.textbox,
             })
-            power_profile_menu:show()
+        end
 
-            -- Clear reference when menu hides (enables toggle behavior)
-            power_profile_menu.wibox:connect_signal("property::visible", function(w)
-                if not w.visible then
-                    power_profile_menu = nil
+        -- Create the popup
+        battery_popup = awful.popup {
+            widget = {
+                {
+                    popup_widgets,
+                    margins = dpi(12),
+                    widget = wibox.container.margin,
+                },
+                bg = colors.base,
+                shape = function(cr, w, h)
+                    gears.shape.rounded_rect(cr, w, h, dpi(8))
+                end,
+                border_width = dpi(1),
+                border_color = colors.surface1,
+                widget = wibox.container.background,
+            },
+            placement = function(c)
+                -- Position below the battery widget (use mouse x, below wibar)
+                local screen_geo = awful.screen.focused().geometry
+                local workarea = awful.screen.focused().workarea
+                local popup_width = c.width or 200
+
+                -- Center popup horizontally on mouse position, clamp to screen
+                local x = mouse_coords.x - (popup_width / 2)
+                x = math.max(screen_geo.x + dpi(4), x)
+                x = math.min(screen_geo.x + screen_geo.width - popup_width - dpi(4), x)
+
+                -- Position just below the wibar
+                local y = workarea.y + dpi(4)
+
+                c.x = x
+                c.y = y
+            end,
+            ontop = true,
+            visible = true,
+        }
+
+        -- Hide popup when clicking outside
+        battery_popup:connect_signal("mouse::leave", function()
+            -- Use a timer to allow clicking on items
+            gears.timer.start_new(0.5, function()
+                if battery_popup and not mouse.current_wibox then
+                    battery_popup.visible = false
+                    battery_popup = nil
                 end
+                return false
             end)
+        end)
+    end
+
+    -- Fetch battery info
+    awful.spawn.easy_async_with_shell(
+        [[upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null | grep -E '(state|percentage|time to|energy-rate)' | sed 's/^[ \t]*//' | head -6]],
+        function(stdout, _, _, _)
+            battery_info = stdout or ""
+            build_popup()
+        end
+    )
+
+    -- Fetch power profiles
+    awful.spawn.easy_async_with_shell(
+        [[powerprofilesctl list 2>/dev/null]],
+        function(stdout, _, _, exit_code)
+            if exit_code ~= 0 or not stdout or stdout == "" then
+                profiles_info = "unavailable"
+            else
+                profiles_info = "available"
+                -- Parse profiles
+                for line in stdout:gmatch("[^\r\n]+") do
+                    local is_active, profile = line:match("^(%s?%*?)%s?([%w%-]+):$")
+                    if profile and not line:match("^%s%s%s%s") then
+                        table.insert(profiles_list, profile)
+                        if is_active and is_active:match("%*") then
+                            active_profile = profile
+                        end
+                    end
+                end
+            end
+            build_popup()
         end
     )
 end
@@ -277,17 +386,10 @@ if battery_widget then
         medium_level_color = colors.yellow,
         show_notification_mode = "off",  -- Disable built-in acpi tooltip
     })
-    -- Hover: show battery details with time estimation
-    battery_widget_display:connect_signal("mouse::enter", function()
-        show_battery_status_upower()
-    end)
-    battery_widget_display:connect_signal("mouse::leave", function()
-        naughty.destroy(battery_notification)
-    end)
-    -- Left-click: power profile menu (toggle)
+    -- Left-click: combined battery info + power profile menu (toggle)
     battery_widget_display:connect_signal("button::press", function(_, _, _, button)
         if button == 1 then  -- Left click
-            toggle_power_profile_menu()
+            toggle_battery_popup()
         end
     end)
 end

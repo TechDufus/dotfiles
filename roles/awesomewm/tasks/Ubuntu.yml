@@ -30,6 +30,7 @@
       - blueman            # Bluetooth manager
       - xfce4-power-manager # Power/battery/screen timeout settings
       - policykit-1-gnome  # Polkit auth agent for 1Password system auth
+      - network-manager-gnome # nm-applet for WiFi systray widget
     state: present
     update_cache: true
   become: true

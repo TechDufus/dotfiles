@@ -42,6 +42,9 @@ awful.spawn.once("copyq")
 -- Start polkit authentication agent for 1Password system auth
 awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1")
 
+-- Start NetworkManager applet for WiFi management in systray
+awful.spawn.once("nm-applet")
+
 -- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
 -- }}}
 

@@ -11,3 +11,12 @@
     depth: 1
     dest: "{{ ansible_facts['user_dir'] }}/.fzf"
   notify: "Install FZF"
+
+- name: "FZF | Check if fzf is installed"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.fzf/bin/fzf"
+  register: fzf_binary
+
+- name: "FZF | Ensure fzf is installed"
+  ansible.builtin.shell: "{{ ansible_facts['user_dir'] }}/.fzf/install --all --no-update-rc --no-fish"
+  when: not fzf_binary.stat.exists

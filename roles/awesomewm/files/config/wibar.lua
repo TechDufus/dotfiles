@@ -515,7 +515,7 @@ end
 
 -- CPU update using native Lua file read (no shell spawning)
 local cpu_timer = gears.timer {
-    timeout = 3,
+    timeout = 5,  -- Power optimization: reduced from 3s
     autostart = true,
     call_now = true,
     callback = function()
@@ -587,7 +587,7 @@ local ram_widget_display = wibox.widget {
 
 -- RAM update using native Lua file read (no shell spawning)
 local ram_timer = gears.timer {
-    timeout = 3,
+    timeout = 5,  -- Power optimization: reduced from 3s
     autostart = true,
     call_now = true,
     callback = function()
@@ -670,7 +670,7 @@ if has_nvidia_gpu then
     -- Update GPU stats via nvidia-smi
     awful.widget.watch(
         'nvidia-smi --query-gpu=utilization.gpu,memory.used,temperature.gpu --format=csv,noheader,nounits',
-        2,
+        10,  -- Power optimization: reduced from 2s (nvidia-smi is expensive)
         function(widget, stdout)
             local util, vram_mb, temp = stdout:match("(%d+),%s*(%d+),%s*(%d+)")
             if util then
@@ -761,7 +761,7 @@ local net_prev = { tx = 0, rx = 0, time = 0 }
 
 -- Network update using native Lua file read (no shell spawning per update)
 local net_timer = gears.timer {
-    timeout = 2,
+    timeout = 5,  -- Power optimization: reduced from 2s
     autostart = true,
     call_now = true,
     callback = function()

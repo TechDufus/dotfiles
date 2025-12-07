@@ -1,7 +1,7 @@
 return {
   {
     "zbirenbaum/copilot.lua",
-    enabled = true,
+    enabled = false, -- Disabled for power savings (uses ~2% CPU + 835MB RAM)
     cmd = "Copilot",
     lazy = false,
     config = function()
@@ -43,6 +43,7 @@ return {
   },
   {
     "zbirenbaum/copilot-cmp",
+    enabled = false, -- Disabled with copilot.lua
     after = { "copilot.lua" },
     event = { "InsertEnter", "LspAttach" },
     fix_pairs = true,

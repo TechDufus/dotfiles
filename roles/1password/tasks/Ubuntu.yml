@@ -9,6 +9,7 @@
 - name: "1Password | Add APT Repo"
   ansible.builtin.apt_repository:
     repo: "deb [arch={{ ansible_facts['machine'] | replace('x86_64', 'amd64') }} signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/{{ ansible_facts['machine'] | replace('x86_64', 'amd64') }} stable main"
+    filename: 1password
     state: present
     mode: "0644"
   become: true

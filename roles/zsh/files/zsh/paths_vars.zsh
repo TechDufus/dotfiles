@@ -7,6 +7,7 @@ fi
 addToPath /usr/local/go/bin
 addToPath $GOPATH/bin
 addToPath $HOME/go/bin
+addToPath $HOME/.bun/bin
 addToPath $HOME/.dotfiles/bin
 addToPath $HOME/.cargo/bin
 addToPath /opt/whalebrew/bin

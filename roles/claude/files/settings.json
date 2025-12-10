@@ -931,7 +931,9 @@
       "Bash(~/.claude/skills/**)",
       "Bash(~/.claude/scripts/**)",
       "Read(~/.claude/**)",
+      "Read(~/Documents/SecondBrain/**)",
       "Read(/tmp/**)",
+      "Write(~/Documents/SecondBrain/**)",
       "Write(/tmp/**)",
       "Bash(*:/tmp/**)"
     ],

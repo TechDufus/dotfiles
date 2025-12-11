@@ -16,5 +16,4 @@ return {
   --     dependencies = 'nvim-tree/nvim-web-devicons',
   --     config = true,
   -- },
-  'erikzaadi/vim-ansible-yaml',
 }

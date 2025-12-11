@@ -20,3 +20,6 @@ roles/claude/files/agents/raft-*.md
 
 # Claude session snapshots (personal work state)
 .claude/snapshots/
+
+# Ansible cache/runtime directories
+.ansible/

@@ -7,7 +7,6 @@ augroup END
 
 ]]
 vim.api.nvim_create_augroup('bufcheck', { clear = true })
-vim.cmd 'autocmd BufRead,BufNewFile *.yml set filetype=yaml.ansible'
 vim.cmd 'autocmd BufRead,BufNewFile .bashrc set filetype=sh'
 vim.cmd 'autocmd BufRead,BufNewFile *.hcl set filetype=terraform'
 vim.cmd 'autocmd BufRead,BufNewFile .justfile set filetype=just'

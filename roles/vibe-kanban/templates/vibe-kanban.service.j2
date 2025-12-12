@@ -1,0 +1,35 @@
+[Unit]
+Description=Vibe Kanban - AI Coding Agent Orchestration
+Documentation=https://vibekanban.com/docs
+After=network.target
+
+[Service]
+Type=simple
+User={{ ansible_facts['env']['USER'] }}
+Group={{ ansible_facts['env']['USER'] }}
+WorkingDirectory={{ ansible_facts['env']['HOME'] }}
+
+# Environment variables for server configuration
+Environment="PORT={{ vibe_kanban.server.port | default(8080) }}"
+Environment="HOST={{ vibe_kanban.server.host | default('0.0.0.0') }}"
+Environment="HOME={{ ansible_facts['env']['HOME'] }}"
+Environment="XDG_DATA_HOME={{ ansible_facts['env']['HOME'] }}/.local/share"
+
+# Use bun to run vibe-kanban
+ExecStart={{ bun_path | default('/home/' + ansible_facts['env']['USER'] + '/.bun/bin/bunx') }} vibe-kanban@latest
+
+# Restart configuration
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vibe-kanban
+
+[Install]
+WantedBy=multi-user.target

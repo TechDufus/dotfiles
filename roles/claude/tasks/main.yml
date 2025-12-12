@@ -124,3 +124,37 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
     state: link
     force: true
+
+# MCP Server Configuration
+# Managed in ~/.claude.json (user-scope MCP servers)
+- name: "{{ role_name }} | Check if ~/.claude.json exists"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.claude.json"
+  register: claude_json
+
+- name: "{{ role_name }} | Read existing ~/.claude.json"
+  ansible.builtin.slurp:
+    src: "{{ ansible_facts['env']['HOME'] }}/.claude.json"
+  register: claude_json_content
+  when: claude_json.stat.exists
+
+- name: "{{ role_name }} | Parse existing config"
+  ansible.builtin.set_fact:
+    claude_config: "{{ claude_json_content.content | b64decode | from_json }}"
+  when: claude_json.stat.exists
+
+- name: "{{ role_name }} | Initialize empty config"
+  ansible.builtin.set_fact:
+    claude_config: {}
+  when: not claude_json.stat.exists
+
+- name: "{{ role_name }} | Configure vibe-kanban MCP server"
+  ansible.builtin.set_fact:
+    claude_config: "{{ claude_config | combine({'mcpServers': claude_config.mcpServers | default({}) | combine({'vibe_kanban': {'command': 'bunx', 'args': ['vibe-kanban@latest', '--mcp']}})}, recursive=true) }}"
+
+- name: "{{ role_name }} | Write updated ~/.claude.json"
+  ansible.builtin.copy:
+    content: "{{ claude_config | to_nice_json }}"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude.json"
+    mode: '0600'
+    backup: true

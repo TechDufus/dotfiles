@@ -1,0 +1,55 @@
+{
+  "config_version": "v8",
+  "theme": "{{ vibe_kanban.theme | default('DARK') }}",
+  "executor_profile": {
+    "executor": "{{ vibe_kanban.executor.type | default('CLAUDE_CODE') }}",
+    "variant": "{{ vibe_kanban.executor.variant | default('OPUS') }}"
+  },
+  "disclaimer_acknowledged": true,
+  "onboarding_acknowledged": true,
+  "notifications": {
+    "sound_enabled": {{ vibe_kanban.notifications.sound_enabled | default(true) | lower }},
+    "push_enabled": {{ vibe_kanban.notifications.push_enabled | default(true) | lower }},
+    "sound_file": "{{ vibe_kanban.notifications.sound_file | default('ABSTRACT_SOUND3') }}"
+  },
+  "editor": {
+    "editor_type": "{{ vibe_kanban.editor.type | default('CUSTOM') }}",
+{% if vibe_kanban.editor.custom_command is defined and vibe_kanban.editor.custom_command %}
+    "custom_command": "{{ vibe_kanban.editor.custom_command }}",
+{% else %}
+    "custom_command": null,
+{% endif %}
+{% if vibe_kanban.editor.remote_ssh_host is defined and vibe_kanban.editor.remote_ssh_host %}
+    "remote_ssh_host": "{{ vibe_kanban.editor.remote_ssh_host }}",
+{% else %}
+    "remote_ssh_host": null,
+{% endif %}
+{% if vibe_kanban.editor.remote_ssh_user is defined and vibe_kanban.editor.remote_ssh_user %}
+    "remote_ssh_user": "{{ vibe_kanban.editor.remote_ssh_user }}"
+{% else %}
+    "remote_ssh_user": null
+{% endif %}
+  },
+  "github": {
+    "pat": null,
+    "oauth_token": null,
+    "username": null,
+    "primary_email": null,
+    "default_pr_base": "{{ vibe_kanban.github.default_pr_base | default('main') }}"
+  },
+  "analytics_enabled": {{ vibe_kanban.analytics_enabled | default(false) | lower }},
+  "workspace_dir": null,
+  "last_app_version": null,
+  "show_release_notes": false,
+  "language": "{{ vibe_kanban.language | default('BROWSER') }}",
+  "git_branch_prefix": "{{ vibe_kanban.git.branch_prefix | default('vk') }}",
+  "showcases": {
+    "seen_features": []
+  },
+  "pr_auto_description_enabled": {{ vibe_kanban.github.auto_description_enabled | default(true) | lower }},
+{% if vibe_kanban.github.auto_description_prompt is defined and vibe_kanban.github.auto_description_prompt %}
+  "pr_auto_description_prompt": "{{ vibe_kanban.github.auto_description_prompt }}"
+{% else %}
+  "pr_auto_description_prompt": null
+{% endif %}
+}

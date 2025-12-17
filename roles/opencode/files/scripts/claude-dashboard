@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Claude Dashboard - Beautiful tmux session switcher with Claude status
+# Agent Dashboard - Beautiful tmux session switcher with Claude/OpenCode status
 # Uses Catppuccin Mocha colors for consistency with tmux theme
 
 STATUS_DIR="$HOME/.cache/claude-status"
@@ -36,30 +36,30 @@ RESET=$'\033[0m'
 BOLD=$'\033[1m'
 DIM=$'\033[2m'
 
-# Cache for all Claude TTYs to avoid repeated ps calls
-_CLAUDE_TTYS=""
-_CLAUDE_TTYS_TIME=0
+# Cache for all agent TTYs to avoid repeated ps calls
+_AGENT_TTYS=""
+_AGENT_TTYS_TIME=0
 
-# Function to check if Claude is in a session (actually running, not just has status file)
-has_claude_in_session() {
+# Function to check if an AI agent (Claude/OpenCode) is in a session
+has_agent_in_session() {
   local session="$1"
   
   # Refresh cache every 2 seconds
   local current_time=$(date +%s)
-  if [ $((current_time - _CLAUDE_TTYS_TIME)) -gt 2 ] || [ -z "$_CLAUDE_TTYS" ]; then
-    # Get all TTYs running claude in one go (much faster than per-session)
-    _CLAUDE_TTYS=$(ps aux | grep -v grep | grep "claude" | awk '{print $7}' | sort -u | tr '\n' ' ')
-    _CLAUDE_TTYS_TIME=$current_time
+  if [ $((current_time - _AGENT_TTYS_TIME)) -gt 2 ] || [ -z "$_AGENT_TTYS" ]; then
+    # Get all TTYs running claude or opencode in one go (much faster than per-session)
+    _AGENT_TTYS=$(ps aux | grep -v grep | grep -E "(claude|opencode)" | awk '{print $7}' | sort -u | tr '\n' ' ')
+    _AGENT_TTYS_TIME=$current_time
   fi
   
-  # Early return if no claude processes at all
-  [ -z "$_CLAUDE_TTYS" ] && return 1
+  # Early return if no agent processes at all
+  [ -z "$_AGENT_TTYS" ] && return 1
   
   # Get TTYs for this session and check if any match
-  local session_ttys=$(tmux list-panes -t "$session" -F "#{pane_tty}" 2>/dev/null | sed 's|/dev/tty||' | tr '\n' ' ')
+  local session_ttys=$(tmux list-panes -t "$session" -F "#{pane_tty}" 2>/dev/null | sed 's|/dev/||' | tr '\n' ' ')
   
   for tty in $session_ttys; do
-    if [[ " $_CLAUDE_TTYS " == *" $tty "* ]]; then
+    if [[ " $_AGENT_TTYS " == *" $tty "* ]]; then
       return 0
     fi
   done
@@ -126,8 +126,8 @@ get_sessions_with_status() {
       attach_display="${OVERLAY0}○${RESET}"
     fi
 
-    # First check if Claude is present
-    if has_claude_in_session "$name"; then
+    # First check if an AI agent is present
+    if has_agent_in_session "$name"; then
       # Get status from hook file
       local claude_status=$(get_claude_status "$name")
 
@@ -146,7 +146,7 @@ get_sessions_with_status() {
       fi
     else
       local padded_name=$(printf "%-${max_name_length}s" "$name")
-      formatted_line=" ${SURFACE1}○${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${OVERLAY0}no claude${RESET}"
+      formatted_line=" ${SURFACE1}○${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${OVERLAY0}no agent${RESET}"
       no_claude_sessions+=("$formatted_line")
     fi
   done
@@ -174,7 +174,7 @@ get_sessions_with_status() {
   # No Claude sessions
   if [ ${#no_claude_sessions[@]} -gt 0 ]; then
     [ ${#working_sessions[@]} -gt 0 ] || [ ${#done_sessions[@]} -gt 0 ] && echo
-    echo -e "${OVERLAY1}${BOLD} ○ NO CLAUDE ${RESET}${OVERLAY0}(${#no_claude_sessions[@]})${RESET}"
+    echo -e "${OVERLAY1}${BOLD} ○ NO AGENT ${RESET}${OVERLAY0}(${#no_claude_sessions[@]})${RESET}"
     echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
     printf '%s\n' "${no_claude_sessions[@]}"
   fi
@@ -206,7 +206,7 @@ selected=$(echo "$sessions" | fzf \
   --color="border:#313244,label:#b4befe,query:#f5e0dc")
 
 # Switch to selected session (skip separator lines and footer)
-if [ -n "$selected" ] && ! echo "$selected" | grep -qE "───|sessions|navigate|cancel|WORKING|DONE|CLAUDE"; then
+if [ -n "$selected" ] && ! echo "$selected" | grep -qE "───|sessions|navigate|cancel|WORKING|DONE|AGENT"; then
   # Extract session name - it's between the bullet and the first pipe
   # First strip ANSI codes, then extract the session name
   session_name=$(echo "$selected" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[[:space:]]*[○◉][[:space:]]*//' | awk '{print $1}')

@@ -108,7 +108,8 @@ end
 
 -- Resolve an icon name to a file path using GTK icon theme
 local function resolve_icon_from_theme(icon_name, size)
-    if not icon_name or not Gtk then return nil end
+    -- Ensure icon_name is a string (some apps return unexpected types)
+    if not icon_name or type(icon_name) ~= "string" or not Gtk then return nil end
 
     size = size or PREFERRED_SIZE
 
@@ -170,8 +171,11 @@ function icon_resolver.get_icon_path(c)
                 local names = icon:get_names()
                 if names then
                     for _, name in ipairs(names) do
-                        icon_path = resolve_icon_from_theme(name, PREFERRED_SIZE)
-                        if icon_path then break end
+                        -- Skip non-string values (some apps have unexpected icon data)
+                        if type(name) == "string" then
+                            icon_path = resolve_icon_from_theme(name, PREFERRED_SIZE)
+                            if icon_path then break end
+                        end
                     end
                 end
             elseif Gio.FileIcon:is_type_of(icon) then

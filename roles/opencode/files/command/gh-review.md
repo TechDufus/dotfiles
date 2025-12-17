@@ -30,7 +30,7 @@ This command uses an intelligent, adaptive approach that automatically selects t
 **Gather PR intelligence to decide strategy:**
 
 ```bash
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --summary-only`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --summary-only`
 ```
 
 **Analyze the summary output:**
@@ -61,7 +61,7 @@ ELSE IF total_changes >= 2000 OR files >= 30:
 For small, focused PRs - do comprehensive single-pass review:
 
 ```bash
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS"`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS"`
 ```
 
 Then provide complete review covering all aspects.
@@ -80,13 +80,13 @@ Based on the file list, categorize:
 
 **Step 2: Review High Priority First**
 ```bash
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'api/auth/*'`
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'core/*'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'api/auth/*'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files 'core/*'`
 ```
 
 **Step 3: Review Remaining Files**
 ```bash
-!`~/.claude/scripts/gh-ai-review.sh "$ARGUMENTS" --files '*.py'`
+!`~/.config/opencode/scripts/gh-ai-review.sh "$ARGUMENTS" --files '*.py'`
 ```
 
 **Step 4: Synthesize Findings**
@@ -96,7 +96,7 @@ Combine all findings into unified review.
 
 #### **STRATEGY C: Parallel Chunked Review** (Large PRs >2000 lines)
 
-For large PRs - use parallel Task calls to review chunks simultaneously:
+For large PRs - use parallel @general subagent calls to review chunks simultaneously:
 
 **Step 1: Analyze File Structure**
 Group files by logical concern based on paths:
@@ -110,14 +110,15 @@ Create independent agents with non-overlapping file patterns.
 
 **Step 3: Execute Parallel Review**
 
-Launch multiple Task tool calls in a single message:
+Launch multiple @general subagent calls:
 
-```
-Task(subagent_type: "general-purpose", prompt: "Review backend files (api/*, models/*) for: business logic, error handling, security")
-Task(subagent_type: "general-purpose", prompt: "Review frontend files (src/components/*, src/pages/*) for: React patterns, state, performance")
-Task(subagent_type: "general-purpose", prompt: "Review test files (tests/*, *.test.*) for: coverage gaps, edge cases, quality")
-Task(subagent_type: "general-purpose", prompt: "Review infrastructure files (.github/*, docker/*, *.yml) for: CI/CD, security, best practices")
-```
+@general **Review Backend Files** for PR $ARGUMENTS. Focus on files in api/*, models/*, services/*. Analyze: business logic correctness, error handling patterns, security vulnerabilities, database query efficiency. Return: list of issues (critical/high/medium/low), specific line references, code improvement suggestions.
+
+@general **Review Frontend Files** for PR $ARGUMENTS. Focus on files in src/components/*, src/pages/*, *.tsx, *.jsx. Analyze: React patterns, state management, performance issues, accessibility. Return: list of issues (critical/high/medium/low), specific line references, code improvement suggestions.
+
+@general **Review Test Files** for PR $ARGUMENTS. Focus on files in tests/*, __tests__/*, *.test.*, *.spec.*. Analyze: test coverage gaps, edge cases not tested, test quality, mock appropriateness. Return: list of issues (critical/high/medium/low), coverage recommendations.
+
+@general **Review Infrastructure Files** for PR $ARGUMENTS. Focus on files in .github/*, docker/*, *.yml, *.yaml, config/*. Analyze: CI/CD configuration, security best practices, deployment concerns. Return: list of issues (critical/high/medium/low), security findings.
 
 **Step 4: Synthesize Agent Findings**
 
@@ -126,17 +127,17 @@ After all agents complete, combine their findings:
 ```markdown
 ## 📊 Comprehensive PR Review
 
-### Backend Analysis (Agent 1)
-[Backend-specific findings]
+### Backend Analysis
+[Backend-specific findings from agent 1]
 
-### Frontend Analysis (Agent 2)
-[Frontend-specific findings]
+### Frontend Analysis
+[Frontend-specific findings from agent 2]
 
-### Test Coverage Analysis (Agent 3)
-[Test-specific findings]
+### Test Coverage Analysis
+[Test-specific findings from agent 3]
 
-### Infrastructure Analysis (Agent 4)
-[Infrastructure findings]
+### Infrastructure Analysis
+[Infrastructure findings from agent 4]
 
 ### 🔥 Critical Cross-Cutting Issues
 [Issues that span multiple areas]
@@ -247,4 +248,4 @@ Agents:
 - **Token efficiency**: Only fetch diffs when needed
 - **Scalable**: Handles PRs from 10 lines to 10,000+ lines
 - **Intelligent**: Automatically chooses the right approach
-- **Parallel-ready**: Uses native Task tool for parallel review of large PRs
+- **Parallel-ready**: Uses @general subagents for parallel review of large PRs

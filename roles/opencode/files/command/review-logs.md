@@ -50,123 +50,84 @@ If no logs found, report and exit:
 
 ## Phase 2: Parallel Pattern Analysis
 
-Launch THREE analysis subagents simultaneously:
+Launch THREE analysis subagents simultaneously using @general mentions:
 
 ### Subagent 1: Error Pattern Analyzer
 
-```
-Task(
-  subagent_type: "general-purpose",
-  description: "Analyze error patterns in logs",
-  prompt: """
-  Analyze Claude Code logs for ERROR patterns.
+@general **Analyze Error Patterns** in Claude Code logs from the last {days} days.
 
-  <commands>
-  Search logs from the last {days} days:
-  1. `find ~/.claude/projects -name "*.jsonl" -mtime -{days} -exec grep -l -i "error\|exception\|failed\|traceback" {} \;`
-  2. For each file found (limit 10), extract error context:
-     `grep -i "error\|exception\|failed" <file> | head -20`
-  </commands>
+**Commands to run:**
+1. `find ~/.claude/projects -name "*.jsonl" -mtime -{days} -exec grep -l -i "error\|exception\|failed\|traceback" {} \;`
+2. For each file found (limit 10), extract error context:
+   `grep -i "error\|exception\|failed" <file> | head -20`
 
-  <analysis>
-  Identify:
-  - Repeated error messages (same error 2+ times)
-  - Error categories (tool errors, permission errors, syntax errors, etc.)
-  - Root causes if apparent
-  - Which projects/contexts trigger these errors
-  </analysis>
+**Analyze and identify:**
+- Repeated error messages (same error 2+ times)
+- Error categories (tool errors, permission errors, syntax errors, etc.)
+- Root causes if apparent
+- Which projects/contexts trigger these errors
 
-  <output_format>
-  Return:
-  <error_analysis>
-    <pattern name="..." frequency="N">
-      <description>What keeps happening</description>
-      <example>Actual error text</example>
-      <suggested_fix>CLAUDE.md addition to prevent this</suggested_fix>
-    </pattern>
-    ...
-  </error_analysis>
-  </output_format>
-  """
-)
+**Return XML:**
+```xml
+<error_analysis>
+  <pattern name="..." frequency="N">
+    <description>What keeps happening</description>
+    <example>Actual error text</example>
+    <suggested_fix>CLAUDE.md addition to prevent this</suggested_fix>
+  </pattern>
+</error_analysis>
 ```
 
 ### Subagent 2: Correction Pattern Analyzer
 
-```
-Task(
-  subagent_type: "general-purpose",
-  description: "Analyze user corrections in logs",
-  prompt: """
-  Analyze Claude Code logs for USER CORRECTION patterns.
+@general **Analyze User Corrections** in Claude Code logs from the last {days} days.
 
-  <commands>
-  Search logs from the last {days} days for correction indicators:
-  1. `find ~/.claude/projects -name "*.jsonl" -mtime -{days} -exec grep -l -i "no,\|actually\|instead\|wrong\|don't\|shouldn't\|not that\|I meant" {} \;`
-  2. For each file found (limit 10), extract correction context:
-     `grep -B2 -A2 -i "no,\|actually\|instead\|wrong" <file> | head -30`
-  </commands>
+**Commands to run:**
+1. `find ~/.claude/projects -name "*.jsonl" -mtime -{days} -exec grep -l -i "no,\|actually\|instead\|wrong\|don't\|shouldn't\|not that\|I meant" {} \;`
+2. For each file found (limit 10), extract correction context:
+   `grep -B2 -A2 -i "no,\|actually\|instead\|wrong" <file> | head -30`
 
-  <analysis>
-  Identify:
-  - What Claude did wrong that user corrected
-  - Patterns in corrections (same type of mistake repeated)
-  - Preferences being expressed ("use X not Y")
-  - Context that triggers wrong behavior
-  </analysis>
+**Analyze and identify:**
+- What Claude did wrong that user corrected
+- Patterns in corrections (same type of mistake repeated)
+- Preferences being expressed ("use X not Y")
+- Context that triggers wrong behavior
 
-  <output_format>
-  Return:
-  <correction_analysis>
-    <pattern name="..." frequency="N">
-      <wrong_behavior>What Claude kept doing</wrong_behavior>
-      <correct_behavior>What user wanted instead</correct_behavior>
-      <suggested_fix>CLAUDE.md addition to encode this preference</suggested_fix>
-    </pattern>
-    ...
-  </correction_analysis>
-  </output_format>
-  """
-)
+**Return XML:**
+```xml
+<correction_analysis>
+  <pattern name="..." frequency="N">
+    <wrong_behavior>What Claude kept doing</wrong_behavior>
+    <correct_behavior>What user wanted instead</correct_behavior>
+    <suggested_fix>CLAUDE.md addition to encode this preference</suggested_fix>
+  </pattern>
+</correction_analysis>
 ```
 
 ### Subagent 3: Workflow Inefficiency Analyzer
 
-```
-Task(
-  subagent_type: "general-purpose",
-  description: "Analyze workflow inefficiencies",
-  prompt: """
-  Analyze Claude Code logs for WORKFLOW INEFFICIENCY patterns.
+@general **Analyze Workflow Inefficiencies** in Claude Code logs from the last {days} days.
 
-  <commands>
-  Search logs from the last {days} days:
-  1. Permission denials: `grep -r "denied\|rejected\|not allowed" ~/.claude/projects/*/logs/*.jsonl 2>/dev/null | head -20`
-  2. Repeated tool calls: `grep -r "tool_use" ~/.claude/projects/*/logs/*.jsonl 2>/dev/null | cut -d'"' -f4 | sort | uniq -c | sort -rn | head -10`
-  3. Long conversations: `find ~/.claude/projects -name "*.jsonl" -mtime -{days} -size +100k 2>/dev/null`
-  </commands>
+**Commands to run:**
+1. Permission denials: `grep -r "denied\|rejected\|not allowed" ~/.claude/projects/*/logs/*.jsonl 2>/dev/null | head -20`
+2. Repeated tool calls: `grep -r "tool_use" ~/.claude/projects/*/logs/*.jsonl 2>/dev/null | cut -d'"' -f4 | sort | uniq -c | sort -rn | head -10`
+3. Long conversations: `find ~/.claude/projects -name "*.jsonl" -mtime -{days} -size +100k 2>/dev/null`
 
-  <analysis>
-  Identify:
-  - Frequently denied permissions (should they be pre-approved?)
-  - Tools used repeatedly in sequence (could be a slash command?)
-  - Very long conversations (context management issue?)
-  - Repeated file reads (should be in CLAUDE.md context?)
-  </analysis>
+**Analyze and identify:**
+- Frequently denied permissions (should they be pre-approved?)
+- Tools used repeatedly in sequence (could be a slash command?)
+- Very long conversations (context management issue?)
+- Repeated file reads (should be in CLAUDE.md context?)
 
-  <output_format>
-  Return:
-  <workflow_analysis>
-    <pattern name="..." frequency="N">
-      <inefficiency>What's happening</inefficiency>
-      <impact>Time/tokens wasted</impact>
-      <suggested_fix>How to optimize (CLAUDE.md, settings.json, or new command)</suggested_fix>
-    </pattern>
-    ...
-  </workflow_analysis>
-  </output_format>
-  """
-)
+**Return XML:**
+```xml
+<workflow_analysis>
+  <pattern name="..." frequency="N">
+    <inefficiency>What's happening</inefficiency>
+    <impact>Time/tokens wasted</impact>
+    <suggested_fix>How to optimize (CLAUDE.md, settings.json, or new command)</suggested_fix>
+  </pattern>
+</workflow_analysis>
 ```
 
 ---
@@ -237,7 +198,7 @@ Based on analysis, add these to your CLAUDE.md:
 
 If `--apply` flag provided:
 
-1. Read current `~/.claude/CLAUDE.md`
+1. Read current `~/.config/opencode/AGENTS.md` or `CLAUDE.md`
 2. Append new section under `## Learned Patterns`:
    ```markdown
    ### {date} - Log Analysis
@@ -289,7 +250,7 @@ If `--apply` NOT provided:
 ## Suggested CLAUDE.md Additions
 
 ```markdown
-## Learned from Log Analysis (2024-01-15)
+## Learned from Log Analysis (2025-01-15)
 
 ### Error Prevention
 - Prefer ansible.builtin modules over command/shell to pass linting

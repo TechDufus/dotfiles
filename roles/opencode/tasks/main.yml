@@ -118,3 +118,30 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
     state: link
     force: true
+
+# oh-my-opencode plugin configuration
+- name: "{{ role_name }} | Check if oh-my-opencode.json already exists"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/oh-my-opencode.json"
+  register: omo_config_file
+
+- name: "{{ role_name }} | Backup existing oh-my-opencode.json if it exists and is not a symlink"
+  ansible.builtin.copy:
+    src: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/oh-my-opencode.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/oh-my-opencode.json.backup"
+    remote_src: true
+    mode: '0644'
+  when: omo_config_file.stat.exists and not omo_config_file.stat.islnk
+
+- name: "{{ role_name }} | Remove existing oh-my-opencode.json if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/oh-my-opencode.json"
+    state: absent
+  when: omo_config_file.stat.exists and not omo_config_file.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to oh-my-opencode.json"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/oh-my-opencode.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/oh-my-opencode.json"
+    state: link
+    force: true

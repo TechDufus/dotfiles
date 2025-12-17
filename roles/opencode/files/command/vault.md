@@ -19,34 +19,24 @@ VAULT_AGENT: {VAULT_PATH}/99 - Meta/claude/agents/vault.md
 
 ## Execution
 
-All subcommands spawn an agent that first loads the vault-specific configuration, then executes the requested operation.
+All subcommands spawn a @general subagent that first loads the vault-specific configuration, then executes the requested operation.
 
-```
-Task(
-  subagent_type: "general-purpose",
-  description: "Vault: {subcommand}",
-  prompt: """
-  ## Step 1: Load Vault Agent Configuration
+@general **Vault Operation**: Execute the following vault command.
 
-  Read your agent instructions first:
-  $HOME/Documents/SecondBrain/99 - Meta/claude/agents/vault.md
+**Step 1: Load Vault Agent Configuration**
+Read your agent instructions first:
+`$HOME/Documents/SecondBrain/99 - Meta/claude/agents/vault.md`
 
-  This file contains all vault-specific knowledge: structure, conventions, paths, and operation handlers.
+This file contains all vault-specific knowledge: structure, conventions, paths, and operation handlers.
 
-  ## Step 2: Execute Operation
+**Step 2: Execute Operation**
+- **Subcommand**: Parse from $ARGUMENTS
+- **Context**: Called from current project at current working directory
 
-  **Subcommand**: {subcommand}
-  **Arguments**: {args}
-  **Context**: Called from project "{current_project_name}" at {current_working_directory}
+Execute this operation according to your agent configuration.
 
-  Execute this operation according to your agent configuration.
-
-  ## Step 3: Return Results
-
-  Return concise, actionable output appropriate for the operation type.
-  """
-)
-```
+**Step 3: Return Results**
+Return concise, actionable output appropriate for the operation type.
 
 ---
 

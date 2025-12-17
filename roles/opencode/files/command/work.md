@@ -64,9 +64,9 @@ Scan `## Learned Patterns` section in CLAUDE.md for similar past tasks. Apply re
 | Classification | Signals | Action |
 |----------------|---------|--------|
 | **Quick** | Single file, < 3 steps, "typo", "rename", config change | Direct execution |
-| **Research** | "what is", "where is", "find", "how does", exploration | Task(subagent_type: Explore) |
-| **Parallel** | 2-3 independent tasks, no file conflicts | Multiple Task calls |
-| **Orchestrated** | 4+ work streams, complex dependencies, system-wide | Full decomposition + delegation |
+| **Research** | "what is", "where is", "find", "how does", exploration | @explore [query] |
+| **Parallel** | 2-3 independent tasks, no file conflicts | Multiple @general calls |
+| **Orchestrated** | 4+ work streams, complex dependencies, system-wide | Full decomposition + @general waves |
 | **Structured** | Multi-file, tests needed, sequential dependencies | Plan mode + TodoWrite |
 | **Unclear** | Vague scope, ambiguous requirements | Clarify first |
 
@@ -164,24 +164,32 @@ For trivial tasks (single file, obvious fix, < 3 steps):
 
 ### Research Mode
 
-For exploration and information gathering:
+For exploration and information gathering, use the explore subagent:
 
-1. Launch Task with Explore subagent
-2. Synthesize findings
-3. If findings reveal complexity, upgrade to appropriate mode
-4. Report findings clearly
+@explore [Your specific search query here. Be specific about what files, patterns, or code you're looking for. Return file paths, relevant code sections, and brief analysis.]
+
+After @explore returns:
+1. Synthesize findings
+2. If findings reveal complexity, upgrade to appropriate mode
+3. Report findings clearly
 
 ### Parallel Mode
 
-For 2-3 independent subtasks:
+For 2-3 independent subtasks, use multiple @general subagents:
 
 1. **Conflict Analysis**: Verify subtasks don't touch same files
 2. **Gate**: If file conflicts detected, fall back to Structured mode
-3. **Construct Sub-Agent Prompts** (see Sub-Agent Prompt Template below)
-4. **Launch parallel Tasks** with verification criteria per task
-5. **Validate Each Result** before synthesis
-6. **Synthesize**: Merge results using Synthesis Protocol
-7. **Final Validation**: Run validation across all changes
+3. **Launch parallel subagents** using @mentions:
+
+@general **Task 1**: [Specific objective]. Context: [relevant files, constraints]. Success criteria: [verifiable outcomes]. Return: summary of changes, files modified, verification results.
+
+@general **Task 2**: [Specific objective]. Context: [relevant files, constraints]. Success criteria: [verifiable outcomes]. Return: summary of changes, files modified, verification results.
+
+@general **Task 3**: [Specific objective]. Context: [relevant files, constraints]. Success criteria: [verifiable outcomes]. Return: summary of changes, files modified, verification results.
+
+4. **Validate Each Result** before synthesis
+5. **Synthesize**: Merge results using Synthesis Protocol
+6. **Final Validation**: Run validation across all changes
 
 ### Orchestrated Mode
 
@@ -198,13 +206,13 @@ For complex work requiring 4+ parallel streams or sophisticated coordination:
    - Define integration criteria (how units combine)
    - Define final acceptance criteria
 
-3. **Delegate with Precision**
+3. **Delegate with Precision via @general**
    - Each sub-agent gets ONE focused task
    - Use Sub-Agent Prompt Template (below)
    - Include only necessary context per agent
 
 4. **Execute in Waves**
-   - Wave 1: Independent tasks (parallel)
+   - Wave 1: Independent tasks (parallel @general calls)
    - Wave 2: Tasks depending on Wave 1 (after validation)
    - Continue until complete
 
@@ -232,37 +240,28 @@ For complex work with sequential dependencies:
 
 ## Sub-Agent Prompt Template
 
-When delegating via Task(), construct prompts with this structure:
+When delegating via @general or @explore, structure your prompts clearly:
 
-```markdown
-## Task
-[Single, specific objective - one sentence]
+```
+@general **Task**: [Single, specific objective - one sentence]
 
-## Context
-[Only what this sub-agent needs to know]
-- Relevant file locations
-- Key constraints from parent task
+**Context**:
+- Relevant file locations: [paths]
+- Key constraints: [from parent task]
 - NO extraneous background
 
-## Approach
-[Optional: Suggested method if there's a preferred approach]
+**Approach** (optional): [Suggested method if preferred]
 
-## Constraints
+**Constraints**:
 - [What to avoid]
 - [Boundaries not to cross]
 - [Style/pattern requirements]
 
-## Success Criteria
+**Success Criteria**:
 - [ ] [Verifiable outcome 1]
 - [ ] [Verifiable outcome 2]
-- [ ] [How to confirm this is complete]
 
-## Output Format
-[Exactly what to return]
-- Summary of changes made
-- Files modified
-- Any issues encountered
-- Verification results
+**Return**: Summary of changes made, files modified, any issues encountered, verification results.
 ```
 
 ### Prompt Quality Checklist

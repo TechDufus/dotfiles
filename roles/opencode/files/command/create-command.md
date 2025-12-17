@@ -1,11 +1,11 @@
 # Command Creator Assistant
 
 <task>
-You are a command creation specialist. Help create new AI agent commands by understanding requirements, determining the appropriate pattern, and generating well-structured commands.
+You are a command creation specialist. Help create new Claude commands by understanding requirements, determining the appropriate pattern, and generating well-structured commands that follow Scopecraft conventions.
 </task>
 
 <context>
-CRITICAL: Read the command creation guide first if it exists in the project
+CRITICAL: Read the command creation guide first: @/docs/claude-commands-guide.md
 
 This meta-command helps create other commands by:
 1. Understanding the command's purpose
@@ -22,29 +22,29 @@ This meta-command helps create other commands by:
    - Complex workflows with distinct stages
    - Interactive, conversational style
    - Create documentation artifacts
-   - Examples: @/.opencode/command/01_brainstorm-feature.md
-              @/.opencode/command/02_feature-proposal.md
+   - Examples: @/.claude/commands/01_brainstorm-feature.md
+             @/.claude/commands/02_feature-proposal.md
 
 2. **Implementation Commands** (Generic with Modes)
    - Technical execution tasks
    - Mode-based variations (ui, core, mcp, etc.)
    - Follow established patterns
    - Update task states
-   - Example: @/.opencode/command/implement.md
+   - Example: @/.claude/commands/implement.md
 
 3. **Analysis Commands** (Specialized)
    - Review, audit, analyze
    - Generate reports or insights
    - Read-heavy operations
    - Provide recommendations
-   - Example: @/.opencode/command/review.md
+   - Example: @/.claude/commands/review.md
 
 4. **Workflow Commands** (Specialized)
    - Orchestrate multiple steps
    - Coordinate between areas
    - Manage dependencies
    - Track progress
-   - Example: @/.opencode/command/04_feature-planning.md
+   - Example: @/.claude/commands/04_feature-planning.md
 
 5. **Utility Commands** (Generic or Specialized)
    - Tools, helpers, maintenance
@@ -58,30 +58,34 @@ This meta-command helps create other commands by:
 1. **List existing commands in target directory**:
    ```bash
    # For project commands
-   ls -la /.opencode/command/
+   ls -la /.claude/commands/
 
    # For user commands
-   ls -la ~/.config/opencode/command/
+   ls -la ~/.claude/commands/
    ```
 
 2. **Read similar commands for patterns**:
    - How do they structure <task> sections?
-   - What tools do they use?
+   - What MCP tools do they use?
    - How do they handle arguments?
    - What documentation do they reference?
 
 3. **Common patterns to look for**:
    ```markdown
-   # Tool usage patterns
-   Use appropriate tools for operations
-   Check existing commands for tool patterns
-   Prefer built-in tools over shell commands when possible
+   # MCP tool usage for tasks
+   Use tool: mcp__scopecraft-cmd__task_create
+   Use tool: mcp__scopecraft-cmd__task_update
+   Use tool: mcp__scopecraft-cmd__task_list
+
+   # NOT CLI commands
+   ❌ Run: scopecraft task list
+   ✅ Use tool: mcp__scopecraft-cmd__task_list
    ```
 
 4. **Standard references to include**:
-   - @/docs/organizational-structure-guide.md (if exists)
-   - @/docs/command-resources/{relevant-templates} (if exists)
-   - Project-specific documentation
+   - @/docs/organizational-structure-guide.md
+   - @/docs/command-resources/{relevant-templates}
+   - @/docs/claude-commands-guide.md
 </pattern_research>
 
 <interview_process>
@@ -124,13 +128,13 @@ Based on responses and existing examples:
 
 🎯 **Critical Decision: Where should this command live?**
 
-**Project Command** (`/.opencode/command/`)
+**Project Command** (`/.claude/commands/`)
 - Specific to this project's workflow
 - Uses project conventions
 - References project documentation
-- Integrates with project tools
+- Integrates with project MCP tools
 
-**User Command** (`~/.config/opencode/command/`)
+**User Command** (`~/.claude/commands/`)
 - General-purpose utility
 - Reusable across projects
 - Personal productivity tool
@@ -158,20 +162,20 @@ ls -la /docs/
 
 Before generating, read similar commands and note:
 
-1. **Tool Usage Patterns**:
+1. **MCP Tool Usage**:
    ```markdown
    # From existing commands
-   Use appropriate tools for operations
-   Check built-in tools available
-   Prefer declarative approaches
+   Use mcp__scopecraft-cmd__task_create
+   Use mcp__scopecraft-cmd__feature_get
+   Use mcp__scopecraft-cmd__phase_list
    ```
 
 2. **Standard References**:
    ```markdown
    <context>
-   Key Reference: @/docs/organizational-structure-guide.md (if exists)
-   Template: @/docs/command-resources/{template}.md (if exists)
-   Guide: Project-specific documentation
+   Key Reference: @/docs/organizational-structure-guide.md
+   Template: @/docs/command-resources/planning-templates/{template}.md
+   Guide: @/docs/claude-commands-guide.md
    </context>
    ```
 
@@ -239,10 +243,10 @@ User: "I need a command to help validate our API documentation"
 
 🔍 **Research**: Let me check existing analysis commands...
 
-*Use Read tool to examine: /.opencode/command/review.md*
+*Use Read tool to examine: /.claude/commands/review.md*
 
 I notice the review command:
-- Uses appropriate tools for task operations
+- Uses MCP tools for task operations
 - Includes human review sections
 - References organizational structure
 - Has clear output formatting
@@ -262,11 +266,11 @@ User: "It's OpenAPI specs, need to check for completeness and consistency"
 You are a code reviewer conducting a comprehensive review...
 </task>
 
-<tool_usage>
-Use appropriate tools for task operations:
-- Task list tools if available
-- Task update tools if available
-</tool_usage>
+<mcp_usage>
+Always use MCP tools:
+- mcp__scopecraft-cmd__task_list
+- mcp__scopecraft-cmd__task_update
+</mcp_usage>
 ```
 
 🎯 **Location Question**: Should this be:
@@ -275,7 +279,7 @@ Use appropriate tools for task operations:
 
 User: "Project command - it needs to reference our specific API standards"
 
-✅ Creating project command: `/.opencode/command/validate-api.md`
+✅ Creating project command: `/.claude/commands/validate-api.md`
 
 Generated command (following review.md patterns):
 ```markdown
@@ -287,7 +291,7 @@ You are an API documentation validator reviewing OpenAPI specifications for comp
 References:
 - API Standards: @/docs/api-standards.md
 - Organizational Structure: @/docs/organizational-structure-guide.md
-Similar to: @/.opencode/command/review.md
+Similar to: @/.claude/commands/review.md
 </context>
 
 <validation_process>
@@ -298,13 +302,13 @@ Similar to: @/.opencode/command/review.md
 5. Check for missing examples
 </validation_process>
 
-<tool_usage>
+<mcp_usage>
 If issues found, create tasks:
-- Use appropriate task creation tools if available
+- Use tool: mcp__scopecraft-cmd__task_create
 - Type: "bug" or "documentation"
 - Phase: Current active phase
 - Area: "docs" or "api"
-</tool_usage>
+</mcp_usage>
 
 <human_review_needed>
 Flag for manual review:

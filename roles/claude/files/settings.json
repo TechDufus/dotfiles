@@ -1024,7 +1024,7 @@
     "type": "command",
     "command": "~/.claude/scripts/statusline.sh"
   },
-  "alwaysThinkingEnabled": true,
+  "alwaysThinkingEnabled": false,
   "environmentVariables": {
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",

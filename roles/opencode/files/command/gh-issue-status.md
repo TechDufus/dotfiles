@@ -222,7 +222,7 @@ I'll orchestrate a comprehensive analysis using parallel agents:
 # - Full URL -> use as-is
 
 # Step 2: Fetch complete issue hierarchy
-~/.config/opencode/scripts/gh-issue-hierarchy.sh "https://github.com/owner/repo/issues/123" --format json
+~/.claude/scripts/gh-issue-hierarchy.sh "https://github.com/owner/repo/issues/123" --format json
 
 # Step 3: Launch parallel agents for each top-level sub-issue
 # Each agent receives:
@@ -278,7 +278,7 @@ gh issue edit <number> --repo <repo> --body "<updated-body>"
 
 ## Script Location
 
-`~/.config/opencode/scripts/gh-issue-hierarchy.sh`
+`~/.claude/scripts/gh-issue-hierarchy.sh`
 
 ## Environment Variables
 

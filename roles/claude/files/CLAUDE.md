@@ -6,6 +6,11 @@
 - No README.md unless explicitly requested
 - Clean up temp files after tasks
 
+## Code Style
+- Prefer concise implementations over verbose ones
+- Code should be human-readable without sacrificing functionality
+- No unnecessary abstractions or over-engineering
+
 ## Git Behavior
 - **NEVER commit unless explicitly requested** - always ask first
 - Skip local build/test runs when CI/CD exists - just commit and push

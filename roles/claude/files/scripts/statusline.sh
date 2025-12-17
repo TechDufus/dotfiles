@@ -16,6 +16,17 @@
 #   "workspace": {
 #     "current_dir": "/current/working/directory",
 #     "project_dir": "/original/project/directory"
+#   },
+#   "cost": {
+#     "total_cost_usd": 0.01234,
+#     "total_api_duration_ms": 2300,
+#     "total_lines_added": 156,
+#     "total_lines_removed": 23
+#   },
+#   "context_window": {
+#     "total_input_tokens": 15234,
+#     "total_output_tokens": 5000,
+#     "context_window_size": 200000
 #   }
 # }
 
@@ -47,6 +58,8 @@ get_total_cost() { echo "$input" | jq -r '.cost.total_cost_usd // empty'; }
 get_api_duration() { echo "$input" | jq -r '.cost.total_api_duration_ms // empty'; }
 get_lines_added() { echo "$input" | jq -r '.cost.total_lines_added // empty'; }
 get_lines_removed() { echo "$input" | jq -r '.cost.total_lines_removed // empty'; }
+get_context_tokens() { echo "$input" | jq -r '.context_window.total_input_tokens // empty'; }
+get_context_size() { echo "$input" | jq -r '.context_window.context_window_size // empty'; }
 
 # Get Claude's current directory from the input JSON
 CLAUDE_DIR=$(get_current_dir)
@@ -68,6 +81,8 @@ COST=$(get_total_cost)
 API_DURATION=$(get_api_duration)
 LINES_ADDED=$(get_lines_added)
 LINES_REMOVED=$(get_lines_removed)
+CONTEXT_TOKENS=$(get_context_tokens)
+CONTEXT_SIZE=$(get_context_size)
 
 # Format cost display
 COST_DISPLAY=""
@@ -91,6 +106,23 @@ if [[ -n "$LINES_ADDED" ]] || [[ -n "$LINES_REMOVED" ]]; then
   if [[ $LINES_ADDED -gt 0 ]] || [[ $LINES_REMOVED -gt 0 ]]; then
     CODE_CHANGES="${TEXT_DIM} | ${BRIGHT_GREEN}+${LINES_ADDED}${TEXT_DIM}/${BRIGHT_MAGENTA}-${LINES_REMOVED}"
   fi
+fi
+
+# Format context window usage
+# NOTE: These tokens are cumulative session totals, not actual current context usage.
+# May show >100% in long sessions. See: https://github.com/anthropics/claude-code/issues/13783
+CONTEXT_DISPLAY=""
+if [[ -n "$CONTEXT_TOKENS" ]] && [[ -n "$CONTEXT_SIZE" ]] && [[ "$CONTEXT_SIZE" -gt 0 ]]; then
+  CONTEXT_PCT=$(echo "scale=0; $CONTEXT_TOKENS * 100 / $CONTEXT_SIZE" | bc)
+  # Color code based on usage: green < 50%, yellow 50-80%, red > 80%
+  if [[ $CONTEXT_PCT -lt 50 ]]; then
+    CONTEXT_COLOR="${BRIGHT_GREEN}"
+  elif [[ $CONTEXT_PCT -lt 80 ]]; then
+    CONTEXT_COLOR="${BRIGHT_YELLOW}"
+  else
+    CONTEXT_COLOR="${BRIGHT_MAGENTA}"
+  fi
+  CONTEXT_DISPLAY="${TEXT_DIM} | ${CONTEXT_COLOR}${CONTEXT_PCT}%%"
 fi
 
 # Get terminal width for adaptive formatting
@@ -275,8 +307,10 @@ fi
 CONNECTOR="${TEXT_DIM}└─ "
 
 # Adapt metrics based on terminal width
-if [[ $TERM_WIDTH -gt 120 ]]; then
-  METRICS="${COST_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}"
+if [[ $TERM_WIDTH -ge 120 ]]; then
+  METRICS="${COST_DISPLAY}${CONTEXT_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}"
+elif [[ $TERM_WIDTH -ge 80 ]]; then
+  METRICS="${COST_DISPLAY}${CONTEXT_DISPLAY}"
 else
   METRICS="${COST_DISPLAY}"
 fi

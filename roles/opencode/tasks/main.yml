@@ -1,28 +1,28 @@
 ---
-# Install opencode via bun (cross-platform)
 - name: "{{ role_name }} | Check if bun is installed"
-  ansible.builtin.stat:
-    path: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
-  register: bun_installed
+  ansible.builtin.command: which bun
+  register: bun_check
+  failed_when: false
+  changed_when: false
 
-- name: "{{ role_name }} | Check if opencode is installed via bun"
-  ansible.builtin.stat:
-    path: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/opencode"
-  register: opencode_bun_installed
-  when: bun_installed.stat.exists
+- name: "{{ role_name }} | Check if opencode is installed"
+  ansible.builtin.command: which opencode
+  register: opencode_check
+  failed_when: false
+  changed_when: false
 
 - name: "{{ role_name }} | Install opencode via bun"
-  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun install -g opencode-ai"
+  ansible.builtin.command: bun install -g opencode-ai
   when:
-    - bun_installed.stat.exists
-    - not (opencode_bun_installed.stat.exists | default(false))
+    - bun_check.rc == 0
+    - opencode_check.rc != 0
   register: opencode_install_result
-  changed_when: opencode_install_result.rc == 0
+  changed_when: "'installed' in opencode_install_result.stdout"
 
 - name: "{{ role_name }} | Warn if bun is not installed"
   ansible.builtin.debug:
     msg: "WARNING: bun is not installed. Please run the bun role first or add it to default_roles before opencode."
-  when: not bun_installed.stat.exists
+  when: bun_check.rc != 0
 
 # Configure opencode
 - name: "{{ role_name }} | Ensure ~/.config/opencode directory exists"
@@ -118,6 +118,18 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
     state: link
     force: true
+
+- name: "{{ role_name }} | Install LSP servers via bun"
+  ansible.builtin.command: "bun install -g {{ item }}"
+  loop:
+    - bash-language-server
+    - yaml-language-server
+    - "@ansible/ansible-language-server"
+    - dockerfile-language-server-nodejs
+  when: bun_check.rc == 0
+  register: lsp_install
+  changed_when: "'installed' in lsp_install.stdout"
+  failed_when: false
 
 # oh-my-opencode plugin configuration
 - name: "{{ role_name }} | Check if oh-my-opencode.json already exists"

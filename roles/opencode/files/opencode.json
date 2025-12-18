@@ -11,11 +11,6 @@
       "model": "anthropic/claude-opus-4-5"
     }
   },
-  "instructions": [
-    "docs/QUICKSTART.md",
-    "docs/TROUBLESHOOTING.md",
-    "docs/EXAMPLES.md"
-  ],
   "permission": {
     "bash": {
       "*": "allow",

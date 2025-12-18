@@ -91,6 +91,11 @@ go:
       cmd: task
     - package: github.com/joshmedeski/sesh/v2@latest
       cmd: sesh
+    # LSP servers for OpenCode
+    - package: golang.org/x/tools/gopls@latest
+      cmd: gopls
+    - package: github.com/mrjosh/helm-ls@latest
+      cmd: helm-ls
     # NOTE: termshark has dependency issues with v2.4.0
     # - package: github.com/stillmatic/chat@latest
     #   cmd: chat

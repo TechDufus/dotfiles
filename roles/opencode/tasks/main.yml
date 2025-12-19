@@ -133,6 +133,19 @@
   changed_when: "'installed' in lsp_install.stdout"
   failed_when: false
 
+- name: "{{ role_name }} | Check if go is installed"
+  ansible.builtin.command: which go
+  register: go_check
+  failed_when: false
+  changed_when: false
+
+- name: "{{ role_name }} | Install helm-ls via go"
+  ansible.builtin.command: go install github.com/mrjosh/helm-ls@latest
+  when: go_check.rc == 0
+  register: helm_ls_install
+  changed_when: helm_ls_install.rc == 0
+  failed_when: false
+
 # oh-my-opencode plugin configuration
 - name: "{{ role_name }} | Check if oh-my-opencode.json already exists"
   ansible.builtin.stat:

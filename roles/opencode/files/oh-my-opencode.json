@@ -88,16 +88,6 @@
         "**/templates/**",
         "**/charts/**"
       ]
-    },
-    "terraform": {
-      "command": [
-        "terraform-ls",
-        "serve"
-      ],
-      "extensions": [
-        ".tf",
-        ".tfvars"
-      ]
     }
   }
 }

@@ -124,6 +124,8 @@
   loop:
     - bash-language-server
     - yaml-language-server
+    - typescript-language-server
+    - typescript
     - "@ansible/ansible-language-server"
     - dockerfile-language-server-nodejs
   when: bun_check.rc == 0

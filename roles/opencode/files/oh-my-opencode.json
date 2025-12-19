@@ -8,46 +8,96 @@
     "hooks": false
   },
   "google_auth": false,
-  "disabled_mcps": ["websearch_exa"],
+  "disabled_mcps": [
+    "websearch_exa"
+  ],
   "agents": {
-    "OmO": { "model": "anthropic/claude-opus-4-5" },
-    "OmO-Plan": { "model": "anthropic/claude-opus-4-5" },
-    "build": { "model": "anthropic/claude-opus-4-5" },
-    "plan": { "model": "anthropic/claude-opus-4-5" },
-    "oracle": { "model": "anthropic/claude-opus-4-5" },
-    "librarian": { "model": "anthropic/claude-opus-4-5" },
-    "explore": { "model": "anthropic/claude-opus-4-5" },
-    "frontend-ui-ux-engineer": { "model": "anthropic/claude-opus-4-5" },
-    "document-writer": { "model": "anthropic/claude-opus-4-5" },
-    "multimodal-looker": { "model": "anthropic/claude-opus-4-5" }
+    "Sisyphus": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "Planner-Sisyphus": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "build": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "plan": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "oracle": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "librarian": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "explore": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "document-writer": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "multimodal-looker": {
+      "model": "anthropic/claude-opus-4-5"
+    }
   },
   "lsp": {
-    "bash-ls": {
-      "command": ["bash-language-server", "start"],
-      "extensions": [".sh", ".bash", ".zsh", ".ksh"]
-    },
     "ansible": {
-      "command": ["ansible-language-server", "--stdio"],
-      "extensions": [".yml", ".yaml"],
-      "patterns": ["**/playbooks/**", "**/roles/**", "**/tasks/**", "**/handlers/**", "**/group_vars/**", "**/host_vars/**"]
+      "command": [
+        "ansible-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".yml",
+        ".yaml"
+      ],
+      "patterns": [
+        "**/playbooks/**",
+        "**/roles/**",
+        "**/tasks/**",
+        "**/handlers/**",
+        "**/group_vars/**",
+        "**/host_vars/**"
+      ]
     },
     "dockerfile": {
-      "command": ["docker-langserver", "--stdio"],
+      "command": [
+        "docker-langserver",
+        "--stdio"
+      ],
       "extensions": [],
-      "patterns": ["**/Dockerfile", "**/Dockerfile.*", "**/*.dockerfile"]
-    },
-    "go": {
-      "command": ["gopls"],
-      "extensions": [".go"]
+      "patterns": [
+        "**/Dockerfile",
+        "**/Dockerfile.*",
+        "**/*.dockerfile"
+      ]
     },
     "helm": {
-      "command": ["helm-ls", "serve"],
-      "extensions": [".yml", ".yaml", ".tpl"],
-      "patterns": ["**/templates/**", "**/charts/**"]
+      "command": [
+        "helm-ls",
+        "serve"
+      ],
+      "extensions": [
+        ".yml",
+        ".yaml",
+        ".tpl"
+      ],
+      "patterns": [
+        "**/templates/**",
+        "**/charts/**"
+      ]
     },
     "terraform": {
-      "command": ["terraform-ls", "serve"],
-      "extensions": [".tf", ".tfvars"]
+      "command": [
+        "terraform-ls",
+        "serve"
+      ],
+      "extensions": [
+        ".tf",
+        ".tfvars"
+      ]
     }
   }
 }

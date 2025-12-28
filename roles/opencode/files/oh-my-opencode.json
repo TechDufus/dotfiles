@@ -43,51 +43,11 @@
       "model": "anthropic/claude-opus-4-5"
     }
   },
-  "lsp": {
-    "ansible": {
-      "command": [
-        "ansible-language-server",
-        "--stdio"
-      ],
-      "extensions": [
-        ".yml",
-        ".yaml"
-      ],
-      "patterns": [
-        "**/playbooks/**",
-        "**/roles/**",
-        "**/tasks/**",
-        "**/handlers/**",
-        "**/group_vars/**",
-        "**/host_vars/**"
-      ]
-    },
-    "dockerfile": {
-      "command": [
-        "docker-langserver",
-        "--stdio"
-      ],
-      "extensions": [],
-      "patterns": [
-        "**/Dockerfile",
-        "**/Dockerfile.*",
-        "**/*.dockerfile"
-      ]
-    },
-    "helm": {
-      "command": [
-        "helm-ls",
-        "serve"
-      ],
-      "extensions": [
-        ".yml",
-        ".yaml",
-        ".tpl"
-      ],
-      "patterns": [
-        "**/templates/**",
-        "**/charts/**"
-      ]
-    }
-  }
+  "experimental": {
+    "auto_resume": true,
+    "preemptive_compaction": true,
+    "preemptive_compaction_threshold": 0.8,
+    "truncate_all_tool_outputs": true
+  },
+  "lsp": {}
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vibekanban</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{ bun_path | default('/opt/homebrew/bin/bunx') }}</string>
+        <string>vibe-kanban@latest</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PORT</key>
+        <string>{{ vibe_kanban.server.port | default(8080) }}</string>
+        <key>HOST</key>
+        <string>{{ vibe_kanban.server.host | default('0.0.0.0') }}</string>
+        <key>HOME</key>
+        <string>{{ ansible_facts['env']['HOME'] }}</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>{{ ansible_facts['env']['HOME'] }}</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{{ ansible_facts['env']['HOME'] }}/Library/Logs/vibe-kanban.log</string>
+    <key>StandardErrorPath</key>
+    <string>{{ ansible_facts['env']['HOME'] }}/Library/Logs/vibe-kanban.error.log</string>
+</dict>
+</plist>

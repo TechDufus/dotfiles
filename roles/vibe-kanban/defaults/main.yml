@@ -1,0 +1,59 @@
+---
+# Vibe Kanban Configuration Defaults
+# These can be overridden in group_vars/all.yml
+
+vibe_kanban:
+  # UI theme: "DARK" or "LIGHT"
+  theme: "DARK"
+
+  # Default coding agent executor
+  executor:
+    # Options: CLAUDE_CODE, GEMINI, CODEX, CURSOR_AGENT, AMP, OPENCODE, QWEN_CODE, COPILOT
+    type: "CLAUDE_CODE"
+    # Variant depends on executor (e.g., OPUS, SONNET, DEFAULT, PLAN, ROUTER)
+    variant: "OPUS"
+
+  # Editor configuration
+  editor:
+    # Options: VSCODE, CURSOR, WINDSURF, NEOVIM, EMACS, SUBLIME_TEXT, CUSTOM
+    type: "CUSTOM"
+    # Required when type is CUSTOM
+    custom_command: "nvim"
+    # Remote SSH settings (for accessing from other machines)
+    remote_ssh_host: null
+    remote_ssh_user: null
+
+  # Git configuration
+  git:
+    # Prefix for auto-generated branch names (e.g., "vk" -> "vk/task-name")
+    branch_prefix: "vk"
+
+  # GitHub integration
+  github:
+    # Default base branch for PRs
+    default_pr_base: "main"
+    # Auto-generate PR descriptions
+    auto_description_enabled: true
+    auto_description_prompt: null
+
+  # Notifications
+  notifications:
+    sound_enabled: true
+    push_enabled: true
+    # Sound options: ABSTRACT_SOUND1, ABSTRACT_SOUND2, ABSTRACT_SOUND3, etc.
+    sound_file: "ABSTRACT_SOUND3"
+
+  # Privacy
+  analytics_enabled: false
+
+  # Language: "BROWSER" uses system locale
+  language: "BROWSER"
+
+  # Server configuration (for remote hosting)
+  server:
+    # Set to true to run as a service
+    enabled: false
+    # Port for web UI (0 = auto-assign)
+    port: 0
+    # Host binding (127.0.0.1 = local only, 0.0.0.0 = all interfaces)
+    host: "127.0.0.1"

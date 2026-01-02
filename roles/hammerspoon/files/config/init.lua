@@ -16,24 +16,9 @@ summon = require('summon')
 chain = require('chain')
 
 --------------------------------------------------------------------------------
--- Summon Specific Apps
---------------------------------------------------------------------------------
--- F13 to open summon modal
--- See `apps.lua` for `summon` modal bindings
-
-local summonModalBindings = tableFlip(hs.fnutils.map(apps, function(app)
-  return app.summon
-end))
-
-registerModalBindings(nil, 'f13', hs.fnutils.map(summonModalBindings, function(app)
-  return function() summon(app) end
-end), true)
-
-
---------------------------------------------------------------------------------
 -- Misc Macros
 --------------------------------------------------------------------------------
--- F14 to open macros modal
+-- F16 to open macros modal (created first so summon modal can reference it)
 
 local macros = {
   s = function() hs.eventtap.keyStroke({ 'cmd', 'shift' }, '4') end,  -- screenshot
@@ -46,7 +31,28 @@ local macros = {
   g = function() hs.eventtap.keyStroke(Hyper, 'g') end, -- gif search (raycast)
 }
 
-registerModalBindings(nil, 'f16', macros, true)
+local macroModal = registerModalBindings(nil, 'f16', macros, true)
+
+--------------------------------------------------------------------------------
+-- Summon Specific Apps
+--------------------------------------------------------------------------------
+-- F13 (CapsLock via Karabiner) to open summon modal
+-- Double-tap F13/CapsLock to switch to macro modal
+-- See `apps.lua` for `summon` modal bindings
+
+local summonModalBindings = tableFlip(hs.fnutils.map(apps, function(app)
+  return app.summon
+end))
+
+local summonModal = registerModalBindings(nil, 'f13', hs.fnutils.map(summonModalBindings, function(app)
+  return function() summon(app) end
+end), true)
+
+-- Double-tap detection: F13 pressed while summon modal is open -> switch to macro modal
+summonModal:bind('', 'f13', function()
+  summonModal:exit()
+  macroModal:enter()
+end)
 
 --------------------------------------------------------------------------------
 -- Multi Window Management

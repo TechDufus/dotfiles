@@ -4,6 +4,23 @@
     name: hammerspoon
     state: present
 
+- name: "Hammerspoon | MacOSX | Install Karabiner-Elements"
+  community.general.homebrew_cask:
+    name: karabiner-elements
+    state: present
+
+- name: "Hammerspoon | MacOSX | Ensure ~/.config/karabiner exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/karabiner"
+    state: directory
+    mode: "0755"
+
+- name: "Hammerspoon | MacOSX | Deploy Karabiner Configuration (CapsLock to F13)"
+  ansible.builtin.copy:
+    src: "karabiner/karabiner.json"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/karabiner/karabiner.json"
+    mode: "0644"
+
 - name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon exists"
   ansible.builtin.file:
     name: "{{ ansible_facts['user_dir'] }}/.hammerspoon"

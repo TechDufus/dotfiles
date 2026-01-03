@@ -29,6 +29,14 @@ return {
     right = '40,0 40x40',
   },
 
+  -- HD/1080p Monitor layout (1920x1080 or similar)
+  -- Optimized for smaller screens: 60/40 split + centered float
+  hd = {
+    left_main    = '0,0 48x40',      -- 60% width, full height (terminal)
+    right_side   = '48,0 32x40',     -- 40% width, full height (browser)
+    float_center = '10,4 60x32',     -- Large centered float (utilities)
+  },
+
   -- 4K Monitor layout (3840x2160)
   -- Grid-based positioning (80x40 grid)
   fourk = {

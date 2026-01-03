@@ -25,6 +25,48 @@ return {
     },
   },
   {
+    name = 'Fullscreen',
+    cells = {
+      { positions.full, positions.full },
+    },
+    apps = {
+      Terminal    = { cell = 1, open = true },
+      Browser     = { cell = 1, open = true },
+      MatterMost  = { cell = 1 },
+      Discord     = { cell = 1 },
+      Outlook     = { cell = 1 },
+      Spotify     = { cell = 1 },
+      Finder      = { cell = 1 },
+      OnePassword = { cell = 1 },
+      Teams       = { cell = 1 },
+      Obsidian    = { cell = 1 },
+      Claude      = { cell = 1 },
+      Agenda      = { cell = 1 },
+    },
+  },
+  {
+    name = 'HD Workspace',
+    cells = {
+      { positions.hd.left_main,    positions.full },
+      { positions.hd.right_side,   positions.full },
+      { positions.hd.float_center, positions.full },
+    },
+    apps = {
+      Terminal    = { cell = 1, open = true },
+      Browser     = { cell = 2, open = true },
+      MatterMost  = { cell = 3 },
+      Discord     = { cell = 3 },
+      Outlook     = { cell = 3 },
+      Spotify     = { cell = 3 },
+      Finder      = { cell = 3 },
+      OnePassword = { cell = 3 },
+      Teams       = { cell = 3 },
+      Obsidian    = { cell = 3 },
+      Claude      = { cell = 3 },
+      Agenda      = { cell = 3 },
+    },
+  },
+  {
     name = 'Standard Dev',
     cells = {
       { positions.standard.top_left,     positions.standard.full_left },

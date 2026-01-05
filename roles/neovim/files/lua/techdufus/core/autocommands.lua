@@ -104,7 +104,8 @@ api.nvim_create_autocmd(
     callback = function()
       vim.opt.spell = true
       vim.opt.spelllang = "en"
-      vim.cmd("Copilot! attach")
+      -- Copilot is disabled in copilot.lua for power savings
+      -- vim.cmd("Copilot! attach")
     end,
   }
 )

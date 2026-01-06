@@ -1,8 +1,3 @@
-[[sessions]]
+[[session]]
 name = "dotfiles"
 path = "~/.dotfiles"
-
-# Default session configuration
-[default_session]
-startup_command = "tmux split-window -h -p 50 && tmux send-keys -t right 'claude --continue' C-m && tmux select-pane -L && tmux split-window -v -p 50"
-startup_window_name = "main"

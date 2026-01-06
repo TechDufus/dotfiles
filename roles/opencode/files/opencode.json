@@ -3,19 +3,6 @@
   "autoupdate": true,
   "plugin": ["oh-my-opencode"],
   "model": "anthropic/claude-opus-4-5",
-  "provider": {
-    "anthropic": {
-      "models": {
-        "claude-opus-4-5": {
-          "options": {
-            "thinking": {
-              "type": "hidden"
-            }
-          }
-        }
-      }
-    }
-  },
   "agent": {
     "build": {
       "model": "anthropic/claude-opus-4-5"

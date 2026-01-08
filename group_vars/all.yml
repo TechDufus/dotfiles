@@ -54,6 +54,7 @@ default_roles:
   - tmate
   - tmux
   - sesh
+  - vibe-kanban
   - zoxide
   - zsh
 
@@ -99,3 +100,35 @@ go:
     # NOTE: termshark has dependency issues with v2.4.0
     # - package: github.com/stillmatic/chat@latest
     #   cmd: chat
+
+# Vibe Kanban - AI Coding Agent Orchestration
+# https://vibekanban.com
+vibe_kanban:
+  theme: "DARK"
+  executor:
+    type: "CLAUDE_CODE"
+    variant: "OPUS"
+  editor:
+    type: "CUSTOM"
+    custom_command: "nvim"
+    # For remote hosting, set these:
+    # remote_ssh_host: "your-server.example.com"
+    # remote_ssh_user: "techdufus"
+  git:
+    branch_prefix: "vk"
+  github:
+    default_pr_base: "main"
+    auto_description_enabled: true
+  notifications:
+    sound_enabled: true
+    push_enabled: true
+    sound_file: "ABSTRACT_SOUND3"
+  analytics_enabled: false
+  # Server configuration for remote hosting
+  server:
+    # Set to true to run as a systemd/launchd service
+    enabled: false
+    # Port for web UI
+    port: 8080
+    # Host binding (0.0.0.0 for remote access)
+    host: "127.0.0.1"

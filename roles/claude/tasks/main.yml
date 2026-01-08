@@ -124,3 +124,18 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
     state: link
     force: true
+
+# MCP Server Configuration
+# Use `claude mcp add` to idempotently configure MCP servers
+- name: "{{ role_name }} | Check if vibe-kanban MCP server is configured"
+  ansible.builtin.command: claude mcp get vibe_kanban
+  register: mcp_vibe_kanban
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Add vibe-kanban MCP server"
+  ansible.builtin.command: >
+    claude mcp add vibe_kanban
+    --transport stdio
+    -- bunx vibe-kanban@latest --mcp
+  when: mcp_vibe_kanban.rc != 0

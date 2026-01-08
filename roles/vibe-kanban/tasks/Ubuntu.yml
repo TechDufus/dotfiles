@@ -1,0 +1,43 @@
+---
+# Ubuntu-specific tasks for Vibe Kanban
+
+# Vibe-kanban is distributed as an npm package that self-extracts binaries
+# It requires Node.js/npm or Bun to run
+
+- name: "{{ role_name }} | Check if bun is installed"
+  ansible.builtin.command: which bun
+  register: bun_check
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Set bun path"
+  ansible.builtin.set_fact:
+    bun_path: "{{ bun_check.stdout }}"
+  when: bun_check.rc == 0
+
+- name: "{{ role_name }} | Warn if bun not found"
+  ansible.builtin.debug:
+    msg: "Bun not found. Vibe Kanban MCP server requires bun or npx to run."
+  when: bun_check.rc != 0
+
+# Optional: Deploy systemd service for remote hosting
+- name: "{{ role_name }} | Deploy systemd service"
+  when: vibe_kanban.server.enabled | default(false)
+  block:
+    - name: "{{ role_name }} | Create systemd service file"
+      ansible.builtin.template:
+        src: vibe-kanban.service.j2
+        dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/vibe-kanban.service"
+        mode: '0644'
+
+    - name: "{{ role_name }} | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+        scope: user
+
+    - name: "{{ role_name }} | Enable and start vibe-kanban service"
+      ansible.builtin.systemd:
+        name: vibe-kanban
+        enabled: true
+        state: started
+        scope: user

@@ -1,5 +1,9 @@
 ---
 description: "Link GitHub issues: /gh-link <parent> <child> [--force]"
+argument-hint: "<parent> <child> [--force]"
+allowed-tools:
+  - Bash(gh:*)
+  - Bash(~/.claude/scripts/gh-link-sub-issue.sh:*)
 ---
 
 # /gh-link

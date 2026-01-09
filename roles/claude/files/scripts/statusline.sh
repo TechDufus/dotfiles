@@ -58,8 +58,9 @@ get_total_cost() { echo "$input" | jq -r '.cost.total_cost_usd // empty'; }
 get_api_duration() { echo "$input" | jq -r '.cost.total_api_duration_ms // empty'; }
 get_lines_added() { echo "$input" | jq -r '.cost.total_lines_added // empty'; }
 get_lines_removed() { echo "$input" | jq -r '.cost.total_lines_removed // empty'; }
-get_context_tokens() { echo "$input" | jq -r '.context_window.total_input_tokens // empty'; }
+get_context_tokens() { echo "$input" | jq -r '.context_window.current_usage.input_tokens // .context_window.total_input_tokens // empty'; }
 get_context_size() { echo "$input" | jq -r '.context_window.context_window_size // empty'; }
+get_cache_read_tokens() { echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // empty'; }
 
 # Get Claude's current directory from the input JSON
 CLAUDE_DIR=$(get_current_dir)
@@ -108,9 +109,7 @@ if [[ -n "$LINES_ADDED" ]] || [[ -n "$LINES_REMOVED" ]]; then
   fi
 fi
 
-# Format context window usage
-# NOTE: These tokens are cumulative session totals, not actual current context usage.
-# May show >100% in long sessions. See: https://github.com/anthropics/claude-code/issues/13783
+# Format context window usage (uses current_usage.input_tokens for accurate %)
 CONTEXT_DISPLAY=""
 if [[ -n "$CONTEXT_TOKENS" ]] && [[ -n "$CONTEXT_SIZE" ]] && [[ "$CONTEXT_SIZE" -gt 0 ]]; then
   CONTEXT_PCT=$(echo "scale=0; $CONTEXT_TOKENS * 100 / $CONTEXT_SIZE" | bc)

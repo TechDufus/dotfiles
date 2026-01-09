@@ -2,6 +2,12 @@
 name: skill-creator
 description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.
 license: Complete terms in LICENSE.txt
+allowed-tools:
+  - Read
+  - Write
+  - Glob
+  - Bash(mkdir:*)
+  - Bash(chmod:*)
 ---
 
 # Skill Creator
@@ -31,7 +37,12 @@ skill-name/
 ├── SKILL.md (required)
 │   ├── YAML frontmatter metadata (required)
 │   │   ├── name: (required)
-│   │   └── description: (required)
+│   │   ├── description: (required)
+│   │   ├── allowed-tools: (optional) - Pre-approved tools
+│   │   ├── model: (optional) - Override model for skill
+│   │   ├── context: (optional) - Set to "fork" for isolated execution
+│   │   ├── agent: (optional) - Agent type when context: fork
+│   │   └── user-invocable: (optional) - Show in slash menu (default: true)
 │   └── Markdown instructions (required)
 └── Bundled Resources (optional)
     ├── scripts/          - Executable code (Python/Bash/etc.)
@@ -42,6 +53,37 @@ skill-name/
 #### SKILL.md (required)
 
 **Metadata Quality:** The `name` and `description` in YAML frontmatter determine when Claude will use the skill. Be specific about what the skill does and when to use it. Use the third-person (e.g. "This skill should be used when..." instead of "Use this skill when...").
+
+#### Complete Frontmatter Reference
+
+| Field | Required | Type | Purpose |
+|-------|----------|------|---------|
+| `name` | Yes | string | Skill identifier (lowercase, hyphens, max 64 chars) |
+| `description` | Yes | string | When Claude should use this skill (max 1024 chars) |
+| `allowed-tools` | No | array | Pre-approve tools to skip permission prompts |
+| `model` | No | string | Override model: "sonnet", "opus", "haiku", or "inherit" |
+| `context` | No | string | Set to "fork" to run in isolated subagent context |
+| `agent` | No | string | Agent type when context: fork (e.g., "Explore", "general-purpose") |
+| `user-invocable` | No | boolean | Show in slash menu (default: true, set false to hide) |
+| `hooks` | No | object | Scoped lifecycle hooks (PreToolUse, PostToolUse, Stop) |
+
+**Example with all options:**
+```yaml
+---
+name: code-analyzer
+description: Analyzes code quality and generates reports. Use when users ask about code quality, technical debt, or want code analysis reports.
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(eslint:*)
+  - Bash(npm run lint:*)
+model: haiku
+context: fork
+agent: Explore
+user-invocable: true
+---
+```
 
 #### Bundled Resources (optional)
 

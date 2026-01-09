@@ -1,5 +1,28 @@
 ---
 description: "Intelligent work orchestration: /work <task>"
+argument-hint: "<task> [--quick] [--structured] [--parallel] [--orchestrate] [--status]"
+allowed-tools:
+  - Bash(git:*)
+  - Bash(gh:*)
+  - Bash(npm:*)
+  - Bash(yarn:*)
+  - Bash(pnpm:*)
+  - Bash(python:*)
+  - Bash(go:*)
+  - Bash(cargo:*)
+  - Bash(make:*)
+  - Bash(docker:*)
+  - Bash(kubectl:*)
+  - Bash(helm:*)
+  - Bash(terraform:*)
+  - Bash(ansible:*)
+  - Task
+  - Read
+  - Edit
+  - Write
+  - Grep
+  - Glob
+  - TodoWrite
 ---
 
 # /work - Smart Task Router
@@ -166,10 +189,25 @@ For trivial tasks (single file, obvious fix, < 3 steps):
 
 For exploration and information gathering:
 
-1. Launch Task with Explore subagent
-2. Synthesize findings
-3. If findings reveal complexity, upgrade to appropriate mode
-4. Report findings clearly
+1. **Launch Task with Explore subagent**:
+   ```
+   Task(
+     subagent_type: "Explore",
+     description: "Research [topic]",
+     prompt: """
+     Find all code related to [topic]. Return:
+     - File paths with line numbers
+     - Brief summary of each finding
+     - Key patterns or conventions discovered
+
+     Focus on: [specific aspects from user query]
+     """
+   )
+   ```
+
+2. **Synthesize findings** into concise summary
+3. **If findings reveal complexity**, upgrade to appropriate mode
+4. **Report findings clearly** with file paths for easy navigation
 
 ### Parallel Mode
 

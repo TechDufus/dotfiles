@@ -1,5 +1,13 @@
 ---
 description: "Intelligent AI-powered GitHub PR review: /gh-review <pr-reference>"
+argument-hint: "<pr-reference>"
+allowed-tools:
+  - Bash(gh:*)
+  - Bash(git:*)
+  - Bash(~/.claude/scripts/gh-ai-review.sh:*)
+  - Task
+  - Read
+  - Grep
 ---
 
 # Intelligent PR Review

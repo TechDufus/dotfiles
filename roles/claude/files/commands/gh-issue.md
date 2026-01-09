@@ -1,5 +1,9 @@
 ---
 description: "Create GitHub issue: /gh-issue <title> | /gh-issue <parent> <title>"
+argument-hint: "<title> | <parent> <title> [priority] [labels]"
+allowed-tools:
+  - Bash(gh:*)
+  - Bash(~/.claude/scripts/gh-create-issue.sh:*)
 ---
 
 # /gh-issue

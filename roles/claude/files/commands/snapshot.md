@@ -1,5 +1,11 @@
 ---
 description: "Capture session state before /clear: /snapshot [filename]"
+argument-hint: "[filename]"
+allowed-tools:
+  - Bash(git:*)
+  - Bash(mkdir:*)
+  - Read
+  - Write
 ---
 
 # /snapshot - Session State Capture

@@ -1,5 +1,12 @@
 ---
 description: "Analyze Claude logs for improvement patterns: /review-logs [--days N] [--apply]"
+argument-hint: "[--days N] [--apply]"
+allowed-tools:
+  - Bash(find:*)
+  - Bash(ls:*)
+  - Read
+  - Edit
+  - Grep
 ---
 
 # /review-logs - Self-Improving Flywheel

@@ -124,3 +124,23 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
     state: link
     force: true
+
+# LSP Server Installation via Bun
+- name: "{{ role_name }} | Check if bun is installed"
+  ansible.builtin.command: which bun
+  register: bun_check
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Install LSP servers via bun"
+  ansible.builtin.command: "bun install -g {{ item }}"
+  loop:
+    - typescript
+    - typescript-language-server
+    - yaml-language-server
+    - bash-language-server
+    - pyright
+  when: bun_check.rc == 0
+  register: lsp_install
+  changed_when: "'installed' in lsp_install.stdout"
+  failed_when: false

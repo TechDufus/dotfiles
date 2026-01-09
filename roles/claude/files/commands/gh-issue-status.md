@@ -1,5 +1,9 @@
 ---
 description: "Analyze GitHub issue hierarchy and provide status report: /gh-issue-status <issue> [--comment] [--update-body]"
+argument-hint: "<issue> [--comment] [--update-body]"
+allowed-tools:
+  - Bash(gh:*)
+  - Bash(~/.claude/scripts/gh-issue-hierarchy.sh:*)
 ---
 
 # /gh-issue-status

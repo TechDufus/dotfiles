@@ -1,5 +1,14 @@
 ---
 description: "Quick commit workflow: /commit [instructions] [--staged]"
+argument-hint: "[instructions] [--staged]"
+allowed-tools:
+  - Bash(git status:*)
+  - Bash(git diff:*)
+  - Bash(git add:*)
+  - Bash(git commit:*)
+  - Bash(git log:*)
+  - Read
+  - Grep
 ---
 
 # /commit - Streamlined Git Commit

@@ -17,16 +17,24 @@
 #     "current_dir": "/current/working/directory",
 #     "project_dir": "/original/project/directory"
 #   },
+#   "version": "1.0.80",
 #   "cost": {
 #     "total_cost_usd": 0.01234,
+#     "total_duration_ms": 45000,
 #     "total_api_duration_ms": 2300,
 #     "total_lines_added": 156,
 #     "total_lines_removed": 23
 #   },
 #   "context_window": {
 #     "total_input_tokens": 15234,
-#     "total_output_tokens": 5000,
-#     "context_window_size": 200000
+#     "total_output_tokens": 4521,
+#     "context_window_size": 200000,
+#     "current_usage": {
+#       "input_tokens": 8500,
+#       "output_tokens": 1200,
+#       "cache_creation_input_tokens": 5000,
+#       "cache_read_input_tokens": 2000
+#     }
 #   }
 # }
 
@@ -58,7 +66,20 @@ get_total_cost() { echo "$input" | jq -r '.cost.total_cost_usd // empty'; }
 get_api_duration() { echo "$input" | jq -r '.cost.total_api_duration_ms // empty'; }
 get_lines_added() { echo "$input" | jq -r '.cost.total_lines_added // empty'; }
 get_lines_removed() { echo "$input" | jq -r '.cost.total_lines_removed // empty'; }
-get_context_tokens() { echo "$input" | jq -r '.context_window.current_usage.input_tokens // .context_window.total_input_tokens // empty'; }
+# Get context tokens - sum all token types for accurate context usage
+# Per Claude Code docs: actual context = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+get_context_tokens() {
+  local usage
+  usage=$(echo "$input" | jq '.context_window.current_usage // null')
+  if [[ "$usage" != "null" ]]; then
+    echo "$input" | jq -r '
+      .context_window.current_usage |
+      ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0))
+    '
+  else
+    echo ""
+  fi
+}
 get_context_size() { echo "$input" | jq -r '.context_window.context_window_size // empty'; }
 get_cache_read_tokens() { echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // empty'; }
 
@@ -269,9 +290,9 @@ if [[ -n "$CLAUDE_DIR" ]] && cd "$CLAUDE_DIR" 2>/dev/null && git rev-parse --is-
 
   # Count commits ahead/behind upstream (using starship format)
   UPSTREAM=""
-  if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
-    AHEAD=$(git rev-list --count @{u}..HEAD 2>/dev/null)
-    BEHIND=$(git rev-list --count HEAD..@{u} 2>/dev/null)
+  if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+    AHEAD=$(git rev-list --count '@{u}..HEAD' 2>/dev/null)
+    BEHIND=$(git rev-list --count 'HEAD..@{u}' 2>/dev/null)
 
     if [[ $AHEAD -gt 0 ]] && [[ $BEHIND -gt 0 ]]; then
       UPSTREAM=" ⇕⇡${AHEAD}⇣${BEHIND}"
@@ -315,5 +336,7 @@ else
 fi
 
 # Output statusline
+# shellcheck disable=SC2059
 printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
+# shellcheck disable=SC2059
 printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${METRICS}${RESET}"

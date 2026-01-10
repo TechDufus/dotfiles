@@ -1,9 +1,4 @@
 ---
-- name: "{{ role_name }} | MacOSX | Install claude-code via Homebrew"
-  community.general.homebrew_cask:
-    name: claude-code
-    state: present
-
 - name: "{{ role_name }} | MacOSX | Install lua-language-server via Homebrew"
   community.general.homebrew:
     name: lua-language-server

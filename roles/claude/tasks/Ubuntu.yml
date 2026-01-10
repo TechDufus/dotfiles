@@ -1,0 +1,10 @@
+---
+- name: "{{ role_name }} | Ubuntu | Check if claude is installed"
+  ansible.builtin.command: which claude
+  register: claude_installed
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Ubuntu | Install Claude Code via official script"
+  ansible.builtin.shell: curl -fsSL https://claude.ai/install.sh | bash
+  when: claude_installed.rc != 0

@@ -1,5 +1,4 @@
 {
-  "respectGitignore": true,
   "env": {
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",
@@ -1051,5 +1050,6 @@
     "yaml-language-server@claude-code-lsps": false,
     "oh-my-claude@oh-my-claude": true
   },
+  "respectGitignore": true,
   "syntaxHighlightingDisabled": false
 }

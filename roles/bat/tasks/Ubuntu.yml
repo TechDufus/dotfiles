@@ -34,7 +34,7 @@
 - name: BAT | Install BAT
   when:
     - target_bat_version not in current_bat_version.stdout|default('')
-    - ansible_machine != 'aarch64'
+    - ansible_facts['machine'] != 'aarch64'
   block:
     - name: BAT | DEBIAN | Set URL to download bins
       ansible.builtin.set_fact:

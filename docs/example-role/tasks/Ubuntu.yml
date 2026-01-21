@@ -1,0 +1,75 @@
+---
+# Ubuntu/Debian-specific installation tasks
+# Demonstrates sudo fallback pattern and alternative installation methods
+
+# First, check if already installed
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Check if already installed"
+  ansible.builtin.command: "which {{ role_name }}"
+  register: example_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+# System-wide installation with sudo
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install via APT (with sudo)"
+  ansible.builtin.apt:
+    name:
+      - "{{ role_name }}"
+      - dependency1
+      - dependency2
+    state: present
+    update_cache: yes
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - example_check.rc != 0
+  register: example_system_install
+
+# Alternative: User-local installation without sudo
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | User-local installation"
+  when:
+    - not (can_install_packages | default(false))
+    - example_check.rc != 0
+  block:
+    - name: "{{ role_name }} | Create local directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/share"
+
+    # Example: Download from GitHub releases
+    - name: "{{ role_name }} | Get latest release version"
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/example/{{ role_name }}/releases/latest"
+        return_content: yes
+      register: latest_release
+      no_log: true
+
+    - name: "{{ role_name }} | Download and extract"
+      ansible.builtin.unarchive:
+        src: "https://github.com/example/{{ role_name }}/releases/download/{{ latest_release.json.tag_name }}/{{ role_name }}-linux-amd64.tar.gz"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local"
+        remote_src: yes
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/{{ role_name }}"
+
+    # Alternative: AppImage
+    - name: "{{ role_name }} | Download AppImage"
+      ansible.builtin.get_url:
+        url: "https://github.com/example/{{ role_name }}/releases/download/{{ latest_release.json.tag_name }}/{{ role_name }}.AppImage"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/{{ role_name }}"
+        mode: '0755'
+      when: example_provides_appimage | default(false)
+
+# Report installation status
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      {{ role_name }} installation status:
+      - Previously installed: {{ '✓' if example_check.rc == 0 else '✗' }}
+      - System installation: {{ '✓' if example_system_install is defined and example_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else '✗' }}
+      - User installation: {{ '✓' if example_user_install is defined and example_user_install is succeeded else 'N/A' }}
+      
+      Note: Make sure ~/.local/bin is in your PATH

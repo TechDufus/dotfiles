@@ -1,0 +1,19 @@
+---
+# Default variables for example role
+# These can be overridden in group_vars/all.yml or when calling the role
+
+# Installation settings
+install_dependencies: true
+example_version: "latest"
+
+# Configuration settings
+example_setting: "default_value"
+example_theme: "dark"
+
+# Feature flags
+enable_example_feature: false
+example_provides_appimage: false
+
+# User settings (usually overridden in group_vars/all.yml)
+# user_name: "{{ ansible_facts['user_id'] }}"
+# user_email: "user@example.com"

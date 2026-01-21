@@ -12,3 +12,6 @@ alias kl='kubectl logs'
 alias ka='kubectl apply'
 alias ktp='kubectl top pods'
 alias kexec='kubectl exec -it --'
+
+source <(kubectl completion zsh)
+

@@ -1,0 +1,12 @@
+---
+- name: "{{ role_name }} | Ensure config directory exists"
+  ansible.builtin.file:
+    path: ~/.config/sesh
+    state: directory
+    mode: '0755'
+
+- name: "{{ role_name }} | Deploy sesh configuration"
+  ansible.builtin.copy:
+    src: sesh.toml
+    dest: ~/.config/sesh/sesh.toml
+    mode: '0644'

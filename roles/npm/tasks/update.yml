@@ -1,0 +1,152 @@
+---
+# Update npm packages
+
+- name: "NPM | Update | Check for nvm"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
+  register: nvm_check
+
+- name: "NPM | Update | Determine Node.js source"
+  ansible.builtin.set_fact:
+    use_nvm: "{{ nvm_check.stat.exists }}"
+
+- name: "NPM | Update | Update npm itself"
+  block:
+    - name: "NPM | Update npm to latest (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm install -g npm@latest
+      args:
+        executable: /bin/bash
+      when: use_nvm
+      register: npm_update_nvm
+      changed_when: "'updated' in npm_update_nvm.stdout or 'added' in npm_update_nvm.stdout"
+
+    - name: "NPM | Update npm to latest (system)"
+      ansible.builtin.command: npm install -g npm@latest
+      when: 
+        - not use_nvm
+        - can_install_packages | default(false)
+      become: true
+      register: npm_update_system
+      changed_when: "'updated' in npm_update_system.stdout or 'added' in npm_update_system.stdout"
+
+    - name: "NPM | Update npm to latest (user-local)"
+      ansible.builtin.shell: |
+        export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+        npm install -g npm@latest
+      args:
+        executable: /bin/bash
+      when: 
+        - not use_nvm
+        - not (can_install_packages | default(false))
+      register: npm_update_user
+      changed_when: "'updated' in npm_update_user.stdout or 'added' in npm_update_user.stdout"
+
+- name: "NPM | Update | Check outdated global packages"
+  block:
+    - name: "NPM | List outdated packages (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm outdated -g --depth=0 || true
+      args:
+        executable: /bin/bash
+      when: use_nvm
+      register: outdated_nvm
+      changed_when: false
+
+    - name: "NPM | List outdated packages (system)"
+      ansible.builtin.command: npm outdated -g --depth=0
+      when: not use_nvm
+      register: outdated_system
+      failed_when: false
+      changed_when: false
+
+    - name: "NPM | Display outdated packages"
+      ansible.builtin.debug:
+        msg:
+          - "Outdated global packages:"
+          - "{{ (outdated_nvm.stdout if use_nvm else outdated_system.stdout) | default('All packages are up to date') }}"
+
+- name: "NPM | Update | Update all global packages"
+  block:
+    - name: "NPM | Get list of global packages"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        npm list -g --depth=0 --json | jq -r '.dependencies | keys[]' | grep -v "^npm$"
+      args:
+        executable: /bin/bash
+      register: global_packages
+      changed_when: false
+
+    - name: "NPM | Update global packages (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm update -g {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ global_packages.stdout_lines }}"
+      when: 
+        - use_nvm
+        - global_packages.stdout_lines is defined
+      register: update_result_nvm
+      changed_when: "'updated' in update_result_nvm.stdout"
+
+    - name: "NPM | Update global packages (system)"
+      ansible.builtin.command: npm update -g {{ item }}
+      loop: "{{ global_packages.stdout_lines }}"
+      when: 
+        - not use_nvm
+        - can_install_packages | default(false)
+        - global_packages.stdout_lines is defined
+      become: true
+      register: update_result_system
+      changed_when: "'updated' in update_result_system.stdout"
+
+    - name: "NPM | Update global packages (user-local)"
+      ansible.builtin.shell: |
+        export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+        npm update -g {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ global_packages.stdout_lines }}"
+      when: 
+        - not use_nvm
+        - not (can_install_packages | default(false))
+        - global_packages.stdout_lines is defined
+      register: update_result_user
+      changed_when: "'updated' in update_result_user.stdout"
+
+- name: "NPM | Update | Use npm-check-updates for major updates"
+  block:
+    - name: "NPM | Run npm-check-updates (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        ncu -g
+      args:
+        executable: /bin/bash
+      when: use_nvm
+      register: ncu_result_nvm
+      changed_when: false
+
+    - name: "NPM | Run npm-check-updates (system)"
+      ansible.builtin.command: ncu -g
+      when: not use_nvm
+      register: ncu_result_system
+      changed_when: false
+
+    - name: "NPM | Display packages that can be upgraded"
+      ansible.builtin.debug:
+        msg:
+          - "Packages with major version updates available:"
+          - "{{ (ncu_result_nvm.stdout if use_nvm else ncu_result_system.stdout) | default('All packages are at their latest major versions') }}"
+          - ""
+          - "To upgrade all packages to latest major versions, run:"
+          - "{{ 'ncu -g -u' if not use_nvm else 'nvm use default && ncu -g -u' }}"

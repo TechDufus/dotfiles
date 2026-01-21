@@ -1,0 +1,29 @@
+{
+    "profiles": [
+        {
+            "name": "Default",
+            "selected": true,
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "CapsLock to F13 (LED off)",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "caps_lock",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "f13" }]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "virtual_hid_keyboard": {
+                "caps_lock_delay_milliseconds": 0,
+                "keyboard_type_v2": "ansi"
+            }
+        }
+    ]
+}

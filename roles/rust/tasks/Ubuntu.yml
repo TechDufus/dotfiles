@@ -12,9 +12,9 @@
 # - name: Rust | Install LSD
 #   ansible.builtin.command: "cargo install lsd --locked"
 #   args:
-#     creates: "{{ ansible_env.HOME }}/.cargo/bin/lsd"
+#     creates: "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/lsd"
 
 # - name: Rust | Cargo | Install [sshs]
 #   ansible.builtin.command: "cargo install --git https://github.com/quantumsheep/sshs"
 #   args:
-#     creates: "{{ ansible_env.HOME }}/.cargo/bin/sshs"
+#     creates: "{{ ansible_facts['env']['HOME'] }}/.cargo/bin/sshs"

@@ -6,7 +6,7 @@
 
 - name: "Kitty | MacOSX | Deploy Kitty Config"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/kitty"
+    path: "{{ ansible_facts['user_dir'] }}/.config/kitty"
     mode: "0755"
     state: directory
 
@@ -14,19 +14,19 @@
   ansible.builtin.set_fact:
     kitty_config: kitty.conf
 
-- name: "Kitty | MacOSX | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "Kitty | MacOSX | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/files/kitty_{{ ansible_distribution }}.conf"
+    path: "{{ role_path }}/files/kitty_{{ ansible_facts['distribution'] }}.conf"
   register: kitty_distribution_config
 
-- name: "Kitty | MacOSX | Found, Setting Kitty Config: kitty_{{ ansible_distribution }}.conf"
+- name: "Kitty | MacOSX | Found, Setting Kitty Config: kitty_{{ ansible_facts['distribution'] }}.conf"
   ansible.builtin.set_fact:
-    kitty_config: "kitty_{{ ansible_distribution }}.conf"
+    kitty_config: "kitty_{{ ansible_facts['distribution'] }}.conf"
   when: kitty_distribution_config.stat.exists
 
 
 - name: "Kitty | MacOSX | Deploy Kitty Config: {{ kitty_config }}"
   ansible.builtin.copy:
     src: "{{ kitty_config }}"
-    dest: "{{ ansible_user_dir }}/.config/kitty/kitty.conf"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/kitty/kitty.conf"
     mode: "0644"

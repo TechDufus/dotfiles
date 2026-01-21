@@ -1,0 +1,29 @@
+# GitLab CLI Configuration
+# https://gitlab.com/gitlab-org/cli
+
+# Set your GitLab instance URL (defaults to https://gitlab.com)
+# host: https://gitlab.com
+
+# Set your preferred editor
+editor: nvim
+
+# Set your preferred browser
+# browser: firefox
+
+# Aliases for common commands
+# aliases:
+#   co: mr checkout
+#   m: mr merge
+#   p: project
+#   i: issue
+#   il: issue list
+#   iv: issue view
+#   mr: mr
+#   mrl: mr list
+#   mrv: mr view
+#   mrc: mr create
+#   pipe: pipeline
+#   pl: pipeline list
+#   pv: pipeline view
+#   pr: pipeline retry
+#   pc: pipeline cancel

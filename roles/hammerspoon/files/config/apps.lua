@@ -1,7 +1,7 @@
 return {
   Agenda      = {
-    id = 'com.apple.iCal',
-    summon = 'a', -- [A]genda
+    id = 'com.granola.app',
+    summon = 'a', -- [A]genda or Granol[A]
   },
   Browser     = {
     id = 'com.brave.Browser',
@@ -23,9 +23,9 @@ return {
     id = 'com.apple.finder',
     summon = 'f', -- [F]inder
   },
-  Gpt         = {
-    id = 'com.openai.chat',
-    summon = 'g', -- [G]PT
+  Claude      = {
+    id = 'com.anthropic.claudefordesktop',
+    summon = 'g', -- [G]enAI (was GPT)
   },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',

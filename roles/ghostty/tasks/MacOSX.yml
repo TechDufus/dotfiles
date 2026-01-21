@@ -1,12 +1,6 @@
 ---
-- name: "👻 Ghossty | Install Ghostty"
+- name: "{{ role_name }} | macOS | Install Ghostty nightly"
   community.general.homebrew_cask:
-    name: ghostty
+    name: ghostty@tip
     state: present
     update_homebrew: true
-
-- name: "👻 Ghossty | Deploy Configuration"
-  ansible.builtin.copy:
-    src: config
-    dest: "~/Library/Application\ Support/com.mitchellh.ghostty/config"
-    mode: "0600"

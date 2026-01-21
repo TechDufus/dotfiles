@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "claude_code": {
+    "mcp": false,
+    "commands": false,
+    "skills": false,
+    "agents": false,
+    "hooks": false
+  },
+  "google_auth": false,
+  "disabled_mcps": [
+    "websearch_exa"
+  ],
+  "agents": {
+    "Sisyphus": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "Planner-Sisyphus": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "build": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "plan": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "oracle": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "librarian": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "explore": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "document-writer": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "multimodal-looker": {
+      "model": "anthropic/claude-opus-4-5"
+    }
+  },
+  "experimental": {
+    "auto_resume": true,
+    "preemptive_compaction": true,
+    "preemptive_compaction_threshold": 0.8,
+    "truncate_all_tool_outputs": true
+  },
+  "lsp": {}
+}

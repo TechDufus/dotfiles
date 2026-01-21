@@ -84,25 +84,25 @@
 
 - name: "K9s | Ensure k9s config directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/k9s"
+    path: "{{ ansible_facts['user_dir'] }}/.config/k9s"
     state: directory
     mode: "0755"
 
 # skins directory
 - name: "K9s | Ensure k9s skins directory exists"
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/k9s/skins"
+    path: "{{ ansible_facts['user_dir'] }}/.config/k9s/skins"
     state: directory
     mode: "0755"
 
 - name: "K9s | Copy skin config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/k9s/skins/catppuccin_mocha.yaml"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/k9s/skins/catppuccin_mocha.yaml"
     src: "catppuccin_mocha.yaml"
     mode: "0644"
 
 - name: "K9s | Copy config"
   ansible.builtin.copy:
-    dest: "{{ ansible_user_dir }}/.config/k9s/config.yaml"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/k9s/config.yaml"
     src: "config.yaml"
     mode: "0644"

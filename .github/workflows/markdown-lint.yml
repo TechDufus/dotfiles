@@ -1,0 +1,53 @@
+name: Markdown Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    paths: ['**/*.md']
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Create markdownlint config
+        run: |
+          cat > .markdownlint.json << EOF
+          {
+            "default": true,
+            "MD001": false,
+            "MD004": false,
+            "MD009": false,
+            "MD012": false,
+            "MD024": false,
+            "MD013": false,
+            "MD022": false,
+            "MD026": false,
+            "MD029": false,
+            "MD031": false,
+            "MD032": false,
+            "MD033": false,
+            "MD036": false,
+            "MD040": false,
+            "MD041": false,
+            "MD045": false,
+            "MD047": false,
+            "MD051": false,
+            "MD058": false
+          }
+          EOF
+
+      - name: Run markdownlint
+        run: markdownlint "**/*.md" --ignore node_modules

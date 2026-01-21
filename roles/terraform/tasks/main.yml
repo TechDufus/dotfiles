@@ -1,9 +1,9 @@
 ---
-- name: "Terraform | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "Terraform | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
   register: terraform_distribution_config
 
-- name: "Terraform | Run Tasks: {{ ansible_distribution }}"
-  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+- name: "Terraform | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: terraform_distribution_config.stat.exists

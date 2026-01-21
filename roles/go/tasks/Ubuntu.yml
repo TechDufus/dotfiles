@@ -19,11 +19,11 @@
 
 - name: "Go-Lang | Define GOARCH"
   ansible.builtin.set_fact:
-    goarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+    goarch: "{{ ansible_facts['machine'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
 - name: "Go-Lang | Define GOOS"
   ansible.builtin.set_fact:
-    goos: "{{ ansible_system | lower }}"
+    goos: "{{ ansible_facts['system'] | lower }}"
 
 - name: "Go-Lang | GOARCH Value"
   ansible.builtin.debug:

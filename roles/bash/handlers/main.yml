@@ -1,10 +1,4 @@
-# ---
-# - name: Remove oh-my-posh Install Script
-#   ansible.builtin.file:
-#     path: /tmp/oh-my-posh.install.sh
-#     state: absent
-
 - name: Bash | Cleanup oh-my-posh install script
   ansible.builtin.file:
-    path: /{{ ansible_user_dir }}/oh-my-posh.install.sh
+    path: /{{ ansible_facts['user_dir'] }}/oh-my-posh.install.sh
     state: absent

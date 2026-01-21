@@ -1,0 +1,20 @@
+---
+# Handlers for example role
+# These run only when notified by tasks
+
+- name: Restart example service
+  ansible.builtin.systemd:
+    name: example
+    state: restarted
+  become: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Reload example config
+  ansible.builtin.command: "{{ role_name }} reload"
+  when: example_supports_reload | default(false)
+
+# Example of cleanup handler
+- name: Remove example temp files
+  ansible.builtin.file:
+    path: "/tmp/{{ role_name }}-install"
+    state: absent

@@ -1,0 +1,12 @@
+---
+- name: "SSH | MacOSX | Verify OpenSSH is available"
+  ansible.builtin.command: which ssh
+  register: ssh_check
+  changed_when: false
+  failed_when: false
+
+- name: "SSH | MacOSX | Install OpenSSH via Homebrew (if not found)"
+  community.general.homebrew:
+    name: openssh
+    state: present
+  when: ssh_check.rc != 0

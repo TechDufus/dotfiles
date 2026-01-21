@@ -37,7 +37,7 @@
   block:
     - name: "Go-Lang | Define GOARCH"
       ansible.builtin.set_fact:
-        lsdarch: "{{ ansible_machine | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+        lsdarch: "{{ ansible_facts['machine'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
 
     - name: "LSD | Define lsd_file"
       ansible.builtin.set_fact:

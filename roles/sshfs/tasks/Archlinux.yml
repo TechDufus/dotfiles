@@ -1,5 +1,5 @@
 ---
-- name: "SSHFS | {{ ansible_distribution }} | Install sshfs"
+- name: "SSHFS | {{ ansible_facts['distribution'] }} | Install sshfs"
   community.general.pacman:
     name: sshfs
     state: present

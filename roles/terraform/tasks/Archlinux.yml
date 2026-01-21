@@ -1,5 +1,5 @@
 ---
-- name: "Terraform | {{ ansible_distribution }} | Install Terraform"
+- name: "Terraform | {{ ansible_facts['distribution'] }} | Install Terraform"
   community.general.pacman:
     name: terraform
     state: present

@@ -21,7 +21,7 @@
       tags:
         - always
 
-    - name: Detect Host User
+    - name: Detect Host User (WSL)
       ansible.builtin.import_tasks: pre_tasks/whoami_wsl.yml
       when: ansible_host_environment_is_wsl
       tags:
@@ -29,6 +29,11 @@
 
     - name: Detect Host User
       ansible.builtin.import_tasks: pre_tasks/whoami.yml
+      tags:
+        - always
+
+    - name: Detect Sudo
+      ansible.builtin.import_tasks: pre_tasks/detect_sudo.yml
       tags:
         - always
 
@@ -40,7 +45,8 @@
   tasks:
     - name: Set roles
       ansible.builtin.set_fact:
-        run_roles: "{{ ansible_run_tags != ['all'] and ansible_run_tags or default_roles | difference(exclude_roles | default([])) | sort }}"
+        # yamllint disable-line rule:line-length
+        run_roles: "{% if ansible_run_tags | list == ['all'] %}{{ default_roles | reject('in', exclude_roles | default([])) | list }}{% else %}{{ (default_roles | select('in', ansible_run_tags) | list) + (ansible_run_tags | reject('in', default_roles) | reject('equalto', 'all') | list) }}{% endif %}"
       tags:
         - always
 

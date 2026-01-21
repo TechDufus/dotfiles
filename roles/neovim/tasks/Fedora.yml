@@ -1,0 +1,125 @@
+---
+# Neovim installation with intelligent fallback for Fedora/RHEL
+
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Check if nvim is already installed"
+  ansible.builtin.command: which nvim
+  register: nvim_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+# System-wide installation with sudo
+- name: "Neovim | {{ ansible_facts['distribution'] }} | System installation"
+  when:
+    - can_install_packages | default(false)
+    - nvim_check.rc != 0
+  block:
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
+      ansible.builtin.dnf:
+        name:
+          - cmake
+          - curl
+          - pkgconfig
+          - libtool
+          - unzip
+          - ansible-lint
+          - ripgrep
+          - gcc
+          - gcc-c++
+          - make
+        state: present
+      become: true
+      register: nvim_deps_install
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install from repository"
+      ansible.builtin.dnf:
+        name: neovim
+        state: present
+      become: true
+      register: nvim_system_install
+
+# User-local installation without sudo
+- name: "Neovim | {{ ansible_facts['distribution'] }} | User-local installation"
+  when:
+    - not (can_install_packages | default(false))
+    - nvim_check.rc != 0
+  block:
+    - name: "Neovim | Create local directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/share"
+        - "{{ ansible_facts['env']['HOME'] }}/.local/lib"
+
+    - name: "Neovim | Get latest release version"
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/neovim/neovim/releases/latest
+        return_content: yes
+      register: nvim_latest_release
+      no_log: true
+
+    - name: "Neovim | Set version fact"
+      ansible.builtin.set_fact:
+        nvim_version: "{{ nvim_latest_release.json.tag_name }}"
+
+    - name: "Neovim | Download AppImage"
+      ansible.builtin.get_url:
+        url: "https://github.com/neovim/neovim/releases/download/{{ nvim_version }}/nvim.appimage"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/nvim"
+        mode: '0755'
+      register: nvim_user_install
+
+    - name: "Neovim | Create nvim symlink for vim compatibility"
+      ansible.builtin.file:
+        src: "{{ ansible_facts['env']['HOME'] }}/.local/bin/nvim"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/vim"
+        state: link
+
+# Install essential tools that don't require sudo
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Install user-local tools"
+  when: nvim_check.rc == 0 or nvim_user_install is succeeded or nvim_system_install is succeeded
+  block:
+    - name: "Neovim | Check for ripgrep"
+      ansible.builtin.command: which rg
+      register: rg_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: "Neovim | Install ripgrep to user directory"
+      when: rg_check.rc != 0
+      block:
+        - name: "Neovim | Get ripgrep latest release"
+          ansible.builtin.uri:
+            url: https://api.github.com/repos/BurntSushi/ripgrep/releases/latest
+            return_content: yes
+          register: rg_latest_release
+          no_log: true
+
+        - name: "Neovim | Download and extract ripgrep"
+          ansible.builtin.unarchive:
+            src: "https://github.com/BurntSushi/ripgrep/releases/download/{{ rg_latest_release.json.tag_name }}/ripgrep-{{ rg_latest_release.json.tag_name }}-x86_64-unknown-linux-musl.tar.gz"
+            dest: "{{ ansible_facts['env']['HOME'] }}/.local"
+            remote_src: yes
+            creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/rg"
+            extra_opts:
+              - --strip-components=1
+              - --wildcards
+              - '*/rg'
+              - --transform
+              - 's/.*\//bin\//'
+
+# Report installation status
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Report installation status"
+  ansible.builtin.debug:
+    msg:
+      - "Neovim installation status:"
+      - "- Previously installed: {{ '✓' if nvim_check.rc == 0 else '✗' }}"
+      - "- System installation: {{ '✓' if nvim_system_install is defined and nvim_system_install is succeeded else '✗ (no sudo)' if not can_install_packages else '✗' }}"
+      - "- User installation: {{ '✓' if nvim_user_install is defined and nvim_user_install is succeeded else 'N/A' }}"
+      - "- Location: {{ 'System-wide' if nvim_system_install is defined and nvim_system_install is succeeded else '~/.local/bin' if nvim_user_install is defined and nvim_user_install is succeeded else 'Pre-existing' }}"
+      - ""
+      - "Note: Make sure ~/.local/bin is in your PATH"

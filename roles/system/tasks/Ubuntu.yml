@@ -1,31 +1,97 @@
 ---
-- name: "System | {{ ansible_distribution }} | Update APT Repos and Upgrade APT Packages"
+- name: "System | {{ ansible_facts['distribution'] }} | Update APT Repos and Upgrade APT Packages"
   ansible.builtin.apt:
     update_cache: true
     upgrade: full
     autoremove: true
     autoclean: true
   become: true
+  when: can_install_packages | default(false)
 
-- name: "System | {{ ansible_distribution }} | Install"
+- name: "System | {{ ansible_facts['distribution'] }} | Install"
   ansible.builtin.apt:
     name:
       - jq
       - open-iscsi
     state: present
   become: true
+  when: can_install_packages | default(false)
 
-- name: System | Detecting win32yank
+- name: "System | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Package installation skipped due to missing sudo privileges"
+      - "The following packages would be installed with sudo: jq, open-iscsi"
+      - "Please run with sudo or contact your system administrator"
+  when: not (can_install_packages | default(false))
+
+# =============================================================================
+# System Performance Optimizations (ported from Fedora)
+# =============================================================================
+
+- name: "System | {{ ansible_facts['distribution'] }} | Set swappiness for better performance"
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: '10'
+    state: present
+    reload: true
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Configure systemd journal size limit"
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: "^#?SystemMaxUse="
+    line: "SystemMaxUse=500M"
+    create: true
+    backup: true
+  become: true
+  when: can_install_packages | default(false)
+  notify: restart systemd-journald
+
+- name: "System | {{ ansible_facts['distribution'] }} | Disable unnecessary services"
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - ModemManager.service  # Not needed unless using mobile broadband
+    - snapd.service         # Snap daemon - disable if not using snaps
+    - snapd.socket          # Snap socket activation
+  become: true
+  when: can_install_packages | default(false)
+  failed_when: false  # Don't fail if service doesn't exist
+
+- name: System | Detecting win32yank (system)
   ansible.builtin.stat:
     path: /usr/local/bin/win32yank.exe
-  register: win32yank_installed
+  register: win32yank_system
+  when: ansible_host_environment_is_wsl
+
+- name: System | Detecting win32yank (user)
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin/win32yank.exe"
+  register: win32yank_user
+  when: ansible_host_environment_is_wsl
+
+- name: System | Set win32yank installation facts
+  ansible.builtin.set_fact:
+    win32yank_installed: "{{ (win32yank_system.stat.exists | default(false)) or (win32yank_user.stat.exists | default(false)) }}"
+    win32yank_dest_dir: "{{ '/usr/local/bin' if (can_install_packages | default(false)) else ansible_facts['env']['HOME'] + '/.local/bin' }}"
   when: ansible_host_environment_is_wsl
 
 - name: "System | Install win32yank.exe"
   when:
     - ansible_host_environment_is_wsl
-    - not win32yank_installed.stat.exists
+    - not win32yank_installed
   block:
+    - name: System | Ensure destination directory exists
+      ansible.builtin.file:
+        path: "{{ win32yank_dest_dir }}"
+        state: directory
+        mode: "0755"
+      when: not (can_install_packages | default(false))
+
     - name: Download win32yank zip
       ansible.builtin.get_url:
         url: https://github.com/equalsraf/win32yank/releases/download/v0.0.4/win32yank-x64.zip
@@ -38,13 +104,17 @@
         dest: /tmp
         mode: "0755"
 
-    - name: System | Copy win32yank into path
+    - name: System | Copy win32yank into path (system)
       ansible.builtin.copy:
         remote_src: true
         src: /tmp/win32yank.exe
-        dest: /usr/local/bin/win32yank.exe
+        dest: "{{ win32yank_dest_dir }}/win32yank.exe"
         mode: "0755"
-      become: true
+      become: "{{ can_install_packages | default(false) }}"
+
+    - name: System | win32yank installation location
+      ansible.builtin.debug:
+        msg: "win32yank.exe installed to {{ win32yank_dest_dir }}/win32yank.exe"
 
     - name: System | Remove tmp files
       ansible.builtin.file:
@@ -53,3 +123,20 @@
       loop:
         - /tmp/win32yank.zip
         - /tmp/win32yank.exe
+
+- name: "System | {{ ansible_facts['distribution'] }} | Ensure logind.conf.d directory exists"
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    mode: "0755"
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Configure power button to suspend"
+  ansible.builtin.copy:
+    src: logind.conf.d/power-button.conf
+    dest: /etc/systemd/logind.conf.d/power-button.conf
+    mode: "0644"
+  become: true
+  when: can_install_packages | default(false)
+  notify: restart systemd-logind

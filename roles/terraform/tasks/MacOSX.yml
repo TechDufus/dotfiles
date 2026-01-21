@@ -1,10 +1,11 @@
 ---
 - name: "Terraform | MacOSX | Install Terraform"
   community.general.homebrew:
-    name: terraform
+    name: "{{ item }}"
     state: present
   loop:
     - terraform
+    - terraform-ls
     - tfsec
     - terraform-docs
     - terragrunt

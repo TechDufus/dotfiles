@@ -1,5 +1,221 @@
 ---
-- name: "NPM | MacOSX | Install npm"
-  community.general.homebrew:
-    name: npm
-    state: present
+# NPM/Node.js installation for macOS
+
+- name: "NPM | MacOSX | Check for nvm installation"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
+  register: nvm_check
+
+- name: "NPM | MacOSX | Determine Node.js source"
+  ansible.builtin.set_fact:
+    use_nvm: "{{ (npm_node_source == 'nvm') or (npm_node_source == 'auto' and nvm_check.stat.exists) }}"
+    require_nvm: "{{ npm_node_source == 'nvm' }}"
+
+- name: "NPM | MacOSX | Fail if nvm required but not found"
+  ansible.builtin.fail:
+    msg: "nvm is required but not installed. Please run the nvm role first."
+  when:
+    - require_nvm
+    - not nvm_check.stat.exists
+
+# NVM-based installation
+- name: "NPM | MacOSX | Configure npm via nvm"
+  when: use_nvm
+  block:
+    - name: "NPM | Check Node.js installation via nvm"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        node --version 2>/dev/null || echo "not-installed"
+      args:
+        executable: /bin/bash
+      register: nvm_node_check
+      changed_when: false
+
+    - name: "NPM | Display nvm Node.js status"
+      ansible.builtin.debug:
+        msg: "Node.js via nvm: {{ nvm_node_check.stdout }}"
+
+    - name: "NPM | Check current npm version"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm --version 2>/dev/null || echo "not-installed"
+      args:
+        executable: /bin/bash
+      register: current_npm_version
+      changed_when: false
+      when: nvm_node_check.stdout != 'not-installed'
+
+    - name: "NPM | Get latest npm version"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm view npm version 2>/dev/null || echo "unknown"
+      args:
+        executable: /bin/bash
+      register: latest_npm_version
+      changed_when: false
+      when: 
+        - npm_update_npm
+        - nvm_node_check.stdout != 'not-installed'
+
+    - name: "NPM | Update npm to latest version (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm install -g npm@latest
+      args:
+        executable: /bin/bash
+      when: 
+        - npm_update_npm
+        - nvm_node_check.stdout != 'not-installed'
+        - current_npm_version.stdout != latest_npm_version.stdout
+      register: npm_update_result
+      changed_when: current_npm_version.stdout != latest_npm_version.stdout
+
+# Homebrew installation
+- name: "NPM | MacOSX | Install via Homebrew"
+  when: not use_nvm
+  block:
+    - name: "NPM | MacOSX | Check if Node is installed via Homebrew"
+      ansible.builtin.shell: |
+        brew list node 2>/dev/null || echo "not-installed"
+      register: brew_node_check
+      changed_when: false
+
+    - name: "NPM | MacOSX | Install npm via Homebrew"
+      community.general.homebrew:
+        name: node
+        state: present
+      when: brew_node_check.stdout == "not-installed"
+
+    - name: "NPM | MacOSX | Check current npm version"
+      ansible.builtin.command: npm --version
+      register: current_npm_version_brew
+      changed_when: false
+      when: brew_node_check.stdout != 'not-installed'
+
+    - name: "NPM | MacOSX | Get latest npm version"
+      ansible.builtin.shell: npm view npm version
+      register: latest_npm_version_brew
+      changed_when: false
+      when: 
+        - npm_update_npm
+        - brew_node_check.stdout != 'not-installed'
+
+    - name: "NPM | MacOSX | Update npm to latest"
+      ansible.builtin.command: npm install -g npm@latest
+      when: 
+        - npm_update_npm
+        - brew_node_check.stdout != 'not-installed'
+        - current_npm_version_brew.stdout != latest_npm_version_brew.stdout
+      register: npm_update_result
+      changed_when: current_npm_version_brew.stdout != latest_npm_version_brew.stdout
+
+# Configure NPM (common for all installation methods)
+- name: "NPM | MacOSX | Configure NPM"
+  block:
+    - name: "NPM | Get current npm configuration"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        npm config list --json 2>/dev/null || echo '{}'
+      args:
+        executable: /bin/bash
+      register: npm_config_current
+      changed_when: false
+
+    - name: "NPM | Check and apply npm configuration settings"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        current_value=$(npm config get {{ item.key }} 2>/dev/null || echo "undefined")
+        if [ "$current_value" != "{{ item.value }}" ]; then
+          npm config set {{ item.key }} '{{ item.value }}'
+          echo "changed"
+        else
+          echo "unchanged"
+        fi
+      args:
+        executable: /bin/bash
+      register: npm_config_result
+      changed_when: "'changed' in npm_config_result.stdout"
+      loop: "{{ npm_config | dict2items }}"
+      when: npm_config is defined
+
+    - name: "NPM | Ensure .npmrc file with proper configuration"
+      ansible.builtin.template:
+        src: npmrc.j2
+        dest: "{{ ansible_facts['env']['HOME'] }}/.npmrc"
+        mode: '0644'
+        backup: yes
+
+# Install global packages
+- name: "NPM | MacOSX | Install global packages"
+  block:
+    - name: "NPM | Combine package lists"
+      ansible.builtin.set_fact:
+        all_npm_packages: "{{ npm_global_packages + (npm_extra_packages | default([])) }}"
+
+    - name: "NPM | Get list of installed global packages"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        npm list -g --depth=0 --json 2>/dev/null | jq -r '.dependencies | keys[]' 2>/dev/null || echo ""
+      args:
+        executable: /bin/bash
+      register: installed_global_packages
+      changed_when: false
+
+    - name: "NPM | Install missing global packages (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        if echo "{{ installed_global_packages.stdout_lines | join(' ') }}" | grep -qw "{{ item }}"; then
+          echo "already installed"
+        else
+          npm install -g {{ item }}
+          echo "installed"
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ all_npm_packages }}"
+      when: use_nvm
+      register: nvm_install_result
+      changed_when: "'already installed' not in nvm_install_result.stdout"
+
+    - name: "NPM | Install missing global packages (Homebrew)"
+      ansible.builtin.shell: |
+        if npm list -g --depth=0 {{ item }} >/dev/null 2>&1; then
+          echo "already installed"
+        else
+          npm install -g {{ item }}
+          echo "installed"
+        fi
+      loop: "{{ all_npm_packages }}"
+      when: not use_nvm
+      register: brew_install_result
+      changed_when: "'already installed' not in brew_install_result.stdout"
+
+# Report installation status
+- name: "NPM | MacOSX | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      NPM/Node.js installation status:
+      - Installation method: {{ 'nvm' if use_nvm else 'Homebrew' }}
+      - Node.js installed: {{ '✓' if (use_nvm and nvm_node_check.stdout != 'not-installed') or (not use_nvm and brew_node_check.stdout != 'not-installed') else '✗' }}
+      {% if use_nvm %}
+      - Using nvm for Node.js management
+      - Run 'nvm list' to see installed versions
+      {% else %}
+      - Using Homebrew-installed Node.js
+      {% endif %}
+      - Global packages configured: {{ all_npm_packages | join(', ') }}
+      - Global packages installed: {{ installed_global_packages.stdout_lines | join(', ') if installed_global_packages.stdout_lines else 'None' }}

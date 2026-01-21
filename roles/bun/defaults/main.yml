@@ -1,0 +1,10 @@
+---
+# Bun JavaScript runtime defaults
+# https://bun.sh/
+
+# Global packages to install with bun
+# Example:
+# bun_global_packages:
+#   - typescript
+#   - prettier
+bun_global_packages: []

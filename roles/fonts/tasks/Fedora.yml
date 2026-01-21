@@ -1,0 +1,26 @@
+---
+- name: "Fonts | Install"
+  ansible.builtin.dnf:
+    name:
+      - powerline-fonts
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "Fonts | Manual installation message"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Powerline fonts cannot be installed without sudo access."
+
+      - ""
+
+      - "To install fonts manually:"
+
+      - "1. Clone the powerline fonts repository:"
+
+      - "git clone https://github.com/powerline/fonts.git ~/.local/share/fonts/powerline"
+
+      - "2. Run fc-cache to update font cache:"
+
+      - "fc-cache -f ~/.local/share/fonts"
+  when: not (can_install_packages | default(false))

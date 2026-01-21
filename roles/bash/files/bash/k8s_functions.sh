@@ -258,6 +258,58 @@ kpg() {
   fi
 }
 
+# Delete pods with fzf multi-selection
+kpdel() {
+  command -v fzf >/dev/null || {
+    echo "❌ fzf is not installed."
+    return 1
+  }
+
+  search_term="$1"
+
+  # Get all pods, prioritize active (non-completed) pods
+  all_pods=$(kubectl get pods --no-headers | awk '{print $1, $3}' | sort -k2,2 -r)
+
+  if [ -z "$all_pods" ]; then
+    echo "No pods found in current namespace."
+    return 1
+  fi
+
+  # Select pods with fzf (multi-select enabled)
+  if [ -n "$search_term" ]; then
+    selected_pods=$(echo "$all_pods" | fzf -m --height 40% --reverse --query="$search_term" | awk '{print $1}')
+  else
+    selected_pods=$(echo "$all_pods" | fzf -m --height 40% --reverse | awk '{print $1}')
+  fi
+
+  if [ -z "$selected_pods" ]; then
+    echo "No pods selected."
+    return 0
+  fi
+
+  # Count and display selected pods
+  pod_count=$(echo "$selected_pods" | wc -l)
+  echo "Selected $pod_count pod(s) for deletion:"
+  echo "$selected_pods" | while read -r pod; do
+    echo "  - $pod"
+  done
+  echo
+
+  # Confirm deletion
+  printf "Delete these pods? [y/N]: "
+  read -r confirm
+  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    echo "Deletion cancelled."
+    return 0
+  fi
+
+  # Delete each pod
+  echo "$selected_pods" | while read -r pod; do
+    echo "Deleting pod: $pod"
+    kubectl delete pod "$pod"
+  done
+}
+
 
 complete -o nospace -F __kc_complete kc
 complete -o nospace -F __kgnonly_complete k.node.debug k.node.exec

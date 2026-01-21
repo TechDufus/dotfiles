@@ -1,0 +1,84 @@
+---
+- name: "JJ | Download Latest Version JSON"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/jj-vcs/jj/releases/latest
+  register: jj_latest_version_json
+  changed_when: false
+
+- name: "JJ | Registering jj Latest Release"
+  ansible.builtin.set_fact:
+    jj_latest_release: "{{ jj_latest_version_json.json.tag_name }}"
+
+- name: "JJ | Getting version information"
+  ansible.builtin.shell:
+    cmd: |
+      /usr/local/bin/jj --version | grep -o 'jj [0-9]*\.[0-9]*\.[0-9]*' | sed 's/jj /v/'
+  register: current_jj_version
+  changed_when: false
+  failed_when: false
+
+- name: "JJ | Show current_jj_version debug"
+  ansible.builtin.debug:
+    var: current_jj_version.stdout
+
+- name: "JJ | Show jj_latest_release debug"
+  ansible.builtin.debug:
+    var: jj_latest_release
+
+- name: "JJ | Install"
+  block:
+    - name: "JJ | Define jj_file"
+      ansible.builtin.set_fact:
+        jj_file: "jj-{{ jj_latest_release }}-x86_64-unknown-linux-musl"
+
+    - name: "JJ | Ensure clean download destination"
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/{{ jj_file }}.tar.gz"
+        state: absent
+
+    - name: "JJ | Create temp directory"
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp"
+        state: directory
+        mode: "0755"
+
+    - name: "JJ | Downloading jj Release"
+      ansible.builtin.get_url:
+        url: "https://github.com/jj-vcs/jj/releases/download/{{ jj_latest_release }}/{{ jj_file }}.tar.gz"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/"
+        mode: "0644"
+        force: true
+      notify:
+        - Cleanup jj downloaded tar
+
+    - name: "JJ | Ensure clean extraction destination"
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/jj"
+        state: absent
+
+    - name: "JJ | Extract jj tar file"
+      ansible.builtin.unarchive:
+        src: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/{{ jj_file }}.tar.gz"
+        dest: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp"
+        creates: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/jj"
+
+    - name: "JJ | Remove any current jj installations"
+      ansible.builtin.file:
+        path: /usr/local/bin/jj
+        state: absent
+      become: true
+
+    - name: "JJ | Install jj"
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ ansible_facts['env']['HOME'] }}/.ansible_tmp/jj"
+        dest: /usr/local/bin/
+        owner: "{{ host_user }}"
+        group: "{{ host_user }}"
+        force: true
+        mode: "0755"
+      become: true
+      notify:
+        - Remove extracted jj directory
+
+  when: jj_latest_release not in current_jj_version.stdout|default('')

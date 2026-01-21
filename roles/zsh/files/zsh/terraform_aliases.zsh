@@ -2,4 +2,4 @@
 
 alias t='terraform'
 alias tg='terragrunt'
-alias tgra='terragrunt run-all'
+alias tga='terragrunt --all'

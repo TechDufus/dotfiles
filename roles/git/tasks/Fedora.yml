@@ -1,0 +1,58 @@
+---
+# Git installation with sudo fallback for Fedora/RHEL
+
+- name: "Git | {{ ansible_facts['distribution'] }} | Check if git is already installed"
+  ansible.builtin.command: which git
+  register: git_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: "Git | {{ ansible_facts['distribution'] }} | Install git (system package)"
+  ansible.builtin.dnf:
+    name:
+      - git
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - git_check.rc != 0
+  register: git_system_install
+
+- name: "Git | {{ ansible_facts['distribution'] }} | Alternative git installation (no sudo)"
+  when:
+    - not (can_install_packages | default(false))
+    - git_check.rc != 0
+  block:
+    - name: "Git | Create ~/.local/bin directory"
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: "Git | Download git from source (requires build tools)"
+      ansible.builtin.debug:
+        msg:
+          - "⚠️  Git is not installed and sudo is not available."
+
+          - ""
+
+          - "To install git manually:"
+
+          - "1. Download from: https://github.com/git/git/releases"
+
+          - "2. Or use a portable git binary"
+
+          - "3. Or ask your system administrator to install git"
+
+          - ""
+
+          - "Some dotfiles features will not work without git."
+- name: "Git | {{ ansible_facts['distribution'] }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      Git installation status:
+      - Already installed: {{ '✓' if git_check.rc == 0 else '✗' }}
+      - System install attempted: {{ '✓' if git_system_install is defined and git_system_install is succeeded else 'N/A' }}
+      - Sudo available: {{ '✓' if can_install_packages | default(false) else '✗' }}
+  when: git_check.rc != 0

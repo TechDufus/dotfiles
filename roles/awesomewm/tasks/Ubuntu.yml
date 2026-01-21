@@ -1,0 +1,247 @@
+---
+- name: "awesomewm | Ubuntu | Install AwesomeWM and dependencies"
+  ansible.builtin.apt:
+    name:
+      - awesome
+      - xdotool
+      - flameshot
+      - brightnessctl      # For brightness widget
+      - luarocks           # Lua package manager
+      - lua-json           # JSON library for weather widget
+      - thunar             # Lightweight file manager
+      - tumbler            # Thumbnail service for Thunar
+      - ristretto          # Lightweight image viewer (Xfce)
+      - curl               # For bemoji installation
+      - xclip              # Clipboard tool for bemoji and other apps
+      - rofi               # Application launcher, layout picker
+      - i3lock             # Screen locker
+      - playerctl          # Media key controls (play/pause/next/prev)
+      - pulseaudio-utils   # Provides pactl for mic mute
+      - libasound2-plugins # ALSA pulse plugin for volume widget (amixer -D pulse)
+      - x11-xserver-utils  # Provides xset for keyboard repeat rate
+      - flatpak            # Required for Discord, Spotify, Obsidian
+      - papirus-icon-theme # Icon theme for UI
+      - procps             # Provides top, free for widgets
+      - iproute2           # Provides ip command for network widgets
+      - copyq              # Clipboard manager (Super + v)
+      # Standalone settings tools (no GNOME deps)
+      - pavucontrol        # Audio/mic/speaker settings
+      - arandr             # Display/monitor layout
+      - lxappearance       # GTK themes/fonts/icons
+      - blueman            # Bluetooth manager
+      - xfce4-power-manager # Power/battery/screen timeout settings
+      - policykit-1-gnome  # Polkit auth agent for 1Password system auth
+      - network-manager-gnome # nm-applet for WiFi systray widget
+    state: present
+    update_cache: true
+  become: true
+
+- name: "awesomewm | Ubuntu | Add user to video group for backlight control"
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    groups: video
+    append: true
+  become: true
+
+- name: "awesomewm | Ubuntu | Install upower for battery time estimation"
+  ansible.builtin.apt:
+    name: upower
+    state: present
+  become: true
+
+- name: "awesomewm | Ubuntu | Install bemoji emoji picker"
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/marty-oehme/bemoji/main/bemoji
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/bemoji"
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Download bemoji emoji database"
+  ansible.builtin.shell: |
+    {{ ansible_facts['user_dir'] }}/.local/bin/bemoji -D all
+  args:
+    creates: "{{ ansible_facts['user_dir'] }}/.local/share/bemoji/emojis.txt"
+  become: false
+  changed_when: true
+  # bemoji -D outputs to stderr and returns exit code 1 even on success
+  failed_when: false
+
+- name: "awesomewm | Ubuntu | Download Flare launcher"
+  ansible.builtin.get_url:
+    url: https://github.com/ByteAtATime/flare/releases/download/v0.1.0/flare_0.1.0_amd64.AppImage
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/flare"
+    mode: "0755"
+  register: flare_download
+
+- name: "awesomewm | Ubuntu | Ensure ~/.config/awesome exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/awesome"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Clone awesome-wm-widgets repository"
+  ansible.builtin.git:
+    repo: https://github.com/streetturtle/awesome-wm-widgets.git
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/awesome-wm-widgets"
+    version: master
+    update: true
+
+- name: "awesomewm | Ubuntu | Clone awesome-cyclefocus module"
+  ansible.builtin.git:
+    repo: https://github.com/blueyed/awesome-cyclefocus.git
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/cyclefocus"
+    version: master
+    update: true
+
+- name: "awesomewm | Ubuntu | Deploy Cell Management Config"
+  ansible.builtin.copy:
+    src: "config/cell-management/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/cell-management/"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy Notifications Config"
+  ansible.builtin.copy:
+    src: "config/notifications/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/notifications/"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy wibar configuration"
+  ansible.builtin.copy:
+    src: "config/wibar.lua"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/wibar.lua"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy window switcher"
+  ansible.builtin.copy:
+    src: "config/window-switcher.lua"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/window-switcher.lua"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy icon resolver"
+  ansible.builtin.copy:
+    src: "config/icon-resolver.lua"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/icon-resolver.lua"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy Catppuccin Mocha Theme"
+  ansible.builtin.copy:
+    src: "config/themes/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/themes/"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy rc.lua"
+  ansible.builtin.copy:
+    src: "config/rc.lua"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/rc.lua"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Ensure rofi config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/rofi"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy rofi configuration"
+  ansible.builtin.copy:
+    src: "rofi/config.rasi"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/rofi/config.rasi"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy rofi Catppuccin theme"
+  ansible.builtin.copy:
+    src: "rofi/catppuccin-mocha.rasi"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/rofi/catppuccin-mocha.rasi"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Install GTK theme prerequisites"
+  ansible.builtin.apt:
+    name:
+      - sassc
+      - gnome-themes-extra
+      - gtk2-engines-murrine
+    state: present
+  become: true
+
+- name: "awesomewm | Ubuntu | Ensure ~/.themes directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.themes"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Download Catppuccin GTK install script"
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/catppuccin/gtk/main/install.py
+    dest: /tmp/catppuccin-gtk-install.py
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Install Catppuccin GTK Mocha theme"
+  ansible.builtin.shell: |
+    python3 /tmp/catppuccin-gtk-install.py mocha blue --dest {{ ansible_facts['user_dir'] }}/.themes
+  args:
+    creates: "{{ ansible_facts['user_dir'] }}/.themes/catppuccin-mocha-blue-standard+default"
+  changed_when: true
+
+- name: "awesomewm | Ubuntu | Ensure GTK3 config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/gtk-3.0"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Configure GTK3 dark theme"
+  ansible.builtin.copy:
+    content: |
+      [Settings]
+      gtk-theme-name=catppuccin-mocha-blue-standard+default
+      gtk-application-prefer-dark-theme=true
+      gtk-icon-theme-name=Papirus-Dark
+    dest: "{{ ansible_facts['user_dir'] }}/.config/gtk-3.0/settings.ini"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Ensure GTK4 config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/gtk-4.0"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Symlink GTK4 theme assets"
+  ansible.builtin.file:
+    src: "{{ ansible_facts['user_dir'] }}/.themes/catppuccin-mocha-blue-standard+default/gtk-4.0/{{ item }}"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/gtk-4.0/{{ item }}"
+    state: link
+    force: true
+  loop:
+    - assets
+    - gtk.css
+    - gtk-dark.css
+  ignore_errors: true
+
+- name: "awesomewm | Ubuntu | Ensure Flameshot config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/flameshot"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy Flameshot configuration"
+  ansible.builtin.copy:
+    src: "flameshot/flameshot.ini"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/flameshot/flameshot.ini"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Ensure CopyQ config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/copyq"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy CopyQ configuration"
+  ansible.builtin.copy:
+    src: "copyq/copyq.conf"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/copyq/copyq.conf"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy CopyQ commands"
+  ansible.builtin.copy:
+    src: "copyq/copyq-commands.ini"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/copyq/copyq-commands.ini"
+    mode: "0644"
+
+

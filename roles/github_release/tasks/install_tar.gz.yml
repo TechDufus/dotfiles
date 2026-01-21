@@ -1,0 +1,73 @@
+---
+# Install from tar.gz archive
+
+- name: Create extraction directory
+  ansible.builtin.file:
+    path: "{{ github_release_temp_dir }}/extract"
+    state: directory
+    mode: "0755"
+
+- name: "GitHub Release | {{ github_release_binary_name }} | Extract tar.gz archive"
+  ansible.builtin.shell:
+    cmd: "tar -xzf {{ github_release_temp_dir }}/{{ _github_release_asset_name }} -C {{ github_release_temp_dir }}/extract"
+  register: _github_release_extract
+
+- name: "GitHub Release | {{ github_release_binary_name }} | Find binary in extracted files"
+  ansible.builtin.find:
+    paths: "{{ github_release_temp_dir }}/extract"
+    patterns:
+      - "{{ github_release_binary_name }}"
+      - "{{ github_release_binary_name }}*"
+    file_type: file
+    recurse: true
+    excludes:
+      - "*.1"  # Exclude man pages
+      - "*.md"
+      - "*.txt"
+      - "*.yaml"
+      - "*.yml"
+  register: _github_release_binary_search
+
+- name: Find executable files only
+  ansible.builtin.shell:
+    cmd: |
+      find {{ github_release_temp_dir }}/extract -name "{{ github_release_binary_name }}*" -type f -perm /111 ! -name "*.sh" ! -name "*.1" | grep -E "({{ github_release_binary_name }}$|{{ github_release_binary_name }}_)" | head -1
+  register: _github_release_executable_search
+  changed_when: false
+  failed_when: false
+
+- name: Identify binary file
+  ansible.builtin.set_fact:
+    _github_release_binary_path: >-
+      {{
+        _github_release_executable_search.stdout |
+        default(
+          _github_release_binary_search.files |
+          selectattr('path', 'match', '.*/?' + github_release_binary_name + '$') |
+          map(attribute='path') |
+          first |
+          default('')
+        )
+      }}
+
+- name: "GitHub Release | {{ github_release_binary_name }} | Fail if binary not found"
+  when: _github_release_binary_path == ""
+  ansible.builtin.fail:
+    msg: "Could not find binary '{{ github_release_binary_name }}' in extracted archive"
+
+- name: "GitHub Release | {{ github_release_binary_name }} | Install binary"
+  ansible.builtin.copy:
+    src: "{{ _github_release_binary_path }}"
+    dest: "{{ github_release_install_path }}/{{ github_release_binary_name }}"
+    mode: "{{ github_release_install_mode }}"
+    owner: "{{ github_release_owner }}"
+    group: "{{ github_release_group }}"
+    remote_src: true
+  become: "{{ github_release_become }}"
+
+- name: Cleanup extracted files
+  when: github_release_cleanup
+  ansible.builtin.file:
+    path: "{{ github_release_temp_dir }}/extract"
+    state: absent
+  failed_when: false

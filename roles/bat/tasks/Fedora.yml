@@ -1,0 +1,38 @@
+---
+- name: BAT | Check if bat is installed
+  ansible.builtin.command: which bat
+  register: bat_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: BAT | Install from DNF repository
+  ansible.builtin.dnf:
+    name: bat
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - bat_check.rc != 0
+
+- name: BAT | Install from GitHub Release
+  when:
+    - not (can_install_packages | default(false)) and bat_check.rc != 0
+  block:
+    - name: BAT | Get current version
+      ansible.builtin.shell: >
+        curl --silent https://api.github.com/repos/sharkdp/bat/releases/latest |
+        grep '"tag_name":' |
+        sed -E 's/.*"([^"]+)".*/\1/' |
+        sed 's/v//'
+      register: bat_version
+      changed_when: false
+
+    - name: BAT | Install from GitHub Release using github_release role
+      ansible.builtin.include_role:
+        name: github_release
+      vars:
+        github_release_repo: "sharkdp/bat"
+        github_release_binary_name: "bat"
+        github_release_asset_name_pattern: "bat-v{{ bat_version.stdout }}-x86_64-unknown-linux-musl.tar.gz"
+        github_release_extract_subpath: "bat-v{{ bat_version.stdout }}-x86_64-unknown-linux-musl/bat"

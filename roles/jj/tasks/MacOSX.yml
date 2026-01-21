@@ -1,0 +1,5 @@
+---
+- name: "JJ | MacOSX | Install jj"
+  community.general.homebrew:
+    name: jj
+    state: present

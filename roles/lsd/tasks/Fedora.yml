@@ -1,0 +1,46 @@
+---
+# LSD (LSDeluxe) installation for Fedora/RHEL
+
+- name: "LSD | {{ ansible_facts['distribution'] }} | Check if lsd is installed"
+  ansible.builtin.command: which lsd
+  register: lsd_check
+  changed_when: false
+  failed_when: false
+
+# Try system package first (lsd is available in Fedora repos)
+- name: "LSD | {{ ansible_facts['distribution'] }} | Install from system package"
+  ansible.builtin.dnf:
+    name: lsd
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - lsd_check.rc != 0
+  register: lsd_system_install
+  failed_when: false
+
+# Fallback to GitHub release if system package fails or no sudo
+- name: "LSD | {{ ansible_facts['distribution'] }} | Install from GitHub Release"
+  when: 
+    - lsd_check.rc != 0
+    - (not (can_install_packages | default(false))) or (lsd_system_install is failed)
+  ansible.builtin.include_role:
+    name: github_release
+  vars:
+    github_release_repo: "lsd-rs/lsd"
+    github_release_binary_name: "lsd"
+    github_release_asset_name_pattern: "lsd-.*-{{ ansible_architecture | replace('x86_64', 'x86_64') | replace('aarch64', 'aarch64') }}-unknown-linux-gnu.tar.gz"
+    github_release_check_command: "lsd --version"
+    github_release_version_pattern: 'lsd ([0-9]+\.[0-9]+\.[0-9]+)'
+    github_release_install_dir: "{{ '~/.local/bin' if not (can_install_packages | default(false)) else '/usr/local/bin' }}"
+    github_release_binary_mode: "0755"
+    github_release_requires_sudo: "{{ can_install_packages | default(false) }}"
+
+- name: "LSD | {{ ansible_facts['distribution'] }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      LSD installation status:
+      - Already installed: {{ '✓' if lsd_check.rc == 0 else '✗' }}
+      - System package: {{ '✓' if lsd_system_install is defined and lsd_system_install is succeeded else 'N/A or failed' }}
+      - GitHub release: {{ '✓' if lsd_system_install is not defined or lsd_system_install is failed else 'N/A' }}
+      - Location: {{ 'System package' if lsd_system_install is defined and lsd_system_install is succeeded else ('/usr/local/bin/lsd' if can_install_packages | default(false) else '~/.local/bin/lsd') if lsd_check.rc != 0 else 'Pre-existing' }}

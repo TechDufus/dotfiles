@@ -1,0 +1,187 @@
+---
+# Comprehensive sudo detection for cross-platform compatibility
+# Sets facts that can be used throughout the playbook to handle privilege escalation
+
+- name: Initialize sudo detection variables
+  set_fact:
+    has_sudo: false
+    sudo_method: 'none'
+    sudo_requires_password: true
+    can_install_packages: false
+    sudo_test_command: 'echo "sudo test successful"'
+    detected_package_manager: ''
+    privilege_escalation_available: false
+
+- name: Detect package manager based on OS
+  block:
+    - name: Set package manager for macOS
+      set_fact:
+        detected_package_manager: brew
+      when:
+        - ansible_facts['distribution'] == 'MacOSX'
+        - ansible_facts['system'] == 'Darwin'
+
+    - name: Set package manager for Ubuntu/Debian
+      set_fact:
+        detected_package_manager: apt
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
+
+    - name: Set package manager for Arch
+      set_fact:
+        detected_package_manager: pacman
+      when: ansible_facts['distribution'] == 'Archlinux'
+
+    - name: Set package manager for modern Fedora/RHEL
+      set_fact:
+        detected_package_manager: dnf
+      when:
+        - ansible_facts['distribution'] in ['Fedora', 'RedHat', 'CentOS', 'AlmaLinux', 'Rocky']
+        - ansible_facts['distribution'] == 'Fedora' or ansible_facts['distribution_major_version'] | int >= 8
+
+    - name: Set package manager for older RHEL/CentOS
+      set_fact:
+        detected_package_manager: yum
+      when:
+        - ansible_facts['distribution'] in ['RedHat', 'CentOS']
+        - ansible_facts['distribution_major_version'] | int < 8
+
+    - name: Verify detected package manager exists
+      command: "which {{ detected_package_manager }}"
+      register: pm_check
+      changed_when: false
+      failed_when: false
+      when: detected_package_manager is defined and detected_package_manager != ''
+
+    - name: Reset package manager if not found
+      set_fact:
+        detected_package_manager: none
+      when:
+        - pm_check is defined
+        - pm_check.rc is defined
+        - pm_check.rc != 0
+
+- name: Test passwordless sudo
+  block:
+    - name: Test sudo without password
+      command: sudo -n {{ sudo_test_command }}
+      register: sudo_nopass_test
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Set passwordless sudo facts
+      set_fact:
+        has_sudo: true
+        sudo_method: 'sudo'
+        sudo_requires_password: false
+        privilege_escalation_available: true
+      when: sudo_nopass_test.rc == 0
+
+- name: Test sudo with cached credentials
+  when: not has_sudo
+  block:
+    - name: Check if sudo credentials are cached
+      command: sudo -v
+      register: sudo_cached_test
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Test sudo with potentially cached password
+      command: sudo {{ sudo_test_command }}
+      register: sudo_cached_exec
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+      when: sudo_cached_test.rc == 0
+      no_log: true
+
+    - name: Set sudo with cached credentials facts
+      set_fact:
+        has_sudo: true
+        sudo_method: 'sudo'
+        sudo_requires_password: true
+        privilege_escalation_available: true
+      when:
+        - sudo_cached_test.rc == 0
+        - sudo_cached_exec.rc == 0
+
+- name: Test alternative privilege escalation methods
+  when: not has_sudo
+  block:
+    - name: Test doas (OpenBSD/some Linux)
+      command: doas {{ sudo_test_command }}
+      register: doas_test
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Set doas facts
+      set_fact:
+        has_sudo: true
+        sudo_method: 'doas'
+        sudo_requires_password: "{{ 'password' in doas_test.stderr | default('') }}"
+        privilege_escalation_available: true
+      when: doas_test.rc == 0
+
+    - name: Test pkexec (PolicyKit)
+      command: pkexec --disable-internal-agent {{ sudo_test_command }}
+      register: pkexec_test
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+      when: not has_sudo
+      no_log: true
+
+    - name: Set pkexec facts (but use sudo for Ansible)
+      set_fact:
+        has_sudo: true
+        sudo_method: 'sudo'  # Use sudo for Ansible even if pkexec works
+        sudo_requires_password: true
+        privilege_escalation_available: true
+      when:
+        - not has_sudo
+        - pkexec_test.rc == 0
+
+- name: Determine package installation capability
+  set_fact:
+    can_install_packages: >-
+      {{ (detected_package_manager == 'brew') or
+         (has_sudo and detected_package_manager in ['apt', 'pacman', 'dnf', 'yum']) }}
+
+- name: Display privilege escalation detection results
+  debug:
+    msg:
+      - "=== Privilege Escalation Detection Results ==="
+      - "Has sudo/privilege access: {{ has_sudo }}"
+      - "Method available: {{ sudo_method }}"
+      - "Requires password: {{ sudo_requires_password }}"
+      - "Package manager: {{ detected_package_manager }}"
+      - "Can install packages: {{ can_install_packages }}"
+      - "============================================="
+
+- name: Set Ansible become method based on detection
+  set_fact:
+    ansible_become_method: >-
+      {%- if sudo_method == 'doas' -%}doas
+      {%- elif sudo_method == 'sudo' -%}sudo
+      {%- else -%}sudo{%- endif -%}
+  when: has_sudo
+
+- name: Note about Homebrew and sudo
+  debug:
+    msg: "Note: Homebrew on macOS does not require or accept sudo. Package installation is possible without privilege escalation."
+  when:
+    - detected_package_manager == 'brew'
+    - ansible_facts['distribution'] == 'MacOSX'
+
+- name: Warning when no privilege escalation available
+  debug:
+    msg:
+      - "⚠️  WARNING: No privilege escalation method detected!"
+      - "The playbook will continue but some tasks may be skipped."
+      - "Package installation and system modifications will not be possible."
+  when: not has_sudo

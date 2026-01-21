@@ -1,0 +1,5 @@
+---
+- name: "{{ role_name }} | MacOSX | Install bun via Homebrew"
+  community.general.homebrew:
+    name: bun
+    state: present

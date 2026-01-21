@@ -1,6 +1,6 @@
 ---
 # Install rustup on Archlinux
-- name: "Rust | {{ ansible_distribution }} | Install rustup"
+- name: "Rust | {{ ansible_facts['distribution'] }} | Install rustup"
   community.general.pacman:
     name: rustup
     state: present

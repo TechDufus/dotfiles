@@ -8,6 +8,10 @@ if is_ssh_session; then
   export TERM=xterm-256color
 fi
 
+# Set default editor for OpenCode and other tools
+export EDITOR="nvim"
+export VISUAL="nvim"
+
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
 # if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
@@ -40,6 +44,8 @@ zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-autosuggestions
 zinit light Aloxaf/fzf-tab
 # zinit ice depth=1; zinit light jeffreytse/zsh-vi-mode
+# zsh-fzf-history-search
+zinit ice lucid wait'0'; zinit light joshskidmore/zsh-fzf-history-search
 
 # Add in snippets
 # Needed for loading next git.zsh without [_defer_async_git_register:4: command not found: _omz_register_handler errors]
@@ -60,6 +66,7 @@ zinit snippet OMZP::command-not-found
 autoload -U +X bashcompinit && bashcompinit
 autoload -Uz compinit && compinit
 
+# Let zinit replay its captured completions
 zinit cdreplay -q
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
@@ -97,7 +104,7 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
 zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
 
 
-# All custom functions
+# All custom functions and completions
 for file in $HOME/.config/zsh/*.zsh; do
   source "$file"
 done
@@ -108,13 +115,10 @@ if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 # Shell integrations
 if [[ -f ~/.fzf.zsh ]]; then
   source ~/.fzf.zsh
+  eval "$(fzf --zsh)"
 fi
-eval "$(fzf --zsh)"
 # zi is defined by zinit as alias zi='zinit'. Unalias it to use with zoxide
-# unalias zi
-# eval "$(zoxide init zsh)"
-# eval "$(gh copilot alias -- zsh)"
+unalias zi
+eval "$(zoxide init zsh)"
 
-# export OMP_DECORATE_ALIASES=0
-# eval "$(oh-my-posh init zsh --config ~/.config/oh-my-posh/themes/craver.json)"
 eval "$(starship init zsh)"

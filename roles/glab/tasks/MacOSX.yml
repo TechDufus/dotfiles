@@ -1,0 +1,5 @@
+---
+- name: "{{ role_name }} | MacOSX | Install GitLab CLI"
+  community.general.homebrew:
+    name: glab
+    state: present

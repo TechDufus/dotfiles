@@ -1,0 +1,40 @@
+---
+# Install from .rpm package
+
+- name: Check for dnf
+  ansible.builtin.command:
+    cmd: which dnf
+  register: _github_release_dnf_check
+  changed_when: false
+  failed_when: false
+
+- name: Check for yum
+  when: _github_release_dnf_check.rc != 0
+  ansible.builtin.command:
+    cmd: which yum
+  register: _github_release_yum_check
+  changed_when: false
+  failed_when: false
+
+- name: Install .rpm package with dnf
+  when: _github_release_dnf_check.rc == 0
+  ansible.builtin.dnf:
+    name: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
+    state: present
+  become: "{{ github_release_become }}"
+
+- name: Install .rpm package with yum
+  when:
+    - _github_release_dnf_check.rc != 0
+    - _github_release_yum_check.rc == 0
+  ansible.builtin.yum:
+    name: "{{ github_release_temp_dir }}/{{ _github_release_asset_name }}"
+    state: present
+  become: "{{ github_release_become }}"
+
+- name: Fail if no RPM package manager found
+  when:
+    - _github_release_dnf_check.rc != 0
+    - _github_release_yum_check.rc != 0
+  ansible.builtin.fail:
+    msg: "No RPM package manager (dnf/yum) found"

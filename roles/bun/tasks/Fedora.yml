@@ -1,0 +1,33 @@
+---
+- name: "{{ role_name }} | Fedora | Ensure unzip is installed"
+  ansible.builtin.dnf:
+    name: unzip
+    state: present
+  become: true
+  when: has_sudo | default(false)
+
+- name: "{{ role_name }} | Fedora | Check if bun is installed"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+  register: bun_installed
+
+- name: "{{ role_name }} | Fedora | Get installed bun version"
+  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun --version"
+  register: bun_current_version
+  changed_when: false
+  failed_when: false
+  when: bun_installed.stat.exists
+
+- name: "{{ role_name }} | Fedora | Install bun via official script"
+  ansible.builtin.shell: |
+    set -o pipefail && curl -fsSL https://bun.sh/install | bash
+  args:
+    executable: /bin/bash
+    creates: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+
+- name: "{{ role_name }} | Fedora | Upgrade bun if installed"
+  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun upgrade"
+  when: bun_installed.stat.exists
+  register: bun_upgrade_result
+  changed_when: "'already at latest' not in bun_upgrade_result.stdout"
+  failed_when: false

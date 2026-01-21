@@ -2,24 +2,136 @@
 - name: "NVM | Download Latest Version JSON"
   ansible.builtin.uri:
     url: https://api.github.com/repos/nvm-sh/nvm/releases/latest
+    headers:
+      Accept: application/vnd.github.v3+json
   register: nvm_latest_version_json
   changed_when: false
+  failed_when: false
+  check_mode: false  # Always run this task even in check mode
 
-- name: "NVM | Registering NVM Latest Release"
+- name: "NVM | Check if API request succeeded"
+  ansible.builtin.fail:
+    msg: "Failed to fetch NVM latest version from GitHub API. Status: {{ nvm_latest_version_json.status | default('unknown') }}. You may be rate limited or have network issues."
+  when: 
+    - nvm_latest_version_json.json is not defined or nvm_latest_version_json.status != 200
+    - not (nvm_latest_version_json.skipped | default(false))  # Don't fail if task was skipped
+
+- name: "NVM | Set fallback version if in check mode and API call was skipped"
+  ansible.builtin.set_fact:
+    nvm_latest_release: "{{ nvm_fallback_version }}"
+  when: 
+    - nvm_latest_version_json.skipped | default(false)
+    - ansible_check_mode
+
+- name: "NVM | Registering NVM Latest Release from API"
   ansible.builtin.set_fact:
     nvm_latest_release: "{{ nvm_latest_version_json.json.tag_name }}"
-
-- name: "NVM | Registering NVM Latest Version"
-  ansible.builtin.set_fact:
-    nvm_latest_version: "{{ nvm_latest_release.stdout | default('') }}"
+  when: 
+    - nvm_latest_version_json.json is defined
+    - nvm_latest_version_json.status == 200
 
 - name: NVM | Show nvm_latest_release debug
   ansible.builtin.debug:
     var: nvm_latest_release
 
-- name: Install nvm
+- name: "NVM | Check current nvm version"
+  ansible.builtin.shell: |
+    if [ -f "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh" ]; then
+      cd "{{ ansible_facts['env']['HOME'] }}/.nvm" && git describe --tags 2>/dev/null || echo "none"
+    else
+      echo "not-installed"
+    fi
+  register: current_nvm_version
+  changed_when: false
+  check_mode: false
+
+- name: "NVM | Install or update nvm"
   ansible.builtin.shell: >
     set -o pipefail && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/{{ nvm_latest_release }}/install.sh | bash
   args:
-    creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+    creates: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
     executable: /bin/bash
+  when: 
+    - nvm_latest_release is defined
+    - current_nvm_version.stdout == "not-installed" or current_nvm_version.stdout != nvm_latest_release
+  register: nvm_install_result
+
+- name: "NVM | Get normalized Node.js version"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    # Convert lts/* to actual version number
+    if [ "{{ nvm_node_version }}" = "lts/*" ]; then
+      nvm ls-remote --lts | tail -1 | awk '{print $1}'
+    else
+      echo "{{ nvm_node_version }}"
+    fi
+  args:
+    executable: /bin/bash
+  register: node_version_normalized
+  changed_when: false
+  when: nvm_install_result is not changed or nvm_install_result is skipped
+
+- name: "NVM | Check if Node.js version is already installed"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
+  register: node_version_installed
+  when: node_version_normalized is not skipped
+
+- name: "NVM | Install Node.js version"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm install {{ nvm_node_version }}
+  args:
+    executable: /bin/bash
+    creates: "{{ ansible_facts['env']['HOME'] }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
+  when: 
+    - node_version_normalized is not skipped
+    - not (node_version_installed.stat.exists | default(false))
+  register: node_install_result
+
+- name: "NVM | Check current default Node.js version"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm alias default 2>/dev/null | grep -oE 'default -> (.+)' | sed 's/default -> //' || echo "none"
+  args:
+    executable: /bin/bash
+  register: current_default_node
+  changed_when: false
+  when: nvm_set_default | bool
+
+- name: "NVM | Set default Node.js version"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm alias default {{ nvm_node_version }}
+  args:
+    executable: /bin/bash
+  when: 
+    - nvm_set_default | bool
+    - current_default_node is not skipped
+    - current_default_node.stdout != nvm_node_version
+  register: set_default_result
+  changed_when: true
+
+- name: "NVM | Verify Node.js installation"
+  ansible.builtin.shell: |
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    echo "Node: $(node --version 2>/dev/null || echo 'not found')"
+    echo "npm: $(npm --version 2>/dev/null || echo 'not found')"
+    echo "nvm: $(nvm --version 2>/dev/null || echo 'not found')"
+  args:
+    executable: /bin/bash
+  register: version_check
+  changed_when: false
+  check_mode: false
+
+- name: "NVM | Display installation info"
+  ansible.builtin.debug:
+    msg: |
+      NVM installation complete:
+      {{ version_check.stdout }}
+      Changes made: {{ (nvm_install_result is changed) or (node_install_result is changed) or (set_default_result is changed) }}

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+options=(
+  style=round
+  width=10.0
+
+  # Main color options
+  active_color="glow(0xff74c7ec)" # Catppuccin Sapphire - deep blue glow
+  inactive_color=0xff45475a      # Catppuccin Surface0
+
+  # Catppuccin Mocha themed glows (uncomment to use)
+  # active_color="glow(0xfff5c2e7)"  # Catppuccin Pink - soft pink glow
+  # active_color="glow(0xffcba6f7)"  # Catppuccin Mauve - purple glow
+  # active_color="glow(0xfff38ba8)"  # Catppuccin Red - vibrant red glow
+  # active_color="glow(0xffeba0ac)"  # Catppuccin Maroon - muted red glow
+  # active_color="glow(0xfffab387)"  # Catppuccin Peach - warm orange glow
+  # active_color="glow(0xfff9e2af)"  # Catppuccin Yellow - golden glow
+  # active_color="glow(0xffa6e3a1)"  # Catppuccin Green - nature glow
+  # active_color="glow(0xff94e2d5)"  # Catppuccin Teal - ocean glow
+  # active_color="glow(0xff89dceb)"  # Catppuccin Sky - bright cyan glow
+  # active_color="glow(0xff74c7ec)"  # Catppuccin Sapphire - deep blue glow
+  # active_color="glow(0xff89b4fa)"  # Catppuccin Blue - classic blue glow
+  # active_color="glow(0xffb4befe)"  # Catppuccin Lavender - soft purple glow
+
+  # Catppuccin gradients (uncomment to use)
+  # active_color="gradient(top_left=0xfff5c2e7,bottom_right=0xff89dceb)"  # Pink to Sky
+  # active_color="gradient(top_left=0xffcba6f7,bottom_right=0xff94e2d5)"  # Mauve to Teal
+  # active_color="gradient(top_left=0xfffab387,bottom_right=0xffa6e3a1)"  # Peach to Green
+
+  # Display options
+  hidpi=on  # Use retina resolution for borders
+
+  # Optional: Background fill (creates a subtle tint behind windows)
+  # background_fill_color=0x10000000  # Very subtle black tint
+
+  # Optional: Use accessibility API for more accurate focus detection (slower)
+  # ax_focus=on
+
+  # Optional: Application filtering
+  # blacklist="Finder,Preview"  # Don't show borders on these apps
+  # whitelist="kitty,Ghostty,Terminal"  # Only show borders on these apps
+)
+
+borders "${options[@]}"

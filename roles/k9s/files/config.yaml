@@ -18,7 +18,7 @@ k9s:
     # Disabling this allows for highlighting text / logs for copying.
     enableMouse: false
     # Set to true to hide K9s header. Default false
-    headless: false
+    headless: true
     # Set to true to hide the K9S logo Default false
     logoless: true
     # Set to true to hide K9s crumbs. Default false

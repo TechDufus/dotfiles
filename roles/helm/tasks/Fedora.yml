@@ -1,0 +1,107 @@
+---
+# Helm installation for Fedora/RHEL
+
+- name: "Helm | {{ ansible_facts['distribution'] }} | Check if helm is installed"
+  ansible.builtin.command: which helm
+  register: helm_check
+  changed_when: false
+  failed_when: false
+
+# Try system package first (helm is in Fedora repos)
+- name: "Helm | {{ ansible_facts['distribution'] }} | Install from system package"
+  ansible.builtin.dnf:
+    name: helm
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - helm_check.rc != 0
+  register: helm_system_install
+
+# Alternative: Install from official script or GitHub release
+- name: "Helm | {{ ansible_facts['distribution'] }} | Install using official method"
+  when:
+    - helm_check.rc != 0
+    - not (can_install_packages | default(false)) or (helm_system_install is defined and helm_system_install is failed)
+  block:
+    - name: "Helm | Get System Arch"
+      ansible.builtin.set_fact:
+        helm_arch: "{{ ansible_facts['machine'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+
+    - name: "Helm | Get latest version"
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/helm/helm/releases/latest
+      register: helm_latest_version_json
+      changed_when: false
+
+    - name: "Helm | Set latest version"
+      ansible.builtin.set_fact:
+        helm_latest_version: "{{ helm_latest_version_json.json.tag_name }}"
+
+    - name: "Helm | Define helm package"
+      ansible.builtin.set_fact:
+        helm_package: "helm-{{ helm_latest_version }}-{{ ansible_facts['system'] | lower }}-{{ helm_arch }}.tar.gz"
+
+    - name: "Helm | Download Helm"
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/{{ helm_package }}"
+        dest: "/tmp/{{ helm_package }}"
+        mode: "0644"
+
+    - name: "Helm | Extract helm archive"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ helm_package }}"
+        dest: /tmp
+        remote_src: true
+
+    - name: "Helm | Install helm (system-wide)"
+      ansible.builtin.copy:
+        remote_src: true
+        src: "/tmp/{{ ansible_facts['system'] | lower }}-{{ helm_arch }}/helm"
+        dest: /usr/local/bin/helm
+        mode: "0755"
+      become: true
+      when: can_install_packages | default(false)
+
+    - name: "Helm | Install helm (user-local)"
+      when: not (can_install_packages | default(false))
+      block:
+        - name: "Helm | Create ~/.local/bin directory"
+          ansible.builtin.file:
+            path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+            state: directory
+            mode: '0755'
+
+        - name: "Helm | Install helm to user directory"
+          ansible.builtin.copy:
+            remote_src: true
+            src: "/tmp/{{ ansible_facts['system'] | lower }}-{{ helm_arch }}/helm"
+            dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/helm"
+            mode: "0755"
+
+    - name: "Helm | Cleanup"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/{{ helm_package }}"
+        - "/tmp/{{ ansible_facts['system'] | lower }}-{{ helm_arch }}"
+
+- name: "Helm | {{ ansible_facts['distribution'] }} | Initialize helm"
+  ansible.builtin.shell: |
+    {% if not (can_install_packages | default(false)) %}
+    export PATH="${HOME}/.local/bin:${PATH}"
+    {% endif %}
+    helm version
+  register: helm_version
+  changed_when: false
+
+- name: "Helm | {{ ansible_facts['distribution'] }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      Helm installation status:
+      - Already installed: {{ '✓' if helm_check.rc == 0 else '✗' }}
+      - System package: {{ '✓' if helm_system_install is defined and helm_system_install is succeeded else 'N/A or failed' }}
+      - Official installer: {{ '✓' if helm_check.rc != 0 and (not (can_install_packages | default(false)) or (helm_system_install is defined and helm_system_install is failed)) else 'N/A' }}
+      - Version: {{ helm_version.stdout if helm_version is defined else 'Unknown' }}
+      - Location: {{ '/usr/local/bin/helm' if can_install_packages | default(false) else '~/.local/bin/helm' }}

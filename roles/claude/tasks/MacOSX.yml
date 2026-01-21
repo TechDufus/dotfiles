@@ -1,0 +1,15 @@
+---
+- name: "{{ role_name }} | MacOSX | Check if claude is installed"
+  ansible.builtin.command: which claude
+  register: claude_installed
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | MacOSX | Install Claude Code via official script"
+  ansible.builtin.shell: curl -fsSL https://claude.ai/install.sh | bash
+  when: claude_installed.rc != 0
+
+- name: "{{ role_name }} | MacOSX | Install lua-language-server via Homebrew"
+  community.general.homebrew:
+    name: lua-language-server
+    state: present

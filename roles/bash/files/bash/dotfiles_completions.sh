@@ -2,16 +2,41 @@
 
 DOTFILES_ROLES_DIR="$HOME/.dotfiles/roles"
 
-# Function to handle tab completion
-_complete_tags() {
-    local cur_word tags_list
-    cur_word="${COMP_WORDS[COMP_CWORD]}"
-    tags_list=$(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -printf "%f\n")
-
-    COMPREPLY=($(compgen -W "${tags_list}" -- "${cur_word}"))
+# Function to handle tab completion for dotfiles
+_dotfiles() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    
+    # Main options
+    opts="-h --help --version -t --skip-tags --uninstall --delete --check --list-tags -v -vv -vvv"
+    
+    case "${prev}" in
+        -t|--skip-tags)
+            # All roles
+            local roles=$(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -exec basename {} \; | grep -v '^roles$' | sort)
+            COMPREPLY=($(compgen -W "${roles}" -- ${cur}))
+            return 0
+            ;;
+        --uninstall)
+            # Only roles with uninstall.sh
+            local uninstallable=$(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -exec test -f {}/uninstall.sh \; -print | xargs -n1 basename | sort)
+            COMPREPLY=($(compgen -W "${uninstallable}" -- ${cur}))
+            return 0
+            ;;
+        --delete)
+            # All roles (delete works with or without uninstall.sh)
+            local roles=$(find "$DOTFILES_ROLES_DIR" -maxdepth 1 -type d -exec basename {} \; | grep -v '^roles$' | sort)
+            COMPREPLY=($(compgen -W "${roles}" -- ${cur}))
+            return 0
+            ;;
+    esac
+    
+    # If no special case, show main options
+    COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
 }
 
-# Register the completion function for the -t flag
-# This isn't perfect, as -t and --skip-tags show up in the completion list
-complete -F _complete_tags -o nospace -W "-t --skip-tags" dotfiles
+# Register the completion function
+complete -F _dotfiles dotfiles
 

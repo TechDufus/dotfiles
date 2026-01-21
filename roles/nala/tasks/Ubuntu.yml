@@ -16,7 +16,7 @@
     nala_is_installed: false
   when: nala_cmd.stdout|length == 0
 
-- name: "Nala | Install Nala APT Repo"
+- name: "Nala | Install Nala APT Repo (for older Ubuntu)"
   block:
     - name: "Nala | Add nala repo gpg key"
       apt_key:
@@ -30,19 +30,36 @@
         state: present
 
   become: true
-  when: not nala_is_installed
+  when: 
+    - not nala_is_installed
+    - ansible_facts['distribution_major_version']|int < 24
 
-- name: "Nala | Install Nala"
+- name: "Nala | Install Nala (Ubuntu 24+)"
   ansible.builtin.apt:
     name: nala
     state: present
+    update_cache: true
   become: true
-  when: ansible_distribution_major_version == "22"
+  when: 
+    - not nala_is_installed
+    - ansible_facts['distribution_major_version']|int >= 24
 
-- name: "Nala | Install Nala-legacy"
+- name: "Nala | Install Nala (Ubuntu 22)"
+  ansible.builtin.apt:
+    name: nala
+    state: present
+    update_cache: true
+  become: true
+  when: 
+    - not nala_is_installed
+    - ansible_facts['distribution_major_version'] == "22"
+
+- name: "Nala | Install Nala-legacy (Ubuntu 20)"
   apt:
     name: nala-legacy
     state: present
     update_cache: true
   become: true
-  when: ansible_distribution_major_version == "20"
+  when: 
+    - not nala_is_installed
+    - ansible_facts['distribution_major_version'] == "20"

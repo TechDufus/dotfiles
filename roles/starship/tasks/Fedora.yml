@@ -1,0 +1,70 @@
+---
+# Starship prompt installation for Fedora/RHEL
+
+- name: "Starship | {{ ansible_facts['distribution'] }} | Check if starship is installed"
+  ansible.builtin.command: which starship
+  register: starship_check
+  changed_when: false
+  failed_when: false
+
+# Try system package first (starship might be in some repos)
+- name: "Starship | {{ ansible_facts['distribution'] }} | Try system package"
+  ansible.builtin.dnf:
+    name: starship
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - starship_check.rc != 0
+  register: starship_system_install
+  failed_when: false
+
+# Use official installer script when system package not available
+- name: "Starship | {{ ansible_facts['distribution'] }} | Install using official script"
+  when:
+    - starship_check.rc != 0
+    - can_install_packages | default(false)
+    - starship_system_install is failed or starship_system_install is skipped
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://starship.rs/install.sh | sudo sh -s -- --force
+  args:
+    creates: /usr/local/bin/starship
+
+# Alternative installation without sudo
+- name: "Starship | {{ ansible_facts['distribution'] }} | Install to user directory (no sudo)"
+  when:
+    - starship_check.rc != 0
+    - not (can_install_packages | default(false))
+  block:
+    - name: "Starship | Create ~/.local/bin directory"
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: "Starship | Download and install to user directory"
+      ansible.builtin.shell:
+        cmd: |
+          curl -fsSL https://starship.rs/install.sh | \
+          sh -s -- --bin-dir {{ ansible_facts['env']['HOME'] }}/.local/bin --force
+      args:
+        creates: "{{ ansible_facts['env']['HOME'] }}/.local/bin/starship"
+
+    - name: "Starship | Ensure ~/.local/bin is in PATH"
+      ansible.builtin.debug:
+        msg:
+          - "⚠️  Starship installed to ~/.local/bin/"
+
+          - ""
+
+          - "Make sure ~/.local/bin is in your PATH by adding to your shell config:"
+
+          - 'export PATH="$HOME/.local/bin:$PATH"'
+- name: "Starship | {{ ansible_facts['distribution'] }} | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      Starship installation status:
+      - Already installed: {{ '✓' if starship_check.rc == 0 else '✗' }}
+      - System package: {{ '✓' if starship_system_install is defined and starship_system_install is succeeded else 'N/A or failed' }}
+      - Official installer: {{ '✓' if starship_check.rc != 0 else 'N/A' }}
+      - Sudo available: {{ '✓' if can_install_packages | default(false) else '✗ (installed to user directory)' }}

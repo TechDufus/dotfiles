@@ -1,0 +1,34 @@
+---
+- name: "{{ role_name }} | Ubuntu | Ensure unzip is installed"
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+    update_cache: true
+  become: true
+  when: has_sudo | default(false)
+
+- name: "{{ role_name }} | Ubuntu | Check if bun is installed"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+  register: bun_installed
+
+- name: "{{ role_name }} | Ubuntu | Get installed bun version"
+  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun --version"
+  register: bun_current_version
+  changed_when: false
+  failed_when: false
+  when: bun_installed.stat.exists
+
+- name: "{{ role_name }} | Ubuntu | Install bun via official script"
+  ansible.builtin.shell: |
+    set -o pipefail && curl -fsSL https://bun.sh/install | bash
+  args:
+    executable: /bin/bash
+    creates: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+
+- name: "{{ role_name }} | Ubuntu | Upgrade bun if installed"
+  ansible.builtin.command: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun upgrade"
+  when: bun_installed.stat.exists
+  register: bun_upgrade_result
+  changed_when: "'already at latest' not in bun_upgrade_result.stdout"
+  failed_when: false

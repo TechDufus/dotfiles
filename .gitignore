@@ -1,7 +1,50 @@
 vault-password.txt
-/callback_plugins/__pycache__
+
+# Python cache directories
+__pycache__/
+*.pyc
+*.pyo
 
 roles/neovim/files/lazy-lock.json
 
 .DS_Store
 *.DS_Store
+
+# Company-specific Claude commands (not for public repo)
+roles/claude/files/commands/raft/
+roles/claude/files/skills/rafty
+roles/claude/files/commands/raft-*.md
+roles/claude/files/agents/raft-*.md
+
+# Crush directory
+.crush/
+
+# Claude session snapshots (personal work state)
+.claude/snapshots/
+
+# Ansible cache/runtime directories
+.ansible/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+# Dependency directories
+node_modules/
+# Environment variables
+.env
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Task files
+tasks.json

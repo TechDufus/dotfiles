@@ -1,0 +1,49 @@
+---
+# GitHub Release Downloader Role Defaults
+
+# Required variables (must be provided when including this role)
+github_release_repo: ""  # Format: "owner/repo"
+github_release_binary_name: ""  # The name of the binary to install
+
+# Optional variables with sensible defaults
+github_release_tag: "latest"  # Use "latest" or specific tag like "v1.2.3"
+github_release_install_path: "/usr/local/bin"  # Where to install the binary
+github_release_install_mode: "0755"  # File permissions for the binary
+github_release_check_command: "{{ github_release_binary_name }} --version"  # Command to check version
+github_release_version_pattern: "[0-9]+\\.[0-9]+\\.[0-9]+"  # Regex to extract version
+github_release_force_install: false  # Force reinstall even if already installed
+
+# Asset selection
+github_release_asset_name_pattern: ""  # If empty, will auto-detect based on OS/arch
+github_release_asset_type: "auto"  # Options: auto, tar.gz, zip, deb, rpm, binary, AppImage
+
+# Platform detection (automatically set, can be overridden)
+github_release_os: "{{ ansible_facts['system'] | lower }}"  # linux, darwin, windows
+github_release_arch: "{{ ansible_facts['machine'] }}"  # x86_64, aarch64, arm64, etc.
+
+# Asset naming patterns (used for auto-detection)
+github_release_os_map:
+  linux: ["linux", "Linux"]
+  darwin: ["darwin", "Darwin", "macos", "macOS", "osx"]
+  windows: ["windows", "Windows", "win"]
+
+github_release_arch_map:
+  x86_64: ["x86_64", "amd64", "x64", "64-bit"]
+  aarch64: ["aarch64", "arm64", "ARM64"]
+  armv7l: ["armv7", "arm", "ARM"]
+  i386: ["i386", "i686", "x86", "32-bit"]
+
+# Temporary directory for downloads
+github_release_temp_dir: "/tmp"
+
+# Installation options
+github_release_become: true  # Use sudo for installation
+github_release_owner: "{{ ansible_facts['user_id'] | default('root') }}"
+github_release_group: "{{ ansible_facts['user_gid'] | default(ansible_facts['user_id']) | default('root') }}"
+
+# Cleanup
+github_release_cleanup: true  # Clean up downloaded files after installation
+
+# Extra options
+github_release_strip_components: 1  # For tar archives, number of path components to strip
+github_release_extract_subpath: ""  # Specific path within archive to extract from

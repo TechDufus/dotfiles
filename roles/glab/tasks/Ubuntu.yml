@@ -1,0 +1,26 @@
+---
+- name: "{{ role_name }} | Ubuntu | Check if glab is installed"
+  ansible.builtin.command: which glab
+  register: glab_check
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Ubuntu | Install GitLab CLI via script"
+  ansible.builtin.shell: |
+    curl -s https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh | sudo bash
+  args:
+    creates: /usr/local/bin/glab
+  become: true
+  when: 
+    - glab_check.rc != 0
+    - can_install_packages | default(false)
+
+- name: "{{ role_name }} | Ubuntu | Manual installation instructions"
+  ansible.builtin.debug:
+    msg:
+      - "GitLab CLI (glab) is not installed and package manager access is not available."
+      - "To install manually, visit: https://gitlab.com/gitlab-org/cli/-/releases"
+      - "Or ask your system administrator to install it."
+  when: 
+    - glab_check.rc != 0
+    - not (can_install_packages | default(false))

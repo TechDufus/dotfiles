@@ -1,5 +1,5 @@
 ---
-- name: "Wireguard | {{ ansible_distribution }} | Install Wireguard"
+- name: "Wireguard | {{ ansible_facts['distribution'] }} | Install Wireguard"
   community.general.pacman:
     name: wireguard-tools
     state: present

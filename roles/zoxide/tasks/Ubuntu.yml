@@ -1,8 +1,8 @@
 ---
-- name: "Zoxide | {{ ansible_distribution }} | Install Zoxide"
+- name: "Zoxide | {{ ansible_facts['distribution'] }} | Install Zoxide"
   ansible.builtin.apt:
     name:
       - zoxide
     state: present
   become: true
-  when: ansible_distribution_version >= '21.04'
+  when: ansible_facts['distribution_version'] >= '21.04'

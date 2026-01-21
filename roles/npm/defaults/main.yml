@@ -1,0 +1,30 @@
+---
+# NPM Role Default Variables
+
+# Global NPM packages to install
+npm_global_packages:
+  - yarn                # Alternative package manager
+  - pnpm                # Fast, disk space efficient package manager
+  - npm-check-updates   # Check for outdated npm dependencies
+  - serve               # Static file server
+  - npm                 # Update npm itself to latest
+
+# Additional packages can be added in group_vars/all.yml like:
+# npm_extra_packages:
+#   - typescript
+#   - eslint
+#   - prettier
+
+# Whether to update npm to the latest version
+npm_update_npm: true
+
+# NPM configuration settings
+npm_config:
+  init-license: "MIT"
+  save-exact: "true"
+
+# Whether to use system Node.js or nvm-managed Node.js
+# auto = detect and use nvm if available, otherwise system
+# nvm = require nvm (fail if not available)
+# system = always use system installation
+npm_node_source: "auto"

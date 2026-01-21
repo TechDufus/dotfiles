@@ -14,6 +14,14 @@
 - name: "System | MacOSX | Enable Passwordless Sudo"
   ansible.builtin.template:
     src: user-sudo.j2
-    dest: /private/etc/sudoers.d/{{ ansible_env['USER'] }}
+    dest: /private/etc/sudoers.d/{{ ansible_facts['env']['USER'] }}
     mode: "0440"
   become: true
+  when: can_install_packages | default(false)
+
+- name: "System | MacOSX | Passwordless sudo skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Passwordless sudo configuration skipped due to missing sudo privileges"
+      - "Please run with sudo or contact your system administrator"
+  when: not (can_install_packages | default(false))

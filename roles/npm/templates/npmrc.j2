@@ -1,0 +1,10 @@
+# NPM Configuration
+{% if not can_install_packages | default(false) and not use_nvm %}
+prefix={{ ansible_env.HOME }}/.npm-global
+{% endif %}
+init-author-name={{ git_user_name | default('') }}
+{% if npm_config is defined %}
+{% for key, value in npm_config.items() %}
+{{ key }}={{ value }}
+{% endfor %}
+{% endif %}

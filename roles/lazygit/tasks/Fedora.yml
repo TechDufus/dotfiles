@@ -1,0 +1,29 @@
+---
+# Lazygit installation for Fedora/RHEL using github_release role
+
+- name: "LAZYGIT | {{ ansible_facts['distribution'] }} | Check if lazygit is installed"
+  ansible.builtin.command: which lazygit
+  register: lazygit_check
+  changed_when: false
+  failed_when: false
+
+- name: "LAZYGIT | {{ ansible_facts['distribution'] }} | Install from GitHub Release"
+  ansible.builtin.include_role:
+    name: github_release
+  vars:
+    github_release_repo: "jesseduffield/lazygit"
+    github_release_binary_name: "lazygit"
+    github_release_asset_name_pattern: "lazygit_.*_Linux_{{ ansible_architecture | replace('x86_64', 'x86_64') | replace('aarch64', 'arm64') }}.tar.gz"
+    github_release_check_command: "lazygit --version"
+    github_release_version_pattern: 'version=([^,]+)'
+    github_release_install_dir: "{{ '~/.local/bin' if not (can_install_packages | default(false)) else '/usr/local/bin' }}"
+    github_release_binary_mode: "0755"
+    github_release_requires_sudo: "{{ can_install_packages | default(false) }}"
+
+- name: "LAZYGIT | {{ ansible_facts['distribution'] }} | Report installation"
+  ansible.builtin.debug:
+    msg: |
+      Lazygit installation:
+      - Status: {{ '✓ Installed' if lazygit_check.rc == 0 else '✓ Newly installed' }}
+      - Location: {{ '/usr/local/bin/lazygit' if can_install_packages | default(false) else '~/.local/bin/lazygit' }}
+      - Sudo used: {{ '✓' if can_install_packages | default(false) else '✗ (installed to user directory)' }}

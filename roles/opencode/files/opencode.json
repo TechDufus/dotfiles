@@ -1,0 +1,50 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": true,
+  "plugin": ["oh-my-opencode"],
+  "model": "anthropic/claude-opus-4-5",
+  "agent": {
+    "build": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "plan": {
+      "model": "anthropic/claude-opus-4-5"
+    }
+  },
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "sudo *": "ask",
+      "su *": "ask",
+      "passwd *": "ask",
+      "shutdown *": "deny",
+      "reboot *": "deny",
+      "halt *": "deny",
+      "poweroff *": "deny",
+      "systemctl reboot": "deny",
+      "systemctl poweroff": "deny",
+      "systemctl halt": "deny",
+      "rm -rf /": "deny",
+      "rm -rf /*": "deny",
+      "dd if=/dev/zero of=/dev/*": "deny",
+      "mkfs *": "deny",
+      "fdisk *": "deny",
+      "parted *": "deny",
+      "git commit *": "ask",
+      "git push *": "ask",
+      "git merge *": "ask",
+      "git rebase *": "ask",
+      "git reset *": "ask",
+      "git revert *": "ask",
+      "git cherry-pick *": "ask",
+      "git tag *": "ask",
+      "chmod 777 *": "deny",
+      "chown root *": "deny"
+    },
+    "edit": "allow",
+    "webfetch": "allow"
+  },
+  "keybinds": {
+    "input_newline": "alt+enter"
+  }
+}

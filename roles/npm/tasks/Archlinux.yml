@@ -1,0 +1,223 @@
+---
+# NPM/Node.js installation for Arch Linux
+
+- name: "NPM | Archlinux | Check for nvm installation"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
+  register: nvm_check
+
+- name: "NPM | Archlinux | Determine Node.js source"
+  ansible.builtin.set_fact:
+    use_nvm: "{{ (npm_node_source == 'nvm') or (npm_node_source == 'auto' and nvm_check.stat.exists) }}"
+    require_nvm: "{{ npm_node_source == 'nvm' }}"
+
+- name: "NPM | Archlinux | Fail if nvm required but not found"
+  ansible.builtin.fail:
+    msg: "nvm is required but not installed. Please run the nvm role first."
+  when:
+    - require_nvm
+    - not nvm_check.stat.exists
+
+# NVM-based installation
+- name: "NPM | Archlinux | Configure npm via nvm"
+  when: use_nvm
+  block:
+    - name: "NPM | Check Node.js installation via nvm"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        node --version 2>/dev/null || echo "not-installed"
+      args:
+        executable: /bin/bash
+      register: nvm_node_check
+      changed_when: false
+
+    - name: "NPM | Display nvm Node.js status"
+      ansible.builtin.debug:
+        msg: "Node.js via nvm: {{ nvm_node_check.stdout }}"
+
+    - name: "NPM | Update npm to latest version (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm install -g npm@latest
+      args:
+        executable: /bin/bash
+      when: 
+        - npm_update_npm
+        - nvm_node_check.stdout != 'not-installed'
+      register: npm_update_result
+      changed_when: "'updated' in npm_update_result.stdout or 'added' in npm_update_result.stdout"
+
+# Pacman installation
+- name: "NPM | Archlinux | Install via pacman"
+  when: not use_nvm
+  block:
+    - name: "NPM | Archlinux | Install nodejs and npm"
+      community.general.pacman:
+        name:
+          - nodejs
+          - npm
+        state: present
+      become: true
+      when: can_install_packages | default(false)
+
+    - name: "NPM | Archlinux | Update npm to latest"
+      ansible.builtin.command: npm install -g npm@latest
+      when: 
+        - npm_update_npm
+        - can_install_packages | default(false)
+      become: true
+      register: npm_update_result
+      changed_when: "'updated' in npm_update_result.stdout or 'added' in npm_update_result.stdout"
+
+    # User-local installation without sudo
+    - name: "NPM | Archlinux | User-local installation"
+      when: not (can_install_packages | default(false))
+      block:
+        - name: "NPM | Get latest STABLE NodeJS version"
+          ansible.builtin.shell:
+            cmd: curl -sL https://nodejs.org/dist/index.json | jq -r '.[] | select(.lts) | .version' | head -n 1
+          register: nodejs_latest_version
+          changed_when: false
+
+        - name: "NPM | Create local directories"
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - "{{ ansible_facts['env']['HOME'] }}/.local"
+            - "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+            - "{{ ansible_facts['env']['HOME'] }}/.local/lib"
+            - "{{ ansible_facts['env']['HOME'] }}/.npm-global"
+
+        - name: "NPM | Get System Arch"
+          ansible.builtin.set_fact:
+            nodejs_arch: "{{ ansible_facts['machine'] | replace('x86_64', 'x64') | replace('aarch64', 'arm64') }}"
+
+        - name: "NPM | Register Package Name"
+          ansible.builtin.set_fact:
+            nodejs_package_name: "node-{{ nodejs_latest_version.stdout }}-{{ ansible_facts['system'] | lower }}-{{ nodejs_arch }}"
+
+        - name: "NPM | Download NodeJS"
+          ansible.builtin.get_url:
+            url: "https://nodejs.org/dist/{{ nodejs_latest_version.stdout }}/{{ nodejs_package_name }}.tar.xz"
+            dest: /tmp/{{ nodejs_package_name }}.tar.xz
+            mode: "0644"
+
+        - name: "NPM | Extract NodeJS to user directory"
+          ansible.builtin.unarchive:
+            src: /tmp/{{ nodejs_package_name }}.tar.xz
+            dest: "{{ ansible_facts['env']['HOME'] }}/.local"
+            remote_src: true
+            extra_opts: "--strip-components=1"
+          register: npm_user_install
+
+        - name: "NPM | Configure npm for user-local packages"
+          ansible.builtin.shell: |
+            export PATH="${HOME}/.local/bin:${PATH}"
+            npm config set prefix '{{ ansible_facts['env']['HOME'] }}/.npm-global'
+          args:
+            executable: /bin/bash
+          when: npm_user_install is succeeded
+
+# Configure NPM (common for all installation methods)
+- name: "NPM | Archlinux | Configure NPM"
+  block:
+    - name: "NPM | Set global package directory for non-sudo"
+      ansible.builtin.command: npm config set prefix '{{ ansible_facts['env']['HOME'] }}/.npm-global'
+      when: 
+        - not (can_install_packages | default(false))
+        - not use_nvm
+
+    - name: "NPM | Apply npm configuration settings"
+      ansible.builtin.shell: |
+        {% if use_nvm %}
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        {% endif %}
+        {% for key, value in npm_config.items() %}
+        npm config set {{ key }} '{{ value }}'
+        {% endfor %}
+      args:
+        executable: /bin/bash
+      when: npm_config is defined
+
+    - name: "NPM | Create .npmrc with useful defaults"
+      ansible.builtin.copy:
+        content: |
+          # NPM Configuration
+          {% if not can_install_packages | default(false) and not use_nvm %}
+          prefix={{ ansible_facts['env']['HOME'] }}/.npm-global
+          {% endif %}
+          init-author-name={{ git_user_name | default('') }}
+          {% for key, value in npm_config.items() %}
+          {{ key }}={{ value }}
+          {% endfor %}
+        dest: "{{ ansible_facts['env']['HOME'] }}/.npmrc"
+        mode: '0644'
+
+# Install global packages
+- name: "NPM | Archlinux | Install global packages"
+  block:
+    - name: "NPM | Combine package lists"
+      ansible.builtin.set_fact:
+        all_npm_packages: "{{ npm_global_packages + (npm_extra_packages | default([])) }}"
+
+    - name: "NPM | Install global packages (nvm)"
+      ansible.builtin.shell: |
+        export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        npm install -g {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ all_npm_packages }}"
+      when: use_nvm
+      register: nvm_install_result
+      changed_when: "'updated' in nvm_install_result.stdout or 'added' in nvm_install_result.stdout"
+
+    - name: "NPM | Install global packages (pacman/system)"
+      ansible.builtin.command: npm install -g {{ item }}
+      loop: "{{ all_npm_packages }}"
+      when: 
+        - not use_nvm
+        - can_install_packages | default(false)
+      become: true
+      register: system_install_result
+      changed_when: "'updated' in system_install_result.stdout or 'added' in system_install_result.stdout"
+
+    - name: "NPM | Install global packages (user-local)"
+      ansible.builtin.shell: |
+        export PATH="${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}"
+        npm install -g {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ all_npm_packages }}"
+      when: 
+        - not use_nvm
+        - not (can_install_packages | default(false))
+      register: user_install_result
+      changed_when: "'updated' in user_install_result.stdout or 'added' in user_install_result.stdout"
+
+# Report installation status
+- name: "NPM | Archlinux | Report installation status"
+  ansible.builtin.debug:
+    msg: |
+      NPM/Node.js installation status:
+      - Installation method: {{ 'nvm' if use_nvm else ('pacman' if can_install_packages else 'user-local') }}
+      - Node.js installed: ✓
+      {% if use_nvm %}
+      - Using nvm for Node.js management
+      - Run 'nvm list' to see installed versions
+      {% else %}
+      - NPM prefix: {{ '~/.npm-global' if not can_install_packages else '/usr (system-wide)' }}
+      {% endif %}
+      - Global packages installed: {{ all_npm_packages | join(', ') }}
+      
+      {% if not can_install_packages and not use_nvm %}
+      ⚠️  User-local installation notes:
+      1. Add to your PATH: export PATH='${HOME}/.local/bin:${HOME}/.npm-global/bin:${PATH}'
+      2. Global packages will be installed to: ~/.npm-global
+      3. This is already configured in your shell if using the zsh role
+      {% endif %}

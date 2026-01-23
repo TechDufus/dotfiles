@@ -42,12 +42,5 @@
     "multimodal-looker": {
       "model": "anthropic/claude-opus-4-5"
     }
-  },
-  "experimental": {
-    "auto_resume": true,
-    "preemptive_compaction": true,
-    "preemptive_compaction_threshold": 0.8,
-    "truncate_all_tool_outputs": true
-  },
-  "lsp": {}
+  }
 }

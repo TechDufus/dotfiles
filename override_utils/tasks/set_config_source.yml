@@ -1,0 +1,22 @@
+---
+# Reusable task to set _files_path based on override existence
+# Usage: Include this task with vars: config_name: <role_name>
+#
+# Sets _files_path to:
+#   - {{ playbook_dir }}/overrides/roles/{{ config_name }}/files (if exists)
+#   - {{ role_path }}/files (default)
+
+- name: "{{ config_name }} | Check for override files"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/overrides/roles/{{ config_name }}/files"
+  register: _override_check
+
+- name: "{{ config_name }} | Set files path"
+  ansible.builtin.set_fact:
+    _files_path: "{{ playbook_dir }}/overrides/roles/{{ config_name }}/files"
+  when: _override_check.stat.exists
+
+- name: "{{ config_name }} | Set default files path"
+  ansible.builtin.set_fact:
+    _files_path: "{{ role_path }}/files"
+  when: not _override_check.stat.exists

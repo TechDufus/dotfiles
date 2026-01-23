@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: alacritty
+
 - name: Run WSL Tasks
   ansible.builtin.import_tasks: wsl.yml
   when: ansible_host_environment_is_wsl

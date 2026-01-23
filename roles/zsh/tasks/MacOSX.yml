@@ -3,10 +3,7 @@
   community.general.homebrew:
     name: "{{ item }}"
     state: present
-  loop:
-    - zsh
-    - gh
-    - zoxide
+  loop: "{{ ['zsh'] + (zsh_extra_packages | default([])) }}"
 
 - name: "Zsh | Set default terminal"
   ansible.builtin.user:

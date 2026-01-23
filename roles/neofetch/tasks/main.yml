@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: neofetch
+
 - name: "Neofetch | {{ ansible_facts['distribution'] }} | Ensure .config directory exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config/neofetch"
@@ -16,6 +21,6 @@
 
 - name: "Neofetch | {{ ansible_facts['distribution'] }} | Copy config file"
   ansible.builtin.copy:
-    src: config
+    src: "{{ _files_path }}/config"
     dest: "{{ ansible_facts['user_dir'] }}/.config/neofetch/config"
     mode: "0644"

@@ -282,7 +282,7 @@ This shell script is also used to initialize your environment after bootstrappin
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles)"
 
-# To allow bitwarden login and become pass
+# To allow become pass (for sudo prompts)
 bash -c 'curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles -o /tmp/run.sh && trap "rm -f /tmp/run.sh" EXIT && bash /tmp/run.sh --ask-become-pass'
 
 bash -c 'curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles -o /tmp/run.sh && trap "rm -f /tmp/run.sh" EXIT && bash /tmp/run.sh'

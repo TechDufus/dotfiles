@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: ghostty
+
 - name: "{{ role_name }} | Create Ghostty config directory"
   ansible.builtin.file:
     path: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty"
@@ -16,20 +21,20 @@
 
 - name: "{{ role_name }} | Deploy Configuration"
   ansible.builtin.copy:
-    src: config
+    src: "{{ _files_path }}/config"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty/config"
     mode: "0644"
 
 - name: "{{ role_name }} | Deploy Shaders directory"
   ansible.builtin.copy:
-    src: shaders
+    src: "{{ _files_path }}/shaders"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty/"
     mode: "0644"
     directory_mode: "0755"
 
 - name: "{{ role_name }} | Deploy Themes directory"
   ansible.builtin.copy:
-    src: themes
+    src: "{{ _files_path }}/themes"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty/"
     mode: "0644"
     directory_mode: "0755"

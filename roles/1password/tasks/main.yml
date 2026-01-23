@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: 1password
+
 - name: "{{ role_name }} | Ensure config dir exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config"
@@ -28,6 +33,6 @@
 
 - name: "{{ role_name }} | Deploy ssh config"
   ansible.builtin.copy:
-    src: agent.toml
+    src: "{{ _files_path }}/agent.toml"
     dest: "{{ ansible_facts['user_dir'] }}/.config/1Password/ssh/agent.toml"
     mode: "0644"

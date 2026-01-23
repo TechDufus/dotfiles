@@ -1,0 +1,10 @@
+# User-specific overrides
+# These settings override upstream defaults
+
+# SSH: Disable 1Password SSH key deployment
+ssh_deploy_keys_enabled: false
+
+# ZSH: Extra packages to install on MacOSX
+zsh_extra_packages:
+  - gh
+  - zoxide

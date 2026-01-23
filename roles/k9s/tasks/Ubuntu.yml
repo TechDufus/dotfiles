@@ -98,11 +98,11 @@
 - name: "K9s | Copy skin config"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/k9s/skins/catppuccin_mocha.yaml"
-    src: "catppuccin_mocha.yaml"
+    src: "{{ _files_path }}/catppuccin_mocha.yaml"
     mode: "0644"
 
 - name: "K9s | Copy config"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/k9s/config.yaml"
-    src: "config.yaml"
+    src: "{{ _files_path }}/config.yaml"
     mode: "0644"

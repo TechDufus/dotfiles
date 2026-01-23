@@ -1,15 +1,4 @@
 {
-  "env": {
-    "DISABLE_TELEMETRY": "1",
-    "DISABLE_ERROR_REPORTING": "1",
-    "DISABLE_BUG_COMMAND": "1",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "MCP_TIMEOUT": "30000",
-    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "3600000",
-    "MAX_THINKING_TOKENS": "31999",
-    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "20000",
-    "ENABLE_LSP_TOOLS": "1"
-  },
   "attribution": {
     "commit": "",
     "pr": ""
@@ -1039,17 +1028,16 @@
     "command": "~/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
-    "oh-my-claude": true,
-    "bash-language-server@claude-code-lsps": false,
-    "gopls@claude-code-lsps": false,
-    "lua-language-server@claude-code-lsps": false,
-    "pyright@claude-code-lsps": false,
-    "rust-analyzer@claude-code-lsps": false,
-    "solargraph@claude-code-lsps": false,
-    "terraform-ls@claude-code-lsps": false,
-    "yaml-language-server@claude-code-lsps": false,
     "oh-my-claude@oh-my-claude": true
   },
   "respectGitignore": true,
   "syntaxHighlightingDisabled": false
+  "environmentVariables": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_BUG_COMMAND": "1",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "MCP_TIMEOUT": "30000",
+    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "3600000"
+  }
 }

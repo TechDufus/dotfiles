@@ -3,7 +3,24 @@
   hosts: localhost
   connection: local
 
+  vars_files:
+    - group_vars/all.yml
+
   pre_tasks:
+    - name: Check for user overrides
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/overrides/group_vars/user.yml"
+      register: user_overrides_file
+      tags:
+        - always
+
+    - name: Load user overrides
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/overrides/group_vars/user.yml"
+      when: user_overrides_file.stat.exists
+      tags:
+        - always
+
     - name: Detect WSL
       ansible.builtin.import_tasks: pre_tasks/detect_wsl.yml
       tags:
@@ -37,8 +54,8 @@
       tags:
         - always
 
-    - name: Detect Bitwarden
-      ansible.builtin.import_tasks: pre_tasks/detect_bitwarden.yml
+    - name: Detect 1Password
+      ansible.builtin.import_tasks: pre_tasks/detect_1password.yml
       tags:
         - always
 

@@ -1,0 +1,16 @@
+---
+# Reusable task to load role-specific variable overrides
+# Usage: Include this task with vars: config_name: <role_name>
+#
+# Loads variables from:
+#   - {{ playbook_dir }}/overrides/roles/{{ config_name }}/vars/main.yml (if exists)
+
+- name: "{{ config_name }} | Check for override vars"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/overrides/roles/{{ config_name }}/vars/main.yml"
+  register: _override_vars_check
+
+- name: "{{ config_name }} | Load override vars"
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/overrides/roles/{{ config_name }}/vars/main.yml"
+  when: _override_vars_check.stat.exists

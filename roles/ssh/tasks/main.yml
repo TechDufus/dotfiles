@@ -1,10 +1,33 @@
 ---
-# - name: "SSH | Deploy SSH keys from Vault"
-#   when: op_installed
-#   ansible.builtin.include_tasks: ssh_keys.yml
-#   with_items: "{{ op.ssh.github.techdufus }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
+
+- name: "SSH | Ensure .ssh directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.ssh"
+    state: directory
+    mode: "0700"
+
+- name: "SSH | Deploy SSH keys from 1Password"
+  ansible.builtin.include_tasks: ssh_keys.yml
+  with_items: "{{ op.ssh.github.techdufus | default([]) }}"
+  when:
+    - op_installed | default(false)
+    - ssh_deploy_keys_enabled | default(true)
+    - op.ssh.github.techdufus is defined
+
+- name: "SSH | Warning - 1Password not installed"
+  ansible.builtin.debug:
+    msg: "SSH key deployment skipped - 1Password CLI is not installed. Install 1Password CLI to enable automatic SSH key deployment."
+  when: not (op_installed | default(false))
 
 # - name: Copy config
 #   ansible.builtin.template:
-#     dest: "{{ ansible_user_dir }}/.ssh/config"
+#     dest: "{{ ansible_facts['user_dir'] }}/.ssh/config"
 #     src: "config.j2"

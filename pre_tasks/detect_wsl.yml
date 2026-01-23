@@ -14,7 +14,7 @@
 
 - name: Register WSL State fact
   ansible.builtin.set_fact:
-    ansible_host_environment_is_wsl: "{{ ansible_host_environment_is_wsl.stdout | bool }}"
+    ansible_host_environment_is_wsl: "{{ ansible_host_environment_is_wsl.stdout | trim | lower == 'true' }}"
 
 - name: Show WSL State
   ansible.builtin.debug:

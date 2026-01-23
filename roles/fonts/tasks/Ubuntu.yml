@@ -3,6 +3,5 @@
   ansible.builtin.apt:
     name:
       - fonts-powerline
-      - fonts-firacode
     state: present
   become: true

@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: git
+
 - name: "Git | Set diff.colorMoved"
   community.general.git_config:
     name: diff.colorMoved
@@ -57,26 +62,38 @@
     scope: global
     value: true
 
-- name: "Git | Read user.email from Bitwarden"
-  when: bw_installed
+- name: "Git | Read user.email secret from 1Password"
+  when: op_installed
   block:
-    - name: "Bitwarden | Get user.email"
-      # This requires that there is a custom field in the github entry that is set to the name of "email"
-      ansible.builtin.shell: bw get item github | jq -r '.fields[] | select(.name == "email") | .value'
-      register: bw_git_user_email
+    - name: "1Password | Get user.email"
+      ansible.builtin.command: "op --account my.1password.com read '{{ op.git.user.email }}'"
+      register: op_git_user_email
       changed_when: false
-      no_log: true
+      failed_when: false
 
-    - name: "Bitwarden | Set git_user_email"
+    - name: "1Password | Set git_user_email from vault"
       ansible.builtin.set_fact:
-        git_user_email: "{{ bw_git_user_email.stdout }}"
+        git_user_email: "{{ op_git_user_email.stdout }}"
       no_log: true
+      when: op_git_user_email.rc == 0
+
+    - name: "1Password | Warning when not authenticated"
+      ansible.builtin.debug:
+        msg:
+          - "⚠️  1Password CLI is installed but not authenticated."
+          - ""
+          - "To fix this, run:"
+          - "eval $(op signin)"
+          - ""
+          - "Then run dotfiles again. For now, skipping 1Password integration."
+      when: op_git_user_email.rc != 0
 
 - name: "Git | Set user.email"
   community.general.git_config:
     name: user.email
     scope: global
     value: "{{ git_user_email }}"
+  when: git_user_email is defined
   no_log: true
 
 - name: "Git | Set user.name"
@@ -149,7 +166,7 @@
 
 - name: "Git | Copy global.commit.template"
   ansible.builtin.copy:
-    src: global.commit.template
+    src: "{{ _files_path }}/global.commit.template"
     dest: "{{ ansible_user_dir }}/.config/git/commit_template"
     mode: "0644"
 

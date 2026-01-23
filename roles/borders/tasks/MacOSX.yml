@@ -17,7 +17,7 @@
 
 - name: "{{ role_name }} | macOS | Deploy bordersrc configuration"
   ansible.builtin.copy:
-    src: bordersrc
+    src: "{{ _files_path }}/bordersrc"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/borders/bordersrc"
     mode: '0755'
     backup: yes

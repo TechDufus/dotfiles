@@ -125,6 +125,24 @@
     state: link
     force: true
 
+- name: "{{ role_name }} | Check if .lsp.json exists and is not a symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.claude/.lsp.json"
+  register: lsp_config_file
+
+- name: "{{ role_name }} | Remove existing .lsp.json if it's not a symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.claude/.lsp.json"
+    state: absent
+  when: lsp_config_file.stat.exists and not lsp_config_file.stat.islnk
+
+- name: "{{ role_name }} | Create symlink to Claude LSP configuration"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/.lsp.json"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/.lsp.json"
+    state: link
+    force: true
+
 # LSP Server Installation via Bun
 - name: "{{ role_name }} | Check if bun is installed"
   ansible.builtin.command: which bun

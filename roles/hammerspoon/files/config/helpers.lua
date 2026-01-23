@@ -12,7 +12,7 @@ end
 --------------------------------------------------------------------------------
 
 function tableFlip(t)
-  n = {}
+  local n = {}
 
   for k,v in pairs(t) do
     n[v] = k
@@ -22,7 +22,7 @@ function tableFlip(t)
 end
 
 function tableKeys(t)
-  n = {}
+  local n = {}
 
   for k,_ in pairs(t) do
     table.insert(n, k)
@@ -32,7 +32,7 @@ function tableKeys(t)
 end
 
 function tableMapWithKeys(t, fn)
-  n = {}
+  local n = {}
 
   for _,v in pairs(t) do
     local keyPair = fn(v)

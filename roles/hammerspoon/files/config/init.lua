@@ -14,6 +14,7 @@ apps  = require('apps')
 layouts = require('layouts')
 summon = require('summon')
 chain = require('chain')
+require('karabiner').start()
 
 --------------------------------------------------------------------------------
 -- Misc Macros
@@ -55,15 +56,13 @@ summonModal:bind('', 'f13', function()
 end)
 
 --------------------------------------------------------------------------------
--- Multi Window Management
+-- Window Management
 --------------------------------------------------------------------------------
--- hjkl  focus window west/south/north/east
--- a     unide [a]ll application windows
+-- a     unhide [a]ll application windows
 -- p     [p]ick layout
--- m     [m]aximize window
--- n     [n]ext window in current cell, like `n/p` in vim
 -- u     warp [u]nder another window cell
 -- ;     toggle alternate layout
+-- '     reset layout
 
 hs.window.animationDuration = 0
 
@@ -78,18 +77,27 @@ if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
   layout:selectLayout(1)
 end
 
+hs.screen.watcher.new(function()
+  hs.timer.doAfter(1, function()
+    local screen = hs.screen.primaryScreen()
+    local mode = screen:currentMode()
+
+    if screen:name() == 'Built-in Retina Display' then
+      layout:selectLayout(2)  -- Fullscreen for laptop
+    elseif mode.w >= 3840 then
+      layout:selectLayout(1)  -- 4K Workspace
+    else
+      layout:selectLayout(4)  -- Standard Dev
+    end
+  end)
+end):start()
+
 local windowManagementBindings = {
-  ['h'] = function() hs.window.focusedWindow():focusWindowWest(nil, true) end,
-  ['j'] = function() hs.window.focusedWindow():focusWindowSouth(nil, true) end,
-  ['k'] = function() hs.window.focusedWindow():focusWindowNorth(nil, true) end,
-  ['l'] = function() hs.window.focusedWindow():focusWindowEast(nil, true) end,
   ['a'] = function() hs.application.frontmostApplication():focus() end,
   ['p'] = layout.selectLayout,
   ['u'] = layout.bindToCell,
   [';'] = layout.selectNextVariant,
   ["'"] = layout.resetLayout,
-  -- ['m'] = toggleMaximized, -- Re-implement in GridLayout?
-  -- ['n'] = focusNextCellWindow, -- Re-implement in GridLayout?
 }
 
 registerKeyBindings(Hyper, hs.fnutils.map(windowManagementBindings, function(fn)

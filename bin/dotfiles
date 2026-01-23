@@ -111,6 +111,16 @@ DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 DOTFILES_VERSION="1.0.0"
+
+# GitHub user for repository URL (can be overridden via config file)
+# Default to TechDufus (upstream), load override if config exists
+DOTFILES_GITHUB_USER="TechDufus"
+DOTFILES_CONFIG="$HOME/.dotfiles/overrides/dotfiles.conf"
+if [[ -f "$DOTFILES_CONFIG" ]]; then
+  # shellcheck source=/dev/null
+  source "$DOTFILES_CONFIG"
+fi
+
 # Spinner PID tracking
 SPINNER_PID=""
 
@@ -148,7 +158,7 @@ show_help() {
   echo "    All arguments not recognized by dotfiles are passed to ansible-playbook."
   echo "    Common options: -t <tags>, --check, -vvv, --list-tags"
   echo ""
-  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/noneel/dotfiles${NC}"
+  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/${DOTFILES_GITHUB_USER}/dotfiles${NC}"
 }
 
 # Show version information
@@ -454,7 +464,7 @@ esac
 
 if ! [[ -d "$DOTFILES_DIR" ]]; then
   __task "Downloading dotfiles repository (This may take a minute)"
-  _cmd "git clone --quiet https://github.com/noneel/dotfiles.git $DOTFILES_DIR"
+  _cmd "git clone --quiet https://github.com/${DOTFILES_GITHUB_USER}/dotfiles.git $DOTFILES_DIR"
   _task_done
 else
   __task "Updating dotfiles repository"

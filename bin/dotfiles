@@ -112,8 +112,7 @@ DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 DOTFILES_VERSION="1.0.0"
 
-# GitHub user for repository URL (can be overridden via config file)
-# Default to TechDufus (upstream), load override if config exists
+# GitHub user for repository URL (override via config file)
 DOTFILES_GITHUB_USER="TechDufus"
 DOTFILES_CONFIG="$HOME/.dotfiles/overrides/dotfiles.conf"
 if [[ -f "$DOTFILES_CONFIG" ]]; then
@@ -126,7 +125,7 @@ SPINNER_PID=""
 
 # Show usage/help information
 show_help() {
-  echo -e "${CAT_SAPPHIRE}Dotfiles${NC} - Ansible-based dotfiles management"
+  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} - Ansible-based dotfiles management"
   echo ""
   echo -e "${CAT_BLUE}USAGE:${NC}"
   echo "    dotfiles [OPTIONS] [-- ANSIBLE_ARGS]"
@@ -158,7 +157,7 @@ show_help() {
   echo "    All arguments not recognized by dotfiles are passed to ansible-playbook."
   echo "    Common options: -t <tags>, --check, -vvv, --list-tags"
   echo ""
-  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/${DOTFILES_GITHUB_USER}/dotfiles${NC}"
+  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/TechDufus/dotfiles${NC}"
 }
 
 # Show version information
@@ -167,7 +166,7 @@ show_version() {
   if [[ -d "$DOTFILES_DIR/.git" ]]; then
     git_hash=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
   fi
-  echo -e "${CAT_SAPPHIRE}Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
+  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
 }
 
 # Spinner function that runs in background
@@ -404,7 +403,7 @@ confirmVaultAccess() {
   op_version=$(op --version)
   __task "1Password CLI found: [$op_version] -- Authenticating..."
   if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
-  _task_done && printf "${CAT_GREEN} [✓] ${CAT_TEXT}Successfully authenticated with 1Password CLI!\n"
+  _task_done && printf "${CAT_GREEN} [✓] ${CAT_TEXT}Successfully authenticated with 1Password CLI! ☕\n"
   return
 }
 
@@ -419,12 +418,19 @@ detect_os() {
 
 print_banner() {
   echo ""
-  echo -e "${CAT_SAPPHIRE}  ██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗${NC}"
-  echo -e "${CAT_SAPPHIRE}  ██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝${NC}"
-  echo -e "${CAT_SAPPHIRE}  ██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗${NC}"
-  echo -e "${CAT_SAPPHIRE}  ██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║${NC}"
-  echo -e "${CAT_SAPPHIRE}  ██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║${NC}"
-  echo -e "${CAT_SAPPHIRE}  ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
+  echo -e "${CAT_SAPPHIRE}  ████████╗███████╗ ██████╗██╗  ██╗██████╗ ██╗   ██╗███████╗██╗   ██╗███████╗${NC}"
+  echo -e "${CAT_SAPPHIRE}  ╚══██╔══╝██╔════╝██╔════╝██║  ██║██╔══██╗██║   ██║██╔════╝██║   ██║██╔════╝${NC}"
+  echo -e "${CAT_SAPPHIRE}     ██║   █████╗  ██║     ███████║██║  ██║██║   ██║█████╗  ██║   ██║███████╗${NC}"
+  echo -e "${CAT_SAPPHIRE}     ██║   ██╔══╝  ██║     ██╔══██║██║  ██║██║   ██║██╔══╝  ██║   ██║╚════██║${NC}"
+  echo -e "${CAT_SAPPHIRE}     ██║   ███████╗╚██████╗██║  ██║██████╔╝╚██████╔╝██║     ╚██████╔╝███████║${NC}"
+  echo -e "${CAT_SAPPHIRE}     ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═╝      ╚═════╝ ╚══════╝${NC}"
+  echo ""
+  echo -e "${CAT_BLUE}      ██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗${NC}"
+  echo -e "${CAT_BLUE}      ██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝${NC}"
+  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗${NC}"
+  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║${NC}"
+  echo -e "${CAT_BLUE}      ██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║${NC}"
+  echo -e "${CAT_BLUE}      ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
   echo ""
 }
 
@@ -638,11 +644,12 @@ popd 2>&1 > /dev/null
 
 if ! [[ -f "$IS_FIRST_RUN" ]]; then
   echo ""
-  echo -e "${CHECK_MARK} ${CAT_GREEN}Dotfiles installation complete!${NC}"
+  echo -e "${CHECK_MARK} ${CAT_GREEN}🎉 Dotfiles installation complete!${NC}"
   echo ""
   echo -e "${ARROW} ${CAT_TEAL}Next steps:${NC}"
   echo -e "   1. Customize your setup: ${CAT_LAVENDER}nvim ~/.dotfiles/group_vars/all.yml${NC}"
   echo -e "   2. Apply changes anytime: ${CAT_LAVENDER}dotfiles${NC}"
+  echo -e "   3. Get help: ${CAT_LAVENDER}https://discord.gg/5M4hjfyRBj${NC}"
   echo ""
   echo -e "${ARROW} ${CAT_TEAL}Please reboot your computer to complete the setup.${NC}"
   echo ""

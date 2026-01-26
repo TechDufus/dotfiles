@@ -7,6 +7,9 @@ git_user_name: "noneel"
 # SSH: Disable 1Password SSH key deployment
 ssh_deploy_keys_enabled: false
 
+# Git: Disable SSH commit signing (requires 1Password + SSH keys)
+git_signing_enabled: false
+
 # Roles: Custom selection (overrides default_roles)
 default_roles:
   - system

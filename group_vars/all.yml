@@ -68,10 +68,17 @@ op:
       techdufus:
         - name: id_ed25519
           vault_path: "op://Personal/TechDufus SSH"
+        - name: raft-infra
+          vault_path: "op://Raft/Raft-SSH"
+# FIXME: See `system/tasks/main.yml` for how to structure this var looping.
+  # system:
+  #   hosts:
+  #     - item: op://Raft/rdp-demo-local-ingress/notesPlain
+  #       account: my.1password.com
 
 k8s:
   repo:
-    version: "v1.26"
+    version: "v1.34"
 
 helm:
   repos:
@@ -82,5 +89,13 @@ go:
   packages:
     - package: github.com/go-task/task/v3/cmd/task@latest
       cmd: task
-    - package: github.com/gcla/termshark/v2/cmd/termshark@v2.4.0
-      cmd: termshark
+    - package: github.com/joshmedeski/sesh/v2@latest
+      cmd: sesh
+    # LSP servers for OpenCode
+    - package: golang.org/x/tools/gopls@latest
+      cmd: gopls
+    - package: github.com/mrjosh/helm-ls@latest
+      cmd: helm-ls
+    # NOTE: termshark has dependency issues with v2.4.0
+    # - package: github.com/stillmatic/chat@latest
+    #   cmd: chat

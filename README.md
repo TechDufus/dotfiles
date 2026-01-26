@@ -1,5 +1,6 @@
-![dotfiles-logo](https://github.com/TechDufus/dotfiles/assets/46715299/6c1d626d-28d2-41e3-bde5-981d9bf93462)
 
+
+![dotfiles-logo](https://github.com/TechDufus/dotfiles/assets/46715299/6c1d626d-28d2-41e3-bde5-981d9bf93462)
 <p align="center">
     <a href="https://github.com/TechDufus/dotfiles/actions/workflows/ansible-lint.yml"><img align="center" src="https://github.com/TechDufus/dotfiles/actions/workflows/ansible-lint.yml/badge.svg"/></a>
     <a href="https://github.com/TechDufus/dotfiles/issues"><img align="center" src="https://img.shields.io/github/issues/techdufus/dotfiles"/></a>
@@ -9,7 +10,6 @@
 </p>
 
 ---
-
 Fully automated development environment for [TechDufus](https://www.twitch.tv/TechDufus) on Twitch.
 
 You can watch a quick 'tour' (pre-1Password integration) here on YouTube:
@@ -82,7 +82,6 @@ This Ansible playbook only supports multiple OS's on a per-role basis. This give
 This means that you can run a role, and it will only run if your current OS is configured for that role.
 
 This is accomplished with this `template` `main.yml` task in each role:
-
 ```yaml
 ---
 - name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
@@ -94,11 +93,9 @@ This is accomplished with this `template` `main.yml` task in each role:
   ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
   when: distribution_config.stat.exists
 ```
-
 The first task checks for the existence of a `roles/<target role>/tasks/<current_distro>.yml` file. If that file exists (example `current_distro:MacOSX` and a `MacOSX.yml` file exists) it will be run automatically. This keeps roles from breaking if you run a role that isn't yet supported or configured for the system you are running `dotfiles` on.
 
 Currently configured 'bootstrap-able' OS's:
-
 - Ubuntu
 - Fedora
 - Archlinux (btw)
@@ -141,7 +138,6 @@ Below is a list of all available values. Not all are required but incorrect valu
 | go.packages      | list `(for extra go bin installs)`     | no       |
 | helm.repos       | list `(add extra helm repos)`          | no       |
 | k8s.repo.version | string `(specify kubectl bin version)` | no       |
-
 ### 1Password Integration
 
 This project depends on a 1Password vault. This means you must have a setup and authenticated `op-cli` for CLI access to your vault. This can be done by installing the 1Password desktop application **OR** can be setup with the `op` cli only, but it a bit more annoying that way since the CLI tool can directly integrate with the Desktop application.
@@ -155,24 +151,20 @@ The original method for deploying secrets was to create `ansible-vault` encrypte
 It is more flexible in the sense that rotating secrets is just updating the 1Password item, instead of needing to re-encrypt a string and commit it to github. The more you mess with encrypting / decrypting / commiting to Github, the higher the risk of a real secret being exposed.
 
 Additionally, if the original `vault.secret` value was ever discovered, even though it's no longer being used by this project, could still be used to get the encrypted strings via the git history of this project and decrypted. That `vault.secret` password has been scorched from the earth. 🔥
-
 #### OP (1Password) Variable
 
 Manage environment-critical items without needing `ansible-vault`, by using your `1Password` vault.
 
 > [!NOTE]
 > Currently, unless an `account` value is specified, the following `op` vaults assume `my.1password.com` vault.
-
 ##### op.git
 
 `op.git` is where you will store any git-related vault paths. All values must be paths to vault.
 
 ###### op.git.user
-
 This variable stores `email` which is as `string` of your vault path to you github account email.
 
 Example `op.git.user` config:
-
 ```yaml
 op:
   git:
@@ -181,15 +173,12 @@ op:
 ```
 
 ###### op.git.allowed_signers
-
 This variable stores the `string` to your allowed signers value. This value should be in the following format:
-
 ```
 <email> namespaces="git" <algo-type[ssh-ed25519]> <ssh public key>
 ```
 
 Example `op.git.allowed_signers` config:
-
 ```yaml
 op:
   git:
@@ -197,7 +186,6 @@ op:
 ```
 
 Example full `op.git` config:
-
 ```yaml
 op:
   git:
@@ -205,13 +193,10 @@ op:
       email: "op://Personal/Github/email"
       allowed_signers: "op://Personal/Github/allowed_signers"
 ```
-
 ##### op.ssh
-
 `op.ssh` stores references to ssh keys that will be deployed to your local `~/.ssh` directory.
 
 ###### op.ssh.github.techdufus
-
 This variable stores a list of items containing `name:<string> vault_path:<string>`. This list will be looped over and the accompanying ssh pub/private keys will be created with the `name` value you provide.
 
 EXAMPLE: If `name: dufus` is provided, it will extract the values from the `vault_path` and create the `~/.ssh/dufus.pub` and `~/ssh/dufus` ssh keys.
@@ -220,7 +205,6 @@ EXAMPLE: If `name: dufus` is provided, it will extract the values from the `vaul
 > This variable can be called anything. Currently it is called `techdufus` just for my brain to know these are associated with my `techdufus` github user account. But if you were in multiple github orgs/users and you wanted a key associated ONLY with your account for that org/user, you would create another `op.ssh.github.some_org_user_here` and list your keys in that var, promoting organizational awareness at a glance of the config.
 
 Example `op.ssh.github.techdufus` config:
-
 ```yaml
 op:
   ssh:
@@ -229,15 +213,14 @@ op:
         - name: github_key
           vault_path: "op://Personal/github_key SSH"
 ```
-
 ##### op.system.hosts
 
-> [!WARNING] > `op.system.hosts` is not implemented yet, but the information is the target implementation structure.
+> [!WARNING]
+> `op.system.hosts` is not implemented yet, but the information is the target implementation structure.
 
 `op.system.hosts` is a list of vault `<string>` entries that will become a single line in your `/etc/hosts` file.
 
 Example `op.system.hosts` config:
-
 ```yaml
 op:
   system:
@@ -249,7 +232,6 @@ op:
 ```
 
 Example full `op` config:
-
 ```yaml
 op:
   git:
@@ -280,16 +262,10 @@ This shell script is also used to initialize your environment after bootstrappin
 > You must follow required steps before running this command or things may become unusable until fixed.
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles)"
-
-# To allow become pass (for sudo prompts)
-bash -c 'curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles -o /tmp/run.sh && trap "rm -f /tmp/run.sh" EXIT && bash /tmp/run.sh --ask-become-pass'
-
-bash -c 'curl -fsSL https://raw.githubusercontent.com/noneel/dotfiles/main/bin/dotfiles -o /tmp/run.sh && trap "rm -f /tmp/run.sh" EXIT && bash /tmp/run.sh'
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
 ```
 
 If you want to run only a specific role, you can specify the following bash command:
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles | bash -s -- --tags comma,seperated,tags
 ```
@@ -316,13 +292,11 @@ This `dotfiles` command is available to you after the first use of this repo, as
 Any flags or arguments you pass to the `dotfiles` command are passed as-is to the `ansible-playbook` command.
 
 For Example: Running the tmux tag with verbosity
-
 ```bash
 dotfiles -t tmux -vvv
 ```
 
 As an added bonus, the tags have tab completion!
-
 ```bash
 dotfiles -t <tab><tab>
 dotfiles -t t<tab>

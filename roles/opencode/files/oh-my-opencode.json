@@ -5,42 +5,30 @@
     "commands": false,
     "skills": false,
     "agents": false,
-    "hooks": false
+    "hooks": false,
+    "plugins": false
   },
-  "google_auth": false,
-  "disabled_mcps": [
-    "websearch_exa"
-  ],
+  "disabled_mcps": ["websearch_exa"],
   "agents": {
-    "Sisyphus": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "Planner-Sisyphus": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "build": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "plan": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "oracle": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "librarian": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "explore": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "frontend-ui-ux-engineer": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "document-writer": {
-      "model": "anthropic/claude-opus-4-5"
-    },
-    "multimodal-looker": {
-      "model": "anthropic/claude-opus-4-5"
-    }
-  }
+    "build": { "model": "anthropic/claude-opus-4-5" },
+    "plan": { "model": "anthropic/claude-opus-4-5" },
+    "sisyphus": { "model": "anthropic/claude-opus-4-5" },
+    "sisyphus-junior": { "model": "anthropic/claude-opus-4-5" },
+    "OpenCode-Builder": { "model": "anthropic/claude-opus-4-5" },
+    "prometheus": { "model": "anthropic/claude-opus-4-5" },
+    "metis": { "model": "anthropic/claude-opus-4-5" },
+    "momus": { "model": "anthropic/claude-opus-4-5" },
+    "oracle": { "model": "anthropic/claude-opus-4-5" },
+    "librarian": { "model": "anthropic/claude-opus-4-5" },
+    "explore": { "model": "anthropic/claude-opus-4-5" },
+    "multimodal-looker": { "model": "anthropic/claude-opus-4-5" },
+    "atlas": { "model": "anthropic/claude-opus-4-5" }
+  },
+  "experimental": {
+    "auto_resume": true,
+    "preemptive_compaction": true,
+    "preemptive_compaction_threshold": 0.8,
+    "truncate_all_tool_outputs": true
+  },
+  "lsp": {}
 }

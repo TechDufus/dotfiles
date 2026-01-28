@@ -112,13 +112,13 @@ Create independent agents with non-overlapping file patterns.
 
 Launch multiple @general subagent calls:
 
-@general **Review Backend Files** for PR $ARGUMENTS. Focus on files in api/*, models/*, services/*. Analyze: business logic correctness, error handling patterns, security vulnerabilities, database query efficiency. Return: list of issues (critical/high/medium/low), specific line references, code improvement suggestions.
+@general **Review Backend Files** for PR $ARGUMENTS. Focus on files in `api/*`, `models/*`, `services/*`. Analyze: business logic correctness, error handling patterns, security vulnerabilities, database query efficiency. Return: list of issues (critical/high/medium/low), specific line references, code improvement suggestions.
 
-@general **Review Frontend Files** for PR $ARGUMENTS. Focus on files in src/components/*, src/pages/*, *.tsx, *.jsx. Analyze: React patterns, state management, performance issues, accessibility. Return: list of issues (critical/high/medium/low), specific line references, code improvement suggestions.
+@general **Review Frontend Files** for PR $ARGUMENTS. Focus on files in `src/components/*`, `src/pages/*`, `*.tsx`, `*.jsx`. Analyze: React patterns, state management, performance issues, accessibility. Return: list of issues (critical/high/medium/low), specific line references, code improvement suggestions.
 
-@general **Review Test Files** for PR $ARGUMENTS. Focus on files in tests/*, __tests__/*, *.test.*, *.spec.*. Analyze: test coverage gaps, edge cases not tested, test quality, mock appropriateness. Return: list of issues (critical/high/medium/low), coverage recommendations.
+@general **Review Test Files** for PR $ARGUMENTS. Focus on files in `tests/*`, `__tests__/*`, `*.test.*`, `*.spec.*`. Analyze: test coverage gaps, edge cases not tested, test quality, mock appropriateness. Return: list of issues (critical/high/medium/low), coverage recommendations.
 
-@general **Review Infrastructure Files** for PR $ARGUMENTS. Focus on files in .github/*, docker/*, *.yml, *.yaml, config/*. Analyze: CI/CD configuration, security best practices, deployment concerns. Return: list of issues (critical/high/medium/low), security findings.
+@general **Review Infrastructure Files** for PR $ARGUMENTS. Focus on files in `.github/*`, `docker/*`, `*.yml`, `*.yaml`, `config/*`. Analyze: CI/CD configuration, security best practices, deployment concerns. Return: list of issues (critical/high/medium/low), security findings.
 
 **Step 4: Synthesize Agent Findings**
 

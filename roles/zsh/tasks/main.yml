@@ -30,12 +30,12 @@
 
 - name: "ZSH | {{ ansible_facts['distribution'] }} | Identify distribution config"
   ansible.builtin.stat:
-    path: "{{ role_path }}/files/os/{{ ansible_facts['distribution'] }}"
+    path: "{{ _files_path | default(role_path ~ '/files') }}/os/{{ ansible_facts['distribution'] }}"
   register: zsh_os_distribution_config
 
 - name: "ZSH | {{ ansible_facts['os_family'] }} | Identify os family config"
   ansible.builtin.stat:
-    path: "{{ role_path }}/files/os/{{ ansible_facts['os_family'] }}"
+    path: "{{ _files_path | default(role_path ~ '/files') }}/os/{{ ansible_facts['os_family'] }}"
   register: zsh_os_family_config
   when: not zsh_os_distribution_config.stat.exists
 

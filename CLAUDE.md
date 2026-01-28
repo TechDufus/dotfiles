@@ -25,6 +25,7 @@ Ansible-based cross-platform development environment setup (macOS, Ubuntu, Fedor
 | Secret references | `group_vars/all.yml` (use `op://` URLs) |
 | Default role list | `group_vars/all.yml` → `default_roles` |
 | Bootstrap script | `bin/dotfiles` |
+| Override configs | `overrides/{role}/` (vars, files, tasks) |
 | Pre-run detection | `pre_tasks/` |
 
 ## Architecture

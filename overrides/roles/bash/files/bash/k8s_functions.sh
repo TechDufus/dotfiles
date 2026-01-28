@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
 function kgp() {
-    kubectl get pods $@
+    if [ -z "$1" ]; then
+        kubectl get po
+    else
+        kubectl get po | fzf --filter="$1"
+    fi
 }
 function kga() {
         kubectl get all $@
@@ -265,6 +269,96 @@ kpg() {
   pod_name=$(select_pod "$1" "true")
   if [ -n "$pod_name" ]; then
     echo "$pod_name"
+  fi
+}
+
+# Delete pods with fzf multi-selection and confirmation
+kpdel() {
+  command -v fzf >/dev/null || {
+    echo "❌ fzf is not installed."
+    return 1
+  }
+
+  local search_term="$1"
+  local all_pods
+  local selected_pods
+
+  # Get all pods (prioritize active/non-completed)
+  all_pods=$(kubectl get pods --no-headers | awk '{print $1, $3}' | sort -k2,2 -r)
+
+  if [ -z "$all_pods" ]; then
+    echo "❌ No pods found in current namespace."
+    return 1
+  fi
+
+  if [ -z "$search_term" ]; then
+    # No search term - interactive multi-select
+    selected_pods=$(echo "$all_pods" | fzf --multi --height 40% --reverse \
+      --header="Select pods to delete (Tab to select, Enter to confirm)" | awk '{print $1}')
+  else
+    # Filter by search term first
+    local matching_pods
+    matching_pods=$(echo "$all_pods" | grep -i "$search_term")
+
+    if [ -z "$matching_pods" ]; then
+      # No matches - try fuzzy filter
+      matching_pods=$(echo "$all_pods" | fzf --filter="$search_term")
+    fi
+
+    if [ -z "$matching_pods" ]; then
+      echo "❌ No pods matching '$search_term' found."
+      return 1
+    fi
+
+    local match_count
+    match_count=$(echo "$matching_pods" | grep -v "^$" | wc -l)
+
+    if [ "$match_count" -eq 1 ]; then
+      # Single match - still confirm
+      selected_pods=$(echo "$matching_pods" | awk '{print $1}')
+    else
+      # Multiple matches - let user select
+      selected_pods=$(echo "$matching_pods" | fzf --multi --height 40% --reverse \
+        --query="$search_term" \
+        --header="Select pods to delete (Tab to select, Enter to confirm)" | awk '{print $1}')
+    fi
+  fi
+
+  if [ -z "$selected_pods" ]; then
+    echo "No pods selected. Aborting."
+    return 0
+  fi
+
+  # Count selected pods
+  local pod_count
+  pod_count=$(echo "$selected_pods" | grep -v "^$" | wc -l)
+
+  # Show pods to be deleted
+  echo ""
+  echo -e "\033[1;33m⚠️  The following $pod_count pod(s) will be deleted:\033[0m"
+  echo ""
+  echo "$selected_pods" | while read -r pod; do
+    echo -e "  \033[0;31m•\033[0m $pod"
+  done
+  echo ""
+
+  # Confirmation prompt
+  echo -n -e "\033[1;33mAre you sure you want to delete these pods? [y/N]: \033[0m"
+  read -r confirm
+
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "$selected_pods" | while read -r pod; do
+      if [ -n "$pod" ]; then
+        echo -e "\033[0;36mDeleting pod:\033[0m $pod"
+        kubectl delete pod "$pod"
+      fi
+    done
+    echo ""
+    echo -e "\033[0;32m✓ Done.\033[0m"
+  else
+    echo "Aborted."
+    return 0
   fi
 }
 
@@ -533,3 +627,6 @@ function loop {
     done
 }
 
+function watchpo() {
+    watch -n 2 "kubectl get po | fzf --filter='$1' | head -20"
+}

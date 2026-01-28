@@ -54,6 +54,7 @@ node_modules/
 tasks.json
 
 # User overrides (fork customizations)
-overrides/*/
-!overrides/.gitkeep
+overrides/roles/
+overrides/config/dotfiles.conf
+!overrides/config/dotfiles.conf.example
 !overrides/README.md

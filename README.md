@@ -77,18 +77,18 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/
 
 | Override Type | Location | Effect |
 |--------------|----------|--------|
-| Variables | `overrides/{role}/vars/main.yml` | Change settings (paths, names, options) |
-| Config Files | `overrides/{role}/files/` | Replace config files with your own |
-| Tasks | `overrides/{role}/tasks/main.yml` | Replace entire role behavior |
+| Variables | `overrides/roles/{role}/vars/main.yml` | Change settings (paths, names, options) |
+| Config Files | `overrides/roles/{role}/files/` | Replace config files with your own |
+| Tasks | `overrides/roles/{role}/tasks/main.yml` | Replace entire role behavior |
 
 ### Common Customizations
 
 | What | Override | Example |
 |------|----------|---------|
-| Git identity | `overrides/git/vars/main.yml` | Your name and email |
-| Shell config | `overrides/zsh/files/.zshrc` | Personal aliases |
-| Terminal | `overrides/ghostty/files/config` | Theme, font, colors |
-| Editor | `overrides/neovim/files/` | Plugins, keybindings |
+| Git identity | `overrides/roles/git/vars/main.yml` | Your name and email |
+| Shell config | `overrides/roles/zsh/files/.zshrc` | Personal aliases |
+| Terminal | `overrides/roles/ghostty/files/config` | Theme, font, colors |
+| Editor | `overrides/roles/neovim/files/` | Plugins, keybindings |
 
 See [`overrides/README.md`](overrides/README.md) for the complete guide.
 

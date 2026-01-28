@@ -6,7 +6,7 @@ Fork-friendly customization system. Override any role without modifying upstream
 
 1. **Fork** the repository on GitHub
 2. **Clone** your fork locally
-3. **Create** your override: `mkdir -p overrides/{role}/files`
+3. **Create** your override: `mkdir -p overrides/roles/{role}/files`
 4. **Customize** by copying and editing files
 5. **Run** `dotfiles` - your overrides apply automatically
 
@@ -16,9 +16,9 @@ Your overrides stay local (gitignored), so you can pull upstream updates without
 
 | Level | Path | Behavior |
 |-------|------|----------|
-| **Vars** | `overrides/{role}/vars/main.yml` | Merged before role runs |
-| **Files** | `overrides/{role}/files/` | Role uses these files instead |
-| **Tasks** | `overrides/{role}/tasks/main.yml` | **Replaces role entirely** |
+| **Vars** | `overrides/roles/{role}/vars/main.yml` | Merged before role runs |
+| **Files** | `overrides/roles/{role}/files/` | Role uses these files instead |
+| **Tasks** | `overrides/roles/{role}/tasks/main.yml` | **Replaces role entirely** |
 
 ## How It Works
 
@@ -33,8 +33,8 @@ The wrapper checks for overrides before running each role:
 ### Override Variables Only
 
 ```bash
-mkdir -p overrides/git/vars
-cat > overrides/git/vars/main.yml << 'EOF'
+mkdir -p overrides/roles/git/vars
+cat > overrides/roles/git/vars/main.yml << 'EOF'
 git_user_name: "My Fork Name"
 git_user_email: "fork@example.com"
 EOF
@@ -43,16 +43,16 @@ EOF
 ### Override Config Files Only
 
 ```bash
-mkdir -p overrides/neovim/files
-cp -r roles/neovim/files/* overrides/neovim/files/
-# Edit files in overrides/neovim/files/ as needed
+mkdir -p overrides/roles/neovim/files
+cp -r roles/neovim/files/* overrides/roles/neovim/files/
+# Edit files in overrides/roles/neovim/files/ as needed
 ```
 
 ### Replace Role Entirely
 
 ```bash
-mkdir -p overrides/custom-tool/tasks
-cat > overrides/custom-tool/tasks/main.yml << 'EOF'
+mkdir -p overrides/roles/custom-tool/tasks
+cat > overrides/roles/custom-tool/tasks/main.yml << 'EOF'
 ---
 - name: "custom-tool | My custom implementation"
   ansible.builtin.debug:
@@ -71,12 +71,12 @@ EOF
 
 | What to Customize | Override Path | Key Settings |
 |-------------------|---------------|--------------|
-| Git identity | `overrides/git/vars/main.yml` | `git_user_name`, `git_user_email` |
-| Git config | `overrides/git/files/.gitconfig` | Aliases, merge strategy |
-| Shell aliases | `overrides/zsh/files/.zshrc` | Personal shortcuts |
-| Terminal colors | `overrides/ghostty/files/config` | Theme, font, opacity |
-| Editor config | `overrides/neovim/files/` | Plugins, keybindings |
-| Tmux config | `overrides/tmux/files/tmux/` | Prefix key, status bar |
+| Git identity | `overrides/roles/git/vars/main.yml` | `git_user_name`, `git_user_email` |
+| Git config | `overrides/roles/git/files/.gitconfig` | Aliases, merge strategy |
+| Shell aliases | `overrides/roles/zsh/files/.zshrc` | Personal shortcuts |
+| Terminal colors | `overrides/roles/ghostty/files/config` | Theme, font, opacity |
+| Editor config | `overrides/roles/neovim/files/` | Plugins, keybindings |
+| Tmux config | `overrides/roles/tmux/files/tmux/` | Prefix key, status bar |
 
 ## Partial File Overrides
 
@@ -88,11 +88,11 @@ The `_files_path` variable points to ONE directory - either your override OR the
 - `.gitconfig`
 - `global.commit.template`
 
-And you only put `.gitconfig` in `overrides/git/files/`, the role will fail looking for `global.commit.template`.
+And you only put `.gitconfig` in `overrides/roles/git/files/`, the role will fail looking for `global.commit.template`.
 
 **Solution:** Copy everything, then modify what you need:
 ```bash
-cp -r roles/git/files/* overrides/git/files/
+cp -r roles/git/files/* overrides/roles/git/files/
 # Now edit only the files you want to change
 ```
 
@@ -117,7 +117,7 @@ dotfiles -t git -vvv 2>&1 | grep -E "(override|_files_path)"
 In your playbook output, look for:
 ```
 TASK [run_role_with_overrides : Set _files_path]
-ok: [localhost] => {"ansible_facts": {"_files_path": "/path/to/overrides/git/files"}}
+ok: [localhost] => {"ansible_facts": {"_files_path": "/path/to/overrides/roles/git/files"}}
 ```
 
 If it shows `roles/git/files` instead, your override wasn't detected.
@@ -126,17 +126,17 @@ If it shows `roles/git/files` instead, your override wasn't detected.
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| Override not applied | Wrong directory structure | Check path: `overrides/{role}/files/` not `override/` |
+| Override not applied | Wrong directory structure | Check path: `overrides/roles/{role}/files/` not `override/` |
 | File not found | Missing file in override | Copy ALL files from `roles/{role}/files/` |
-| Variables not merged | Wrong vars path | Use `overrides/{role}/vars/main.yml` |
+| Variables not merged | Wrong vars path | Use `overrides/roles/{role}/vars/main.yml` |
 
 ## Migrating from Modified Roles
 
 If you've already forked and modified role files directly:
 
 1. **Identify changes** - `git diff upstream/main -- roles/`
-2. **Create override structure** - `mkdir -p overrides/{role}/files`
-3. **Copy your modified files** - Move from `roles/{role}/files/` to `overrides/{role}/files/`
+2. **Create override structure** - `mkdir -p overrides/roles/{role}/files`
+3. **Copy your modified files** - Move from `roles/{role}/files/` to `overrides/roles/{role}/files/`
 4. **Reset role to upstream** - `git checkout upstream/main -- roles/{role}/files/`
 5. **Test** - Run `dotfiles -t {role}` to verify
 
@@ -165,7 +165,7 @@ When you fork this repo, the bootstrap script needs to know to clone YOUR fork, 
 After initial clone, you can also use a config file for subsequent runs:
 
 ```bash
-cp overrides/dotfiles.conf.example overrides/dotfiles.conf
+cp overrides/config/dotfiles.conf.example overrides/config/dotfiles.conf
 # Edit dotfiles.conf with your settings
 ```
 

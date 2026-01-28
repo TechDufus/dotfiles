@@ -115,7 +115,7 @@ DOTFILES_VERSION="1.0.0"
 # Fork configuration - forkers change this or use overrides/dotfiles.conf
 DOTFILES_GITHUB_USER="TechDufus"
 DOTFILES_REPO_NAME="dotfiles"
-DOTFILES_CONFIG="$HOME/.dotfiles/overrides/dotfiles.conf"
+DOTFILES_CONFIG="$HOME/.dotfiles/overrides/config/dotfiles.conf"
 if [[ -f "$DOTFILES_CONFIG" ]]; then
   # shellcheck source=/dev/null
   source "$DOTFILES_CONFIG"

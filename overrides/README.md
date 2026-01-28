@@ -141,3 +141,39 @@ If you've already forked and modified role files directly:
 5. **Test** - Run `dotfiles -t {role}` to verify
 
 Your modifications now live in `overrides/`, cleanly separated from upstream.
+
+## Bootstrap Customization
+
+When you fork this repo, the bootstrap script needs to know to clone YOUR fork, not the original.
+
+### Quick Setup
+
+1. Edit `bin/dotfiles` in your fork and change:
+   ```bash
+   DOTFILES_GITHUB_USER="YourGitHubUsername"
+   ```
+
+2. Commit and push to your fork
+
+3. Run your fork's bootstrap:
+   ```bash
+   bash -c "$(curl -fsSL https://raw.githubusercontent.com/YourGitHubUsername/dotfiles/main/bin/dotfiles)"
+   ```
+
+### Config File Override
+
+After initial clone, you can also use a config file for subsequent runs:
+
+```bash
+cp overrides/dotfiles.conf.example overrides/dotfiles.conf
+# Edit dotfiles.conf with your settings
+```
+
+This is useful if you want to keep `bin/dotfiles` unmodified for easier upstream merges.
+
+### Available Settings
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DOTFILES_GITHUB_USER` | `TechDufus` | GitHub username for repo URL |
+| `DOTFILES_REPO_NAME` | `dotfiles` | Repository name (if renamed) |

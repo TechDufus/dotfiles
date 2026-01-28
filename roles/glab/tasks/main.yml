@@ -16,6 +16,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: glab
+
 - name: "{{ role_name }} | Setup | Create config directory"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config/glab-cli"
@@ -29,7 +34,7 @@
 
 - name: "{{ role_name }} | Configure | Default aliases"
   ansible.builtin.copy:
-    src: "{{ role_path }}/files/config.yml"
+    src: "{{ _files_path }}/config.yml"
     dest: "{{ ansible_facts['user_dir'] }}/.config/glab-cli/config.yml"
     mode: "0600"
   when: not glab_config.stat.exists

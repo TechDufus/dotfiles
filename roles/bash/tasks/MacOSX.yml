@@ -1,0 +1,7 @@
+---
+- name: "Bash | MacOSX | Install"
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - bash

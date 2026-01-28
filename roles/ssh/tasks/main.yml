@@ -16,8 +16,11 @@
 
 - name: "SSH | Deploy SSH keys from 1Password"
   ansible.builtin.include_tasks: ssh_keys.yml
-  with_items: "{{ op.ssh.github.techdufus }}"
-  when: op_installed | default(false)
+  with_items: "{{ op.ssh.github.techdufus | default([]) }}"
+  when:
+    - op_installed | default(false)
+    - ssh_deploy_keys_enabled | default(true)
+    - op.ssh.github.techdufus is defined
 
 - name: "SSH | Warning - 1Password not installed"
   ansible.builtin.debug:

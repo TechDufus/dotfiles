@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: gh
+
 - name: "{{ role_name }} | Ensure gh-dash config dir exists"
   ansible.builtin.file:
     state: directory
@@ -17,7 +22,7 @@
 
 - name: "{{ role_name }} | Copy gh-dash config"
   ansible.builtin.copy:
-    src: config.yaml
+    src: "{{ _files_path }}/config.yaml"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/gh-dash/config.yaml"
     mode: '0644'
     owner: "{{ ansible_facts['env']['USER'] }}"

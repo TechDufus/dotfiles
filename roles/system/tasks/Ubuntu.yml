@@ -134,7 +134,7 @@
 
 - name: "System | {{ ansible_facts['distribution'] }} | Configure power button to suspend"
   ansible.builtin.copy:
-    src: logind.conf.d/power-button.conf
+    src: "{{ _files_path }}/logind.conf.d/power-button.conf"
     dest: /etc/systemd/logind.conf.d/power-button.conf
     mode: "0644"
   become: true

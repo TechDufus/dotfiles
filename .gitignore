@@ -48,3 +48,8 @@ node_modules/
 
 # Task files
 tasks.json
+
+# User overrides (fork customizations)
+overrides/*/
+!overrides/.gitkeep
+!overrides/README.md

@@ -67,6 +67,37 @@ cat > overrides/roles/custom-tool/tasks/main.yml << 'EOF'
 EOF
 ```
 
+### Add New Custom Roles
+
+Create roles that don't exist upstream - perfect for personal tools or workflows:
+
+```bash
+mkdir -p overrides/roles/my-tool/tasks
+cat > overrides/roles/my-tool/tasks/main.yml << 'EOF'
+---
+- name: "my-tool | Install my custom tool"
+  ansible.builtin.package:
+    name: my-tool
+    state: present
+
+- name: "my-tool | Deploy config"
+  ansible.builtin.copy:
+    src: "{{ _files_path }}/config"
+    dest: "{{ ansible_user_dir }}/.config/my-tool/config"
+EOF
+
+# Add config files
+mkdir -p overrides/roles/my-tool/files
+echo "my config" > overrides/roles/my-tool/files/config
+```
+
+Run with the `-t` flag:
+```bash
+dotfiles -t my-tool
+```
+
+Custom roles are only run when explicitly tagged - they won't run during a full `dotfiles` execution unless added to `default_roles`.
+
 ## Commonly Overridden Files
 
 | What to Customize | Override Path | Key Settings |

@@ -104,64 +104,60 @@
     scope: global
     value: "{{ git_user_name }}"
 
-# SSH commit signing (toggle with git_signing_enabled: false in overrides)
-- name: "Git | Configure SSH signing"
-  when: git_signing_enabled | default(true)
-  block:
-    - name: "Git | Set user.signingkey"
-      community.general.git_config:
-        name: user.signingkey
-        scope: global
-        value: "{{ ansible_facts['user_dir'] }}/.ssh/id_ed25519.pub"
+- name: "Git | Set user.signingkey"
+  community.general.git_config:
+    name: user.signingkey
+    scope: global
+    value: "{{ ansible_facts['user_dir'] }}/.ssh/id_ed25519.pub"
 
-    - name: "Git | Set gpg.format"
-      community.general.git_config:
-        name: gpg.format
-        scope: global
-        value: ssh
+- name: "Git | Set gpg.format"
+  community.general.git_config:
+    name: gpg.format
+    scope: global
+    value: ssh
 
-    - name: "Git | Set commit.gpgsign"
-      community.general.git_config:
-        name: commit.gpgsign
-        scope: global
-        value: true
+- name: "Git | Set commit.gpgsign"
+  community.general.git_config:
+    name: commit.gpgsign
+    scope: global
+    value: true
 
-    - name: "Git | Set tag.gpgsign"
-      community.general.git_config:
-        name: tag.gpgsign
-        scope: global
-        value: true
+- name: "Git | Set tag.gpgsign"
+  community.general.git_config:
+    name: tag.gpgsign
+    scope: global
+    value: true
 
-    - name: "Git | Ensure ~/.config/git/allowed_signers exists"
-      ansible.builtin.file:
-        path: "{{ ansible_facts['user_dir'] }}/.config/git"
-        state: directory
-        mode: "0755"
+- name: "Git | Ensure ~/.config/git/allowed_signers exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/git"
+    state: directory
+    mode: "0755"
 
-    - name: "1Password | Get allowed_signers"
-      ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
-      register: op_git_ssh_allowed_signers
-      changed_when: false
-      failed_when: false
-      no_log: true
-      when: op_installed
+- name: "1Password | Get allowed_signers"
+  ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
+  register: op_git_ssh_allowed_signers
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: op_installed
 
-    - name: "1Password | Configure ~/.config/git/allowed_signers"
-      ansible.builtin.blockinfile:
-        path: "{{ ansible_facts['user_dir'] }}/.config/git/allowed_signers"
-        block: "{{ op_git_ssh_allowed_signers.stdout }}"
-        mode: "0600"
-        create: true
-      no_log: true
-      when:
-        - op_installed
-        - op_git_ssh_allowed_signers.rc == 0
+- name: "1Password | Configure ~/.config/git/allowed_signers"
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts['user_dir'] }}/.config/git/allowed_signers"
+    block: "{{ op_git_ssh_allowed_signers.stdout }}"
+    mode: "0600"
+    create: true
+  no_log: true
+  when: 
+    - op_installed
+    - op_git_ssh_allowed_signers.rc == 0
 
-    - name: "Git | Set gpg.ssh.allowedSignersFile"
-      community.general.git_config:
-        name: gpg.ssh.allowedSignersFile
-        scope: global
-        value: "{{ ansible_facts['user_dir'] }}/.config/git/allowed_signers"
+- name: "Git | Set gpg.ssh.allowedSignersFile"
+  community.general.git_config:
+    name: gpg.ssh.allowedSignersFile
+    scope: global
+    value: "{{ ansible_facts['user_dir'] }}/.config/git/allowed_signers"
 
 - name: "Git | Set undo alias"
   community.general.git_config:

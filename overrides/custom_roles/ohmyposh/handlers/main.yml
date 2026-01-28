@@ -1,5 +1,0 @@
----
-- name: Bash | Cleanup oh-my-posh install script
-  ansible.builtin.file:
-    path: /{{ ansible_user_dir }}/oh-my-posh.install.sh
-    state: absent

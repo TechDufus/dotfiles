@@ -112,7 +112,7 @@
 
     - name: "Zsh | Deploy .zshrc"
       ansible.builtin.copy:
-        src: ".zshrc"
+        src: "{{ _files_path }}/.zshrc"
         dest: "{{ ansible_facts['env']['HOME'] }}/.zshrc"
         mode: '0644'
         backup: yes

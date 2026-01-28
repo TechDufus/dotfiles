@@ -46,6 +46,9 @@
 - name: "Override | Run override tasks: {{ _role_name }}"
   ansible.builtin.include_tasks:
     file: "{{ playbook_dir }}/overrides/{{ _role_name }}/tasks/main.yml"
+    apply:
+      tags:
+        - "{{ _role_name }}"
   when: _task_override.stat.exists
   tags:
     - always

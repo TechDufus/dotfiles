@@ -29,7 +29,7 @@
 
 - name: "{{ role_name }} | Configure | Default aliases"
   ansible.builtin.copy:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/config.yml"
+    src: "{{ _files_path }}/config.yml"
     dest: "{{ ansible_facts['user_dir'] }}/.config/glab-cli/config.yml"
     mode: "0600"
   when: not glab_config.stat.exists

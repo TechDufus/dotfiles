@@ -30,20 +30,20 @@
 
 - name: "Bash | Copy .bashrc"
   ansible.builtin.copy:
-    src: ".bashrc"
+    src: "{{ _files_path }}/.bashrc"
     dest: "{{ ansible_facts['user_dir'] }}/.bashrc"
     mode: "0644"
 
 - name: "Bash | Copy .profile"
   ansible.builtin.copy:
-    src: ".profile"
+    src: "{{ _files_path }}/.profile"
     dest: "{{ ansible_facts['user_dir'] }}/.profile"
     mode: "0644"
 
 - name: "Bash | Copy custom bash config"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/"
-    src: "bash"
+    src: "{{ _files_path }}/bash"
     mode: "0644"
     directory_mode: "0755"
     force: true
@@ -51,19 +51,19 @@
 - name: "Bash | Copy custom bash theme"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.oh-my-bash/custom/"
-    src: "themes"
+    src: "{{ _files_path }}/themes"
     directory_mode: "0755"
     mode: "0644"
     force: true
 
 - name: "Bash | {{ ansible_facts['distribution'] }} | Identify distribution config"
   ansible.builtin.stat:
-    path: "{{ _files_path | default(role_path ~ '/files') }}/os/{{ ansible_facts['distribution'] }}"
+    path: "{{ _files_path }}/os/{{ ansible_facts['distribution'] }}"
   register: bash_os_distribution_config
 
 - name: "Bash | {{ ansible_facts['os_family'] }} | Identify os family config"
   ansible.builtin.stat:
-    path: "{{ _files_path | default(role_path ~ '/files') }}/os/{{ ansible_facts['os_family'] }}"
+    path: "{{ _files_path }}/os/{{ ansible_facts['os_family'] }}"
   register: bash_os_family_config
   when: not bash_os_distribution_config.stat.exists
 

@@ -17,7 +17,7 @@
 
 - name: "{{ role_name }} | Copy gh-dash config"
   ansible.builtin.copy:
-    src: config.yaml
+    src: "{{ _files_path }}/config.yaml"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/gh-dash/config.yaml"
     mode: '0644'
     owner: "{{ ansible_facts['env']['USER'] }}"

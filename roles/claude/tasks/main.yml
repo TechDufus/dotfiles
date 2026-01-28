@@ -30,7 +30,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude settings.json"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/settings.json"
+    src: "{{ _files_path }}/settings.json"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/settings.json"
     state: link
     force: true
@@ -48,7 +48,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude scripts"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/scripts"
+    src: "{{ _files_path }}/scripts"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/scripts"
     state: link
     force: true
@@ -66,7 +66,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude commands"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/commands"
+    src: "{{ _files_path }}/commands"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/commands"
     state: link
     force: true
@@ -84,7 +84,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude hooks"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/hooks"
+    src: "{{ _files_path }}/hooks"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/hooks"
     state: link
     force: true
@@ -102,7 +102,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude agents"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/agents"
+    src: "{{ _files_path }}/agents"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/agents"
     state: link
     force: true
@@ -120,7 +120,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude skills"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/skills"
+    src: "{{ _files_path }}/skills"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
     state: link
     force: true
@@ -138,7 +138,7 @@
 
 - name: "{{ role_name }} | Create symlink to Claude LSP configuration"
   ansible.builtin.file:
-    src: "{{ _files_path | default(role_path ~ '/files') }}/.lsp.json"
+    src: "{{ _files_path }}/.lsp.json"
     dest: "{{ ansible_facts['env']['HOME'] }}/.claude/.lsp.json"
     state: link
     force: true

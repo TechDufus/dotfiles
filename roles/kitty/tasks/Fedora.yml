@@ -52,7 +52,7 @@
 
 - name: "Kitty | {{ ansible_facts['distribution'] }} | Deploy kitty.conf"
   ansible.builtin.copy:
-    src: "kitty.conf"
+    src: "{{ _files_path }}/kitty.conf"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/kitty/kitty.conf"
     mode: '0644'
     backup: yes

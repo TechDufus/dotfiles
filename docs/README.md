@@ -1,5 +1,9 @@
 # Dotfiles Documentation
 
+## Forking & Customization
+
+See [`../overrides/README.md`](../overrides/README.md) for the fork-friendly override system.
+
 ## Role Development Guide
 
 See [example-role/](example-role/) for a complete template demonstrating the standard patterns used across all dotfiles roles.

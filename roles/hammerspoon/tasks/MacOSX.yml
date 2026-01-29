@@ -17,7 +17,7 @@
 
 - name: "Hammerspoon | MacOSX | Deploy Karabiner Configuration (CapsLock to F13)"
   ansible.builtin.copy:
-    src: "karabiner/karabiner.json"
+    src: "{{ _files_path }}/karabiner/karabiner.json"
     dest: "{{ ansible_facts['user_dir'] }}/.config/karabiner/karabiner.json"
     mode: "0644"
 
@@ -29,7 +29,7 @@
 
 - name: "Hammerspoon | MacOSX | Deploy Hammerspoon Configuration"
   ansible.builtin.copy:
-    src: "config/"
+    src: "{{ _files_path }}/config/"
     dest: "{{ ansible_facts['user_dir'] }}/.hammerspoon"
     mode: "0644"
 

@@ -11,6 +11,61 @@
     "SLASH_COMMAND_TOOL_CHAR_BUDGET": "20000",
     "ENABLE_LSP_TOOLS": "1"
   },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Arising",
+      "Final flashing",
+      "Activating chakra",
+      "Summoning shadows",
+      "Shadow cloning",
+      "Unlocking sharingan",
+      "Expanding domain",
+      "Gathering cursed energy",
+      "Double striking",
+      "Believing it",
+      "Breaking limits",
+      "Going super saiyan",
+      "Assembling",
+      "Ascending",
+      "Going solo",
+      "Spirit bombing",
+      "Kamehamehaing",
+      "Finding sensu beans",
+      "Questing",
+      "Spending stats",
+      "Leveling up",
+      "Opening Secret Cow Level",
+      "Corrupting items",
+      "Crafting",
+      "Activating Horadric Cube",
+      "Releasing bankai",
+      "Initiating duel",
+      "Dedicating hearts",
+      "Charging Rasengan",
+      "Activating Chidori",
+      "Moon prism powering",
+      "Omae wa mou shindeiru-ing",
+      "Nani-ing intensely",
+      "Barrel rolling",
+      "Hadouken-ing",
+      "Fus Ro Dah-ing",
+      "Pressing F",
+      "Leroy Jenkins-ing",
+      "For the Horde-ing",
+      "Respawning",
+      "Collecting coins",
+      "Smashing",
+      "Fatality-ing",
+      "Toasty-ing",
+      "Achievement Unlocking",
+      "Critical hitting",
+      "Limit breaking",
+      "Summoning Shenron",
+      "Making a contract",
+      "GGing"
+    ]
+  },
   "attribution": {
     "commit": "",
     "pr": ""
@@ -1040,7 +1095,10 @@
     "command": "~/.claude/scripts/statusline.sh"
   },
   "enabledPlugins": {
-    "oh-my-claude@oh-my-claude": true
+    "oh-my-claude": true,
+    "oh-my-claude@oh-my-claude": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
   },
   "syntaxHighlightingDisabled": false
 }

@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: lsd
+
 - name: "LSD | Ensure ~/.config/lsd exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config/lsd"
@@ -16,12 +21,12 @@
 
 - name: "LSD | Copy lsd config"
   ansible.builtin.copy:
-    src: "config.yaml"
+    src: "{{ _files_path }}/config.yaml"
     dest: "{{ ansible_facts['user_dir'] }}/.config/lsd/config.yaml"
     mode: "0644"
 
 - name: "LSD | Copy colors.yaml"
   ansible.builtin.copy:
-    src: "colors.yaml"
+    src: "{{ _files_path }}/colors.yaml"
     dest: "{{ ansible_facts['user_dir'] }}/.config/lsd/colors.yaml"
     mode: "0644"

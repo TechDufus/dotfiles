@@ -111,6 +111,15 @@ DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 DOTFILES_VERSION="1.0.0"
+
+# GitHub user for repository URL (override via config file)
+DOTFILES_GITHUB_USER="TechDufus"
+DOTFILES_CONFIG="$HOME/.dotfiles/overrides/dotfiles.conf"
+if [[ -f "$DOTFILES_CONFIG" ]]; then
+  # shellcheck source=/dev/null
+  source "$DOTFILES_CONFIG"
+fi
+
 # Spinner PID tracking
 SPINNER_PID=""
 
@@ -461,7 +470,7 @@ esac
 
 if ! [[ -d "$DOTFILES_DIR" ]]; then
   __task "Downloading dotfiles repository (This may take a minute)"
-  _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
+  _cmd "git clone --quiet https://github.com/${DOTFILES_GITHUB_USER}/dotfiles.git $DOTFILES_DIR"
   _task_done
 else
   __task "Updating dotfiles repository"

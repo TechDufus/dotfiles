@@ -8,6 +8,11 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: starship
+
 - name: "{{ role_name }} | Ensure .config directory exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config"
@@ -17,5 +22,5 @@
 - name: "{{ role_name }} | Copy custom starship config"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/starship.toml"
-    src: "starship.toml"
+    src: "{{ _files_path }}/starship.toml"
     mode: "0644"

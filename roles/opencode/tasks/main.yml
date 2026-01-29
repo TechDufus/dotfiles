@@ -25,6 +25,11 @@
   when: bun_check.rc != 0
 
 # Configure opencode
+- name: "{{ role_name }} | Set config source"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/override_utils/tasks/set_config_source.yml"
+  vars:
+    config_name: opencode
+
 - name: "{{ role_name }} | Ensure ~/.config/opencode directory exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['env']['HOME'] }}/.config/opencode"
@@ -52,7 +57,7 @@
 
 - name: "{{ role_name }} | Create symlink to opencode.json"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/opencode.json"
+    src: "{{ _files_path }}/opencode.json"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/opencode.json"
     state: link
     force: true
@@ -70,7 +75,7 @@
 
 - name: "{{ role_name }} | Create symlink to opencode scripts"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/scripts"
+    src: "{{ _files_path }}/scripts"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/scripts"
     state: link
     force: true
@@ -88,7 +93,7 @@
 
 - name: "{{ role_name }} | Create symlink to opencode commands"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/command"
+    src: "{{ _files_path }}/command"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/command"
     state: link
     force: true
@@ -114,7 +119,7 @@
 
 - name: "{{ role_name }} | Create symlink to AGENTS.md"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/AGENTS.md"
+    src: "{{ _files_path }}/AGENTS.md"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/AGENTS.md"
     state: link
     force: true
@@ -168,7 +173,7 @@
 
 - name: "{{ role_name }} | Create symlink to oh-my-opencode.json"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/oh-my-opencode.json"
+    src: "{{ _files_path }}/oh-my-opencode.json"
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/opencode/oh-my-opencode.json"
     state: link
     force: true

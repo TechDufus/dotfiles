@@ -259,7 +259,7 @@ The role compares the installed version against the target release and only proc
   vars:
     github_release_repo: "jesseduffield/lazygit"
     github_release_binary_name: "lazygit"
-    github_release_asset_name_pattern: "lazygit_.*_Linux_{{ ansible_architecture }}.tar.gz"
+    github_release_asset_name_pattern: "lazygit_.*_Linux_{{ ansible_facts['architecture'] }}.tar.gz"
     github_release_check_command: "lazygit --version"
     github_release_version_pattern: 'version=([^,]+)'
     github_release_install_path: "{{ '~/.local/bin' if not can_install_packages else '/usr/local/bin' }}"

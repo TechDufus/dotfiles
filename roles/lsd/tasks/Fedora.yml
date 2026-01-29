@@ -29,7 +29,7 @@
   vars:
     github_release_repo: "lsd-rs/lsd"
     github_release_binary_name: "lsd"
-    github_release_asset_name_pattern: "lsd-.*-{{ ansible_architecture | replace('x86_64', 'x86_64') | replace('aarch64', 'aarch64') }}-unknown-linux-gnu.tar.gz"
+    github_release_asset_name_pattern: "lsd-.*-{{ ansible_facts['architecture'] | replace('x86_64', 'x86_64') | replace('aarch64', 'aarch64') }}-unknown-linux-gnu.tar.gz"
     github_release_check_command: "lsd --version"
     github_release_version_pattern: 'lsd ([0-9]+\.[0-9]+\.[0-9]+)'
     github_release_install_dir: "{{ '~/.local/bin' if not (can_install_packages | default(false)) else '/usr/local/bin' }}"

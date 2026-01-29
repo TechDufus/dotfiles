@@ -40,7 +40,7 @@ After the sudo detection pre-task runs, the following facts are available:
 - name: Install to user location (without sudo)
   ansible.builtin.copy:
     src: myfile
-    dest: "{{ ansible_env.HOME }}/.local/bin/myfile"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/myfile"
     mode: '0755'
   when: not (has_sudo | default(false))
 ```
@@ -73,7 +73,7 @@ After the sudo detection pre-task runs, the following facts are available:
     name: package-name
     state: present
   when: 
-    - ansible_distribution == "MacOSX"
+    - ansible_facts['distribution'] == "MacOSX"
     - detected_package_manager == "brew"
 
 - name: Install package (Ubuntu/Debian)
@@ -82,7 +82,7 @@ After the sudo detection pre-task runs, the following facts are available:
     state: present
   become: true
   when: 
-    - ansible_distribution in ["Ubuntu", "Debian"]
+    - ansible_facts['distribution'] in ["Ubuntu", "Debian"]
     - can_install_packages | default(false)
 
 - name: Install package (Fedora)
@@ -91,7 +91,7 @@ After the sudo detection pre-task runs, the following facts are available:
     state: present
   become: true
   when:
-    - ansible_distribution == "Fedora"
+    - ansible_facts['distribution'] == "Fedora"
     - can_install_packages | default(false)
 
 - name: Install package (Arch)
@@ -100,7 +100,7 @@ After the sudo detection pre-task runs, the following facts are available:
     state: present
   become: true
   when:
-    - ansible_distribution == "Archlinux"
+    - ansible_facts['distribution'] == "Archlinux"
     - can_install_packages | default(false)
 ```
 

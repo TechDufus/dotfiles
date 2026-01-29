@@ -72,7 +72,7 @@ Simple Homebrew installation for easy updates and integration.
   ansible.builtin.git:
     repo: https://github.com/junegunn/fzf.git
     depth: 1
-    dest: "{{ ansible_user_dir }}/.fzf"
+    dest: "{{ ansible_facts['user_dir'] }}/.fzf"
   notify: "Install FZF"
 ```
 

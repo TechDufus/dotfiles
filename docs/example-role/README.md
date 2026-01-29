@@ -30,13 +30,13 @@ Every role should start with OS detection to handle platform-specific installati
 
 ```yaml
 ---
-- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_distribution }}"
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
   ansible.builtin.stat:
-    path: "{{ role_path }}/tasks/{{ ansible_distribution }}.yml"
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
   register: distribution_config
 
-- name: "{{ role_name }} | Run Tasks: {{ ansible_distribution }}"
-  ansible.builtin.include_tasks: "{{ ansible_distribution }}.yml"
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
 # Common tasks that run on all platforms go here
@@ -63,8 +63,8 @@ See the individual OS task files for examples.
 ## Common Variables
 
 - `role_name`: Set to the role's actual name (e.g., "git", "neovim")
-- `ansible_distribution`: Automatically set by Ansible (MacOSX, Ubuntu, etc.)
-- `ansible_user_dir`: User's home directory
+- `ansible_facts['distribution']`: Automatically set by Ansible (MacOSX, Ubuntu, etc.)
+- `ansible_facts['user_dir']`: User's home directory
 - `can_install_packages`: Set by pre_tasks to indicate sudo availability
 
 ## Testing

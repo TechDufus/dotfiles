@@ -13,7 +13,7 @@
   vars:
     github_release_repo: "jesseduffield/lazygit"
     github_release_binary_name: "lazygit"
-    github_release_asset_name_pattern: "lazygit_.*_Linux_{{ ansible_architecture | replace('x86_64', 'x86_64') | replace('aarch64', 'arm64') }}.tar.gz"
+    github_release_asset_name_pattern: "lazygit_.*_Linux_{{ ansible_facts['architecture'] | replace('x86_64', 'x86_64') | replace('aarch64', 'arm64') }}.tar.gz"
     github_release_check_command: "lazygit --version"
     github_release_version_pattern: 'version=([^,]+)'
     github_release_install_dir: "{{ '~/.local/bin' if not (can_install_packages | default(false)) else '/usr/local/bin' }}"

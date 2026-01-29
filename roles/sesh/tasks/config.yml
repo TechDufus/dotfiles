@@ -7,6 +7,6 @@
 
 - name: "{{ role_name }} | Deploy sesh configuration"
   ansible.builtin.copy:
-    src: sesh.toml
+    src: "{{ _files_path }}/sesh.toml"
     dest: ~/.config/sesh/sesh.toml
     mode: '0644'

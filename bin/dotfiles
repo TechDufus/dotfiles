@@ -111,12 +111,22 @@ DOTFILES_LOG="$HOME/.dotfiles.log"
 DOTFILES_DIR="$HOME/.dotfiles"
 IS_FIRST_RUN="$HOME/.dotfiles_run"
 DOTFILES_VERSION="1.0.0"
+
+# Fork configuration - forkers change this or use overrides/dotfiles.conf
+DOTFILES_GITHUB_USER="TechDufus"
+DOTFILES_REPO_NAME="dotfiles"
+DOTFILES_CONFIG="$HOME/.dotfiles/overrides/config/dotfiles.conf"
+if [[ -f "$DOTFILES_CONFIG" ]]; then
+  # shellcheck source=/dev/null
+  source "$DOTFILES_CONFIG"
+fi
+
 # Spinner PID tracking
 SPINNER_PID=""
 
 # Show usage/help information
 show_help() {
-  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} - Ansible-based dotfiles management"
+  echo -e "${CAT_SAPPHIRE}${DOTFILES_GITHUB_USER} Dotfiles${NC} - Ansible-based dotfiles management"
   echo ""
   echo -e "${CAT_BLUE}USAGE:${NC}"
   echo "    dotfiles [OPTIONS] [-- ANSIBLE_ARGS]"
@@ -148,7 +158,7 @@ show_help() {
   echo "    All arguments not recognized by dotfiles are passed to ansible-playbook."
   echo "    Common options: -t <tags>, --check, -vvv, --list-tags"
   echo ""
-  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/TechDufus/dotfiles${NC}"
+  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/${DOTFILES_GITHUB_USER}/${DOTFILES_REPO_NAME}${NC}"
 }
 
 # Show version information
@@ -157,7 +167,7 @@ show_version() {
   if [[ -d "$DOTFILES_DIR/.git" ]]; then
     git_hash=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
   fi
-  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
+  echo -e "${CAT_SAPPHIRE}${DOTFILES_GITHUB_USER} Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
 }
 
 # Spinner function that runs in background
@@ -461,7 +471,7 @@ esac
 
 if ! [[ -d "$DOTFILES_DIR" ]]; then
   __task "Downloading dotfiles repository (This may take a minute)"
-  _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
+  _cmd "git clone --quiet https://github.com/${DOTFILES_GITHUB_USER}/${DOTFILES_REPO_NAME}.git $DOTFILES_DIR"
   _task_done
 else
   __task "Updating dotfiles repository"

@@ -14,7 +14,7 @@
 
 - name: "Bat | MacOSX | Install bat config"
   ansible.builtin.copy:
-    src: config
+    src: "{{ _files_path }}/config"
     dest: "{{ lookup('env', 'HOME') }}/.config/bat/config"
     mode: "0644"
 

@@ -30,6 +30,12 @@ Configures tmux terminal multiplexer with TPM plugins, vi-mode, and corporate en
 - **Sesh**: Session manager popup via `prefix + o`
 - **ZSH**: `TMUX_TMPDIR` set in `roles/zsh/files/zsh/vars.zsh`
 
+## Ghostty Integration
+- `allow-passthrough on` enables OSC sequences (images, shell integration)
+- `extended-keys on` + `extended-keys-format csi-u` for modern key handling
+- `terminal-features 'xterm-ghostty:extkeys'` for Ghostty extended keys
+- True color via `terminal-overrides ",xterm-ghostty:RGB"`
+
 ## Gotchas
 - **Windows start at 1**: Not 0, for easier keyboard access
 - **1M line history**: Large scrollback buffer configured

@@ -1,0 +1,52 @@
+---
+- name: "{{ role_name }} | Install dependencies"
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ffmpegthumbnailer
+      - unar
+      - jq
+      - poppler-utils
+      - fd-find
+      - ripgrep
+      - fzf
+      - imagemagick
+    state: present
+
+- name: "{{ role_name }} | Check if yazi is installed"
+  ansible.builtin.command: which yazi
+  register: yazi_check
+  failed_when: false
+  changed_when: false
+
+- name: "{{ role_name }} | Get latest yazi release"
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/sxyazi/yazi/releases/latest
+    return_content: true
+  register: yazi_release
+  when: yazi_check.rc != 0
+
+- name: "{{ role_name }} | Download yazi"
+  ansible.builtin.unarchive:
+    src: "https://github.com/sxyazi/yazi/releases/download/{{ yazi_release.json.tag_name }}/yazi-x86_64-unknown-linux-gnu.zip"
+    dest: /tmp
+    remote_src: true
+  when: yazi_check.rc != 0
+
+- name: "{{ role_name }} | Install yazi binary"
+  become: true
+  ansible.builtin.copy:
+    src: /tmp/yazi-x86_64-unknown-linux-gnu/yazi
+    dest: /usr/local/bin/yazi
+    mode: "0755"
+    remote_src: true
+  when: yazi_check.rc != 0
+
+- name: "{{ role_name }} | Install ya binary"
+  become: true
+  ansible.builtin.copy:
+    src: /tmp/yazi-x86_64-unknown-linux-gnu/ya
+    dest: /usr/local/bin/ya
+    mode: "0755"
+    remote_src: true
+  when: yazi_check.rc != 0

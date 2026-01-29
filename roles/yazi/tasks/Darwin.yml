@@ -1,0 +1,20 @@
+---
+- name: "{{ role_name }} | Install yazi via Homebrew"
+  community.general.homebrew:
+    name: yazi
+    state: present
+
+- name: "{{ role_name }} | Install yazi dependencies via Homebrew"
+  community.general.homebrew:
+    name:
+      - ffmpegthumbnailer
+      - unar
+      - jq
+      - poppler
+      - fd
+      - ripgrep
+      - fzf
+      - zoxide
+      - imagemagick
+      - font-symbols-only-nerd-font
+    state: present

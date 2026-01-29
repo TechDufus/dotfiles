@@ -1,0 +1,20 @@
+# Yazi keymap configuration
+# https://yazi-rs.github.io/docs/configuration/keymap
+# Using defaults - customize as needed
+
+# Key reference:
+# j/k - down/up
+# h/l - parent/enter
+# gg/G - top/bottom
+# Space - select
+# v - visual mode
+# y - yank (copy)
+# p - paste
+# d - trash
+# D - permanent delete
+# a - create file
+# r - rename
+# . - toggle hidden
+# z - jump via zoxide
+# / - search
+# q - quit

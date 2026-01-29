@@ -134,6 +134,21 @@ cp -r roles/git/files/* overrides/roles/git/files/
 - **This directory is gitignored** - your customizations stay local
 - **Pull upstream cleanly** - no merge conflicts with your overrides
 
+## Variable Scope Behavior
+
+**Important:** Variables loaded from `overrides/roles/{role}/vars/main.yml` persist for the entire playbook run.
+
+This is standard Ansible behavior - `include_vars` loads into play scope. After a role runs, its override variables remain set for all subsequent roles.
+
+### Best Practices
+
+1. **Use role-prefixed variable names** - `git_user_email` not `user_email`
+2. **Check role defaults first** - `roles/{role}/defaults/main.yml` shows expected names
+3. **Avoid generic names** - `config`, `version`, `name` could collide with other roles
+4. **Override only what you need** - fewer variables = fewer collision chances
+
+This behavior matches how `group_vars/` works in Ansible - it's not a bug, just something to be aware of.
+
 ## Debugging Overrides
 
 ### Verify Override Detection

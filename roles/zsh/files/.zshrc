@@ -63,6 +63,8 @@ zinit snippet OMZP::kubectx
 zinit snippet OMZP::command-not-found
 
 # Load completions
+# Prune dangling symlinks left by zinit plugin updates (zinit doesn't clean these up)
+command find "${ZINIT_HOME:h}/completions" -type l ! -exec test -e {} \; -delete 2>/dev/null
 autoload -U +X bashcompinit && bashcompinit
 autoload -Uz compinit && compinit
 

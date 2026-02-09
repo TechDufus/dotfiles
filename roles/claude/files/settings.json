@@ -1,6 +1,7 @@
 {
   "respectGitignore": true,
   "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",
     "DISABLE_BUG_COMMAND": "1",
@@ -1103,5 +1104,6 @@
       "GGing"
     ]
   },
-  "syntaxHighlightingDisabled": false
+  "syntaxHighlightingDisabled": false,
+  "teammateMode": "in-process"
 }

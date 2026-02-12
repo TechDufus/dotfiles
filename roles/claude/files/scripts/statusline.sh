@@ -50,7 +50,6 @@ eval "$(echo "$input" | jq -r '
   @sh "CONTEXT_SIZE=\(.context_window.context_window_size // "")",
   @sh "TOTAL_OUTPUT_TOKENS=\(.context_window.total_output_tokens // "")",
   @sh "CU_INPUT=\(.context_window.current_usage.input_tokens // "")",
-  @sh "CU_OUTPUT=\(.context_window.current_usage.output_tokens // "")",
   @sh "CU_CACHE_CREATE=\(.context_window.current_usage.cache_creation_input_tokens // "")",
   @sh "CU_CACHE_READ=\(.context_window.current_usage.cache_read_input_tokens // "")"
 ')"
@@ -59,7 +58,7 @@ eval "$(echo "$input" | jq -r '
 TERM_WIDTH=${COLUMNS:-200}
 
 # ─── Path display ──────────────────────────────────────────────────────────────
-DIR=${CURRENT_DIR/#$HOME/\~}
+DIR=${CURRENT_DIR/#"$HOME"/\~}
 DIR_INDICATOR=""
 if [[ -n "$PROJECT_DIR" ]] && [[ "$CURRENT_DIR" != "$PROJECT_DIR" ]]; then
   DIR_INDICATOR="${C_SUBDIR}↳ "
@@ -254,7 +253,7 @@ if [[ -n "$CONTEXT_SIZE" ]] && [[ "$CONTEXT_SIZE" != "0" ]]; then
   CU_CACHE_CREATE=${CU_CACHE_CREATE:-0}
   CU_CACHE_READ=${CU_CACHE_READ:-0}
   TOTAL_CONTEXT=$((CU_INPUT + CU_CACHE_CREATE + CU_CACHE_READ))
-  CONTEXT_PCT=$(echo "scale=0; ${TOTAL_CONTEXT} * 100 / ${CONTEXT_SIZE}" | bc)
+  CONTEXT_PCT=$(( TOTAL_CONTEXT * 100 / CONTEXT_SIZE ))
 fi
 
 # Cache hit percentage
@@ -404,12 +403,12 @@ if [[ -n "$CONTEXT_PCT" ]]; then
 
   local_bar_text_color=$(get_bar_color "$CONTEXT_PCT")
 
-  L2="${L2}${BAR_STR} ${local_bar_text_color}${CONTEXT_PCT}%%"
+  L2="${L2}${BAR_STR} ${local_bar_text_color}${CONTEXT_PCT}%"
 
   # Cache hit
   if [[ $TERM_WIDTH -ge 100 ]]; then
     if [[ -n "$CACHE_HIT" ]]; then
-      L2="${L2} ${C_SEP}│ ${C_CACHE}⚡${CACHE_HIT}%%"
+      L2="${L2} ${C_SEP}│ ${C_CACHE}⚡${CACHE_HIT}%"
     else
       L2="${L2} ${C_SEP}│ ${C_CACHE}⚡—"
     fi
@@ -425,7 +424,7 @@ if [[ -n "$CONTEXT_PCT" ]]; then
   fi
 else
   BAR_STR=$(build_progress_bar 0)
-  L2="${L2}${BAR_STR} ${C_DIM}—%%"
+  L2="${L2}${BAR_STR} ${C_DIM}—%"
 fi
 
 # ─── Build LINE 3: model + cost + timing ───────────────────────────────────────
@@ -452,9 +451,6 @@ if [[ $TERM_WIDTH -ge 120 ]]; then
 fi
 
 # ─── Output ────────────────────────────────────────────────────────────────────
-# shellcheck disable=SC2059
-printf "${L1}${RESET}\n"
-# shellcheck disable=SC2059
-printf "${L2}${RESET}\n"
-# shellcheck disable=SC2059
-printf "${L3}${RESET}"
+printf '%b\n' "${L1}${RESET}"
+printf '%b\n' "${L2}${RESET}"
+printf '%b' "${L3}${RESET}"

@@ -1,234 +1,153 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Claude Code custom statusline script
-# This script generates a statusline with user, host, directory, git info, and model
+# Claude Code custom statusline — 3-line truecolor dashboard
+# Catppuccin Mocha palette with box-drawing frame, progress bar, and derived metrics.
 #
-# Expects JSON input from Claude Code hooks with this structure:
-# {
-#   "hook_event_name": "Status",
-#   "session_id": "abc123...",
-#   "transcript_path": "/path/to/transcript.json",
-#   "cwd": "/current/working/directory",
-#   "model": {
-#     "id": "claude-opus-4-1",
-#     "display_name": "Opus"
-#   },
-#   "workspace": {
-#     "current_dir": "/current/working/directory",
-#     "project_dir": "/original/project/directory"
-#   },
-#   "version": "1.0.80",
-#   "cost": {
-#     "total_cost_usd": 0.01234,
-#     "total_duration_ms": 45000,
-#     "total_api_duration_ms": 2300,
-#     "total_lines_added": 156,
-#     "total_lines_removed": 23
-#   },
-#   "context_window": {
-#     "total_input_tokens": 15234,
-#     "total_output_tokens": 4521,
-#     "context_window_size": 200000,
-#     "current_usage": {
-#       "input_tokens": 8500,
-#       "output_tokens": 1200,
-#       "cache_creation_input_tokens": 5000,
-#       "cache_read_input_tokens": 2000
-#     }
-#   }
-# }
+# Expects JSON input from Claude Code hooks (piped via stdin).
+# Layout:
+#   ╭  ~/.dotfiles on  main *2 +3 ~1 ⇡1
+#   ├ ██████████████▌░░░░░░░░░░ 54% │ ⚡87% │ 󰓅 142t/s │ +156 -23
+#   ╰  Opus │ $0.12 │ ⏱2.3s │ 󱑃 45s
 
-# Use 256-color codes for better compatibility
+# ─── Catppuccin Mocha truecolor palette ────────────────────────────────────────
 RESET='\033[0m'
-BRIGHT_GREEN='\033[38;5;46m'    # Bright green (256-color)
-BRIGHT_CYAN='\033[38;5;51m'     # Bright cyan (256-color)
-BRIGHT_YELLOW='\033[38;5;226m'  # Bright yellow (256-color)
-BRIGHT_MAGENTA='\033[38;5;201m' # Bright magenta (256-color)
-BRIGHT_WHITE='\033[38;5;231m'   # Bright white (256-color)
-GRAY='\033[38;5;244m'           # Light gray (256-color)
+C_SEP='\033[38;2;108;112;134m'        # Overlay 0  — separators │
+C_OS='\033[38;2;137;180;250m'         # Blue       — OS icon
+C_DIR='\033[38;2;116;199;236m'        # Sapphire   — directory path
+C_SUBDIR='\033[38;2;127;132;156m'     # Overlay 1  — ↳ indicator
+C_BRANCH='\033[38;2;166;227;161m'     # Green      — git branch
+C_STATUS='\033[38;2;249;226;175m'     # Yellow     — git status indicators
+C_STATE='\033[38;2;243;139;168m'      # Red        — git state (REBASE etc)
+C_MODEL='\033[38;2;203;166;247m'      # Mauve      — model name
+C_COST='\033[38;2;250;179;135m'       # Peach      — cost
+C_TIME='\033[38;2;186;194;222m'       # Subtext 1  — timing/duration
+C_CACHE='\033[38;2;148;226;213m'      # Teal       — cache/velocity
+C_ADD='\033[38;2;166;227;161m'        # Green      — code additions
+C_DEL='\033[38;2;243;139;168m'        # Red        — code deletions
+C_BAR_EMPTY='\033[38;2;69;71;90m'     # Surface 1  — bar empty fill ░
+C_DIM='\033[38;2;127;132;156m'        # Overlay 1  — dim text ("on", "│")
 
-# Color assignments for statusline elements
-DIR_COLOR="${BRIGHT_CYAN}"      # Bright cyan for directory
-BRANCH_COLOR="${BRIGHT_GREEN}"  # Always bright green for branch
-STATUS_COLOR="${BRIGHT_YELLOW}" # Bright yellow for status indicators
-TEXT_DIM="${BRIGHT_WHITE}"      # Bright white for separators
-ERROR_COLOR="${BRIGHT_MAGENTA}" # Bright magenta for errors
-MODEL_COLOR="${BRIGHT_MAGENTA}" # Bright magenta for model
-OS_ICON_COLOR="${BRIGHT_WHITE}" # Bright white for OS icon
+# Progress bar color thresholds
+C_BAR_GREEN='\033[38;2;166;227;161m'  # < 50%
+C_BAR_YELLOW='\033[38;2;249;226;175m' # 50-70%
+C_BAR_PEACH='\033[38;2;250;179;135m'  # 70-85%
+C_BAR_RED='\033[38;2;243;139;168m'    # > 85%
 
+# ─── Read JSON input once ──────────────────────────────────────────────────────
 input=$(cat)
 
-# Parse all JSON fields at once for performance
-get_current_dir() { echo "$input" | jq -r '.workspace.current_dir // empty'; }
-get_project_dir() { echo "$input" | jq -r '.workspace.project_dir // empty'; }
-get_model_name() { echo "$input" | jq -r '.model.display_name // empty'; }
-get_total_cost() { echo "$input" | jq -r '.cost.total_cost_usd // empty'; }
-get_api_duration() { echo "$input" | jq -r '.cost.total_api_duration_ms // empty'; }
-get_lines_added() { echo "$input" | jq -r '.cost.total_lines_added // empty'; }
-get_lines_removed() { echo "$input" | jq -r '.cost.total_lines_removed // empty'; }
-# Get context tokens - sum all token types for accurate context usage
-# Per Claude Code docs: actual context = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
-get_context_tokens() {
-  local usage
-  usage=$(echo "$input" | jq '.context_window.current_usage // null')
-  if [[ "$usage" != "null" ]]; then
-    echo "$input" | jq -r '
-      .context_window.current_usage |
-      ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0))
-    '
-  else
-    echo ""
-  fi
-}
-get_context_size() { echo "$input" | jq -r '.context_window.context_window_size // empty'; }
-get_cache_read_tokens() { echo "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // empty'; }
+# ─── Single jq parse ───────────────────────────────────────────────────────────
+# shellcheck disable=SC2046
+eval "$(echo "$input" | jq -r '
+  @sh "CURRENT_DIR=\(.workspace.current_dir // "")",
+  @sh "PROJECT_DIR=\(.workspace.project_dir // "")",
+  @sh "MODEL=\(.model.display_name // "")",
+  @sh "COST=\(.cost.total_cost_usd // "")",
+  @sh "API_DURATION=\(.cost.total_api_duration_ms // "")",
+  @sh "TOTAL_DURATION=\(.cost.total_duration_ms // "")",
+  @sh "LINES_ADDED=\(.cost.total_lines_added // "")",
+  @sh "LINES_REMOVED=\(.cost.total_lines_removed // "")",
+  @sh "CONTEXT_SIZE=\(.context_window.context_window_size // "")",
+  @sh "TOTAL_OUTPUT_TOKENS=\(.context_window.total_output_tokens // "")",
+  @sh "CU_INPUT=\(.context_window.current_usage.input_tokens // "")",
+  @sh "CU_OUTPUT=\(.context_window.current_usage.output_tokens // "")",
+  @sh "CU_CACHE_CREATE=\(.context_window.current_usage.cache_creation_input_tokens // "")",
+  @sh "CU_CACHE_READ=\(.context_window.current_usage.cache_read_input_tokens // "")"
+')"
 
-# Get Claude's current directory from the input JSON
-CLAUDE_DIR=$(get_current_dir)
-PROJECT_DIR=$(get_project_dir)
-# Replace home directory with ~ for display
-DIR=${CLAUDE_DIR/#$HOME/\~}
+# ─── Terminal width ────────────────────────────────────────────────────────────
+TERM_WIDTH=${COLUMNS:-200}
 
-# Check if we're in a subdirectory of the project
+# ─── Path display ──────────────────────────────────────────────────────────────
+DIR=${CURRENT_DIR/#$HOME/\~}
 DIR_INDICATOR=""
-if [[ -n "$PROJECT_DIR" ]] && [[ "$CLAUDE_DIR" != "$PROJECT_DIR" ]]; then
-  # Show a subdirectory indicator when not at project root
-  DIR_INDICATOR="${GRAY}↳ "
+if [[ -n "$PROJECT_DIR" ]] && [[ "$CURRENT_DIR" != "$PROJECT_DIR" ]]; then
+  DIR_INDICATOR="${C_SUBDIR}↳ "
 fi
 
-MODEL=$(get_model_name)
-
-# Get cost and usage information
-COST=$(get_total_cost)
-API_DURATION=$(get_api_duration)
-LINES_ADDED=$(get_lines_added)
-LINES_REMOVED=$(get_lines_removed)
-CONTEXT_TOKENS=$(get_context_tokens)
-CONTEXT_SIZE=$(get_context_size)
-
-# Format cost display
-COST_DISPLAY=""
-if [[ -n "$COST" ]]; then
-  COST_FORMATTED=$(printf "$%.2f" "$COST")
-  COST_DISPLAY="${TEXT_DIM} | ${BRIGHT_CYAN}${COST_FORMATTED}"
-fi
-
-# Format API duration (convert ms to seconds)
-API_TIME_DISPLAY=""
-if [[ -n "$API_DURATION" ]]; then
-  API_SECONDS=$(echo "scale=1; $API_DURATION / 1000" | bc)
-  API_TIME_DISPLAY="${TEXT_DIM} | ${GRAY}${API_SECONDS}s"
-fi
-
-# Format code changes
-CODE_CHANGES=""
-if [[ -n "$LINES_ADDED" ]] || [[ -n "$LINES_REMOVED" ]]; then
-  LINES_ADDED=${LINES_ADDED:-0}
-  LINES_REMOVED=${LINES_REMOVED:-0}
-  if [[ $LINES_ADDED -gt 0 ]] || [[ $LINES_REMOVED -gt 0 ]]; then
-    CODE_CHANGES="${TEXT_DIM} | ${BRIGHT_GREEN}+${LINES_ADDED}${TEXT_DIM}/${BRIGHT_MAGENTA}-${LINES_REMOVED}"
-  fi
-fi
-
-# Format context window usage (uses current_usage.input_tokens for accurate %)
-CONTEXT_DISPLAY=""
-if [[ -n "$CONTEXT_TOKENS" ]] && [[ -n "$CONTEXT_SIZE" ]] && [[ "$CONTEXT_SIZE" -gt 0 ]]; then
-  CONTEXT_PCT=$(echo "scale=0; $CONTEXT_TOKENS * 100 / $CONTEXT_SIZE" | bc)
-  # Color code based on usage: green < 50%, yellow 50-80%, red > 80%
-  if [[ $CONTEXT_PCT -lt 50 ]]; then
-    CONTEXT_COLOR="${BRIGHT_GREEN}"
-  elif [[ $CONTEXT_PCT -lt 80 ]]; then
-    CONTEXT_COLOR="${BRIGHT_YELLOW}"
-  else
-    CONTEXT_COLOR="${BRIGHT_MAGENTA}"
-  fi
-  CONTEXT_DISPLAY="${TEXT_DIM} | ${CONTEXT_COLOR}${CONTEXT_PCT}%%"
-fi
-
-# Get terminal width for adaptive formatting
-# Check COLUMNS env var first (for testing), then tput cols
-TERM_WIDTH=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-
-# Get OS icon (like P10k)
+# ─── OS icon ───────────────────────────────────────────────────────────────────
 case "$(uname -s)" in
   Darwin)
-    OS_ICON="" # Apple icon for macOS
+    OS_ICON="" # Apple icon for macOS
     ;;
   Linux)
-    # Check for specific distros
     if [[ -f /etc/os-release ]]; then
+      # shellcheck disable=SC1091
       . /etc/os-release
       case "$ID" in
-        alpaquita) OS_ICON=" " ;;
-        alpine) OS_ICON=" " ;;
-        almalinux) OS_ICON=" " ;;
-        amazon) OS_ICON=" " ;;
-        android) OS_ICON=" " ;;
-        arch) OS_ICON=" " ;;
-        artix) OS_ICON=" " ;;
-        centos) OS_ICON=" " ;;
-        debian) OS_ICON=" " ;;
-        dragonfly) OS_ICON=" " ;;
-        emscripten) OS_ICON=" " ;;
-        endeavouros) OS_ICON=" " ;;
-        fedora) OS_ICON=" " ;;
-        freebsd) OS_ICON=" " ;;
+        alpaquita) OS_ICON=" " ;;
+        alpine) OS_ICON=" " ;;
+        almalinux) OS_ICON=" " ;;
+        amazon) OS_ICON=" " ;;
+        android) OS_ICON=" " ;;
+        arch) OS_ICON=" " ;;
+        artix) OS_ICON=" " ;;
+        centos) OS_ICON=" " ;;
+        debian) OS_ICON=" " ;;
+        dragonfly) OS_ICON=" " ;;
+        emscripten) OS_ICON=" " ;;
+        endeavouros) OS_ICON=" " ;;
+        fedora) OS_ICON=" " ;;
+        freebsd) OS_ICON=" " ;;
         garuda) OS_ICON="󰛓 " ;;
-        gentoo) OS_ICON=" " ;;
+        gentoo) OS_ICON=" " ;;
         hardenedbsd) OS_ICON="󰞌 " ;;
         illumos) OS_ICON="󰈸 " ;;
-        kali) OS_ICON=" " ;;
-        linux) OS_ICON=" " ;;
-        mabox) OS_ICON=" " ;;
-        macos) OS_ICON=" " ;;
-        manjaro) OS_ICON=" " ;;
-        mariner) OS_ICON=" " ;;
-        midnightbsd) OS_ICON=" " ;;
-        mint) OS_ICON=" " ;;
-        netbsd) OS_ICON=" " ;;
-        nixos) OS_ICON=" " ;;
+        kali) OS_ICON=" " ;;
+        linux) OS_ICON=" " ;;
+        mabox) OS_ICON=" " ;;
+        macos) OS_ICON=" " ;;
+        manjaro) OS_ICON=" " ;;
+        mariner) OS_ICON=" " ;;
+        midnightbsd) OS_ICON=" " ;;
+        mint) OS_ICON=" " ;;
+        netbsd) OS_ICON=" " ;;
+        nixos) OS_ICON=" " ;;
         openbsd) OS_ICON="󰈺 " ;;
-        opensuse) OS_ICON=" " ;;
+        opensuse) OS_ICON=" " ;;
         oraclelinux) OS_ICON="󰌷 " ;;
-        pop) OS_ICON=" " ;;
-        raspbian) OS_ICON=" " ;;
-        redhat) OS_ICON=" " ;;
-        rhel) OS_ICON=" " ;;
-        rockylinux) OS_ICON=" " ;;
+        pop) OS_ICON=" " ;;
+        raspbian) OS_ICON=" " ;;
+        redhat) OS_ICON=" " ;;
+        rhel) OS_ICON=" " ;;
+        rockylinux) OS_ICON=" " ;;
         redox) OS_ICON="󰀘 " ;;
         solus) OS_ICON="󰠳 " ;;
-        suse) OS_ICON=" " ;;
-        ubuntu) OS_ICON=" " ;;
-        void) OS_ICON=" " ;;
+        suse) OS_ICON=" " ;;
+        ubuntu) OS_ICON=" " ;;
+        void) OS_ICON=" " ;;
         windows) OS_ICON="󰍲 " ;;
-        *) OS_ICON=" " ;;             # Generic Linux penguin
+        *) OS_ICON=" " ;;
       esac
     else
-      OS_ICON="" # Generic Linux penguin
+      OS_ICON=""
     fi
     ;;
   FreeBSD)
-    OS_ICON="" # FreeBSD icon
+    OS_ICON=""
     ;;
   CYGWIN* | MINGW* | MSYS*)
-    OS_ICON="󰍲 " # Windows icon
+    OS_ICON="󰍲 "
     ;;
   *)
-    OS_ICON="" # Generic Unix icon
+    OS_ICON=""
     ;;
 esac
 
-# Get git information for Claude's current directory
+# ─── Git information (subshell to contain cd) ─────────────────────────────────
 GIT_INFO=""
-if [[ -n "$CLAUDE_DIR" ]] && cd "$CLAUDE_DIR" 2>/dev/null && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  # Get branch name
-  BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
-  BRANCH_ICON=""
+if [[ -n "$CURRENT_DIR" ]]; then
+  GIT_INFO=$(
+    cd "$CURRENT_DIR" 2>/dev/null || exit 0
+    git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
-  # Get remote provider icon
-  REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null)
-  REMOTE_ICON=""
-  if [[ -n "$REMOTE_URL" ]]; then
+    # Branch name
+    BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
+
+    # Remote provider icon
+    REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null)
+    REMOTE_ICON=""
+    if [[ -n "$REMOTE_URL" ]]; then
     case "$REMOTE_URL" in
       *github.com*) REMOTE_ICON=" " ;;   # GitHub
       *gitlab.com*) REMOTE_ICON="󰮠" ;;    # GitLab
@@ -236,107 +155,306 @@ if [[ -n "$CLAUDE_DIR" ]] && cd "$CLAUDE_DIR" 2>/dev/null && git rev-parse --is-
       *git.*) REMOTE_ICON="" ;;          # Generic git
       *) REMOTE_ICON="" ;;               # No icon for unknown
     esac
-  fi
-
-  # Count different types of changes
-  MODIFIED=0
-  STAGED=0
-  UNTRACKED=0
-  DELETED=0
-  RENAMED=0
-  CONFLICTED=0
-  STASHED=0
-
-  while IFS= read -r line; do
-    if [[ "$line" =~ ^[MADRCU][MD\ ] ]]; then
-      # Staged changes (first character is not space or ?)
-      ((STAGED++))
     fi
-    if [[ "$line" =~ ^.[MD] ]]; then
-      # Modified but not staged (second character is M or D)
-      ((MODIFIED++))
-    fi
-    if [[ "$line" =~ ^\?\? ]]; then
-      # Untracked files
-      ((UNTRACKED++))
-    fi
-    if [[ "$line" =~ ^[DR] ]] || [[ "$line" =~ ^.[DR] ]]; then
-      # Deleted or removed files
-      ((DELETED++))
-    fi
-    if [[ "$line" =~ ^R ]]; then
-      # Renamed files
-      ((RENAMED++))
-    fi
-    if [[ "$line" =~ ^(DD|AU|UD|UA|DU|AA|UU) ]]; then
-      # Conflicted files
-      ((CONFLICTED++))
-    fi
-  done < <(git status --porcelain 2>/dev/null)
 
-  # Check for stashed changes
-  STASH_COUNT=$(git stash list 2>/dev/null | wc -l | tr -d ' ')
-  [[ $STASH_COUNT -gt 0 ]] && STASHED=$STASH_COUNT
+    # Count different types of changes
+    MODIFIED=0
+    STAGED=0
+    UNTRACKED=0
+    DELETED=0
+    RENAMED=0
+    CONFLICTED=0
+    STASHED=0
 
-  # Build status indicators with starship icons
-  STATUS_INDICATORS=""
-  [[ $CONFLICTED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} 🏳${CONFLICTED}"
-  [[ $STAGED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} +${STAGED}"
-  [[ $MODIFIED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS}  ${MODIFIED}"
-  [[ $RENAMED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} 襁${RENAMED}"
-  [[ $DELETED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS}  ${DELETED}"
-  [[ $UNTRACKED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS}  ${UNTRACKED}"
-  [[ $STASHED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS}  ${STASHED}"
+    while IFS= read -r line; do
+      if [[ "$line" =~ ^[MADRCU][MD\ ] ]]; then
+        ((STAGED++))
+      fi
+      if [[ "$line" =~ ^.[MD] ]]; then
+        ((MODIFIED++))
+      fi
+      if [[ "$line" =~ ^\?\? ]]; then
+        ((UNTRACKED++))
+      fi
+      if [[ "$line" =~ ^[DR] ]] || [[ "$line" =~ ^.[DR] ]]; then
+        ((DELETED++))
+      fi
+      if [[ "$line" =~ ^R ]]; then
+        ((RENAMED++))
+      fi
+      if [[ "$line" =~ ^(DD|AU|UD|UA|DU|AA|UU) ]]; then
+        ((CONFLICTED++))
+      fi
+    done < <(git status --porcelain 2>/dev/null)
 
-  # Count commits ahead/behind upstream (using starship format)
-  UPSTREAM=""
-  if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
-    AHEAD=$(git rev-list --count '@{u}..HEAD' 2>/dev/null)
-    BEHIND=$(git rev-list --count 'HEAD..@{u}' 2>/dev/null)
+    # Stashed changes
+    STASH_COUNT=$(git stash list 2>/dev/null | wc -l | tr -d ' ')
+    [[ $STASH_COUNT -gt 0 ]] && STASHED=$STASH_COUNT
 
-    if [[ $AHEAD -gt 0 ]] && [[ $BEHIND -gt 0 ]]; then
-      UPSTREAM=" ⇕⇡${AHEAD}⇣${BEHIND}"
-    elif [[ $AHEAD -gt 0 ]]; then
-      UPSTREAM=" ⇡${AHEAD}"
-    elif [[ $BEHIND -gt 0 ]]; then
-      UPSTREAM=" ⇣${BEHIND}"
+    # Build status indicators
+    STATUS_INDICATORS=""
+    [[ $CONFLICTED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} =${CONFLICTED}"
+    [[ $STAGED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} *${STAGED}"
+    [[ $MODIFIED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} ~${MODIFIED}"
+    [[ $RENAMED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} »${RENAMED}"
+    [[ $DELETED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} -${DELETED}"
+    [[ $UNTRACKED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} +${UNTRACKED}"
+    [[ $STASHED -gt 0 ]] && STATUS_INDICATORS="${STATUS_INDICATORS} ⚑${STASHED}"
+
+    # Upstream ahead/behind
+    UPSTREAM=""
+    if git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+      AHEAD=$(git rev-list --count '@{u}..HEAD' 2>/dev/null)
+      BEHIND=$(git rev-list --count 'HEAD..@{u}' 2>/dev/null)
+
+      if [[ $AHEAD -gt 0 ]] && [[ $BEHIND -gt 0 ]]; then
+        UPSTREAM=" ⇡${AHEAD}⇣${BEHIND}"
+      elif [[ $AHEAD -gt 0 ]]; then
+        UPSTREAM=" ⇡${AHEAD}"
+      elif [[ $BEHIND -gt 0 ]]; then
+        UPSTREAM=" ⇣${BEHIND}"
+      fi
     fi
-  fi
 
-  # Check for merge/rebase/cherry-pick in progress
-  GIT_STATE=""
-  if [[ -d .git/rebase-merge ]] || [[ -d .git/rebase-apply ]]; then
-    GIT_STATE=" REBASE"
-  elif [[ -f .git/MERGE_HEAD ]]; then
-    GIT_STATE=" MERGE"
-  elif [[ -f .git/CHERRY_PICK_HEAD ]]; then
-    GIT_STATE=" CHERRY"
-  elif [[ -f .git/BISECT_LOG ]]; then
-    GIT_STATE=" BISECT"
-  fi
+    # Git state detection (rebase, merge, cherry-pick, bisect)
+    GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+    GIT_STATE=""
+    if [[ -d "${GIT_DIR}/rebase-merge" ]] || [[ -d "${GIT_DIR}/rebase-apply" ]]; then
+      GIT_STATE=" REBASE"
+    elif [[ -f "${GIT_DIR}/MERGE_HEAD" ]]; then
+      GIT_STATE=" MERGE"
+    elif [[ -f "${GIT_DIR}/CHERRY_PICK_HEAD" ]]; then
+      GIT_STATE=" CHERRY-PICK"
+    elif [[ -f "${GIT_DIR}/BISECT_LOG" ]]; then
+      GIT_STATE=" BISECT"
+    fi
 
-  # Build colored git info (always green branch like your prompt)
-  GIT_INFO="${TEXT_DIM} on ${BRANCH_COLOR}${REMOTE_ICON}${BRANCH_ICON} ${BRANCH}${STATUS_COLOR}${STATUS_INDICATORS}${STATUS_COLOR}${UPSTREAM}${ERROR_COLOR}${GIT_STATE}"
+    # Emit pipe-delimited string for the parent shell to split
+    # Fields: branch | remote_icon | status_indicators | upstream | git_state
+    echo "${BRANCH}|${REMOTE_ICON}|${STATUS_INDICATORS}|${UPSTREAM}|${GIT_STATE}"
+  )
 fi
 
-# Build the statusline with P10k-inspired colors (two-line format)
-# Line 1: Directory and git info (variable length)
-# Line 2: Model and metrics (fixed positions)
+# Parse git subshell output
+GIT_BRANCH=""
+GIT_REMOTE_ICON=""
+GIT_STATUS_INDICATORS=""
+GIT_UPSTREAM=""
+GIT_STATE=""
+if [[ -n "$GIT_INFO" ]]; then
+  IFS='|' read -r GIT_BRANCH GIT_REMOTE_ICON GIT_STATUS_INDICATORS GIT_UPSTREAM GIT_STATE <<< "$GIT_INFO"
+fi
 
-# Use └─ as the line connector for the second line
-CONNECTOR="${TEXT_DIM}└─ "
+# ─── Derived metrics ──────────────────────────────────────────────────────────
 
-# Adapt metrics based on terminal width
-if [[ $TERM_WIDTH -ge 120 ]]; then
-  METRICS="${COST_DISPLAY}${CONTEXT_DISPLAY}${API_TIME_DISPLAY}${CODE_CHANGES}"
-elif [[ $TERM_WIDTH -ge 80 ]]; then
-  METRICS="${COST_DISPLAY}${CONTEXT_DISPLAY}"
+# Context percentage
+CONTEXT_PCT=""
+if [[ -n "$CONTEXT_SIZE" ]] && [[ "$CONTEXT_SIZE" != "0" ]]; then
+  CU_INPUT=${CU_INPUT:-0}
+  CU_CACHE_CREATE=${CU_CACHE_CREATE:-0}
+  CU_CACHE_READ=${CU_CACHE_READ:-0}
+  TOTAL_CONTEXT=$((CU_INPUT + CU_CACHE_CREATE + CU_CACHE_READ))
+  CONTEXT_PCT=$(echo "scale=0; ${TOTAL_CONTEXT} * 100 / ${CONTEXT_SIZE}" | bc)
+fi
+
+# Cache hit percentage
+CACHE_HIT=""
+CACHE_TOTAL=$(( ${CU_CACHE_READ:-0} + ${CU_CACHE_CREATE:-0} ))
+if [[ "$CACHE_TOTAL" != "0" ]]; then
+  CACHE_HIT=$(( ${CU_CACHE_READ:-0} * 100 / CACHE_TOTAL ))
 else
-  METRICS="${COST_DISPLAY}"
+  CACHE_HIT=""
 fi
 
-# Output statusline
+# Token velocity (tokens per second)
+TOKEN_VELOCITY=""
+if [[ -n "$API_DURATION" ]] && [[ "$API_DURATION" != "0" ]] && [[ -n "$TOTAL_OUTPUT_TOKENS" ]]; then
+  TOKEN_VELOCITY=$(( TOTAL_OUTPUT_TOKENS * 1000 / API_DURATION ))
+fi
+
+# Cost formatted
+COST_FMT=""
+if [[ -n "$COST" ]]; then
+  COST_FMT=$(printf "\$%.2f" "$COST")
+fi
+
+# Format a duration in ms to human-readable (Xm Xs or Xs)
+fmt_duration() {
+  local ms=$1
+  local total_secs=$((ms / 1000))
+  local days=$((total_secs / 86400))
+  local hours=$(( (total_secs % 86400) / 3600 ))
+  local mins=$(( (total_secs % 3600) / 60 ))
+  local secs=$((total_secs % 60))
+  local out=""
+  [[ $days -gt 0 ]] && out="${days}d "
+  [[ $hours -gt 0 ]] && out="${out}${hours}h "
+  [[ $mins -gt 0 ]] && out="${out}${mins}m "
+  out="${out}${secs}s"
+  echo "$out"
+}
+
+# API duration formatted
+API_FMT=""
+if [[ -n "$API_DURATION" ]] && [[ "$API_DURATION" != "0" ]]; then
+  API_FMT=$(fmt_duration "$API_DURATION")
+fi
+
+# Session duration formatted
+SESSION_FMT=""
+if [[ -n "$TOTAL_DURATION" ]] && [[ "$TOTAL_DURATION" != "0" ]]; then
+  SESSION_FMT=$(fmt_duration "$TOTAL_DURATION")
+fi
+
+# ─── Bar color helper ─────────────────────────────────────────────────────────
+get_bar_color() {
+  local pct=$1
+  if [[ $pct -lt 50 ]]; then
+    echo "$C_BAR_GREEN"
+  elif [[ $pct -le 70 ]]; then
+    echo "$C_BAR_YELLOW"
+  elif [[ $pct -le 85 ]]; then
+    echo "$C_BAR_PEACH"
+  else
+    echo "$C_BAR_RED"
+  fi
+}
+
+# ─── Progress bar builder ─────────────────────────────────────────────────────
+build_progress_bar() {
+  local pct=$1
+  # Adaptive bar width: max(5, min(25, (TERM_WIDTH - 30) / 2))
+  local bar_width=$(( (TERM_WIDTH - 30) / 2 ))
+  [[ $bar_width -lt 5 ]] && bar_width=5
+  [[ $bar_width -gt 25 ]] && bar_width=25
+
+  local bar_color
+  bar_color=$(get_bar_color "$pct")
+
+  # Sub-character precision
+  local filled_full=$((pct * bar_width / 100))
+  local remainder=$(((pct * bar_width * 8 / 100) % 8))
+  local partial_chars=("" "▏" "▎" "▍" "▌" "▋" "▊" "▉")
+  local empty_count=$((bar_width - filled_full))
+
+  # If there's a partial character, subtract one from empty
+  if [[ $remainder -gt 0 ]] && [[ $empty_count -gt 0 ]]; then
+    empty_count=$((empty_count - 1))
+  fi
+
+  # Build the bar string
+  local bar=""
+  # Filled portion
+  local i
+  for ((i = 0; i < filled_full; i++)); do
+    bar="${bar}█"
+  done
+  # Partial character
+  if [[ $remainder -gt 0 ]]; then
+    bar="${bar}${partial_chars[$remainder]}"
+  fi
+
+  # Compose with colors
+  local result="${bar_color}${bar}${C_BAR_EMPTY}"
+  for ((i = 0; i < empty_count; i++)); do
+    result="${result}░"
+  done
+  result="${result}${RESET}"
+
+  echo "${result}"
+}
+
+# ─── Build LINE 1: directory + git ─────────────────────────────────────────────
+L1="${C_OS}${OS_ICON} ${DIR_INDICATOR}${C_DIR}${DIR}"
+
+if [[ -n "$GIT_BRANCH" ]]; then
+  L1="${L1}${C_DIM} on ${C_BRANCH}${GIT_REMOTE_ICON} ${GIT_BRANCH}"
+
+  if [[ $TERM_WIDTH -ge 80 ]]; then
+    if [[ -n "$GIT_STATUS_INDICATORS" ]]; then
+      L1="${L1}${C_STATUS}${GIT_STATUS_INDICATORS}"
+    fi
+  fi
+
+  if [[ $TERM_WIDTH -ge 100 ]]; then
+    if [[ -n "$GIT_UPSTREAM" ]]; then
+      L1="${L1}${C_STATUS}${GIT_UPSTREAM}"
+    fi
+  fi
+
+  if [[ -n "$GIT_STATE" ]]; then
+    L1="${L1}${C_STATE}${GIT_STATE}"
+  fi
+
+  # Code changes on line 1, after git info
+  LINES_ADDED=${LINES_ADDED:-0}
+  LINES_REMOVED=${LINES_REMOVED:-0}
+  if [[ $TERM_WIDTH -ge 80 ]]; then
+    if [[ "$LINES_ADDED" != "0" ]] || [[ "$LINES_REMOVED" != "0" ]]; then
+      L1="${L1} ${C_SEP}│ ${C_ADD}+${LINES_ADDED} ${C_DEL}-${LINES_REMOVED}"
+    fi
+  fi
+fi
+
+# ─── Build LINE 2: progress bar + derived metrics ──────────────────────────────
+L2=""
+
+if [[ -n "$CONTEXT_PCT" ]]; then
+  BAR_STR=$(build_progress_bar "$CONTEXT_PCT")
+
+  local_bar_text_color=$(get_bar_color "$CONTEXT_PCT")
+
+  L2="${L2}${BAR_STR} ${local_bar_text_color}${CONTEXT_PCT}%%"
+
+  # Cache hit
+  if [[ $TERM_WIDTH -ge 100 ]]; then
+    if [[ -n "$CACHE_HIT" ]]; then
+      L2="${L2} ${C_SEP}│ ${C_CACHE}⚡${CACHE_HIT}%%"
+    else
+      L2="${L2} ${C_SEP}│ ${C_CACHE}⚡—"
+    fi
+  fi
+
+  # Token velocity
+  if [[ $TERM_WIDTH -ge 140 ]]; then
+    if [[ -n "$TOKEN_VELOCITY" ]]; then
+      L2="${L2} ${C_SEP}│ ${C_CACHE}󰓅 ${TOKEN_VELOCITY}t/s"
+    else
+      L2="${L2} ${C_SEP}│ ${C_CACHE}󰓅 —"
+    fi
+  fi
+else
+  BAR_STR=$(build_progress_bar 0)
+  L2="${L2}${BAR_STR} ${C_DIM}—%%"
+fi
+
+# ─── Build LINE 3: model + cost + timing ───────────────────────────────────────
+L3=""
+
+if [[ -n "$MODEL" ]]; then
+  L3="${L3}${C_MODEL} ${MODEL}"
+fi
+
+if [[ -n "$COST_FMT" ]]; then
+  L3="${L3} ${C_SEP}│ ${C_COST}${COST_FMT}"
+fi
+
+if [[ $TERM_WIDTH -ge 100 ]]; then
+  if [[ -n "$API_FMT" ]]; then
+    L3="${L3} ${C_SEP}│ ${C_TIME}⏱ ${API_FMT}"
+  fi
+fi
+
+if [[ $TERM_WIDTH -ge 120 ]]; then
+  if [[ -n "$SESSION_FMT" ]]; then
+    L3="${L3} ${C_SEP}│ ${C_TIME}󱑃 ${SESSION_FMT}"
+  fi
+fi
+
+# ─── Output ────────────────────────────────────────────────────────────────────
 # shellcheck disable=SC2059
-printf "${OS_ICON_COLOR}${OS_ICON} ${DIR_INDICATOR}${DIR_COLOR}${DIR}${GIT_INFO}${RESET}\n"
+printf "${L1}${RESET}\n"
 # shellcheck disable=SC2059
-printf "${CONNECTOR}${MODEL_COLOR}${MODEL}${METRICS}${RESET}"
+printf "${L2}${RESET}\n"
+# shellcheck disable=SC2059
+printf "${L3}${RESET}"

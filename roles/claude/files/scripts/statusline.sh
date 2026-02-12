@@ -47,9 +47,8 @@ eval "$(echo "$input" | jq -r '
   @sh "TOTAL_DURATION=\(.cost.total_duration_ms // "")",
   @sh "LINES_ADDED=\(.cost.total_lines_added // "")",
   @sh "LINES_REMOVED=\(.cost.total_lines_removed // "")",
-  @sh "CONTEXT_SIZE=\(.context_window.context_window_size // "")",
+  @sh "CONTEXT_PCT=\(.context_window.used_percentage // "")",
   @sh "TOTAL_OUTPUT_TOKENS=\(.context_window.total_output_tokens // "")",
-  @sh "CU_INPUT=\(.context_window.current_usage.input_tokens // "")",
   @sh "CU_CACHE_CREATE=\(.context_window.current_usage.cache_creation_input_tokens // "")",
   @sh "CU_CACHE_READ=\(.context_window.current_usage.cache_read_input_tokens // "")"
 ')"
@@ -246,15 +245,9 @@ fi
 
 # ─── Derived metrics ──────────────────────────────────────────────────────────
 
-# Context percentage
-CONTEXT_PCT=""
-if [[ -n "$CONTEXT_SIZE" ]] && [[ "$CONTEXT_SIZE" != "0" ]]; then
-  CU_INPUT=${CU_INPUT:-0}
-  CU_CACHE_CREATE=${CU_CACHE_CREATE:-0}
-  CU_CACHE_READ=${CU_CACHE_READ:-0}
-  TOTAL_CONTEXT=$((CU_INPUT + CU_CACHE_CREATE + CU_CACHE_READ))
-  CONTEXT_PCT=$(( TOTAL_CONTEXT * 100 / CONTEXT_SIZE ))
-fi
+# Context percentage (pre-computed by Claude Code, input tokens only)
+# Truncate to integer if fractional
+CONTEXT_PCT=${CONTEXT_PCT%%.*}
 
 # Cache hit percentage
 CACHE_HIT=""

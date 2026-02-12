@@ -1,216 +1,112 @@
 #!/usr/bin/env bash
 
-# Agent Dashboard - Beautiful tmux session switcher with Claude/OpenCode status
-# Uses Catppuccin Mocha colors for consistency with tmux theme
+# Claude Dashboard - fzf-based Claude session switcher with live preview
+# Shows only tmux panes running Claude/OpenCode with pane-level status
+
+# Guard: tmux must be running
+tmux info &>/dev/null || exit 1
+
+# Handle subcommands
+case "$1" in
+--join)
+  exit 0
+  ;;
+--restore)
+  exit 0
+  ;;
+esac
 
 STATUS_DIR="$HOME/.cache/claude-status"
+mkdir -p "$STATUS_DIR"
 
 # Catppuccin Mocha Colors
-ROSEWATER=$'\033[38;2;245;224;220m'
-FLAMINGO=$'\033[38;2;242;205;205m'
-PINK=$'\033[38;2;245;194;231m'
-MAUVE=$'\033[38;2;203;166;247m'
-RED=$'\033[38;2;243;139;168m'
-MAROON=$'\033[38;2;235;160;172m'
-PEACH=$'\033[38;2;250;179;135m'
 YELLOW=$'\033[38;2;249;226;175m'
 GREEN=$'\033[38;2;166;227;161m'
-TEAL=$'\033[38;2;148;226;213m'
-SKY=$'\033[38;2;137;220;235m'
-SAPPHIRE=$'\033[38;2;116;199;236m'
 BLUE=$'\033[38;2;137;180;250m'
-LAVENDER=$'\033[38;2;180;190;254m'
 TEXT=$'\033[38;2;205;214;244m'
-SUBTEXT1=$'\033[38;2;186;194;222m'
-SUBTEXT0=$'\033[38;2;166;173;200m'
-OVERLAY2=$'\033[38;2;147;153;178m'
-OVERLAY1=$'\033[38;2;127;132;156m'
 OVERLAY0=$'\033[38;2;108;112;134m'
-SURFACE2=$'\033[38;2;88;91;112m'
-SURFACE1=$'\033[38;2;69;71;90m'
-SURFACE0=$'\033[38;2;49;50;68m'
-BASE=$'\033[38;2;30;30;46m'
-MANTLE=$'\033[38;2;24;24;37m'
-CRUST=$'\033[38;2;17;17;27m'
 RESET=$'\033[0m'
-BOLD=$'\033[1m'
-DIM=$'\033[2m'
 
-# Cache for all agent TTYs to avoid repeated ps calls
-_AGENT_TTYS=""
-_AGENT_TTYS_TIME=0
-
-# Function to check if an AI agent (Claude/OpenCode) is in a session
-has_agent_in_session() {
-  local session="$1"
-  
-  # Refresh cache every 2 seconds
-  local current_time=$(date +%s)
-  if [ $((current_time - _AGENT_TTYS_TIME)) -gt 2 ] || [ -z "$_AGENT_TTYS" ]; then
-    # Get all TTYs running claude or opencode in one go (much faster than per-session)
-    _AGENT_TTYS=$(ps aux | grep -v grep | grep -E "(claude|opencode)" | awk '{print $7}' | sort -u | tr '\n' ' ')
-    _AGENT_TTYS_TIME=$current_time
+# Stale status cleanup: remove status files for panes that no longer exist
+existing_panes=$(tmux list-panes -a -F '#{pane_id}' 2>/dev/null)
+for status_file in "$STATUS_DIR"/pane_*.status; do
+  [ -f "$status_file" ] || continue
+  pane_num=$(basename "$status_file" .status)
+  pane_num="${pane_num#pane_}"
+  if ! echo "$existing_panes" | grep -q "^%${pane_num}$"; then
+    rm -f "$status_file"
   fi
-  
-  # Early return if no agent processes at all
-  [ -z "$_AGENT_TTYS" ] && return 1
-  
-  # Get TTYs for this session and check if any match
-  local session_ttys=$(tmux list-panes -t "$session" -F "#{pane_tty}" 2>/dev/null | sed 's|/dev/||' | tr '\n' ' ')
-  
-  for tty in $session_ttys; do
-    if [[ " $_AGENT_TTYS " == *" $tty "* ]]; then
-      return 0
-    fi
+done
+
+# PID tree walking detection (3 levels deep)
+_check_pid_tree() {
+  local pid="$1" depth="$2"
+  [ "$depth" -le 0 ] && return 1
+  for child in $(pgrep -P "$pid" 2>/dev/null); do
+    local cmd
+    cmd=$(ps -o comm= -p "$child" 2>/dev/null)
+    [[ "$cmd" == "claude" || "$cmd" == "opencode" ]] && return 0
+    _check_pid_tree "$child" $((depth - 1)) && return 0
   done
-  
   return 1
 }
 
-# Function to get Claude status from hook files
-get_claude_status() {
-  local session="$1"
-  local status_file="$STATUS_DIR/${session}.status"
+has_claude_in_pane() {
+  local pane_pid="$1"
+  _check_pid_tree "$pane_pid" 3
+}
 
+# Pane enumeration - collect Claude panes
+lines=()
+while IFS='|' read -r pane_id pane_pid session_name window_index pane_index pane_path; do
+  has_claude_in_pane "$pane_pid" || continue
+
+  # Read status from pane status file
+  pane_num="${pane_id#%}"
+  status_file="$STATUS_DIR/pane_${pane_num}.status"
   if [ -f "$status_file" ]; then
-    # Read status from file (should be "working" or "done")
-    cat "$status_file" 2>/dev/null || echo ""
+    status=$(cat "$status_file" 2>/dev/null)
   else
-    echo ""
-  fi
-}
-
-# Get all sessions with formatted output
-get_sessions_with_status() {
-  local working_sessions=()
-  local done_sessions=()
-  local no_claude_sessions=()
-  local max_name_length=0
-  local all_sessions=()
-
-  # First pass: collect all sessions and find max name length
-  while IFS=: read -r name windows attached; do
-    all_sessions+=("$name:$windows:$attached")
-    local name_len=${#name}
-    [ $name_len -gt $max_name_length ] && max_name_length=$name_len
-  done < <(tmux list-sessions -F "#{session_name}:#{session_windows}:#{?session_attached,(attached),}")
-
-  # Add minimal padding
-  max_name_length=$((max_name_length + 1))
-  
-  # Ensure minimum width but not too wide
-  [ $max_name_length -lt 15 ] && max_name_length=15
-  [ $max_name_length -gt 30 ] && max_name_length=30
-
-  # Second pass: format with dynamic width
-  for session_data in "${all_sessions[@]}"; do
-    IFS=: read -r name windows attached <<< "$session_data"
-    local formatted_line=""
-    
-    # Window icon based on count
-    local window_icon=""
-    local window_text=""
-    if [ "$windows" = "1" ]; then
-      window_icon="${OVERLAY1}󰖯${RESET}"  # Single window icon
-      window_text="${DIM}${OVERLAY0}window${RESET}"
-    else
-      window_icon="${LAVENDER}󰖰${RESET}"  # Multiple windows icon
-      window_text="${DIM}${OVERLAY0}windows${RESET}"
-    fi
-    
-    # Attached status - compact
-    local attach_display=""
-    if [ -n "$attached" ]; then
-      attach_display="${GREEN}󰆍${RESET}"
-    else
-      attach_display="${OVERLAY0}○${RESET}"
-    fi
-
-    # First check if an AI agent is present
-    if has_agent_in_session "$name"; then
-      # Get status from hook file
-      local claude_status=$(get_claude_status "$name")
-
-      # Default to "done" if no status file exists
-      [ -z "$claude_status" ] && claude_status="done"
-
-      if [ "$claude_status" = "working" ]; then
-        # Build compact line
-        local padded_name=$(printf "%-${max_name_length}s" "$name")
-        formatted_line=" ${YELLOW}◉${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${YELLOW}⚡ working${RESET}"
-        working_sessions+=("$formatted_line")
-      else
-        local padded_name=$(printf "%-${max_name_length}s" "$name")
-        formatted_line=" ${GREEN}◉${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${GREEN}✓ done${RESET}"
-        done_sessions+=("$formatted_line")
-      fi
-    else
-      local padded_name=$(printf "%-${max_name_length}s" "$name")
-      formatted_line=" ${SURFACE1}○${RESET} ${TEXT}${padded_name}${RESET} ${SURFACE1}│${RESET} ${window_icon} ${windows} ${window_text} ${attach_display} ${SURFACE1}│${RESET} ${OVERLAY0}no agent${RESET}"
-      no_claude_sessions+=("$formatted_line")
-    fi
-  done
-
-  # Output grouped sessions with beautiful separators
-  
-  # Calculate total sessions
-  local total_sessions=$((${#working_sessions[@]} + ${#done_sessions[@]} + ${#no_claude_sessions[@]}))
-
-  # Working sessions
-  if [ ${#working_sessions[@]} -gt 0 ]; then
-    echo -e "${YELLOW}${BOLD} ⚡ WORKING ${RESET}${OVERLAY0}(${#working_sessions[@]})${RESET}"
-    echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
-    printf '%s\n' "${working_sessions[@]}"
+    status=""
   fi
 
-  # Done sessions
-  if [ ${#done_sessions[@]} -gt 0 ]; then
-    [ ${#working_sessions[@]} -gt 0 ] && echo
-    echo -e "${GREEN}${BOLD} ✓ DONE ${RESET}${OVERLAY0}(${#done_sessions[@]})${RESET}"
-    echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
-    printf '%s\n' "${done_sessions[@]}"
-  fi
+  # Format status display
+  case "$status" in
+  working)
+    status_display="${YELLOW}working${RESET}"
+    ;;
+  idle)
+    status_display="${GREEN}idle${RESET}"
+    ;;
+  *)
+    status_display="${OVERLAY0}--${RESET}"
+    ;;
+  esac
 
-  # No Claude sessions
-  if [ ${#no_claude_sessions[@]} -gt 0 ]; then
-    [ ${#working_sessions[@]} -gt 0 ] || [ ${#done_sessions[@]} -gt 0 ] && echo
-    echo -e "${OVERLAY1}${BOLD} ○ NO AGENT ${RESET}${OVERLAY0}(${#no_claude_sessions[@]})${RESET}"
-    echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
-    printf '%s\n' "${no_claude_sessions[@]}"
-  fi
-  
-  # Footer with total count and hints
-  echo
-  echo -e "${SURFACE1}───────────────────────────────────────────────────────${RESET}"
-  echo -e "${OVERLAY0} ${total_sessions} sessions ${SURFACE1}│${RESET} ${SAPPHIRE}󰌌 j/k${RESET}${OVERLAY0}: navigate ${SURFACE1}│${RESET} ${GREEN}󰌑${RESET}${OVERLAY0}: select ${SURFACE1}│${RESET} ${RED}󰜺${RESET}${OVERLAY0}: cancel${RESET}"
-}
+  # Shorten path
+  short_path="${pane_path/#$HOME/~}"
 
-# Main
-sessions=$(get_sessions_with_status)
+  display="  ${TEXT}${session_name}:${window_index}.${pane_index}${RESET}  ${BLUE}${short_path}${RESET}  ${status_display}"
+  lines+=("${pane_id}|${display}")
+done < <(tmux list-panes -a -F "#{pane_id}|#{pane_pid}|#{session_name}|#{window_index}|#{pane_index}|#{pane_current_path}")
 
-# Use fzf to select with beautiful Catppuccin colors
-selected=$(echo "$sessions" | fzf \
-  --ansi \
-  --no-sort \
-  --header="" \
-  --prompt="➜ " \
-  --pointer="▶ " \
-  --marker="✓ " \
-  --bind="j:down,k:up,q:cancel,esc:cancel" \
-  --layout=reverse \
-  --info=hidden \
-  --border=none \
-  --color="bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8" \
-  --color="fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f9e2af" \
-  --color="marker:#a6e3a1,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8" \
-  --color="border:#313244,label:#b4befe,query:#f5e0dc")
-
-# Switch to selected session (skip separator lines and footer)
-if [ -n "$selected" ] && ! echo "$selected" | grep -qE "───|sessions|navigate|cancel|WORKING|DONE|AGENT"; then
-  # Extract session name - it's between the bullet and the first pipe
-  # First strip ANSI codes, then extract the session name
-  session_name=$(echo "$selected" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[[:space:]]*[○◉][[:space:]]*//' | awk '{print $1}')
-  if [ -n "$session_name" ]; then
-    tmux switch-client -t "$session_name"
-  fi
+# Edge case: no Claude panes found
+if [ ${#lines[@]} -eq 0 ]; then
+  echo "No active Claude Code sessions"
+  sleep 1
+  exit 0
 fi
+
+# Run fzf
+printf '%s\n' "${lines[@]}" | fzf --ansi --no-sort --reverse \
+  --delimiter '|' \
+  --with-nth '2..' \
+  --header "Claude Sessions  |  enter: switch  ctrl-j: join all  ctrl-r: restore" \
+  --preview 'tmux capture-pane -ep -t {1} | tail -50' \
+  --preview-window 'right:55%:wrap' \
+  --bind 'enter:become(tmux switch-client -t {1})' \
+  --bind 'ctrl-j:execute-silent(~/.claude/scripts/claude-dashboard --join)+abort' \
+  --bind 'ctrl-r:execute-silent(~/.claude/scripts/claude-dashboard --restore)+abort' \
+  --color "bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8" \
+  --color "fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f9e2af" \
+  --color "marker:#a6e3a1,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"

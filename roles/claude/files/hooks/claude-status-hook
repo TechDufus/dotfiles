@@ -1,58 +1,37 @@
 #!/usr/bin/env bash
 
 # Claude Code hook for tmux status integration
-# Updates tmux session status files based on Claude's working state
+# Updates pane-level status files based on Claude's working state
 
 STATUS_DIR="$HOME/.cache/claude-status"
 mkdir -p "$STATUS_DIR"
 
-# Debug logging
-echo "$(date): Hook called with args: $*" >> "$STATUS_DIR/debug.log"
-
 # Read JSON from stdin (required by Claude Code hooks)
-JSON_INPUT=$(cat)
-echo "$(date): JSON input: $JSON_INPUT" >> "$STATUS_DIR/debug.log"
+cat >/dev/null
 
-# Try multiple methods to get tmux session
-# 1. Try tmux command directly (works if we're in tmux)
-TMUX_SESSION=$(tmux display-message -p '#{session_name}' 2>/dev/null)
-
-# 2. If not in tmux or command failed, check for active tmux sessions
-if [ -z "$TMUX_SESSION" ]; then
-  # Get the most recently active session
-  TMUX_SESSION=$(tmux list-sessions -F '#{session_name} #{session_activity}' 2>/dev/null | sort -k2 -rn | head -1 | cut -d' ' -f1)
+# Get pane ID from environment or tmux
+PANE_ID="${TMUX_PANE}"
+if [ -z "$PANE_ID" ]; then
+  PANE_ID=$(tmux display-message -p '#{pane_id}' 2>/dev/null)
 fi
+[ -z "$PANE_ID" ] && exit 0
 
-# 3. If still no session, check if TMUX env var exists
-if [ -z "$TMUX_SESSION" ] && [ -n "$TMUX" ]; then
-  # TMUX format: /tmp/tmux-1000/default,3847,10
-  # Extract session name from socket path
-  SOCKET_PATH=$(echo "$TMUX" | cut -d',' -f1)
-  TMUX_SESSION=$(basename "$SOCKET_PATH")
-fi
+# Strip % prefix for filename
+PANE_NUM="${PANE_ID#%}"
+STATUS_FILE="$STATUS_DIR/pane_${PANE_NUM}.status"
 
-# Update status if we found a session
-if [ -n "$TMUX_SESSION" ]; then
-  HOOK_TYPE="$1"
-  STATUS_FILE="$STATUS_DIR/${TMUX_SESSION}.status"
-  
-  echo "$(date): Updating status for session: $TMUX_SESSION, hook: $HOOK_TYPE" >> "$STATUS_DIR/debug.log"
+HOOK_TYPE="$1"
 
-  case "$HOOK_TYPE" in
-  "PreToolUse")
-    # Claude is starting to use a tool
-    echo "working" >"$STATUS_FILE"
-    ;;
-  "Stop" | "SubagentStop")
-    # Claude has finished responding
-    echo "done" >"$STATUS_FILE"
-    ;;
-  "Notification")
-    # Claude is waiting for input
-    echo "idle" >"$STATUS_FILE"
-    ;;
-  esac
-fi
+case "$HOOK_TYPE" in
+"PreToolUse" | "Notification")
+  echo "working" >"$STATUS_FILE"
+  ;;
+"Stop")
+  echo "idle" >"$STATUS_FILE"
+  ;;
+*)
+  rm -f "$STATUS_FILE"
+  ;;
+esac
 
-# Always exit successfully
 exit 0

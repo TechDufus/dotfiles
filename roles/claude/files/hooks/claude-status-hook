@@ -26,7 +26,7 @@ case "$HOOK_TYPE" in
 "PreToolUse" | "Notification")
   echo "working" >"$STATUS_FILE"
   ;;
-"Stop")
+"Stop" | "SubagentStop")
   echo "idle" >"$STATUS_FILE"
   ;;
 *)

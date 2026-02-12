@@ -1,22 +1,15 @@
 #!/usr/bin/env bash
 
-# Claude Dashboard - fzf-based Claude session switcher with live preview
-# Shows only tmux panes running Claude/OpenCode with pane-level status
+# Claude Dashboard - gather/scatter toggle for Claude tmux panes
+# Gathers all Claude panes into a tiled monitor session, or scatters them back.
 
 # Guard: tmux must be running
 tmux info &>/dev/null || exit 1
 
 STATUS_DIR="$HOME/.cache/claude-status"
 ORIGINS_FILE="$STATUS_DIR/monitor-origins"
+RETURN_FILE="$STATUS_DIR/monitor-return-session"
 mkdir -p "$STATUS_DIR"
-
-# Catppuccin Mocha Colors
-YELLOW=$'\033[38;2;249;226;175m'
-GREEN=$'\033[38;2;166;227;161m'
-BLUE=$'\033[38;2;137;180;250m'
-TEXT=$'\033[38;2;205;214;244m'
-OVERLAY0=$'\033[38;2;108;112;134m'
-RESET=$'\033[0m'
 
 # PID tree walking detection (3 levels deep)
 _check_pid_tree() {
@@ -31,189 +24,131 @@ _check_pid_tree() {
   return 1
 }
 
-has_claude_in_pane() {
+_has_claude_in_pane() {
   local pane_pid="$1"
   _check_pid_tree "$pane_pid" 3
 }
 
-# Collect all Claude pane IDs into CLAUDE_PANES array
-# Each entry: pane_id|session_name
-collect_claude_panes() {
-  CLAUDE_PANES=()
-  while IFS='|' read -r pane_id pane_pid session_name _rest; do
-    has_claude_in_pane "$pane_pid" || continue
-    CLAUDE_PANES+=("${pane_id}|${session_name}")
-  done < <(tmux list-panes -a -F "#{pane_id}|#{pane_pid}|#{session_name}|#{window_index}|#{pane_index}|#{pane_current_path}")
-}
+# GATHER: collect all Claude panes into a tiled monitor session
+do_gather() {
+  local claude_panes=()
+  local pane_id pane_pid session_name window_id
 
-# --join: consolidate all Claude panes into a single monitor session
-do_join() {
-  # If claude-monitor session already exists, just switch to it
-  if tmux has-session -t claude-monitor 2>/dev/null; then
-    tmux switch-client -t claude-monitor
+  while IFS='|' read -r pane_id pane_pid session_name window_id; do
+    _has_claude_in_pane "$pane_pid" || continue
+    claude_panes+=("${pane_id}|${session_name}|${window_id}")
+  done < <(tmux list-panes -a -F "#{pane_id}|#{pane_pid}|#{session_name}|#{window_id}")
+
+  if [ ${#claude_panes[@]} -eq 0 ]; then
+    tmux display-message "No active Claude sessions"
     exit 0
   fi
 
-  collect_claude_panes
-
-  if [ ${#CLAUDE_PANES[@]} -eq 0 ]; then
-    echo "No active Claude Code sessions"
-    sleep 1
-    exit 0
-  fi
-
-  # Only 1 Claude pane: just switch to it directly
-  if [ ${#CLAUDE_PANES[@]} -eq 1 ]; then
-    local pane_id="${CLAUDE_PANES[0]%%|*}"
-    tmux switch-client -t "$pane_id"
-    exit 0
-  fi
+  # Save pre-gather session
+  tmux display-message -p '#{session_name}' >"$RETURN_FILE"
 
   # Save origin map
   : >"$ORIGINS_FILE"
-  for entry in "${CLAUDE_PANES[@]}"; do
+  for entry in "${claude_panes[@]}"; do
     echo "$entry" >>"$ORIGINS_FILE"
+  done
+
+  # Set pane titles before joining (for border labels)
+  for entry in "${claude_panes[@]}"; do
+    IFS='|' read -r pane_id session_name _rest <<<"$entry"
+    tmux select-pane -t "$pane_id" -T "$session_name"
   done
 
   # Create monitor session
   tmux new-session -d -s claude-monitor
 
-  # Join first Claude pane
-  local first_pane="${CLAUDE_PANES[0]%%|*}"
+  # Join first pane
+  local first_pane="${claude_panes[0]%%|*}"
   tmux join-pane -s "$first_pane" -t claude-monitor:0 2>/dev/null || true
 
-  # Kill the empty default pane (it's now pane 0 after join)
+  # Kill the empty default pane
   tmux kill-pane -t claude-monitor:0.0 2>/dev/null || true
 
   # Join remaining panes
-  for ((i = 1; i < ${#CLAUDE_PANES[@]}; i++)); do
-    local pane_id="${CLAUDE_PANES[$i]%%|*}"
-    tmux join-pane -h -s "$pane_id" -t claude-monitor:0 2>/dev/null || true
+  for ((i = 1; i < ${#claude_panes[@]}; i++)); do
+    local p="${claude_panes[$i]%%|*}"
+    tmux join-pane -h -s "$p" -t claude-monitor:0 2>/dev/null || true
   done
 
   # Apply tiled layout
   tmux select-layout -t claude-monitor:0 tiled
 
+  # Enable pane border labels
+  tmux set-option -w -t claude-monitor:0 pane-border-status top
+  tmux set-option -w -t claude-monitor:0 pane-border-format " #[fg=#89b4fa,bold]#{pane_title}#[default] "
+
   # Switch client
   tmux switch-client -t claude-monitor
-  exit 0
+
+  # Stale status cleanup: remove status files for panes that no longer exist
+  local existing_panes
+  existing_panes=$(tmux list-panes -a -F '#{pane_id}' 2>/dev/null)
+  for status_file in "$STATUS_DIR"/pane_*.status; do
+    [ -f "$status_file" ] || continue
+    local pane_num
+    pane_num=$(basename "$status_file" .status)
+    pane_num="${pane_num#pane_}"
+    if ! echo "$existing_panes" | grep -q "^%${pane_num}$"; then
+      rm -f "$status_file"
+    fi
+  done
 }
 
-# --restore: return panes from monitor session to their original sessions
-do_restore() {
+# SCATTER: return panes from monitor session to their original locations
+do_scatter() {
   if [ ! -f "$ORIGINS_FILE" ]; then
-    echo "No monitor origins file found"
-    sleep 1
+    tmux display-message "No monitor origins found"
     exit 0
   fi
 
-  local first_session=""
+  local return_session=""
+  [ -f "$RETURN_FILE" ] && return_session=$(cat "$RETURN_FILE")
 
-  while IFS='|' read -r pane_id session_name; do
+  local pane_id session_name window_id
+  while IFS='|' read -r pane_id session_name window_id; do
     [ -z "$pane_id" ] && continue
 
-    # Check if pane still exists
+    # Check pane still exists
     if ! tmux display-message -t "$pane_id" -p '#{pane_id}' 2>/dev/null >/dev/null; then
       continue
     fi
 
-    # Track first session for switching
-    [ -z "$first_session" ] && first_session="$session_name"
-
-    # If original session doesn't exist, create it
-    if ! tmux has-session -t "$session_name" 2>/dev/null; then
-      tmux new-session -d -s "$session_name"
+    # Try original window first, then session, then create session
+    if tmux display-message -t "$window_id" -p '#{window_id}' 2>/dev/null >/dev/null; then
+      tmux join-pane -s "$pane_id" -t "$window_id" 2>/dev/null || true
+    elif tmux has-session -t "$session_name" 2>/dev/null; then
+      tmux break-pane -s "$pane_id" -t "$session_name:" 2>/dev/null || true
+    else
+      tmux new-session -d -s "$session_name" && tmux break-pane -s "$pane_id" -t "$session_name:" 2>/dev/null || true
     fi
-
-    # Break pane back to original session
-    tmux break-pane -s "$pane_id" -t "$session_name:" 2>/dev/null || true
   done <"$ORIGINS_FILE"
 
   # Clean up
-  rm -f "$ORIGINS_FILE"
+  rm -f "$ORIGINS_FILE" "$RETURN_FILE"
 
-  # Kill monitor session if it still exists
+  # Kill monitor session
   tmux kill-session -t claude-monitor 2>/dev/null || true
 
-  # Switch to first restored session
-  if [ -n "$first_session" ]; then
-    tmux switch-client -t "$first_session"
+  # Switch to return session (fall back to any session)
+  if [ -n "$return_session" ]; then
+    tmux switch-client -t "$return_session" 2>/dev/null || tmux switch-client
+  else
+    tmux switch-client
   fi
-  exit 0
 }
 
-# Handle subcommands
-case "$1" in
---join)
-  do_join
-  ;;
---restore)
-  do_restore
-  ;;
-esac
+# Toggle logic: no flags, no fzf
+current_session=$(tmux display-message -p '#{session_name}')
 
-# Stale status cleanup: remove status files for panes that no longer exist
-existing_panes=$(tmux list-panes -a -F '#{pane_id}' 2>/dev/null)
-for status_file in "$STATUS_DIR"/pane_*.status; do
-  [ -f "$status_file" ] || continue
-  pane_num=$(basename "$status_file" .status)
-  pane_num="${pane_num#pane_}"
-  if ! echo "$existing_panes" | grep -q "^%${pane_num}$"; then
-    rm -f "$status_file"
-  fi
-done
-
-# Pane enumeration - collect Claude panes for display
-lines=()
-while IFS='|' read -r pane_id pane_pid session_name window_index pane_index pane_path; do
-  has_claude_in_pane "$pane_pid" || continue
-
-  # Read status from pane status file
-  pane_num="${pane_id#%}"
-  status_file="$STATUS_DIR/pane_${pane_num}.status"
-  if [ -f "$status_file" ]; then
-    status=$(cat "$status_file" 2>/dev/null)
-  else
-    status=""
-  fi
-
-  # Format status display
-  case "$status" in
-  working)
-    status_display="${YELLOW}working${RESET}"
-    ;;
-  idle)
-    status_display="${GREEN}idle${RESET}"
-    ;;
-  *)
-    status_display="${OVERLAY0}--${RESET}"
-    ;;
-  esac
-
-  # Shorten path
-  short_path="${pane_path/#$HOME/~}"
-
-  display="  ${TEXT}${session_name}:${window_index}.${pane_index}${RESET}  ${BLUE}${short_path}${RESET}  ${status_display}"
-  lines+=("${pane_id}|${display}")
-done < <(tmux list-panes -a -F "#{pane_id}|#{pane_pid}|#{session_name}|#{window_index}|#{pane_index}|#{pane_current_path}")
-
-# Edge case: no Claude panes found
-if [ ${#lines[@]} -eq 0 ]; then
-  echo "No active Claude Code sessions"
-  sleep 1
-  exit 0
+if [ "$current_session" = "claude-monitor" ]; then
+  do_scatter
+elif tmux has-session -t claude-monitor 2>/dev/null; then
+  tmux switch-client -t claude-monitor
+else
+  do_gather
 fi
-
-# Run fzf
-printf '%s\n' "${lines[@]}" | fzf --ansi --no-sort --reverse \
-  --delimiter '|' \
-  --with-nth '2..' \
-  --header "Claude Sessions  |  enter: switch  ctrl-j: join all  ctrl-r: restore" \
-  --preview 'tmux capture-pane -ep -t {1} | tail -50' \
-  --preview-window 'right:55%:wrap' \
-  --bind 'enter:become(tmux switch-client -t {1})' \
-  --bind 'ctrl-j:execute-silent(~/.claude/scripts/claude-dashboard --join)+abort' \
-  --bind 'ctrl-r:execute-silent(~/.claude/scripts/claude-dashboard --restore)+abort' \
-  --color "bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8" \
-  --color "fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f9e2af" \
-  --color "marker:#a6e3a1,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"

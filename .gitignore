@@ -19,8 +19,12 @@ roles/claude/files/agents/raft-*.md
 # Crush directory
 .crush/
 
-# Claude session snapshots (personal work state)
-.claude/snapshots/
+# Claude Code personal files (keep agents/skills/commands)
+.claude/settings.json
+.claude/settings.local.json
+.claude/projects/
+.claude/notepads/
+.claude/*.md
 
 # Ansible cache/runtime directories
 .ansible/
@@ -48,3 +52,9 @@ node_modules/
 
 # Task files
 tasks.json
+
+# User overrides (fork customizations)
+overrides/roles/
+overrides/config/dotfiles.conf
+!overrides/config/dotfiles.conf.example
+!overrides/README.md

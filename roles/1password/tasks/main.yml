@@ -28,6 +28,6 @@
 
 - name: "{{ role_name }} | Deploy ssh config"
   ansible.builtin.copy:
-    src: agent.toml
+    src: "{{ _files_path }}/agent.toml"
     dest: "{{ ansible_facts['user_dir'] }}/.config/1Password/ssh/agent.toml"
     mode: "0644"

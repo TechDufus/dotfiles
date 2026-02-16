@@ -1,0 +1,64 @@
+---
+# Wrapper task for running roles with optional overrides
+# Supports three override levels:
+#   - vars: overrides/roles/{role}/vars/main.yml - merged before role runs
+#   - files: overrides/roles/{role}/files/ - sets _files_path for file operations
+#   - tasks: overrides/roles/{role}/tasks/main.yml - REPLACES role entirely
+
+# 1. Check if full task override exists
+- name: "Override | Check for task override: {{ _role_name }}"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/overrides/roles/{{ _role_name }}/tasks/main.yml"
+  register: _task_override
+  tags:
+    - always
+
+# 2. Check and load vars override if exists
+- name: "Override | Check for vars override: {{ _role_name }}"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/overrides/roles/{{ _role_name }}/vars/main.yml"
+  register: _vars_override
+  tags:
+    - always
+
+- name: "Override | Load vars override: {{ _role_name }}"
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/overrides/roles/{{ _role_name }}/vars/main.yml"
+  when: _vars_override.stat.exists
+  tags:
+    - always
+
+# 3. Check and set _files_path (override if exists, else default)
+- name: "Override | Check for files override: {{ _role_name }}"
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/overrides/roles/{{ _role_name }}/files"
+  register: _files_override
+  tags:
+    - always
+
+- name: "Override | Set files path: {{ _role_name }}"
+  ansible.builtin.set_fact:
+    _files_path: "{{ (playbook_dir ~ '/overrides/roles/' ~ _role_name ~ '/files') if _files_override.stat.exists else (playbook_dir ~ '/roles/' ~ _role_name ~ '/files') }}"
+  tags:
+    - always
+
+# 4. BRANCH: Run override tasks OR original role
+- name: "Override | Run override tasks: {{ _role_name }}"
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/overrides/roles/{{ _role_name }}/tasks/main.yml"
+    apply:
+      tags:
+        - "{{ _role_name }}"
+  when: _task_override.stat.exists
+  tags:
+    - always
+
+- name: "Override | Run role: {{ _role_name }}"
+  ansible.builtin.include_role:
+    name: "{{ _role_name }}"
+    apply:
+      tags:
+        - "{{ _role_name }}"
+  when: not _task_override.stat.exists
+  tags:
+    - always

@@ -23,5 +23,5 @@
 
     - name: Copy Alacritty config
       ansible.builtin.copy:
-        src: wsl_alacritty.yaml
+        src: "{{ _files_path }}/wsl_alacritty.yaml"
         dest: /mnt/c/Users/{{ wsl_host_user }}/AppData/Roaming/alacritty/alacritty.yml

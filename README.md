@@ -63,6 +63,35 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/
 - Customize your setup by editing `~/.dotfiles/group_vars/all.yml`
 - Run `dotfiles` anytime to update your environment
 
+## 🍴 Fork This Project
+
+**This repo is designed for forking.** Customize your dotfiles without merge conflicts.
+
+### How It Works
+
+1. **Fork** this repository
+2. **Create overrides** in `overrides/` directory (gitignored)
+3. **Pull upstream** anytime - your customizations stay separate
+
+### What You Can Override
+
+| Override Type | Location | Effect |
+|--------------|----------|--------|
+| Variables | `overrides/roles/{role}/vars/main.yml` | Change settings (paths, names, options) |
+| Config Files | `overrides/roles/{role}/files/` | Replace config files with your own |
+| Tasks | `overrides/roles/{role}/tasks/main.yml` | Replace entire role behavior |
+
+### Common Customizations
+
+| What | Override | Example |
+|------|----------|---------|
+| Git identity | `overrides/roles/git/vars/main.yml` | Your name and email |
+| Shell config | `overrides/roles/zsh/files/.zshrc` | Personal aliases |
+| Terminal | `overrides/roles/ghostty/files/config` | Theme, font, colors |
+| Editor | `overrides/roles/neovim/files/` | Plugins, keybindings |
+
+See [`overrides/README.md`](overrides/README.md) for the complete guide.
+
 ---
 
 ## 🎯 Goals

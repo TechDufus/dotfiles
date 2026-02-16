@@ -50,12 +50,11 @@
       tags:
         - always
 
-    - name: Run roles
-      ansible.builtin.include_role:
-        apply:
-          tags:
-            - "{{ roles_item }}"
-        name: "{{ roles_item }}"
+    - name: Run roles with override support
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/run_role_with_overrides.yml"
+      vars:
+        _role_name: "{{ roles_item }}"
       loop_control:
         loop_var: roles_item
       with_items: "{{ run_roles }}"

@@ -1,0 +1,11 @@
+# Dotfiles Bootstrap Configuration
+# Copy this file to dotfiles.conf and customize for your fork.
+#
+# This file is sourced by bin/dotfiles before cloning/updating.
+# Your customizations here override the defaults in the script.
+
+# GitHub username for your fork (required for bootstrap to clone your fork)
+# DOTFILES_GITHUB_USER="YourGitHubUsername"
+
+# Repository name (usually "dotfiles" unless you renamed it)
+# DOTFILES_REPO_NAME="dotfiles"

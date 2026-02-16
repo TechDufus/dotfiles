@@ -94,43 +94,43 @@
 
 - name: "awesomewm | Ubuntu | Deploy Cell Management Config"
   ansible.builtin.copy:
-    src: "config/cell-management/"
+    src: "{{ _files_path }}/config/cell-management/"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/cell-management/"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy Notifications Config"
   ansible.builtin.copy:
-    src: "config/notifications/"
+    src: "{{ _files_path }}/config/notifications/"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/notifications/"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy wibar configuration"
   ansible.builtin.copy:
-    src: "config/wibar.lua"
+    src: "{{ _files_path }}/config/wibar.lua"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/wibar.lua"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy window switcher"
   ansible.builtin.copy:
-    src: "config/window-switcher.lua"
+    src: "{{ _files_path }}/config/window-switcher.lua"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/window-switcher.lua"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy icon resolver"
   ansible.builtin.copy:
-    src: "config/icon-resolver.lua"
+    src: "{{ _files_path }}/config/icon-resolver.lua"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/icon-resolver.lua"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy Catppuccin Mocha Theme"
   ansible.builtin.copy:
-    src: "config/themes/"
+    src: "{{ _files_path }}/config/themes/"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/themes/"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy rc.lua"
   ansible.builtin.copy:
-    src: "config/rc.lua"
+    src: "{{ _files_path }}/config/rc.lua"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/rc.lua"
     mode: "0644"
 
@@ -142,13 +142,13 @@
 
 - name: "awesomewm | Ubuntu | Deploy rofi configuration"
   ansible.builtin.copy:
-    src: "rofi/config.rasi"
+    src: "{{ _files_path }}/rofi/config.rasi"
     dest: "{{ ansible_facts['user_dir'] }}/.config/rofi/config.rasi"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy rofi Catppuccin theme"
   ansible.builtin.copy:
-    src: "rofi/catppuccin-mocha.rasi"
+    src: "{{ _files_path }}/rofi/catppuccin-mocha.rasi"
     dest: "{{ ansible_facts['user_dir'] }}/.config/rofi/catppuccin-mocha.rasi"
     mode: "0644"
 
@@ -222,7 +222,7 @@
 
 - name: "awesomewm | Ubuntu | Deploy Flameshot configuration"
   ansible.builtin.copy:
-    src: "flameshot/flameshot.ini"
+    src: "{{ _files_path }}/flameshot/flameshot.ini"
     dest: "{{ ansible_facts['user_dir'] }}/.config/flameshot/flameshot.ini"
     mode: "0644"
 
@@ -234,13 +234,13 @@
 
 - name: "awesomewm | Ubuntu | Deploy CopyQ configuration"
   ansible.builtin.copy:
-    src: "copyq/copyq.conf"
+    src: "{{ _files_path }}/copyq/copyq.conf"
     dest: "{{ ansible_facts['user_dir'] }}/.config/copyq/copyq.conf"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Deploy CopyQ commands"
   ansible.builtin.copy:
-    src: "copyq/copyq-commands.ini"
+    src: "{{ _files_path }}/copyq/copyq-commands.ini"
     dest: "{{ ansible_facts['user_dir'] }}/.config/copyq/copyq-commands.ini"
     mode: "0644"
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=AI Usage Monitor - polls Claude API usage limits
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ai-usage-monitor.sh
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=5
+
+[Install]
+WantedBy=default.target

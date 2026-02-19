@@ -8,6 +8,7 @@ local beautiful = require("beautiful")
 local naughty = require("naughty")
 local dpi = beautiful.xresources.apply_dpi
 local icon_resolver = require("icon-resolver")
+local ai_usage_widget = require("ai-usage-widget")
 
 -- Load awesome-wm-widgets
 local volume_widget = require("awesome-wm-widgets.volume-widget.volume")
@@ -89,6 +90,7 @@ local icons = {
     dot = "•",
     dnd_normal = "󰂚",    -- Bell icon
     dnd_enabled = "󰂛",   -- Bell-off icon
+    ai = "✦",
 }
 
 -- ============================================================================
@@ -902,6 +904,12 @@ local net_timer = gears.timer {
 }
 
 -- ============================================================================
+-- AI USAGE WIDGET
+-- ============================================================================
+
+local ai_widget = ai_usage_widget.create(colors, fonts, spacing, icons)
+
+-- ============================================================================
 -- CLOCK WIDGET
 -- ============================================================================
 
@@ -1155,6 +1163,9 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
 
                 -- Volume
                 volume_widget_display,
+                create_spacer(spacing.widget),
+                -- AI Usage
+                ai_widget,
                 create_spacer(spacing.section),
 
                 -- System tray (vertically centered)

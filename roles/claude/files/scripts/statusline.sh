@@ -264,6 +264,12 @@ if [[ -n "$API_DURATION" ]] && [[ "$API_DURATION" != "0" ]] && [[ -n "$TOTAL_OUT
   TOKEN_VELOCITY=$(( TOTAL_OUTPUT_TOKENS * 1000 / API_DURATION ))
 fi
 
+# Useful time percentage (API time / total session time)
+USEFUL_PCT=""
+if [[ -n "$API_DURATION" ]] && [[ "$API_DURATION" != "0" ]] && [[ -n "$TOTAL_DURATION" ]] && [[ "$TOTAL_DURATION" != "0" ]]; then
+  USEFUL_PCT=$(( API_DURATION * 100 / TOTAL_DURATION ))
+fi
+
 # Cost formatted
 COST_FMT=""
 if [[ -n "$COST" ]]; then
@@ -441,6 +447,10 @@ if [[ $TERM_WIDTH -ge 120 ]]; then
   if [[ -n "$SESSION_FMT" ]]; then
     L3="${L3} ${C_SEP}│ ${C_TIME}󱑃 ${SESSION_FMT}"
   fi
+fi
+
+if [[ -n "$USEFUL_PCT" ]]; then
+  L3="${L3} ${C_SEP}│ ${C_CACHE}⚙ ${USEFUL_PCT}%"
 fi
 
 # ─── Output ────────────────────────────────────────────────────────────────────

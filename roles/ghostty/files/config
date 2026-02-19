@@ -38,6 +38,9 @@ copy-on-select = true
 auto-update = check
 auto-update-channel = tip
 
+# Keybinds
+keybind = shift+enter=text:\x1b\r
+
 # extras
 shell-integration-features = no-cursor
 class = ghostty

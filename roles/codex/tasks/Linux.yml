@@ -1,0 +1,105 @@
+---
+- name: "{{ role_name }} | Linux | Install | Check if codex is in PATH"
+  ansible.builtin.command: which codex
+  register: codex_path_check
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Linux | Install | Check local codex binary"
+  ansible.builtin.stat:
+    path: "{{ codex_install_path }}/codex"
+  register: codex_local_binary
+
+- name: "{{ role_name }} | Linux | Install | Determine if installation is required"
+  ansible.builtin.set_fact:
+    codex_install_required: "{{ codex_path_check.rc != 0 and not codex_local_binary.stat.exists }}"
+
+- name: "{{ role_name }} | Linux | Install | Ensure install directory exists"
+  ansible.builtin.file:
+    path: "{{ codex_install_path }}"
+    state: directory
+    mode: "0755"
+  when: codex_install_required
+
+- name: "{{ role_name }} | Linux | Install | Normalize architecture"
+  ansible.builtin.set_fact:
+    codex_linux_arch: "{{ codex_arch_map[ansible_facts['architecture']] | default('unsupported') }}"
+  vars:
+    codex_arch_map:
+      x86_64: x86_64
+      amd64: x86_64
+      aarch64: aarch64
+      arm64: aarch64
+  when: codex_install_required
+
+- name: "{{ role_name }} | Linux | Install | Fail on unsupported architecture"
+  ansible.builtin.fail:
+    msg: "Unsupported architecture for Codex Linux install: {{ ansible_facts['architecture'] }}"
+  when:
+    - codex_install_required
+    - codex_linux_arch == "unsupported"
+
+- name: "{{ role_name }} | Linux | Install | Get latest Codex release"
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/openai/codex/releases/latest"
+    headers:
+      Accept: "application/vnd.github+json"
+  register: codex_latest_release
+  changed_when: false
+  when: codex_install_required
+
+- name: "{{ role_name }} | Linux | Install | Set download variables"
+  ansible.builtin.set_fact:
+    codex_release_tag: "{{ codex_latest_release.json.tag_name }}"
+    codex_archive_name: "codex-{{ codex_linux_arch }}-unknown-linux-musl.tar.gz"
+    codex_extract_dir: "/tmp/codex-{{ ansible_facts['user_id'] }}"
+  when: codex_install_required
+
+- name: "{{ role_name }} | Linux | Install | Download and install Codex"
+  when: codex_install_required
+  block:
+    - name: "{{ role_name }} | Linux | Install | Ensure temp extract directory exists"
+      ansible.builtin.file:
+        path: "{{ codex_extract_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: "{{ role_name }} | Linux | Install | Download Codex archive"
+      ansible.builtin.get_url:
+        url: "https://github.com/openai/codex/releases/download/{{ codex_release_tag }}/{{ codex_archive_name }}"
+        dest: "/tmp/{{ codex_archive_name }}"
+        mode: "0644"
+        force: true
+
+    - name: "{{ role_name }} | Linux | Install | Extract Codex archive"
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ codex_archive_name }}"
+        dest: "{{ codex_extract_dir }}"
+        remote_src: true
+
+    - name: "{{ role_name }} | Linux | Install | Install codex binary"
+      ansible.builtin.copy:
+        src: "{{ codex_extract_dir }}/codex-{{ codex_linux_arch }}-unknown-linux-musl"
+        dest: "{{ codex_install_path }}/codex"
+        mode: "0755"
+        remote_src: true
+
+  always:
+    - name: "{{ role_name }} | Linux | Install | Cleanup temporary files"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/{{ codex_archive_name }}"
+        - "{{ codex_extract_dir }}"
+      failed_when: false
+
+- name: "{{ role_name }} | Linux | Install | Verify codex installation"
+  ansible.builtin.command: "{{ codex_install_path }}/codex --version"
+  changed_when: false
+  when: codex_install_required
+
+- name: "{{ role_name }} | Linux | Install | Verify existing codex installation"
+  ansible.builtin.command: codex --version
+  changed_when: false
+  when: not codex_install_required

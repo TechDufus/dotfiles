@@ -1,0 +1,5 @@
+---
+role_name: codex
+codex_install_path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+codex_agents_source: "{{ role_path }}/files/AGENTS.md"
+codex_agents_dest: "{{ ansible_facts['env']['HOME'] }}/.codex/AGENTS.md"

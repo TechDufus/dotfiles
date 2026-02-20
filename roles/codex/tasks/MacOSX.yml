@@ -1,0 +1,5 @@
+---
+- name: "{{ role_name }} | MacOSX | Install | Codex CLI"
+  community.general.homebrew_cask:
+    name: codex
+    state: present

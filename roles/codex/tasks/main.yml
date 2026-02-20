@@ -1,0 +1,41 @@
+---
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Configure | Ensure ~/.codex directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.codex"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink | Check if AGENTS.md already exists"
+  ansible.builtin.stat:
+    path: "{{ codex_agents_dest }}"
+  register: codex_agents_file
+
+- name: "{{ role_name }} | Symlink | Backup existing AGENTS.md if it is not a symlink"
+  ansible.builtin.copy:
+    src: "{{ codex_agents_dest }}"
+    dest: "{{ codex_agents_dest }}.backup"
+    remote_src: true
+    mode: "0644"
+  when: codex_agents_file.stat.exists and not codex_agents_file.stat.islnk
+
+- name: "{{ role_name }} | Symlink | Remove existing AGENTS.md if it is not a symlink"
+  ansible.builtin.file:
+    path: "{{ codex_agents_dest }}"
+    state: absent
+  when: codex_agents_file.stat.exists and not codex_agents_file.stat.islnk
+
+- name: "{{ role_name }} | Symlink | Create symlink to AGENTS.md"
+  ansible.builtin.file:
+    src: "{{ codex_agents_source }}"
+    dest: "{{ codex_agents_dest }}"
+    state: link
+    force: true

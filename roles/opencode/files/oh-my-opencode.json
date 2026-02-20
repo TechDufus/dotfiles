@@ -8,21 +8,49 @@
     "hooks": false,
     "plugins": false
   },
-  "disabled_mcps": ["websearch_exa"],
+  "disabled_mcps": [
+    "websearch_exa"
+  ],
   "agents": {
-    "build": { "model": "anthropic/claude-opus-4-5" },
-    "plan": { "model": "anthropic/claude-opus-4-5" },
-    "sisyphus": { "model": "anthropic/claude-opus-4-5" },
-    "sisyphus-junior": { "model": "anthropic/claude-opus-4-5" },
-    "OpenCode-Builder": { "model": "anthropic/claude-opus-4-5" },
-    "prometheus": { "model": "anthropic/claude-opus-4-5" },
-    "metis": { "model": "anthropic/claude-opus-4-5" },
-    "momus": { "model": "anthropic/claude-opus-4-5" },
-    "oracle": { "model": "anthropic/claude-opus-4-5" },
-    "librarian": { "model": "anthropic/claude-opus-4-5" },
-    "explore": { "model": "anthropic/claude-opus-4-5" },
-    "multimodal-looker": { "model": "anthropic/claude-opus-4-5" },
-    "atlas": { "model": "anthropic/claude-opus-4-5" }
+    "build": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "plan": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "sisyphus": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "sisyphus-junior": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "OpenCode-Builder": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "prometheus": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "metis": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "momus": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "oracle": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "librarian": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "explore": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "multimodal-looker": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "atlas": {
+      "model": "anthropic/claude-opus-4-6"
+    }
   },
   "experimental": {
     "auto_resume": true,
@@ -30,5 +58,20 @@
     "preemptive_compaction_threshold": 0.8,
     "truncate_all_tool_outputs": true
   },
-  "lsp": {}
+  "lsp": {},
+  "_migrations": [
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6",
+    "model-version:anthropic/claude-opus-4-5->anthropic/claude-opus-4-6"
+  ]
 }

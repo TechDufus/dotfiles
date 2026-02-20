@@ -401,7 +401,10 @@ gss                # Enhanced git status
 gco                # Interactive branch checkout
 glog               # Interactive commit browser
 gacp "message"     # Add, commit, push in one command
-c.continue         # Continue Claude session (git-aware)
+c.continue         # Continue Codex session (git-aware)
+c.c                # Quick alias for c.continue
+cc.continue        # Continue Claude session (git-aware)
+cc.c               # Quick alias for cc.continue
 update             # Update system packages (OS-specific)
 ```
 

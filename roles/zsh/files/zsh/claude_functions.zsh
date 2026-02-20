@@ -3,7 +3,7 @@
 # Note: Color variables are defined in vars.zsh which is sourced before this file
 
 # Show current status of Claude settings file in dotfiles
-c.settings-status() {
+cc.settings-status() {
   pushd ~/.dotfiles > /dev/null 2>&1
   echo ""
   echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
@@ -30,14 +30,14 @@ c.settings-status() {
     git diff --color=always roles/claude/files/settings.json | head -15 | sed 's/^/  /'
     echo -e "  ${CAT_SURFACE2}${DIVIDER}${NC}"
     echo ""
-    echo -e "  💡 ${CAT_MAUVE}Tip:${NC} Run ${CAT_GREEN}c.settings-save${NC} to commit these changes"
+    echo -e "  💡 ${CAT_MAUVE}Tip:${NC} Run ${CAT_GREEN}cc.settings-save${NC} to commit these changes"
   fi
   echo ""
   popd > /dev/null 2>&1
 }
 
 # Save current Claude settings to dotfiles
-c.settings-save() {
+cc.settings-save() {
   pushd ~/.dotfiles > /dev/null 2>&1
   echo ""
   echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
@@ -79,48 +79,48 @@ Updated settings.json with latest preferences" > /dev/null 2>&1
 }
 
 # Generate Claude usage report
-c.usage-report() {
+cc.usage-report() {
   bunx ccusage "$@"
 }
 
 # Check Claude usage statistics with live updates
-c.usage() {
+cc.usage() {
   bunx ccusage blocks --live
 }
 
 # Pick a previous Claude session to resume
-c.resume() {
+cc.resume() {
   claude --resume
 }
 
 # Show all Claude functions
-c.help() {
+cc.help() {
   echo ""
   echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
   echo -e "  ${CAT_SAPPHIRE}${BOX_MID}${NC}  🤖 ${CAT_TEXT}Claude Helper Functions${NC}                              ${CAT_SAPPHIRE}${BOX_MID}${NC}"
   echo -e "  ${CAT_SAPPHIRE}${BOX_BOT}${NC}"
   echo ""
   echo -e "  ${CAT_YELLOW}📊 Settings Management${NC}"
-  echo -e "  ${CAT_GREEN}  c.settings-status${NC}   ${CAT_SURFACE2}│${NC} Show if Claude settings changed in dotfiles"
-  echo -e "  ${CAT_GREEN}  c.settings-save${NC}     ${CAT_SURFACE2}│${NC} Commit Claude settings changes to dotfiles"
+  echo -e "  ${CAT_GREEN}  cc.settings-status${NC}  ${CAT_SURFACE2}│${NC} Show if Claude settings changed in dotfiles"
+  echo -e "  ${CAT_GREEN}  cc.settings-save${NC}    ${CAT_SURFACE2}│${NC} Commit Claude settings changes to dotfiles"
   echo ""
   echo -e "  ${CAT_YELLOW}🚀 Quick Actions${NC}"
-  echo -e "  ${CAT_GREEN}  c.continue${NC}          ${CAT_SURFACE2}│${NC} Continue last Claude session with workspace context"
-  echo -e "  ${CAT_GREEN}  c.c${NC}                 ${CAT_SURFACE2}│${NC} Alias for c.continue ${CAT_OVERLAY0}(quick access)${NC}"
-  echo -e "  ${CAT_GREEN}  c.resume${NC}            ${CAT_SURFACE2}│${NC} Pick a previous Claude session to resume"
-  echo -e "  ${CAT_GREEN}  c.usage${NC}             ${CAT_SURFACE2}│${NC} Live Claude usage blocks monitoring"
-  echo -e "  ${CAT_GREEN}  c.usage-report${NC}      ${CAT_SURFACE2}│${NC} Generate Claude usage statistics report"
+  echo -e "  ${CAT_GREEN}  cc.continue${NC}         ${CAT_SURFACE2}│${NC} Continue last Claude session with workspace context"
+  echo -e "  ${CAT_GREEN}  cc.c${NC}                ${CAT_SURFACE2}│${NC} Alias for cc.continue ${CAT_OVERLAY0}(quick access)${NC}"
+  echo -e "  ${CAT_GREEN}  cc.resume${NC}           ${CAT_SURFACE2}│${NC} Pick a previous Claude session to resume"
+  echo -e "  ${CAT_GREEN}  cc.usage${NC}            ${CAT_SURFACE2}│${NC} Live Claude usage blocks monitoring"
+  echo -e "  ${CAT_GREEN}  cc.usage-report${NC}     ${CAT_SURFACE2}│${NC} Generate Claude usage statistics report"
   echo ""
   echo -e "  ${CAT_YELLOW}📚 Help${NC}"
-  echo -e "  ${CAT_GREEN}  c.help${NC}              ${CAT_SURFACE2}│${NC} Show this help message"
+  echo -e "  ${CAT_GREEN}  cc.help${NC}             ${CAT_SURFACE2}│${NC} Show this help message"
   echo ""
   echo -e "  ${CAT_SURFACE2}${DIVIDER}${NC}"
-  echo -e "  💡 ${CAT_MAUVE}Tip:${NC} Use ${CAT_PEACH}tab completion${NC} to discover all ${CAT_GREEN}c.*${NC} functions"
+  echo -e "  💡 ${CAT_MAUVE}Tip:${NC} Use ${CAT_PEACH}tab completion${NC} to discover all ${CAT_GREEN}cc.*${NC} functions"
   echo ""
 }
 
 # Continue Claude session with current working directory context
-c.continue() {
+cc.continue() {
   # If in a git repo, go to the root
   local git_root=$(git rev-parse --show-toplevel 2>/dev/null)
   
@@ -137,4 +137,4 @@ c.continue() {
 }
 
 # Alias for common continue patterns
-alias c.c='c.continue'
+alias cc.c='cc.continue'

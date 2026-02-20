@@ -1,20 +1,141 @@
 {
-  "respectGitignore": true,
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "DISABLE_TELEMETRY": "1",
-    "DISABLE_ERROR_REPORTING": "1",
-    "DISABLE_BUG_COMMAND": "1",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "MCP_TIMEOUT": "30000",
-    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "3600000",
-    "MAX_THINKING_TOKENS": "31999",
-    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "20000",
-    "ENABLE_LSP_TOOLS": "1"
-  },
   "attribution": {
     "commit": "",
     "pr": ""
+  },
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true,
+    "lua-lsp@claude-plugins-official": true,
+    "oh-my-claude": true,
+    "oh-my-claude@oh-my-claude": true,
+    "playwright@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "env": {
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "3600000",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "DISABLE_BUG_COMMAND": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_TELEMETRY": "1",
+    "ENABLE_LSP_TOOLS": "1",
+    "MAX_THINKING_TOKENS": "31999",
+    "MCP_TIMEOUT": "30000",
+    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "20000"
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh Notification"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh PostToolUse"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh PostToolUseFailure"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh PreToolUse"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh SessionEnd"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh SessionStart"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh Stop"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh SubagentStart"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh SubagentStop"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh TaskCompleted"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/techdufus/.openmonitor/hook.sh UserPromptSubmit"
+          }
+        ]
+      }
+    ]
   },
   "permissions": {
     "allow": [
@@ -953,6 +1074,7 @@
       "Write(/tmp/**)",
       "Bash(*:/tmp/**)"
     ],
+    "defaultMode": "acceptEdits",
     "deny": [
       "Bash(sudo:*)",
       "Bash(su:*)",
@@ -991,64 +1113,9 @@
       "Write(./**/*.key)",
       "Bash(chmod:777:*)",
       "Bash(chown:root:*)"
-    ],
-    "defaultMode": "acceptEdits"
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/claude-status-hook PreToolUse"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/claude-status-hook Stop"
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/claude-status-hook SubagentStop"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/claude-status-hook Notification"
-          }
-        ]
-      }
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/scripts/statusline.sh"
-  },
-  "enabledPlugins": {
-    "oh-my-claude": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "plugin-dev@claude-plugins-official": true,
-    "lua-lsp@claude-plugins-official": true,
-    "oh-my-claude@oh-my-claude": true
-  },
+  "respectGitignore": true,
   "spinnerVerbs": {
     "mode": "replace",
     "verbs": [
@@ -1104,7 +1171,10 @@
       "GGing"
     ]
   },
+  "statusLine": {
+    "command": "~/.claude/scripts/statusline.sh",
+    "type": "command"
+  },
   "syntaxHighlightingDisabled": false,
-  "teammateMode": "in-process",
-  "skipDangerousModePermissionPrompt": true
+  "teammateMode": "in-process"
 }

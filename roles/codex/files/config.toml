@@ -1,0 +1,34 @@
+# Codex CLI config (managed by dotfiles role)
+# Reference: https://github.com/openai/codex/blob/main/docs/config.md
+
+# Minimal, high-quality defaults.
+model_reasoning_effort = "xhigh"
+model_reasoning_summary = "detailed"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+tool_output_token_limit = 120000
+model = "gpt-5.3-codex"
+
+[features]
+multi_agent = true
+
+# Keep local session history so resume/fork workflows stay useful.
+[history]
+persistence = "save-all"
+
+[tui]
+notifications = true
+show_tooltips = false
+status_line = [
+  "model-with-reasoning",
+  "git-branch",
+  "current-dir",
+  "context-remaining",
+  "used-tokens",
+]
+
+# Mark this repo as trusted so command execution uses trusted defaults.
+[projects."/home/techdufus/.dotfiles"]
+trust_level = "trusted"

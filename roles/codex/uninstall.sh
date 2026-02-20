@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+if [ -f "$HOME/.codex/config.toml.backup" ]; then
+  __task "Restoring backup Codex config.toml"
+  _cmd "mv $HOME/.codex/config.toml.backup $HOME/.codex/config.toml"
+  _task_done
+elif [ -L "$HOME/.codex/config.toml" ]; then
+  __task "Removing Codex config.toml symlink"
+  _cmd "rm -f $HOME/.codex/config.toml"
+  _task_done
+fi
+
 if [ -f "$HOME/.codex/AGENTS.md.backup" ]; then
   __task "Restoring backup Codex AGENTS.md"
   _cmd "mv $HOME/.codex/AGENTS.md.backup $HOME/.codex/AGENTS.md"

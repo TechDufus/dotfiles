@@ -1105,5 +1105,6 @@
     ]
   },
   "syntaxHighlightingDisabled": false,
-  "teammateMode": "in-process"
+  "teammateMode": "in-process",
+  "skipDangerousModePermissionPrompt": true
 }

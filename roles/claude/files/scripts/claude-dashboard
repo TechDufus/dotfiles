@@ -109,7 +109,31 @@ do_scatter() {
   local return_session=""
   [ -f "$RETURN_FILE" ] && return_session=$(cat "$RETURN_FILE")
 
+  # Ensure return target exists before we start dismantling monitor.
+  # Recreate original sessions as needed so switch-client has somewhere to go.
   local pane_id session_name window_id
+  while IFS='|' read -r pane_id session_name _rest; do
+    [ -z "$session_name" ] && continue
+    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+      tmux new-session -d -s "$session_name"
+    fi
+  done <"$ORIGINS_FILE"
+
+  # Switch client AWAY from claude-monitor FIRST.
+  # Moving panes out destroys the monitor window/session, which would
+  # detach the client if it's still viewing claude-monitor.
+  if [ -n "$return_session" ] && tmux has-session -t "$return_session" 2>/dev/null; then
+    tmux switch-client -t "$return_session"
+  else
+    # Pick any non-monitor session
+    local fallback
+    fallback=$(tmux list-sessions -F '#{session_name}' | grep -v '^claude-monitor$' | head -1)
+    if [ -n "$fallback" ]; then
+      tmux switch-client -t "$fallback"
+    fi
+  fi
+
+  # Now move panes back to their origins
   while IFS='|' read -r pane_id session_name window_id; do
     [ -z "$pane_id" ] && continue
 
@@ -131,15 +155,8 @@ do_scatter() {
   # Clean up
   rm -f "$ORIGINS_FILE" "$RETURN_FILE"
 
-  # Kill monitor session
+  # Kill monitor session (may already be gone if all panes were moved out)
   tmux kill-session -t claude-monitor 2>/dev/null || true
-
-  # Switch to return session (fall back to any session)
-  if [ -n "$return_session" ]; then
-    tmux switch-client -t "$return_session" 2>/dev/null || tmux switch-client
-  else
-    tmux switch-client
-  fi
 }
 
 # Toggle logic: no flags, no fzf

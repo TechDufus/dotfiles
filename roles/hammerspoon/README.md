@@ -56,7 +56,7 @@ Quick application switching with intelligent toggle behavior:
 | `d` | Discord | Community chat |
 | `e` | Outlook | Email client |
 | `f` | Finder | File manager |
-| `g` | Claude | AI assistant |
+| `g` | ChatGPT | AI assistant |
 | `h` | Screen Sharing | macOS screen sharing |
 | `m` | Teams | Microsoft Teams meetings |
 | `n` | Obsidian | Note-taking |
@@ -96,7 +96,7 @@ graph LR
     C[Chat Overlay<br/>Top Right] -.-> A
     D[Email/Music<br/>Center-Left Float] -.-> A
     E[Teams<br/>Large Center] -.-> A
-    F[Claude/Agenda<br/>Small Right] -.-> A
+    F[ChatGPT/Agenda<br/>Small Right] -.-> A
 ```
 
 **Layout Cells:**
@@ -105,7 +105,7 @@ graph LR
 3. **MatterMost/Discord** (top-right overlay) - Floating chat
 4. **Outlook/Spotify/Finder/1Password** (center-left float) - Behind terminal
 5. **Teams** (large center) - Meeting focus mode
-6. **Claude/Agenda** (small right popup) - AI assistant/notes
+6. **ChatGPT/Agenda** (small right popup) - AI assistant/notes
 
 ### Standard Dev (5120x1440 Ultrawide)
 Designed for 49" ultrawide monitors:

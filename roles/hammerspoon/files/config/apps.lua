@@ -23,9 +23,9 @@ return {
     id = 'com.apple.finder',
     summon = 'f', -- [F]inder
   },
-  Claude      = {
-    id = 'com.anthropic.claudefordesktop',
-    summon = 'g', -- [G]enAI (was GPT)
+  ChatGPT     = {
+    id = 'com.openai.chat',
+    summon = 'g', -- [G]enAI / ChatGPT
   },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',

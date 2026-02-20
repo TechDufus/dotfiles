@@ -20,7 +20,7 @@ return {
       OnePassword = { cell = 4 },              -- Password manager - center-left float (behind terminal)
       Teams       = { cell = 5 },              -- Meeting focus - large centered
       Obsidian    = { cell = 3 },              -- Moved to smaller chat position
-      Claude      = { cell = 6 },              -- AI assistant popup
+      ChatGPT     = { cell = 6 },              -- AI assistant popup
       Agenda      = { cell = 6 },              -- Granola popup
     },
   },
@@ -40,7 +40,7 @@ return {
       OnePassword = { cell = 1 },
       Teams       = { cell = 1 },
       Obsidian    = { cell = 1 },
-      Claude      = { cell = 1 },
+      ChatGPT     = { cell = 1 },
       Agenda      = { cell = 1 },
     },
   },
@@ -62,7 +62,7 @@ return {
       OnePassword = { cell = 3 },
       Teams       = { cell = 3 },
       Obsidian    = { cell = 3 },
-      Claude      = { cell = 3 },
+      ChatGPT     = { cell = 3 },
       Agenda      = { cell = 3 },
     },
   },
@@ -84,7 +84,7 @@ return {
       Finder      = { cell = 2 },
       Teams       = { cell = 3 }, -- Meeting focus position
       Obsidian    = { cell = 6 }, -- Moved to utility position
-      Gpt         = { cell = 6 },
+      ChatGPT     = { cell = 6 },
       Terminal    = { cell = 4, open = true },
       Windows     = { cell = 4 },
       Browser     = { cell = 5, open = true },

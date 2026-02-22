@@ -47,14 +47,17 @@ function __get_secret_vars() {
     return 1
   fi
 
-  # Extract export statements, handling both simple and command substitution exports
-  # Also handle non-export variable assignments like MY_ACCOUNT
-  # Use awk for more reliable cross-platform parsing
-  awk -F'=' '/^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=/ {
-    # Remove leading whitespace and "export" keyword
-    gsub(/^[[:space:]]*(export[[:space:]]+)?/, "", $1)
-    print $1
-  }' "$secret_file"
+  # Only list exported env vars and de-duplicate names while preserving file order.
+  awk '
+    /^[[:space:]]*export[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=/ {
+      var = $0
+      sub(/^[[:space:]]*export[[:space:]]+/, "", var)
+      sub(/[[:space:]]*=.*/, "", var)
+      if (!seen[var]++) {
+        print var
+      }
+    }
+  ' "$secret_file"
 }
 
 function secret() {

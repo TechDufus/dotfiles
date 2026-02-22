@@ -18,3 +18,13 @@
 ## Security
 - Never commit secrets, tokens, or credentials.
 - Prefer 1Password CLI (`op`) for secret retrieval.
+
+## Execution Strategy (Maximum Effort)
+- For any non-trivial task, decompose into independent workstreams and run them in parallel with sub-agents.
+- Default to 3 parallel roles: `explorer` (read-only discovery), `worker` (implementation), `reviewer` (tests/risk/regression).
+- Keep exactly one writer at a time; all other agents stay read-only unless reassigned.
+- Wait for all agent outputs, synthesize a single plan, then execute.
+- After edits, run a second parallel review pass for correctness, tests, and security.
+- Prefer end-to-end completion in one run; do not stop at partial progress unless blocked.
+- If multi-agent tooling is unavailable, emulate fanout with parallel shell tasks and continue.
+- In every final response, state what was parallelized and what was merged.

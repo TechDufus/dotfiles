@@ -3,7 +3,8 @@ set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # AI Usage Monitor
-# Polls the Claude OAuth usage API and writes a status JSON file for
+# Polls Claude OAuth usage and local Codex session telemetry, then writes
+# a status JSON file for
 # consumption by desktop widgets (AwesomeWM, Waybar, etc.).
 # ---------------------------------------------------------------------------
 
@@ -32,12 +33,103 @@ write_status() {
 }
 
 # ---------------------------------------------------------------------------
-# Build the codex section (always unavailable – codexbar not installed)
+# Codex usage collection
+# Reads the latest Codex session token_count events from ~/.codex/sessions and
+# maps primary/secondary rate limits into session/weekly widget windows.
 # ---------------------------------------------------------------------------
+find_codex_rate_limits() {
+  local session_dir="$HOME/.codex/sessions"
+  local file rate
+  local -a session_files=()
+
+  if [[ ! -d "$session_dir" ]]; then
+    return 1
+  fi
+
+  # Paths are date-structured (YYYY/MM/DD) and filenames contain ISO-ish time,
+  # so reverse lexical sort gives most recent files first.
+  mapfile -t session_files < <(find "$session_dir" -type f -name '*.jsonl' 2>/dev/null | LC_ALL=C sort -r)
+  if [[ ${#session_files[@]} -eq 0 ]]; then
+    return 1
+  fi
+
+  for file in "${session_files[@]}"; do
+    rate="$(jq -cs '
+      (
+        [
+          .[]
+          | select(.type == "event_msg")
+          | select(.payload.type == "token_count")
+          | (.payload.info.rate_limits // .payload.rate_limits)
+          | select(.limit_id == "codex")
+        ]
+        | last
+      ) // (
+        [
+          .[]
+          | select(.type == "event_msg")
+          | select(.payload.type == "token_count")
+          | (.payload.info.rate_limits // .payload.rate_limits)
+          | select((.primary != null) or (.secondary != null))
+        ]
+        | last
+      )
+    ' "$file" 2>/dev/null || true)"
+
+    if [[ -n "$rate" && "$rate" != "null" ]]; then
+      printf '%s\n' "$rate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 codex_section() {
-  cat <<'CODEX'
-{"available":false,"session":null,"weekly":null,"error":"codexbar_not_installed"}
+  local rate_limits codex_json
+
+  rate_limits="$(find_codex_rate_limits 2>/dev/null || true)"
+  if [[ -z "$rate_limits" || "$rate_limits" == "null" ]]; then
+    cat <<'CODEX'
+{"available":false,"session":null,"weekly":null,"error":"codex_rate_limits_not_found"}
 CODEX
+    return
+  fi
+
+  codex_json="$(jq -n \
+    --argjson rate "$rate_limits" '
+      def fmt_window($w):
+        if ($w | type) != "object" then
+          null
+        else
+          {
+            utilization: ($w.used_percent // null),
+            resets_at: (
+              if $w.resets_at == null then
+                null
+              else
+                ($w.resets_at | tonumber | gmtime | strftime("%Y-%m-%dT%H:%M:%SZ"))
+              end
+            )
+          }
+        end;
+
+      {
+        available: true,
+        session: (fmt_window($rate.primary)),
+        weekly: (fmt_window($rate.secondary)),
+        error: null
+      }
+    ' 2>/dev/null || true)"
+
+  if [[ -z "$codex_json" || "$codex_json" == "null" ]]; then
+    cat <<'CODEX'
+{"available":false,"session":null,"weekly":null,"error":"codex_parse_error"}
+CODEX
+    return
+  fi
+
+  printf '%s\n' "$codex_json"
 }
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,13 @@
+---
+- name: "awesomewm | Ubuntu | Restart AI usage monitor service"
+  ansible.builtin.systemd:
+    name: ai-usage-monitor.service
+    scope: user
+    state: restarted
+    enabled: true
+    daemon_reload: true
+
+- name: "awesomewm | Ubuntu | Restart AwesomeWM"
+  ansible.builtin.command: awesome-client "awesome.restart()"
+  failed_when: false
+  changed_when: false

@@ -16,7 +16,7 @@ This configuration treats Claude Code as a **collaborative development partner**
 
 - **Intelligent Routing** - Let the agent decide the best approach based on task complexity
 - **Context Efficiency** - Minimize token waste through smart session management
-- **Self-Improvement** - Learn from logs and encode patterns into CLAUDE.md
+- **Self-Improvement** - Learn from logs and encode patterns into AGENTS.md
 - **Git as Safety Net** - No custom checkpoints; trust version control
 
 ---
@@ -56,7 +56,7 @@ All configuration files are symlinked from this role to enable version control:
 ```
 ~/.claude/
 ├── settings.json         # Core settings (permissions, hooks, 900+ allowed operations)
-├── CLAUDE.md            # Global user memory and project standards
+├── AGENTS.md            # Global user memory and project standards
 ├── commands/            # 17 slash command definitions
 ├── skills/              # 3 built-in skills (git-commit-validator, workflow-router, skill-creator)
 ├── scripts/             # 11 GitHub workflow scripts (1,634 lines of shell)
@@ -114,7 +114,7 @@ graph TD
 | `/commit [instructions]` | Streamlined commit workflow | Conventional format validation, `--staged` mode, git-commit-validator skill |
 | `/prime [task hint]` | Build context for fresh sessions | Parallel subagent analysis, optional task focus |
 | `/snapshot [name]` | Capture session state before `/clear` | Markdown export, context preservation |
-| `/review-logs [--days N]` | Mine conversation logs for improvement patterns | Self-improving flywheel, `--apply` for auto-updates to CLAUDE.md |
+| `/review-logs [--days N]` | Mine conversation logs for improvement patterns | Self-improving flywheel, `--apply` for auto-updates to AGENTS.md |
 
 ### GitHub Integration
 
@@ -129,7 +129,7 @@ graph TD
 
 | Command | Purpose |
 |---------|---------|
-| `/init-ultrathink` | Generate comprehensive CLAUDE.md via 5 parallel analysis agents |
+| `/init-ultrathink` | Generate comprehensive AGENTS.md via 5 parallel analysis agents |
 | `/stig [options]` | Evaluate STIG compliance in Kubernetes pods |
 | `/stig-summary [--copy]` | Extract STIG evaluation summary for reporting |
 | `/raft-gravity-comply` | DoD Gravity pipeline compliance orchestration |
@@ -164,7 +164,7 @@ claude
 ```
 ~/.claude/
 ├── settings.json      → Permissions, allowed domains, hooks config
-├── CLAUDE.md          → Global user memory (standards, preferences)
+├── AGENTS.md          → Global user memory (standards, preferences)
 ├── commands/          → Slash command definitions
 ├── skills/            → Reusable skill packages
 ├── scripts/           → Helper shell scripts
@@ -208,9 +208,9 @@ The `/work` command invokes the `workflow-router` skill, which analyzes tasks an
 ```bash
 /review-logs --days 30            # Analyze last 30 days
 # Identifies: repeated errors, user corrections, inefficiencies
-# Suggests: CLAUDE.md additions to prevent recurrence
+# Suggests: AGENTS.md additions to prevent recurrence
 
-/review-logs --apply              # Auto-append findings to CLAUDE.md
+/review-logs --apply              # Auto-append findings to AGENTS.md
 ```
 
 ---
@@ -223,7 +223,7 @@ The `/work` command invokes the `workflow-router` skill, which analyzes tasks an
 - **Comprehensive Bash allowlist** - Git, npm, docker, kubectl, terraform, etc.
 - **Security boundaries** - No sudo, restricted paths, no secrets access
 
-### Standards (`CLAUDE.md`)
+### Standards (`AGENTS.md`)
 
 ```markdown
 ## Git Behavior

@@ -124,8 +124,8 @@ If gh CLI fails, just report "GitHub context unavailable".
 @explore Search for project context and active work markers. TASK HINT: {task_hint or "None - do general analysis"}.
 
 Check these files (if they exist):
-1. `CLAUDE.md` - Look for "## Active Work" section
-2. `.opencode/AGENTS.md` or `.claude/CLAUDE.md` - Project instructions
+1. `AGENTS.md` - Look for "## Active Work" section
+2. `.opencode/AGENTS.md` or `.claude/AGENTS.md` - Project instructions
 3. `TODO.md` or `TODO` - Tracked tasks
 4. Recent changes: `git diff --name-only HEAD~5..HEAD 2>/dev/null | head -20`
 
@@ -136,7 +136,7 @@ IF TASK HINT PROVIDED:
 - Note file locations for later reference
 
 Return a CONCISE summary (under 300 words) covering:
-- **Active work**: From CLAUDE.md tracking
+- **Active work**: From AGENTS.md tracking
 - **Focus areas**: Primary directories being worked on
 - **Project type**: Language, framework, available commands
 - **Task exploration** (if hint): Relevant files, implementation summary, conventions
@@ -224,7 +224,7 @@ After all three subagents return, synthesize into a unified briefing.
 
 - **Not a git repo**: Report error, suggest running from repo root
 - **No gh CLI**: Skip GitHub context, note in output
-- **No CLAUDE.md**: Skip project context section
+- **No AGENTS.md**: Skip project context section
 - **Empty branch** (no commits vs main): Focus on staged/unstaged only
 - **Network issues**: Timeout GitHub calls after 10s, report partial results
 

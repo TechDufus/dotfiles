@@ -521,7 +521,7 @@ sequenceDiagram
 
 ### Internal Documentation
 
-- **CLAUDE.md:** [roles/awesomewm/CLAUDE.md](CLAUDE.md)
+- **AGENTS.md:** [roles/awesomewm/AGENTS.md](AGENTS.md)
 - **Hammerspoon Role:** [roles/hammerspoon](../hammerspoon/) (macOS inspiration)
 
 ### External Resources
@@ -539,7 +539,7 @@ When modifying this role:
 1. Test on Ubuntu 22.04+ before committing
 2. Verify configuration syntax: `awesome -k ~/.config/awesome/rc.lua`
 3. Document new features in this README
-4. Update CLAUDE.md with implementation details
+4. Update AGENTS.md with implementation details
 5. Follow [conventional commit](https://www.conventionalcommits.org/) format
 
 ## License

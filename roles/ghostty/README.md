@@ -173,4 +173,4 @@ background-image-fit = cover               # cover, contain, stretch, tile
 
 ## Advanced Configuration
 
-For detailed customization options, shader development, and platform-specific notes, see [CLAUDE.md](./CLAUDE.md).
+For detailed customization options, shader development, and platform-specific notes, see [AGENTS.md](./AGENTS.md).

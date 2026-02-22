@@ -4,14 +4,14 @@ description: "Analyze Claude logs for improvement patterns: /review-logs [--days
 
 # /review-logs - Self-Improving Flywheel
 
-Mine Claude Code conversation logs for recurring patterns, then suggest (or apply) CLAUDE.md improvements.
+Mine Claude Code conversation logs for recurring patterns, then suggest (or apply) AGENTS.md improvements.
 
 ## Usage
 
 ```
 /review-logs                  # Analyze last 7 days, suggest improvements
 /review-logs --days 30        # Analyze last 30 days
-/review-logs --apply          # Automatically apply suggestions to CLAUDE.md
+/review-logs --apply          # Automatically apply suggestions to AGENTS.md
 ```
 
 ## Arguments: $ARGUMENTS
@@ -23,7 +23,7 @@ Mine Claude Code conversation logs for recurring patterns, then suggest (or appl
 **The Flywheel**:
 1. Work with Claude → Logs generated
 2. Analyze logs → Find recurring issues
-3. Update CLAUDE.md → Better guidance
+3. Update AGENTS.md → Better guidance
 4. Better behavior → Fewer issues
 5. Repeat
 
@@ -73,7 +73,7 @@ Launch THREE analysis subagents simultaneously using @general mentions:
   <pattern name="..." frequency="N">
     <description>What keeps happening</description>
     <example>Actual error text</example>
-    <suggested_fix>CLAUDE.md addition to prevent this</suggested_fix>
+    <suggested_fix>AGENTS.md addition to prevent this</suggested_fix>
   </pattern>
 </error_analysis>
 ```
@@ -99,7 +99,7 @@ Launch THREE analysis subagents simultaneously using @general mentions:
   <pattern name="..." frequency="N">
     <wrong_behavior>What Claude kept doing</wrong_behavior>
     <correct_behavior>What user wanted instead</correct_behavior>
-    <suggested_fix>CLAUDE.md addition to encode this preference</suggested_fix>
+    <suggested_fix>AGENTS.md addition to encode this preference</suggested_fix>
   </pattern>
 </correction_analysis>
 ```
@@ -117,7 +117,7 @@ Launch THREE analysis subagents simultaneously using @general mentions:
 - Frequently denied permissions (should they be pre-approved?)
 - Tools used repeatedly in sequence (could be a slash command?)
 - Very long conversations (context management issue?)
-- Repeated file reads (should be in CLAUDE.md context?)
+- Repeated file reads (should be in AGENTS.md context?)
 
 **Return XML:**
 ```xml
@@ -125,7 +125,7 @@ Launch THREE analysis subagents simultaneously using @general mentions:
   <pattern name="..." frequency="N">
     <inefficiency>What's happening</inefficiency>
     <impact>Time/tokens wasted</impact>
-    <suggested_fix>How to optimize (CLAUDE.md, settings.json, or new command)</suggested_fix>
+    <suggested_fix>How to optimize (AGENTS.md, settings.json, or new command)</suggested_fix>
   </pattern>
 </workflow_analysis>
 ```
@@ -148,7 +148,7 @@ After all subagents return, create a unified improvement report:
 ### Errors to Prevent
 {From Subagent 1 - patterns with frequency >= 2}
 
-| Pattern | Frequency | Suggested CLAUDE.md Addition |
+| Pattern | Frequency | Suggested AGENTS.md Addition |
 |---------|-----------|------------------------------|
 | ...     | ...       | ...                          |
 
@@ -164,11 +164,11 @@ After all subagents return, create a unified improvement report:
 
 | Inefficiency | Impact | Fix Type | Suggestion |
 |--------------|--------|----------|------------|
-| ...          | ...    | CLAUDE.md / settings.json / new command | ... |
+| ...          | ...    | AGENTS.md / settings.json / new command | ... |
 
-## Suggested CLAUDE.md Additions
+## Suggested AGENTS.md Additions
 
-Based on analysis, add these to your CLAUDE.md:
+Based on analysis, add these to your AGENTS.md:
 
 ```markdown
 ## Learned from Log Analysis ({date})
@@ -198,7 +198,7 @@ Based on analysis, add these to your CLAUDE.md:
 
 If `--apply` flag provided:
 
-1. Read current `~/.config/opencode/AGENTS.md` or `CLAUDE.md`
+1. Read current `~/.config/opencode/AGENTS.md` or `AGENTS.md`
 2. Append new section under `## Learned Patterns`:
    ```markdown
    ### {date} - Log Analysis
@@ -211,7 +211,7 @@ If `--apply` flag provided:
 
 If `--apply` NOT provided:
 - Display suggestions only
-- Prompt: "Run `/review-logs --apply` to add these to CLAUDE.md"
+- Prompt: "Run `/review-logs --apply` to add these to AGENTS.md"
 
 ---
 
@@ -228,7 +228,7 @@ If `--apply` NOT provided:
 
 ### Errors to Prevent
 
-| Pattern | Frequency | Suggested CLAUDE.md Addition |
+| Pattern | Frequency | Suggested AGENTS.md Addition |
 |---------|-----------|------------------------------|
 | Ansible lint failures on `command` module | 3 | "Prefer ansible.builtin modules over command/shell" |
 | Git commit with unstaged changes | 2 | "Always run git status before git commit" |
@@ -237,17 +237,17 @@ If `--apply` NOT provided:
 
 | Wrong Behavior | Correct Behavior | Suggested Addition |
 |----------------|------------------|-------------------|
-| Created README.md | User deleted it | "No README.md unless explicitly requested" ✓ (already in CLAUDE.md) |
+| Created README.md | User deleted it | "No README.md unless explicitly requested" ✓ (already in AGENTS.md) |
 | Used `cat` to read files | User said "use Read tool" | "Use Read tool instead of cat for file contents" |
 
 ### Workflow Optimizations
 
 | Inefficiency | Impact | Fix Type | Suggestion |
 |--------------|--------|----------|------------|
-| Repeated `gh pr view` calls | 5 calls/session | CLAUDE.md | "Cache PR info in session, don't re-fetch" |
+| Repeated `gh pr view` calls | 5 calls/session | AGENTS.md | "Cache PR info in session, don't re-fetch" |
 | Permission denied: sudo | 8 denials | Expected | Keep denied - security boundary |
 
-## Suggested CLAUDE.md Additions
+## Suggested AGENTS.md Additions
 
 ```markdown
 ## Learned from Log Analysis (2025-01-15)

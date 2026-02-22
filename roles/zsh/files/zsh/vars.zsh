@@ -96,7 +96,7 @@ export TMUX_TMPDIR="$HOME/tmp/tmux"
 # Claude
 export CLAUDE_HOME="$HOME/.claude"
 export CLAUDE_SETTINGS="$CLAUDE_HOME/settings.json"
-export CLAUDE_MEMORY="$CLAUDE_HOME/CLAUDE.md"
+export CLAUDE_MEMORY="$CLAUDE_HOME/AGENTS.md"
 
 # Additional color codes for formatting
 export DIM="$CAT_OVERLAY0"

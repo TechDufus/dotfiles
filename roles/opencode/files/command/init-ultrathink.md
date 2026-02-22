@@ -1,8 +1,8 @@
 ---
-description: "Initialize a comprehensive CLAUDE.md using ultrathink methodology: /init-ultrathink [optional-context]"
+description: "Initialize a comprehensive AGENTS.md using ultrathink methodology: /init-ultrathink [optional-context]"
 ---
 
-# Initialize CLAUDE.md with Ultrathink
+# Initialize AGENTS.md with Ultrathink
 
 ## Usage
 
@@ -11,11 +11,11 @@ description: "Initialize a comprehensive CLAUDE.md using ultrathink methodology:
 ## Context
 
 - Project context: $ARGUMENTS
-- This command creates a comprehensive CLAUDE.md file by analyzing the repository with multiple specialized agents
+- This command creates a comprehensive AGENTS.md file by analyzing the repository with multiple specialized agents
 
 ## Your Role
 
-You are the Coordinator Agent orchestrating specialized sub-agents to create a comprehensive CLAUDE.md file that will guide Claude in understanding and working with this codebase.
+You are the Coordinator Agent orchestrating specialized sub-agents to create a comprehensive AGENTS.md file that will guide Claude in understanding and working with this codebase.
 
 ## Sub-Agents
 
@@ -180,7 +180,7 @@ You are the Coordinator Agent orchestrating specialized sub-agents to create a c
 
 ## Ultrathink Reflection Phase
 
-Synthesize all gathered information to create a comprehensive CLAUDE.md that includes ALL sections from the template. Each agent should contribute:
+Synthesize all gathered information to create a comprehensive AGENTS.md that includes ALL sections from the template. Each agent should contribute:
 
 **Repository Analyst Agent:**
 - Project overview, statistics, structure
@@ -224,7 +224,7 @@ Synthesize all gathered information to create a comprehensive CLAUDE.md that inc
 
 ## Output Format
 
-Generate a CLAUDE.md file adapted to the project type. Use these guidelines:
+Generate a AGENTS.md file adapted to the project type. Use these guidelines:
 
 ### Core Sections (Always Include)
 1. **Repository Overview** - What the project is and does
@@ -290,7 +290,7 @@ Based on what the agents discover, include these sections if they apply:
 ### Flexible Template Example:
 
 ```markdown
-# CLAUDE.md
+# AGENTS.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -632,7 +632,7 @@ project/
 
 **For a Simple CLI Tool:**
 ```markdown
-# CLAUDE.md
+# AGENTS.md
 ## Repository Overview
 ## Quick Start
 ## Essential Commands
@@ -645,7 +645,7 @@ project/
 
 **For a Complex Web Application:**
 ```markdown
-# CLAUDE.md
+# AGENTS.md
 ## Repository Overview
 ## Quick Start
 ## Essential Commands
@@ -664,7 +664,7 @@ project/
 
 **For a Library:**
 ```markdown
-# CLAUDE.md
+# AGENTS.md
 ## Repository Overview
 ## Quick Start
 ## API Reference
@@ -679,14 +679,14 @@ project/
 
 ## Validation Questions
 
-After generating the CLAUDE.md, ask:
+After generating the AGENTS.md, ask:
 1. "Are there any critical workflows or patterns I missed?"
 2. "Any project-specific conventions that should be highlighted?"
 3. "Are the commands accurate for your development setup?"
 
 ## Final Steps
 
-1. Show the generated CLAUDE.md for review
+1. Show the generated AGENTS.md for review
 2. Make any requested adjustments
 3. Save the file to the repository root
 4. Remind user to commit the file when satisfied
@@ -719,4 +719,4 @@ After generating the CLAUDE.md, ask:
 4. Create custom sections if the project has unique aspects
 5. Aim for completeness without redundancy
 
-Remember: A good CLAUDE.md is comprehensive yet focused. It should give Claude Code exactly what's needed to work effectively with THIS specific codebase, no more, no less.
+Remember: A good AGENTS.md is comprehensive yet focused. It should give Claude Code exactly what's needed to work effectively with THIS specific codebase, no more, no less.

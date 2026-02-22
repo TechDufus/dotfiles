@@ -147,4 +147,4 @@ This role follows the repository's standard patterns:
 - Idempotent operations
 - Descriptive task naming with role prefix
 
-See the main [CLAUDE.md](/CLAUDE.md) for development guidelines.
+See the main [AGENTS.md](/AGENTS.md) for development guidelines.

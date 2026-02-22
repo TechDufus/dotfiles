@@ -14,7 +14,7 @@ Unified entry point for all development work. Analyzes task complexity and selec
 /work --structured <task>    # Force structured mode with TodoWrite
 /work --parallel <task>      # Force parallel decomposition
 /work --orchestrate <task>   # Force full orchestration with sub-agents
-/work --status               # Show active work from CLAUDE.md
+/work --status               # Show active work from AGENTS.md
 ```
 
 ## Task: $ARGUMENTS
@@ -34,7 +34,7 @@ Before executing anything, ask: "Can this be broken into independent pieces that
 ### --status Flag
 
 If `--status` flag is present:
-1. Read CLAUDE.md
+1. Read AGENTS.md
 2. Display the `## Active Work` section
 3. Exit without further processing
 
@@ -57,7 +57,7 @@ Before doing anything, classify this task:
 
 ### Check Learned Patterns
 
-Scan `## Learned Patterns` section in CLAUDE.md for similar past tasks. Apply relevant insights.
+Scan `## Learned Patterns` section in AGENTS.md for similar past tasks. Apply relevant insights.
 
 ### Complexity Classification
 
@@ -371,7 +371,7 @@ After task completion, evaluate if learning should be captured.
 
 ### Learning Triggers
 
-Update CLAUDE.md when ANY of these apply:
+Update AGENTS.md when ANY of these apply:
 - Task took > 5 minutes
 - Non-obvious solution discovered
 - Orchestration pattern worked well (or didn't)
@@ -400,7 +400,7 @@ Update CLAUDE.md when ANY of these apply:
 
 ### Active Work Tracking
 
-**At start of Structured/Orchestrated work**, update CLAUDE.md:
+**At start of Structured/Orchestrated work**, update AGENTS.md:
 ```markdown
 ## Active Work
 - **Current**: <task description>

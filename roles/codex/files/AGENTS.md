@@ -28,3 +28,7 @@
 - Prefer end-to-end completion in one run; do not stop at partial progress unless blocked.
 - If multi-agent tooling is unavailable, emulate fanout with parallel shell tasks and continue.
 - In every final response, state what was parallelized and what was merged.
+
+## Skill Shorthand
+- Use `$commit` to explicitly invoke the `commit` skill.
+- If the user types `/commit`, treat it as an intent to use `$commit` even though it is not a built-in slash command.

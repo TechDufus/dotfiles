@@ -14,6 +14,108 @@
     state: directory
     mode: "0755"
 
+- name: "{{ role_name }} | Skills | Ensure ~/.codex/skills directory exists"
+  ansible.builtin.file:
+    path: "{{ codex_skills_dest }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Skills | Find existing top-level skill entries"
+  ansible.builtin.find:
+    paths: "{{ codex_skills_dest }}"
+    file_type: any
+    recurse: false
+  register: codex_skill_root_entries
+  when: codex_cleanup_legacy_official_skills
+
+- name: "{{ role_name }} | Skills | Stat top-level skill entries"
+  ansible.builtin.stat:
+    path: "{{ codex_skill_root_entry.path }}"
+    follow: false
+  loop: "{{ codex_skill_root_entries.files | default([]) }}"
+  loop_control:
+    loop_var: codex_skill_root_entry
+    label: "{{ codex_skill_root_entry.path | basename }}"
+  register: codex_skill_root_entry_stats
+  when:
+    - codex_cleanup_legacy_official_skills
+    - codex_skill_root_entry.path | basename != ".system"
+
+- name: "{{ role_name }} | Skills | Remove legacy managed official skill symlinks"
+  ansible.builtin.file:
+    path: "{{ item.stat.path }}"
+    state: absent
+  loop: "{{ codex_skill_root_entry_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.stat.path | basename }}"
+  when:
+    - codex_cleanup_legacy_official_skills
+    - item.stat.exists
+    - item.stat.islnk
+    - item.stat.lnk_source | default('') | regex_search('^' ~ (codex_legacy_official_skills_prefix | regex_escape)) is not none
+
+- name: "{{ role_name }} | Skills | Remove legacy managed official skills cache"
+  ansible.builtin.file:
+    path: "{{ codex_legacy_official_skills_cache_dir }}"
+    state: absent
+  when: codex_cleanup_legacy_official_skills
+
+- name: "{{ role_name }} | Skills | Check custom skills source directory"
+  ansible.builtin.stat:
+    path: "{{ codex_skills_source }}"
+  register: codex_skills_source_directory
+
+- name: "{{ role_name }} | Skills | Find custom skills in role files"
+  ansible.builtin.find:
+    paths: "{{ codex_skills_source }}"
+    file_type: directory
+    recurse: false
+  register: codex_skill_source_directories
+  when:
+    - codex_skills_source_directory.stat.exists
+    - codex_skills_source_directory.stat.isdir
+
+- name: "{{ role_name }} | Skills | Set custom skill names"
+  ansible.builtin.set_fact:
+    codex_skill_names: >-
+      {{ codex_skill_source_directories.files | map(attribute='path') | map('basename') | list }}
+  when:
+    - codex_skills_source_directory.stat.exists
+    - codex_skills_source_directory.stat.isdir
+
+- name: "{{ role_name }} | Skills | Check custom skill destination paths"
+  ansible.builtin.stat:
+    path: "{{ codex_skills_dest }}/{{ codex_skill_name }}"
+  loop: "{{ codex_skill_names | default([]) }}"
+  loop_control:
+    loop_var: codex_skill_name
+    label: "{{ codex_skill_name }}"
+  register: codex_skill_destinations
+  when: codex_skill_names is defined
+
+- name: "{{ role_name }} | Skills | Fail when custom skill destination is not a symlink"
+  ansible.builtin.fail:
+    msg: >-
+      Custom Codex skill destination {{ codex_skills_dest }}/{{ item.codex_skill_name }}
+      exists and is not a symlink. Move or remove it, then rerun `dotfiles -t codex`.
+  loop: "{{ codex_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.codex_skill_name }}"
+  when:
+    - item.stat.exists
+    - not item.stat.islnk
+
+- name: "{{ role_name }} | Skills | Symlink custom skills from role files"
+  ansible.builtin.file:
+    src: "{{ codex_skill_source_directory.path }}"
+    dest: "{{ codex_skills_dest }}/{{ codex_skill_source_directory.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ codex_skill_source_directories.files | default([]) }}"
+  loop_control:
+    loop_var: codex_skill_source_directory
+    label: "{{ codex_skill_source_directory.path | basename }}"
+
 - name: "{{ role_name }} | Symlink | Check if config.toml already exists"
   ansible.builtin.stat:
     path: "{{ codex_config_dest }}"

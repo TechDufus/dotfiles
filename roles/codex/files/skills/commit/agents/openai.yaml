@@ -1,0 +1,4 @@
+interface:
+  display_name: "Commit"
+  short_description: "Create a conventional commit from repo changes"
+  default_prompt: "Use $commit to stage changes if needed, generate a conventional commit message, and commit."

@@ -5,3 +5,8 @@ codex_agents_source: "{{ role_path }}/files/AGENTS.md"
 codex_agents_dest: "{{ ansible_facts['env']['HOME'] }}/.codex/AGENTS.md"
 codex_config_source: "{{ role_path }}/files/config.toml"
 codex_config_dest: "{{ ansible_facts['env']['HOME'] }}/.codex/config.toml"
+codex_skills_source: "{{ role_path }}/files/skills"
+codex_skills_dest: "{{ ansible_facts['env']['HOME'] }}/.codex/skills"
+codex_cleanup_legacy_official_skills: true
+codex_legacy_official_skills_prefix: "{{ ansible_facts['env']['HOME'] }}/.local/share/codex/skills/openai-skills/skills/.curated/"
+codex_legacy_official_skills_cache_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/codex/skills/openai-skills"

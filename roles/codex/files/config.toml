@@ -2,19 +2,19 @@
 # Reference: https://github.com/openai/codex/blob/main/docs/config.md
 
 # Minimal, high-quality defaults.
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 model_reasoning_summary = "detailed"
 model_verbosity = "high"
 approval_policy = "on-request"
-sandbox_mode = "workspace-write"
+sandbox_mode = "danger-full-access"
 web_search = "live"
 tool_output_token_limit = 120000
 model = "gpt-5.3-codex"
 
 [features]
 multi_agent = true
-# Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
-use_linux_sandbox_bwrap = true
+# # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
+# use_linux_sandbox_bwrap = true
 
 # Keep local session history so resume/fork workflows stay useful.
 [history]

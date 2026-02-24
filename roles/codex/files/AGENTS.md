@@ -1,34 +1,21 @@
 # Codex User Memory
 
-## Communication
-- Start with the direct answer or action.
-- Keep language concise, concrete, and technical.
+## Execution Policy
+- For any non-trivial task, decompose into independent workstreams and delegate aggressively to subagents.
+- Use `explorer` (discovery), `worker` (implementation), and `reviewer` (verification) as the baseline pattern; add more agents when parallel workstreams exist.
+- Do not cap agent count a priori; maximize useful parallelism while keeping exactly one writer at a time.
+- Keep all non-writer agents read-only unless explicitly reassigned.
+- Require a merge checkpoint before edits: wait for active agent outputs, synthesize one plan, then execute.
+- After edits, run a second parallel review pass for correctness, regression risk, tests, and security.
+- If multi-agent tooling is unavailable, emulate fanout with parallel shell tasks.
+- If fewer than 3 agents are used on a non-trivial task, explain why.
+
+## Response Contract
+- Start with the action/result; keep language concise, concrete, and technical.
 - If blocked, state the blocker and the next best path immediately.
-
-## Coding Standards
-- Prefer simple, maintainable solutions over clever abstractions.
-- Add or update tests when behavior changes.
-- Keep diffs focused on the requested scope.
-
-## Git Rules
-- Never commit unless explicitly requested.
-- Use conventional commits when commits are requested.
-- Do not add AI attribution lines to commit messages.
-
-## Security
-- Never commit secrets, tokens, or credentials.
-- Prefer 1Password CLI (`op`) for secret retrieval.
-
-## Execution Strategy (Maximum Effort)
-- For any non-trivial task, decompose into independent workstreams and run them in parallel with sub-agents.
-- Default to 3 parallel roles: `explorer` (read-only discovery), `worker` (implementation), `reviewer` (tests/risk/regression).
-- Keep exactly one writer at a time; all other agents stay read-only unless reassigned.
-- Wait for all agent outputs, synthesize a single plan, then execute.
-- After edits, run a second parallel review pass for correctness, tests, and security.
-- Prefer end-to-end completion in one run; do not stop at partial progress unless blocked.
-- If multi-agent tooling is unavailable, emulate fanout with parallel shell tasks and continue.
 - In every final response, state what was parallelized and what was merged.
 
-## Skill Shorthand
-- Use `$commit` to explicitly invoke the `commit` skill.
-- If the user types `/commit`, treat it as an intent to use `$commit` even though it is not a built-in slash command.
+## Safety Guardrails
+- Never commit unless explicitly requested.
+- Use conventional commits when commits are requested; do not add AI attribution lines.
+- Never commit secrets, tokens, or credentials; prefer 1Password CLI (`op`) for secret retrieval.

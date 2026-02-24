@@ -31,3 +31,6 @@ status_line = [
   "used-tokens",
 ]
 
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]

@@ -16,6 +16,9 @@ multi_agent = true
 # # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
 # use_linux_sandbox_bwrap = true
 
+[agents]
+max_threads = 6
+
 # Keep local session history so resume/fork workflows stay useful.
 [history]
 persistence = "save-all"
@@ -23,13 +26,7 @@ persistence = "save-all"
 [tui]
 notifications = true
 show_tooltips = false
-status_line = [
-  "model-with-reasoning",
-  "git-branch",
-  "current-dir",
-  "context-remaining",
-  "used-tokens",
-]
+status_line = ["model-with-reasoning", "git-branch", "current-dir", "context-used", "five-hour-limit"]
 
 [mcp_servers.playwright]
 command = "npx"

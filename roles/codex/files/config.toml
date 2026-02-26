@@ -10,6 +10,7 @@ sandbox_mode = "danger-full-access"
 web_search = "live"
 tool_output_token_limit = 120000
 model = "gpt-5.3-codex"
+plan_mode_reasoning_effort = "xhigh"
 
 [features]
 multi_agent = true

@@ -1,14 +1,14 @@
 # Codex User Memory
 
 ## Execution Policy
-- For any non-trivial task, decompose into independent workstreams and delegate aggressively to subagents.
-- Use `explorer` (discovery), `worker` (implementation), and `reviewer` (verification) as the baseline pattern; add more agents when parallel workstreams exist.
-- Do not cap agent count a priori; maximize useful parallelism while keeping exactly one writer at a time.
-- Keep all non-writer agents read-only unless explicitly reassigned.
-- Require a merge checkpoint before edits: wait for active agent outputs, synthesize one plan, then execute.
-- After edits, run a second parallel review pass for correctness, regression risk, tests, and security.
+- Default to a single-agent flow; use subagents only for clearly independent workstreams.
+- Use the smallest effective fanout and keep exactly one writer at a time.
+- Keep non-writer agents read-only unless explicitly reassigned.
+- Before edits, wait for active agent outputs and merge into one plan.
+- After substantial edits, run a targeted review pass for correctness, regression risk, tests, and security.
+- Close each completed/failed agent immediately after harvesting results.
+- Before spawning new agents, run a cleanup pass for completed/idle agents; if spawn hits thread limit, cleanup and retry once with smaller fanout.
 - If multi-agent tooling is unavailable, emulate fanout with parallel shell tasks.
-- If fewer than 3 agents are used on a non-trivial task, explain why.
 
 ## Response Contract
 - Start with the action/result; keep language concise, concrete, and technical.

@@ -14,6 +14,7 @@ plan_mode_reasoning_effort = "xhigh"
 
 [features]
 multi_agent = true
+voice_transcription = true
 # # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
 # use_linux_sandbox_bwrap = true
 
@@ -28,6 +29,7 @@ persistence = "save-all"
 notifications = true
 show_tooltips = false
 status_line = ["model-with-reasoning", "git-branch", "current-dir", "context-used", "five-hour-limit"]
+theme = "catppuccin-mocha"
 
 [mcp_servers.playwright]
 command = "npx"

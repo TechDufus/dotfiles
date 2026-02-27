@@ -4,9 +4,9 @@ Install and configure the OpenAI Codex CLI with version-controlled user memory.
 
 ## What This Role Does
 
-- Installs `codex`:
+- Installs or upgrades `codex`:
   - macOS: Homebrew cask (`codex`)
-  - Linux (Ubuntu/Fedora/Arch): latest GitHub release binary to `~/.local/bin/codex`
+  - Linux (Ubuntu/Fedora/Arch): compares installed version to latest GitHub release and installs `~/.local/bin/codex` when missing or outdated
 - Ensures `~/.codex/AGENTS.md` is a symlink to `roles/codex/files/AGENTS.md`
 - Ensures `~/.codex/config.toml` is a symlink to `roles/codex/files/config.toml`
 - Symlinks custom skills from `roles/codex/files/skills/` into `~/.codex/skills/`

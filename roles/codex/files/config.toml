@@ -34,3 +34,11 @@ theme = "catppuccin-mocha"
 [mcp_servers.playwright]
 command = "npx"
 args = ["-y", "@playwright/mcp@latest"]
+
+# Export Codex telemetry to OpenMonitor.
+# NOTE: Codex v0.106.0 does not interpolate env vars in [otel] fields.
+# Values below are written literally. Rotate the API key if this file is shared.
+[otel]
+environment = "dev"
+log_user_prompt = true
+trace_exporter = "none"

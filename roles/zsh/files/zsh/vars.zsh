@@ -87,6 +87,10 @@ export DOTFILES="$HOME/.dotfiles"
 export GOBIN="$HOME/.local/bin"
 export BIN="$HOME/.local/bin"
 
+# OpenTelemetry defaults (secret endpoint/headers are loaded via vars.secret)
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/json"
+export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"
+
 # Corporate security policies restrict /tmp access - use user-controlled location
 if [[ ! -d "$HOME/tmp/tmux" ]]; then
   mkdir -p "$HOME/tmp/tmux"
@@ -109,4 +113,3 @@ export BOX_TOP="╔════════════════════�
 export BOX_MID="║"
 export BOX_BOT="╚══════════════════════════════════════════════════════════╝"
 export DIVIDER="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-

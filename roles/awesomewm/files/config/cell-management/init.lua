@@ -18,7 +18,8 @@ require("cell-management.keybindings")
 -- Resolution-based layout auto-selection
 -- Finds the best layout based on primary screen resolution
 local function get_best_layout_for_resolution()
-  local screen_width = awful.screen.focused().geometry.width
+  local primary_screen = awful.screen.primary or awful.screen.focused()
+  local screen_width = primary_screen.geometry.width
 
   for index, layout in ipairs(layouts) do
     local min_w = layout.min_width or 0
@@ -31,6 +32,24 @@ local function get_best_layout_for_resolution()
 
   -- Fallback to first layout if nothing matches
   return 1
+end
+
+local reapply_timer = nil
+
+local function schedule_layout_reapply()
+  if reapply_timer then
+    reapply_timer:stop()
+  end
+
+  reapply_timer = gears.timer {
+    timeout = 0.2,
+    autostart = true,
+    single_shot = true,
+    callback = function()
+      layout_manager.reapply_current_layout()
+      reapply_timer = nil
+    end,
+  }
 end
 
 -- Post-restart layout re-apply
@@ -46,10 +65,13 @@ if awesome.startup then
   end)
 end
 
+screen.connect_signal("property::geometry", schedule_layout_reapply)
+
 -- Return public API (for future extensions)
 return {
   state = state,
   grid = grid,
   summon = summon,
   helpers = helpers,
+  layout_manager = layout_manager,
 }

@@ -32,17 +32,18 @@ return function(app_name)
 
   local current_client = client.focus
   local current_class = current_client and current_client.class or nil
+  local current_screen = current_client and current_client.screen or awful.screen.focused()
   local previous_class = state.get_previous_client_class()
 
   -- Find existing client matching app
-  -- Prefer last-focused client of this class (for multi-window apps like Discord)
   local last_focused = state.get_last_focused_client(app_config.class)
   local target_client
-  if last_focused and last_focused.valid then
+  if last_focused and last_focused.valid and last_focused.screen == current_screen then
     target_client = last_focused
   else
-    -- Fallback to first matching client
-    target_client = helpers.find_client_by_class(app_config.class)
+    target_client = helpers.find_client_by_class_on_screen(app_config.class, current_screen)
+      or (last_focused and last_focused.valid and last_focused or nil)
+      or helpers.find_client_by_class(app_config.class)
   end
 
   -- Case 1: Target app is focused and we have history → toggle back
@@ -54,10 +55,12 @@ return function(app_name)
     -- Prefer last-focused client of previous class (for multi-window apps)
     local prev_last_focused = state.get_last_focused_client(previous_class)
     local prev_client
-    if prev_last_focused and prev_last_focused.valid then
+    if prev_last_focused and prev_last_focused.valid and prev_last_focused.screen == current_screen then
       prev_client = prev_last_focused
     else
-      prev_client = helpers.find_client_by_class(previous_class)
+      prev_client = helpers.find_client_by_class_on_screen(previous_class, current_screen)
+        or (prev_last_focused and prev_last_focused.valid and prev_last_focused or nil)
+        or helpers.find_client_by_class(previous_class)
     end
     if prev_client then
       prev_client:jump_to()

@@ -188,6 +188,28 @@ local tasklist_buttons = gears.table.join(
     awful.client.focus.byidx(-1)
   end))
 
+local function screen_dpi_for_geometry(s)
+  local width = s.geometry.width or 0
+  local height = s.geometry.height or 0
+
+  if width >= 3000 or height >= 1800 then
+    return 144
+  end
+
+  if width >= 2500 or height >= 1400 then
+    return 120
+  end
+
+  return 96
+end
+
+local function configure_screen_metrics(s)
+  s.dpi = screen_dpi_for_geometry(s)
+  if s.mywibox then
+    s.mywibox.height = beautiful.xresources.apply_dpi(28, s)
+  end
+end
+
 local function set_wallpaper(s)
   -- Wallpaper
   if beautiful.wallpaper then
@@ -201,9 +223,14 @@ local function set_wallpaper(s)
 end
 
 -- Re-set wallpaper when a screen's geometry changes (e.g. different resolution)
-screen.connect_signal("property::geometry", set_wallpaper)
+screen.connect_signal("property::geometry", function(s)
+  configure_screen_metrics(s)
+  set_wallpaper(s)
+end)
 
 awful.screen.connect_for_each_screen(function(s)
+  configure_screen_metrics(s)
+
   -- Wallpaper
   set_wallpaper(s)
 
@@ -376,8 +403,14 @@ clientkeys = gears.table.join(
     { description = "toggle floating", group = "client" }),
   awful.key({ modkey, "Control" }, "Return", function(c) c:swap(awful.client.getmaster()) end,
     { description = "move to master", group = "client" }),
-  awful.key({ modkey, }, "o", function(c) c:move_to_screen() end,
-    { description = "move to screen", group = "client" }),
+  awful.key({ modkey, }, "o", function(c)
+      cell_management.layout_manager.move_client_to_next_screen(c, true)
+    end,
+    { description = "move to next screen", group = "client" }),
+  awful.key({ modkey, "Shift" }, "o", function(c)
+      cell_management.layout_manager.move_client_to_previous_screen(c, true)
+    end,
+    { description = "move to previous screen", group = "client" }),
   awful.key({ modkey, }, "t", function(c) c.ontop = not c.ontop end,
     { description = "toggle keep on top", group = "client" }),
   awful.key({ modkey, }, "h",

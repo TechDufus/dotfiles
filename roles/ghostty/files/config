@@ -5,7 +5,7 @@ background-opacity = 1
 background-blur-radius = 20
 
 # Requires nightly version of ghostty
-background-image = ~/Pictures/tengen-uzui-dark-3840x2160-18405.jpg
+background-image = ~/Pictures/SL-eyes-dark-pfp.png
 background-image-opacity = 0.15
 background-image-fit = cover
 

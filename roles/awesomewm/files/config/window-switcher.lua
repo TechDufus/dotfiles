@@ -27,6 +27,8 @@ local popup = nil
 local clients_list = {}
 local current_index = 1
 local keygrabber_active = false
+local switcher_screen = nil
+local current_screen_count = 0
 
 -- Create the popup widget
 local function create_popup()
@@ -49,35 +51,69 @@ local function create_popup()
 end
 
 -- Get all clients sorted by most recently focused (MRU order)
-local function get_clients()
-    local cls = {}
+local function should_include_client(c)
+    if not c.valid then
+        return false
+    end
+
+    if c.type ~= "normal" and c.type ~= "dialog" then
+        return false
+    end
+
+    return c.minimized or c:isvisible()
+end
+
+local function get_clients(target_screen)
+    local current_screen_clients = {}
+    local other_screen_clients = {}
+    local seen = {}
+
+    local function add_client(c)
+        if not should_include_client(c) or seen[c] then
+            return
+        end
+
+        seen[c] = true
+
+        if c.screen == target_screen then
+            table.insert(current_screen_clients, c)
+        else
+            table.insert(other_screen_clients, c)
+        end
+    end
 
     -- Use focus history for MRU ordering
     local history = awful.client.focus.history.list
     for _, c in ipairs(history) do
-        -- Include all clients except special ones (like desktop widgets)
-        if c.valid and (c.type == "normal" or c.type == "dialog") then
-            table.insert(cls, c)
-        end
+        add_client(c)
     end
 
     -- Also add any clients not in history (newly created, never focused)
     for _, c in ipairs(client.get()) do
-        if c.type == "normal" or c.type == "dialog" then
-            local found = false
-            for _, h in ipairs(cls) do
-                if h == c then
-                    found = true
-                    break
-                end
-            end
-            if not found then
-                table.insert(cls, c)
-            end
-        end
+        add_client(c)
     end
 
-    return cls
+    current_screen_count = #current_screen_clients
+    for _, c in ipairs(other_screen_clients) do
+        table.insert(current_screen_clients, c)
+    end
+
+    return current_screen_clients
+end
+
+local function create_group_separator()
+    return wibox.widget {
+        {
+            orientation = "vertical",
+            forced_width = 1,
+            forced_height = config.icon_size + (config.icon_margin * 2),
+            color = config.border_color,
+            widget = wibox.widget.separator,
+        },
+        left = 8,
+        right = 8,
+        widget = wibox.container.margin,
+    }
 end
 
 -- Create icon widget for a client
@@ -145,10 +181,16 @@ local function update_popup()
         return
     end
 
+    popup.screen = switcher_screen or awful.screen.focused()
+
     local icons_layout = wibox.layout.fixed.horizontal()
     icons_layout.spacing = 4
 
     for i, c in ipairs(clients_list) do
+        if current_screen_count > 0 and i == current_screen_count + 1 then
+            icons_layout:add(create_group_separator())
+        end
+
         local icon = create_client_icon(c, i == current_index)
         icons_layout:add(icon)
     end
@@ -180,10 +222,8 @@ local function start_keygrabber()
                 if selected.minimized then
                     selected.minimized = false
                 end
-                if not selected:isvisible() then
-                    selected:move_to_tag(awful.screen.focused().selected_tag)
-                end
-                selected:emit_signal("request::activate", "window_switcher", { raise = true })
+                selected:jump_to()
+                selected:raise()
             end
             -- Hide popup
             if popup then
@@ -254,7 +294,8 @@ function window_switcher.show(direction)
     -- Only fetch fresh client list if switcher is not already visible
     -- This prevents focus history from scrambling the order mid-switch
     if not popup or not popup.visible then
-        clients_list = get_clients()
+        switcher_screen = awful.screen.focused()
+        clients_list = get_clients(switcher_screen)
 
         if #clients_list == 0 then
             return

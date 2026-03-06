@@ -11,6 +11,7 @@ web_search = "live"
 tool_output_token_limit = 120000
 model = "gpt-5.4"
 plan_mode_reasoning_effort = "xhigh"
+service_tier = "fast"
 
 [features]
 multi_agent = true

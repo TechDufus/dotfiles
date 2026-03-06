@@ -932,7 +932,7 @@ function M.create(colors, fonts, spacing, icons)
         end
 
         local mouse_coords = mouse.coords()
-        local s = awful.screen.focused()
+        local target_screen = (mouse.current_wibox and mouse.current_wibox.screen) or awful.screen.focused()
 
         local function on_switch_provider(provider_key)
             set_provider(provider_key)
@@ -949,8 +949,8 @@ function M.create(colors, fonts, spacing, icons)
         popup_instance = awful.popup {
             widget = build_popup_container(build_popup_widget(popup_data, on_switch_provider)),
             placement = function(c)
-                local screen_geo = s.geometry
-                local workarea = s.workarea
+                local screen_geo = target_screen.geometry
+                local workarea = target_screen.workarea
                 local popup_width = c.width or 260
 
                 local x = mouse_coords.x - (popup_width / 2)
@@ -961,6 +961,7 @@ function M.create(colors, fonts, spacing, icons)
                 c.x = x
                 c.y = y
             end,
+            screen = target_screen,
             minimum_width = dpi(260),
             maximum_width = dpi(300),
             ontop = true,

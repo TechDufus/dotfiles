@@ -5,6 +5,44 @@ local helpers = require("cell-management.helpers")
 
 local M = {}
 
+local function get_relative_screen(base_screen, offset)
+  if not base_screen or screen.count() < 2 then
+    return base_screen
+  end
+
+  local base_index = base_screen.index or 1
+  local target_index = ((base_index - 1 + offset) % screen.count()) + 1
+  return screen[target_index] or base_screen
+end
+
+local function move_client_to_screen(c, target_screen, follow)
+  if not c or not target_screen or c.screen == target_screen then
+    return
+  end
+
+  local source_tag = c.first_tag
+  local target_tag = source_tag and target_screen.tags[source_tag.index] or target_screen.selected_tag
+
+  c:move_to_screen(target_screen)
+
+  if target_tag then
+    c:move_to_tag(target_tag)
+    if follow then
+      target_tag:view_only()
+    end
+  end
+
+  local layout = state.get_current_layout()
+  local app_name = c.class and helpers.find_app_by_class(c.class) or nil
+  if layout and app_name and layout.apps and layout.apps[app_name] then
+    helpers.position_client_in_cell(c, app_name, layout)
+  end
+
+  if follow then
+    c:emit_signal("request::activate", "move_to_screen", { raise = true })
+  end
+end
+
 -- Switch to layout by index
 function M.switch_layout(index)
   local layouts = state.get_all_layouts()
@@ -14,6 +52,10 @@ function M.switch_layout(index)
   end
 
   state.set_current_layout_index(index)
+  M.reapply_current_layout()
+end
+
+function M.reapply_current_layout()
   local layout = state.get_current_layout()
 
   -- Reposition all open apps (including multiple windows of same app)
@@ -26,6 +68,16 @@ function M.switch_layout(index)
       end
     end
   end
+end
+
+function M.move_client_to_next_screen(c, follow)
+  if not c then return end
+  move_client_to_screen(c, get_relative_screen(c.screen, 1), follow ~= false)
+end
+
+function M.move_client_to_previous_screen(c, follow)
+  if not c then return end
+  move_client_to_screen(c, get_relative_screen(c.screen, -1), follow ~= false)
 end
 
 -- Interactive layout picker (Hyper+p) - Uses rofi for visual selection
@@ -123,16 +175,22 @@ function M.bind_to_cell()
         cell_index = tonumber(cell_index)
 
         if cell_index and cell_index >= 1 and cell_index <= #layout.cells then
-          -- Get cell definition (now a direct position string, not an array)
-          local cell_def = layout.cells[cell_index]
-          local geom = require("cell-management.grid").cell_to_geometry(cell_def, c.screen)
+          local app_name = c.class and helpers.find_app_by_class(c.class) or nil
+          if app_name and layout.apps and layout.apps[app_name] then
+            state.set_app_cell_override(app_name, cell_index)
+            helpers.position_client_in_cell(c, app_name, layout)
+          else
+            -- Get cell definition (now a direct position string, not an array)
+            local cell_def = layout.cells[cell_index]
+            local geom = require("cell-management.grid").cell_to_geometry(cell_def, c.screen)
 
-          -- Position client
-          c.floating = true
-          c.x = geom.x
-          c.y = geom.y
-          c.width = geom.width
-          c.height = geom.height
+            -- Position client
+            c.floating = true
+            c.x = geom.x
+            c.y = geom.y
+            c.width = geom.width
+            c.height = geom.height
+          end
         end
       end
 

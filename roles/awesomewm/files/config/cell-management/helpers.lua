@@ -38,6 +38,18 @@ function M.find_client_by_class(wm_class)
   return nil
 end
 
+-- Find first client by WM_CLASS on a specific screen
+function M.find_client_by_class_on_screen(wm_class, target_screen)
+  if not wm_class or not target_screen then return nil end
+
+  for _, c in ipairs(client.get()) do
+    if c.screen == target_screen and c.class and c.class:lower() == wm_class:lower() then
+      return c
+    end
+  end
+  return nil
+end
+
 -- Find ALL clients by WM_CLASS (case-insensitive)
 -- Returns table of all matching clients (may be empty)
 function M.find_all_clients_by_class(wm_class)
@@ -76,8 +88,9 @@ function M.position_client_in_cell(c, app_name, layout)
   end
 
   local grid = require("cell-management.grid")
+  local state = require("cell-management.state")
   local app_config = layout.apps[app_name]
-  local cell_index = app_config.cell
+  local cell_index = state.get_app_cell_override(app_name) or app_config.cell
   local cell_def = layout.cells[cell_index]
 
   if not cell_def then

@@ -6,9 +6,15 @@ local gears = require("gears")
 local wibox = require("wibox")
 local beautiful = require("beautiful")
 local naughty = require("naughty")
-local dpi = beautiful.xresources.apply_dpi
+local xresources = beautiful.xresources
 local icon_resolver = require("icon-resolver")
 local ai_usage_widget = require("ai-usage-widget")
+
+-- Global DPI scaling follows the primary 4K screen, which makes the 1080p
+-- secondary bar comically large. Keep the wibar on fixed pixel sizing instead.
+local function dpi(size)
+    return size
+end
 
 -- Load awesome-wm-widgets
 local volume_widget = require("awesome-wm-widgets.volume-widget.volume")
@@ -69,9 +75,9 @@ local colors = {
 local font_family = "BerkeleyMono Nerd Font"
 
 local fonts = {
-    clock = font_family .. " Bold 15",
-    data = font_family .. " 11",
-    icon = font_family .. " 16",
+    clock = font_family .. " Bold 13",
+    data = font_family .. " 10",
+    icon = font_family .. " 14",
 }
 
 -- ============================================================================
@@ -181,6 +187,7 @@ local function toggle_battery_popup(widget_geometry)
 
     -- Capture mouse position for popup placement
     local mouse_coords = mouse.coords()
+    local target_screen = (mouse.current_wibox and mouse.current_wibox.screen) or awful.screen.focused()
 
     -- Fetch both battery info and power profiles concurrently
     local battery_info = nil
@@ -313,8 +320,8 @@ local function toggle_battery_popup(widget_geometry)
             },
             placement = function(c)
                 -- Position below the battery widget (use mouse x, below wibar)
-                local screen_geo = awful.screen.focused().geometry
-                local workarea = awful.screen.focused().workarea
+                local screen_geo = target_screen.geometry
+                local workarea = target_screen.workarea
                 local popup_width = c.width or 200
 
                 -- Center popup horizontally on mouse position, clamp to screen
@@ -328,6 +335,7 @@ local function toggle_battery_popup(widget_geometry)
                 c.x = x
                 c.y = y
             end,
+            screen = target_screen,
             ontop = true,
             visible = true,
         }
@@ -1000,6 +1008,16 @@ end)
 -- ============================================================================
 
 function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmenu)
+    local function screen_dpi(value)
+        return xresources.apply_dpi(value, s)
+    end
+
+    local screen_spacing = {
+        wibar_height = screen_dpi(28),
+        section = screen_dpi(24),
+        widget = screen_dpi(16),
+    }
+
     -- Promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
 
@@ -1058,7 +1076,7 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
         filter = awful.widget.tasklist.filter.currenttags,
         buttons = tasklist_buttons,
         layout = {
-            spacing = dpi(8),
+            spacing = screen_dpi(8),
             layout = wibox.layout.fixed.horizontal,
         },
         widget_template = {
@@ -1066,16 +1084,16 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
                 {
                     {
                         id = 'icon_role',
-                        forced_height = dpi(24),
-                        forced_width = dpi(24),
+                        forced_height = screen_dpi(24),
+                        forced_width = screen_dpi(24),
                         widget = wibox.widget.imagebox,
                     },
                     {
                         id = 'fallback_icon',
                         markup = string.format('<span foreground="%s">󰣆</span>', colors.subtext0),
                         font = font_family .. " 18",
-                        forced_height = dpi(24),
-                        forced_width = dpi(24),
+                        forced_height = screen_dpi(24),
+                        forced_width = screen_dpi(24),
                         align = "center",
                         valign = "center",
                         visible = false,
@@ -1083,7 +1101,7 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
                     },
                     layout = wibox.layout.stack,
                 },
-                margins = dpi(3),
+                margins = screen_dpi(3),
                 widget = wibox.container.margin,
             },
             id = 'background_role',
@@ -1095,14 +1113,14 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
 
     -- System tray
     local systray = wibox.widget.systray()
-    systray:set_base_size(16)
+    systray:set_base_size(screen_dpi(16))
 
     -- Create the wibar
     s.mywibox = awful.wibar({
         position = "top",
         screen = s,
         ontop = true,
-        height = spacing.wibar_height,
+        height = screen_spacing.wibar_height,
         bg = colors.base,
         fg = colors.text,
     })
@@ -1129,18 +1147,18 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
             -- LEFT: Launcher + Monitoring widgets
             {
                 layout = wibox.layout.fixed.horizontal,
-                create_spacer(spacing.widget),
+                create_spacer(screen_spacing.widget),
                 launcher_widget,
-                create_spacer(spacing.section),
+                create_spacer(screen_spacing.section),
                 cpu_widget_display,
-                create_spacer(spacing.widget),
+                create_spacer(screen_spacing.widget),
                 ram_widget_display,
                 -- GPU widget (desktop only - hidden on laptops without NVIDIA GPU)
-                gpu_widget_display and create_spacer(spacing.widget) or nil,
+                gpu_widget_display and create_spacer(screen_spacing.widget) or nil,
                 gpu_widget_display and gpu_widget_display or nil,
-                create_spacer(spacing.section),
+                create_spacer(screen_spacing.section),
                 net_widget_display,
-                create_spacer(spacing.section),
+                create_spacer(screen_spacing.section),
             },
 
             -- CENTER: Empty (tasklist is in bottom layer)
@@ -1153,20 +1171,20 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
 
                 -- Laptop-only widgets (at far left edge)
                 battery_widget_display and battery_widget_display or nil,
-                battery_widget_display and create_spacer(spacing.widget) or nil,
+                battery_widget_display and create_spacer(screen_spacing.widget) or nil,
                 brightness_widget_display and brightness_widget_display or nil,
-                brightness_widget_display and create_spacer(spacing.section) or nil,
+                brightness_widget_display and create_spacer(screen_spacing.section) or nil,
 
                 -- Disk usage
                 fs_widget_display,
-                create_spacer(spacing.widget),
+                create_spacer(screen_spacing.widget),
 
                 -- Volume
                 volume_widget_display,
-                create_spacer(spacing.widget),
+                create_spacer(screen_spacing.widget),
                 -- AI Usage
                 ai_widget,
-                create_spacer(spacing.section),
+                create_spacer(screen_spacing.section),
 
                 -- System tray (vertically centered)
                 {
@@ -1174,19 +1192,19 @@ function wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mainmen
                     valign = 'center',
                     widget = wibox.container.place,
                 },
-                create_spacer(spacing.section),
+                create_spacer(screen_spacing.section),
 
                 -- DND (notifications) widget
                 dnd_widget,
-                create_spacer(spacing.widget),
+                create_spacer(screen_spacing.widget),
 
                 -- Clock
                 clock_widget,
-                create_spacer(spacing.widget),
+                create_spacer(screen_spacing.widget),
 
                 -- Logout
                 logout_widget_display,
-                create_spacer(spacing.section),
+                create_spacer(screen_spacing.section),
             },
         },
     }

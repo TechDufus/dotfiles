@@ -588,7 +588,7 @@ for app_name, config in pairs(apps) do
   table.insert(awful.rules.rules, {
     rule = { class = config.class },
     callback = function(c)
-      local layout = state.get_current_layout()
+      local layout = state.get_current_layout(c.screen)
       if layout and layout.apps[app_name] then
         helpers.position_client_in_cell(c, app_name, layout)
       end

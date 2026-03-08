@@ -11,15 +11,50 @@ local layouts = require("cell-management.layouts")
 local helpers = require("cell-management.helpers")
 local summon = require("cell-management.summon")
 local layout_manager = require("cell-management.layout-manager")
+local user_config = require("cell-management.config")
 
 -- Load keybindings (registers global keys)
 require("cell-management.keybindings")
 
--- Resolution-based layout auto-selection
--- Finds the best layout based on primary screen resolution
-local function get_best_layout_for_resolution()
-  local primary_screen = awful.screen.primary or awful.screen.focused()
-  local screen_width = primary_screen.geometry.width
+local function get_configured_layout_for_screen(target_screen)
+  local screen_layouts = user_config.screen_layouts or {}
+
+  for _, output_name in ipairs(helpers.get_screen_output_names(target_screen)) do
+    local layout_index = state.resolve_layout_index(screen_layouts[output_name])
+    if layout_index then
+      return layout_index
+    end
+  end
+
+  if target_screen == awful.screen.primary then
+    local primary_layout = state.resolve_layout_index(screen_layouts.primary)
+    if primary_layout then
+      return primary_layout
+    end
+  end
+
+  local indexed_layout = state.resolve_layout_index(screen_layouts["screen:" .. tostring(target_screen.index or 1)])
+  if indexed_layout then
+    return indexed_layout
+  end
+
+  return nil
+end
+
+-- Resolution-based layout auto-selection.
+-- Uses explicit per-screen config first, then falls back to screen width.
+local function get_best_layout_for_screen(target_screen)
+  target_screen = state.resolve_screen(target_screen)
+  if not target_screen then
+    return 1
+  end
+
+  local configured_layout = get_configured_layout_for_screen(target_screen)
+  if configured_layout then
+    return configured_layout
+  end
+
+  local screen_width = target_screen.geometry.width
 
   for index, layout in ipairs(layouts) do
     local min_w = layout.min_width or 0
@@ -32,6 +67,16 @@ local function get_best_layout_for_resolution()
 
   -- Fallback to first layout if nothing matches
   return 1
+end
+
+local function initialize_layouts_for_all_screens()
+  for screen_index = 1, screen.count() do
+    local target_screen = screen[screen_index]
+    if target_screen then
+      local best_layout = get_best_layout_for_screen(target_screen)
+      state.set_current_layout_index(best_layout, target_screen)
+    end
+  end
 end
 
 local reapply_timer = nil
@@ -57,15 +102,17 @@ end
 -- This timer waits for everything to settle, then re-applies the current layout.
 if awesome.startup then
   gears.timer.start_new(0.5, function()
-    -- Auto-select layout based on screen resolution
-    local best_layout = get_best_layout_for_resolution()
-    state.set_current_layout_index(best_layout)
-    layout_manager.switch_layout(best_layout)
+    initialize_layouts_for_all_screens()
+    layout_manager.reapply_current_layout()
     return false  -- Don't repeat
   end)
 end
 
 screen.connect_signal("property::geometry", schedule_layout_reapply)
+screen.connect_signal("added", function(s)
+  state.set_current_layout_index(get_best_layout_for_screen(s), s)
+  schedule_layout_reapply()
+end)
 
 -- Return public API (for future extensions)
 return {

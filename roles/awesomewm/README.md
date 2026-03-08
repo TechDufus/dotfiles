@@ -300,6 +300,26 @@ Edit `~/.config/awesome/cell-management/layouts.lua`:
 },
 ```
 
+#### Set a Layout Per Monitor
+
+Edit `~/.config/awesome/cell-management/config.lua`:
+
+```lua
+M.screen_layouts = {
+  ["DP-1"] = "4K Workspace",   -- Preferred: XRandR output name
+  ["HDMI-1"] = "HD Workspace",
+  ["screen:2"] = "Fullscreen", -- Fallback if output names are unstable
+  primary = "4K Workspace",    -- Optional default for the primary screen
+}
+```
+
+Notes:
+- Output-name keys are matched before `primary` and `screen:<index>`.
+- If no explicit mapping matches, Awesome falls back to resolution-based selection.
+- `Hyper + p` and `Hyper + ;` now operate on the focused monitor only.
+- `Super + o` and `Super + Shift + o` move the focused client between monitors and re-snap it using the target monitor's active layout.
+- Use `xrandr --query` to find output names such as `DP-1`, `HDMI-1`, or `eDP-1`.
+
 #### Define Custom Cells
 
 Edit `~/.config/awesome/cell-management/positions.lua`:
@@ -338,9 +358,9 @@ custom = {
 | Hyper + `j` | Focus window down |
 | Hyper + `k` | Focus window up |
 | Hyper + `l` | Focus window right |
-| Hyper + `p` | Open layout picker |
-| Hyper + `;` | Cycle to next layout |
-| Hyper + `u` | Bind window to cell |
+| Hyper + `p` | Open layout picker for focused monitor |
+| Hyper + `;` | Cycle layout on focused monitor |
+| Hyper + `u` | Bind window to a cell on its current monitor |
 
 ### Standard AwesomeWM
 
@@ -350,6 +370,8 @@ custom = {
 | Super + `r` | Run prompt |
 | Super + Ctrl + `r` | Reload AwesomeWM |
 | Super + Shift + `q` | Quit AwesomeWM |
+| Super + `o` | Move window to next monitor and snap to that monitor's layout |
+| Super + Shift + `o` | Move window to previous monitor and snap to that monitor's layout |
 | Super + `1-9` | Switch to workspace 1-9 |
 | Super + Shift + `1-9` | Move window to workspace |
 
@@ -510,10 +532,9 @@ sequenceDiagram
 ## Known Limitations
 
 **Version 1 Constraints:**
-- No layout persistence (state resets on restart)
+- Runtime layout picks are not persisted unless configured in `config.lua`
 - No visual modal feedback
 - No cell overlay for manual positioning
-- Single monitor only
 - Fixed 80x40 grid (not runtime configurable)
 - First window only (multi-window apps not fully supported)
 

@@ -77,6 +77,34 @@ function M.find_app_by_class(wm_class)
   return nil
 end
 
+-- Get a stable-ish display label for prompts and config mapping
+function M.get_screen_output_names(target_screen)
+  if not target_screen or type(target_screen.outputs) ~= "table" then
+    return {}
+  end
+
+  local output_names = {}
+  for output_name, _ in pairs(target_screen.outputs) do
+    table.insert(output_names, output_name)
+  end
+
+  table.sort(output_names)
+  return output_names
+end
+
+function M.get_screen_label(target_screen)
+  if not target_screen then
+    return "screen"
+  end
+
+  local output_names = M.get_screen_output_names(target_screen)
+  if #output_names > 0 then
+    return table.concat(output_names, ", ")
+  end
+
+  return string.format("screen %d", target_screen.index or 1)
+end
+
 -- Position client in its assigned cell
 -- c: client object
 -- app_name: application name from apps.lua
@@ -90,8 +118,9 @@ function M.position_client_in_cell(c, app_name, layout)
   local grid = require("cell-management.grid")
   local state = require("cell-management.state")
   local app_config = layout.apps[app_name]
-  local cell_index = state.get_app_cell_override(app_name) or app_config.cell
-  local cell_def = layout.cells[cell_index]
+  local default_cell_index = app_config.cell
+  local cell_index = state.get_app_cell_override(app_name, c.screen) or default_cell_index
+  local cell_def = layout.cells[cell_index] or layout.cells[default_cell_index]
 
   if not cell_def then
     print("[WARN] Invalid cell index: " .. tostring(cell_index))

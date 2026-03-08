@@ -1,0 +1,4 @@
+---
+- name: "borders | macOS | Restart borders service"
+  ansible.builtin.command: brew services restart borders
+  changed_when: true

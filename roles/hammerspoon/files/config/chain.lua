@@ -13,6 +13,7 @@
 
 local lastSeenChain = nil
 local lastSeenWindow = nil
+local lastSeenAt = 0
 
 return (function(movements)
   local chainResetInterval = 2 -- seconds

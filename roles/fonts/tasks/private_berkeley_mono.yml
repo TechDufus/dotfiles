@@ -30,6 +30,8 @@
       - item
       - get
       - "{{ op.fonts.berkeley_mono.item }}"
+      - --account
+      - my.1password.com
       - --vault
       - "{{ op.fonts.berkeley_mono.vault }}"
       - --format

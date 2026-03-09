@@ -42,7 +42,7 @@
   ansible.builtin.debug:
     msg:
       - "1Password is installed, but the CLI is not authenticated yet."
-      - "Open 1Password, sign in or unlock it, then rerun: dotfiles -t 1password,ssh,git,jj"
+      - "Open 1Password, sign in or unlock it, then rerun: dotfiles -t 1password,ssh,git,jj,fonts"
   when:
     - op_installed
     - not (op_authenticated | default(false))

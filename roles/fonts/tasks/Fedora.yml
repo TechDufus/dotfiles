@@ -2,5 +2,5 @@
 - name: "Fonts | Fedora | Install BerkeleyMono Nerd Font"
   ansible.builtin.include_tasks: private_berkeley_mono.yml
   vars:
-    berkeley_mono_install_dir: "{{ ansible_env.HOME }}/.local/share/fonts"
+    berkeley_mono_install_dir: "{{ ansible_facts['user_dir'] }}/.local/share/fonts"
     berkeley_mono_refresh_cache: true

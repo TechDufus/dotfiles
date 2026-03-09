@@ -1,6 +1,6 @@
 # NPM Configuration
 {% if not can_install_packages | default(false) and not use_nvm %}
-prefix={{ ansible_env.HOME }}/.npm-global
+prefix={{ ansible_facts['user_dir'] }}/.npm-global
 {% endif %}
 init-author-name={{ git_user_name | default('') }}
 {% if npm_config is defined %}

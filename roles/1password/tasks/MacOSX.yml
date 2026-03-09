@@ -20,7 +20,14 @@
 
 - name: "1Password | MacOSX | Detect authentication state"
   ansible.builtin.command:
-    cmd: op whoami
+    argv:
+      - op
+      - vault
+      - list
+      - --account
+      - my.1password.com
+      - --format
+      - json
   changed_when: false
   failed_when: false
   register: op_whoami

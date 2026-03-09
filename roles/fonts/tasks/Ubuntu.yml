@@ -1,7 +1,6 @@
 ---
-- name: "Fonts | Install"
-  ansible.builtin.apt:
-    name:
-      - fonts-powerline
-    state: present
-  become: true
+- name: "Fonts | Ubuntu | Install BerkeleyMono Nerd Font"
+  ansible.builtin.include_tasks: private_berkeley_mono.yml
+  vars:
+    berkeley_mono_install_dir: "{{ ansible_env.HOME }}/.local/share/fonts"
+    berkeley_mono_refresh_cache: true

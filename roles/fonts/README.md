@@ -1,60 +1,59 @@
 # Fonts
 
-A lightweight Ansible role for installing Powerline-compatible fonts across macOS, Ubuntu, and Fedora systems. Essential for terminal themes, status bars, and developer-focused applications.
+An Ansible role for installing your private BerkeleyMono Nerd Font files across macOS, Ubuntu, and Fedora systems.
 
 ## Overview
 
-This role ensures Powerline fonts are installed system-wide, providing the special glyphs and icons required by tools like tmux, vim-airline, oh-my-zsh themes, and Starship prompt. It handles platform-specific package managers automatically and provides graceful fallback instructions when sudo access is unavailable.
+This role downloads BerkeleyMono Nerd Font files from a 1Password item in your Private vault, installs them into the current user's font directory, and skips automatically when the managed files already exist.
 
 ## Supported Platforms
 
-| Platform | Package Manager | Font Package |
-|----------|----------------|--------------|
-| macOS | Homebrew | `font-powerline-symbols` |
-| Ubuntu | APT | `fonts-powerline` |
-| Fedora | DNF | `powerline-fonts` |
+| Platform | BerkeleyMono Install Path |
+|----------|---------------------------|
+| macOS | `~/Library/Fonts/` |
+| Ubuntu | `~/.local/share/fonts/` |
+| Fedora | `~/.local/share/fonts/` |
 
 ## What Gets Installed
 
-### Powerline Fonts Collection
-- Special glyphs for terminal UI elements
-- Patched symbols for status bars and prompts
-- Unicode characters for branch icons, arrows, and separators
-- Compatible with popular terminal themes and frameworks
+### BerkeleyMono Nerd Font
+- Pulled from a 1Password item named `BerkeleyMono Fonts`
+- Expected as four file attachment fields:
+  - `BerkeleyMonoNerdFont-Regular` -> `BerkeleyMonoNerdFont-Regular.otf`
+  - `BerkeleyMonoNerdFont-Italic` -> `BerkeleyMonoNerdFont-Italic.otf`
+  - `BerkeleyMonoNerdFont-Bold` -> `BerkeleyMonoNerdFont-Bold.otf`
+  - `BerkeleyMonoNerdFont-BoldItalic` -> `BerkeleyMonoNerdFont-BoldItalic.otf`
+- Installed per-user so the role stays idempotent and does not need sudo
 
 ### Installation Locations
 
 ```mermaid
 graph LR
     A[fonts role] --> B{OS Detection}
-    B -->|macOS| C[Homebrew Fonts Tap]
-    B -->|Ubuntu| D[/usr/share/fonts/]
-    B -->|Fedora| E[/usr/share/fonts/]
-
-    C --> F[~/Library/Fonts/]
-    D --> G[System Font Cache]
-    E --> G
+    B -->|macOS| C[~/Library/Fonts]
+    B -->|Ubuntu| D[~/.local/share/fonts]
+    B -->|Fedora| E[~/.local/share/fonts]
 ```
 
 ## Features
 
 ### Cross-Platform Consistency
-- Automatic OS detection and appropriate package manager selection
-- Idempotent installation (safe to run multiple times)
+- Automatic OS detection and appropriate per-user install path selection
+- Idempotent installation based on the managed BerkeleyMono font files
 - No configuration files or symlinks needed
 
+### 1Password-Backed Private Fonts
+- Uses `op read --out-file` to install the BerkeleyMono attachments directly from 1Password
+- Skips cleanly when 1Password is not installed, not authenticated, or the item is missing
+- Safe to rerun after authenticating with 1Password on a fresh machine
+
 ### Graceful Degradation
-On Fedora systems without sudo access, provides helpful manual installation instructions:
-```bash
-git clone https://github.com/powerline/fonts.git ~/.local/share/fonts/powerline
-fc-cache -f ~/.local/share/fonts
-```
+- Skips cleanly when 1Password is unavailable or unauthenticated
+- Prints the exact rerun command once 1Password access is ready
 
 ### Clean Uninstallation
 The included `uninstall.sh` script removes:
 - Nerd Fonts from user directories
-- Homebrew cask installations (macOS)
-- System font directories (Linux)
 - Updates font cache automatically
 
 ## Usage
@@ -74,10 +73,10 @@ dotfiles -t fonts --check
 ### Verify Installation
 ```bash
 # Check installed fonts (macOS)
-ls ~/Library/Fonts/ | grep -i powerline
+ls ~/Library/Fonts/ | grep -i BerkeleyMono
 
 # Check installed fonts (Linux)
-fc-list | grep -i powerline
+fc-list | grep -i BerkeleyMono
 
 # Test glyphs in terminal
 echo " \ue0b0 \ue0b1 \ue0b2 \ue0b3"
@@ -86,21 +85,17 @@ echo " \ue0b0 \ue0b1 \ue0b2 \ue0b3"
 ## Dependencies
 
 ### Runtime Requirements
-- **macOS**: Homebrew
-- **Ubuntu**: APT package manager, sudo access
-- **Fedora**: DNF package manager, sudo access (or manual installation)
+- **Private BerkeleyMono install**: 1Password CLI authenticated with access to the `BerkeleyMono Fonts` item in the `Private` vault
 
-### No Role Dependencies
-This role is standalone and does not depend on other roles in the dotfiles repository.
+### Role Dependencies
+- Private BerkeleyMono installation depends on the `1password` role being installed and authenticated
 
 ## Integration
 
 These fonts are used by several other roles in this dotfiles collection:
 
-- **tmux**: Status bar icons and separators
-- **starship**: Git branch symbols and prompt decorations
-- **neovim**: vim-airline and status line plugins
-- **zsh**: oh-my-zsh themes with special characters
+- **ghostty**: Uses `BerkeleyMono Nerd Font`
+- **kitty**: Uses `BerkeleyMono Nerd Font`
 
 ## Technical Details
 
@@ -109,39 +104,41 @@ These fonts are used by several other roles in this dotfiles collection:
 roles/fonts/
 ├── tasks/
 │   ├── main.yml       # OS detection entry point
-│   ├── MacOSX.yml     # Homebrew installation
-│   ├── Ubuntu.yml     # APT installation
-│   └── Fedora.yml     # DNF installation with fallback
+│   ├── MacOSX.yml     # macOS user font install
+│   ├── Ubuntu.yml     # Linux user font install
+│   ├── Fedora.yml     # Linux user font install
+│   └── private_berkeley_mono.yml
 └── uninstall.sh       # Clean removal script
 ```
 
-### Package Selection Strategy
-Each OS uses its native font packaging:
-- **macOS**: Taps into `homebrew/cask-fonts` repository
-- **Ubuntu**: Uses official Debian `fonts-powerline` package
-- **Fedora**: Uses EPEL/RPM Fusion `powerline-fonts` package
+### Install Strategy
+Each OS installs BerkeleyMono as a user font from 1Password attachments:
+- **macOS**: `~/Library/Fonts`
+- **Ubuntu**: `~/.local/share/fonts`
+- **Fedora**: `~/.local/share/fonts`
 
 ## Resources
 
-- [Powerline Documentation](https://powerline.readthedocs.io/)
-- [Powerline Fonts Repository](https://github.com/powerline/fonts)
-- [Nerd Fonts](https://www.nerdfonts.com/) - Extended font collection with even more glyphs
+- [Nerd Fonts](https://www.nerdfonts.com/) - Extended font collection with patched developer fonts
 
 ## Troubleshooting
 
 ### Fonts not appearing in terminal
 1. Restart your terminal application after installation
-2. Configure your terminal to use a Powerline-compatible font
-3. Verify installation: `fc-list | grep -i powerline` (Linux) or `ls ~/Library/Fonts/` (macOS)
+2. Configure your terminal to use `BerkeleyMono Nerd Font`
+3. Verify installation: `fc-list | grep -i BerkeleyMono` (Linux) or `ls ~/Library/Fonts/ | grep -i BerkeleyMono` (macOS)
+
+### BerkeleyMono files were skipped
+- Unlock or sign in to 1Password
+- Confirm the `Private` vault contains an item named `BerkeleyMono Fonts`
+- Confirm the item has file attachment fields named exactly:
+  - `BerkeleyMonoNerdFont-Regular`
+  - `BerkeleyMonoNerdFont-Italic`
+  - `BerkeleyMonoNerdFont-Bold`
+  - `BerkeleyMonoNerdFont-BoldItalic`
+- Rerun `dotfiles -t fonts`
 
 ### Glyphs showing as boxes or question marks
 - Ensure your terminal emulator supports Unicode
-- Check that the selected font is actually a Powerline-patched variant
-- Try setting terminal font to "Monaco for Powerline" or similar
-
-### Manual installation needed (Fedora without sudo)
-Follow the instructions displayed during role execution, or run:
-```bash
-git clone https://github.com/powerline/fonts.git ~/.local/share/fonts/powerline
-fc-cache -f ~/.local/share/fonts
-```
+- Check that the selected font is actually `BerkeleyMono Nerd Font`
+- Reload the terminal after the font files land in the user font directory

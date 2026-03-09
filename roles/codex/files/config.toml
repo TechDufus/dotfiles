@@ -3,12 +3,12 @@
 
 # Minimal, high-quality defaults.
 model_reasoning_effort = "xhigh"
-model_reasoning_summary = "detailed"
-model_verbosity = "high"
+# model_reasoning_summary = "detailed"
+# model_verbosity = "high"
 approval_policy = "on-request"
 sandbox_mode = "danger-full-access"
 web_search = "live"
-tool_output_token_limit = 120000
+# tool_output_token_limit = 120000
 model = "gpt-5.4"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"

@@ -14,7 +14,9 @@ plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"
 
 [features]
+guardian_approval = true
 multi_agent = true
+undo = true
 voice_transcription = true
 # # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
 # use_linux_sandbox_bwrap = true

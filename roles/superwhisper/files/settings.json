@@ -1,0 +1,35 @@
+{
+  "favoriteModelIDs": [],
+  "modeKeys": [
+    "voice to text",
+    "super",
+    "default"
+  ],
+  "replacements": [
+    {
+      "id": "A835762E-0B8E-4E89-9CCE-08B377560B97",
+      "original": "doofus",
+      "with": "dufus"
+    },
+    {
+      "id": "7397E7A6-0BBA-49CF-835B-91036E174CAC",
+      "original": "clodcode",
+      "with": "Claude Code"
+    },
+    {
+      "id": "05B1E9DE-80E1-4781-9D6D-3B43DB48430F",
+      "original": "clod",
+      "with": "claude"
+    },
+    {
+      "id": "CAD18F92-83D5-4BAD-9D82-E74F9D580E6D",
+      "original": "open claw",
+      "with": "OpenClaw"
+    }
+  ],
+  "vocabulary": [
+    "Claude Code",
+    "codex",
+    "oh-my-claude"
+  ]
+}

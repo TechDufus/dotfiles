@@ -1,0 +1,61 @@
+---
+- name: "{{ role_name }} | MacOSX | Check if Homebrew already manages superwhisper"
+  ansible.builtin.command:
+    cmd: brew list --cask superwhisper
+  register: superwhisper_cask_installed
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | MacOSX | Check if superwhisper.app already exists"
+  ansible.builtin.stat:
+    path: /Applications/superwhisper.app
+  register: superwhisper_app_bundle
+
+- name: "{{ role_name }} | MacOSX | Install superwhisper"
+  community.general.homebrew_cask:
+    name: superwhisper
+    state: present
+  when:
+    - superwhisper_cask_installed.rc != 0
+    - not superwhisper_app_bundle.stat.exists
+
+- name: "{{ role_name }} | MacOSX | Skip Homebrew install when manual app already exists"
+  ansible.builtin.debug:
+    msg: >-
+      superwhisper.app already exists in /Applications but is not managed by Homebrew.
+      Skipping cask install and continuing with settings management.
+  when:
+    - superwhisper_cask_installed.rc != 0
+    - superwhisper_app_bundle.stat.exists
+
+- name: "{{ role_name }} | MacOSX | Ensure settings directory exists"
+  ansible.builtin.file:
+    path: "{{ superwhisper_settings_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | MacOSX | Check if settings.json already exists"
+  ansible.builtin.stat:
+    path: "{{ superwhisper_settings_dest }}"
+  register: superwhisper_settings_file
+
+- name: "{{ role_name }} | MacOSX | Backup existing settings.json if it is not a symlink"
+  ansible.builtin.copy:
+    src: "{{ superwhisper_settings_dest }}"
+    dest: "{{ superwhisper_settings_dest }}.backup"
+    remote_src: true
+    mode: "0644"
+  when: superwhisper_settings_file.stat.exists and not superwhisper_settings_file.stat.islnk
+
+- name: "{{ role_name }} | MacOSX | Remove existing settings.json if it is not a symlink"
+  ansible.builtin.file:
+    path: "{{ superwhisper_settings_dest }}"
+    state: absent
+  when: superwhisper_settings_file.stat.exists and not superwhisper_settings_file.stat.islnk
+
+- name: "{{ role_name }} | MacOSX | Symlink settings.json"
+  ansible.builtin.file:
+    src: "{{ superwhisper_settings_source }}"
+    dest: "{{ superwhisper_settings_dest }}"
+    state: link
+    force: true

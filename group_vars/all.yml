@@ -45,6 +45,7 @@ default_roles:
   # - rust
   - slides
   - spotify
+  - superwhisper
   - ssh
   - sshfs
   - starship

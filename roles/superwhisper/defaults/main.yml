@@ -1,0 +1,5 @@
+---
+role_name: superwhisper
+superwhisper_settings_source: "{{ role_path }}/files/settings.json"
+superwhisper_settings_dir: "{{ ansible_facts['env']['HOME'] }}/Documents/Superwhisper/settings"
+superwhisper_settings_dest: "{{ superwhisper_settings_dir }}/settings.json"

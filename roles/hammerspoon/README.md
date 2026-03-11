@@ -70,7 +70,7 @@ Quick application switching with intelligent toggle behavior:
 #### F16 Modal - Quick Macros
 | Key | Action | Shortcut |
 |-----|--------|----------|
-| `s` | Screenshot | ⌘⇧4 |
+| `s` | Screenshot to Clipboard | ⌘⌃⇧4 |
 | `e` | Emoji Picker | ⌘⌃Space |
 | `a` | Next Window | ⌘` |
 | `b` | Browser Bookmark Search | Hyper+b (Raycast) |

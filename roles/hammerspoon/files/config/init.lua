@@ -37,7 +37,7 @@ require('karabiner').start()
 -- F16 to open macros modal (created first so summon modal can reference it)
 
 local macros = {
-  s = function() hs.eventtap.keyStroke({ 'cmd', 'shift' }, '4') end,  -- screenshot
+  s = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl', 'shift' }, '4') end,  -- screenshot to clipboard
   e = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'space') end, -- emoji picker
   a = function() hs.eventtap.keyStroke({ 'cmd' }, '`') end,           -- next window of focused app
   -- c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app

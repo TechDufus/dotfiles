@@ -1,5 +1,10 @@
 ---
+- name: "{{ role_name }} | MacOSX | Add official Bun Homebrew tap"
+  community.general.homebrew_tap:
+    name: oven-sh/bun
+    state: present
+
 - name: "{{ role_name }} | MacOSX | Install bun via Homebrew"
   community.general.homebrew:
-    name: bun
+    name: oven-sh/bun/bun
     state: present

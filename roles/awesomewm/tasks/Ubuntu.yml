@@ -107,6 +107,13 @@
     mode: "0644"
   notify: "awesomewm | Ubuntu | Restart AwesomeWM"
 
+- name: "awesomewm | Ubuntu | Deploy Widget Modules"
+  ansible.builtin.copy:
+    src: "config/widgets/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/widgets/"
+    mode: "0644"
+  notify: "awesomewm | Ubuntu | Restart AwesomeWM"
+
 - name: "awesomewm | Ubuntu | Deploy wibar configuration"
   ansible.builtin.copy:
     src: "config/wibar.lua"

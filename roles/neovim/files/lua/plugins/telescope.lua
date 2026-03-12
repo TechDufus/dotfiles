@@ -9,7 +9,13 @@ return {
     "nvim-lua/plenary.nvim",
     "jvgrootveld/telescope-zoxide",
     "nvim-tree/nvim-web-devicons",
-    { 'nvim-telescope/telescope-fzf-native.nvim', run = 'make' },
+    {
+      'nvim-telescope/telescope-fzf-native.nvim',
+      build = 'make',
+      cond = function()
+        return vim.fn.executable('make') == 1
+      end,
+    },
     'nvim-telescope/telescope-ui-select.nvim',
   },
   keys = {
@@ -243,6 +249,9 @@ return {
         -- telescope.load_extension('git_worktree'),
       },
     }
+    pcall(telescope.load_extension, 'fzf')
+    pcall(telescope.load_extension, 'ui-select')
+    pcall(telescope.load_extension, 'zoxide')
     -- local M = {}
     -- builtin = require('telescope.builtin')
 

@@ -21,6 +21,7 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/borders/bordersrc"
     mode: '0755'
     backup: yes
+  notify: "borders | macOS | Restart borders service"
 
 - name: "{{ role_name }} | macOS | Check if borders service is running"
   ansible.builtin.command: brew services list

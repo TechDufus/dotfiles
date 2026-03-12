@@ -19,8 +19,10 @@ Hammerspoon is a powerful macOS automation tool that bridges the gap between the
 - **Hammerspoon** - Installed via Homebrew Cask
 
 ### Spoons (Extensions)
-- **GridLayout.spoon** - Custom grid-based layout manager (commented out, using custom implementation)
-- **ReloadConfiguration.spoon** - Auto-reload on config changes
+- **GridLayout.spoon** - Custom grid-based layout manager installed into `~/.hammerspoon/Spoons/`
+
+### Native Hammerspoon Features
+- **`hs.pathwatcher`** - Auto-reload on config changes without an extra spoon
 
 ## ⚙️ What Gets Configured
 
@@ -68,7 +70,7 @@ Quick application switching with intelligent toggle behavior:
 #### F16 Modal - Quick Macros
 | Key | Action | Shortcut |
 |-----|--------|----------|
-| `s` | Screenshot | ⌘⇧4 |
+| `s` | Screenshot to Clipboard | ⌘⌃⇧4 |
 | `e` | Emoji Picker | ⌘⌃Space |
 | `a` | Next Window | ⌘` |
 | `b` | Browser Bookmark Search | Hyper+b (Raycast) |
@@ -167,7 +169,7 @@ Inspired by Slate's chain feature with enhancements:
 - Always starts on current screen
 
 ### Auto-Reload
-Configuration automatically reloads when files change in `~/.hammerspoon/`.
+Configuration automatically reloads when `.lua` files change in `~/.hammerspoon/` via Hammerspoon's native `hs.pathwatcher`.
 
 ## 🖼️ Visual Architecture
 

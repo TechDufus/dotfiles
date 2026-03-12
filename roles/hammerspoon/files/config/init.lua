@@ -5,7 +5,22 @@
 lilHyper = { 'cmd', 'alt', 'ctrl' }             -- or D+F 🤘
 Hyper = { 'shift', 'cmd', 'alt', 'ctrl' } -- or S+D+F 😅
 
-hs.loadSpoon('ReloadConfiguration'):start()
+local function reloadConfig(files)
+  local shouldReload = false
+
+  for _, file in ipairs(files) do
+    if file:match('%.lua$') then
+      shouldReload = true
+      break
+    end
+  end
+
+  if shouldReload then
+    hs.reload()
+  end
+end
+
+configWatcher = hs.pathwatcher.new(os.getenv('HOME') .. '/.hammerspoon/', reloadConfig):start()
 
 require('helpers')
 
@@ -22,7 +37,7 @@ require('karabiner').start()
 -- F16 to open macros modal (created first so summon modal can reference it)
 
 local macros = {
-  s = function() hs.eventtap.keyStroke({ 'cmd', 'shift' }, '4') end,  -- screenshot
+  s = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl', 'shift' }, '4') end,  -- screenshot to clipboard
   e = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'space') end, -- emoji picker
   a = function() hs.eventtap.keyStroke({ 'cmd' }, '`') end,           -- next window of focused app
   -- c = function() hs.eventtap.keyStroke({ 'cmd', 'ctrl' }, 'c') end,   -- color picker app
@@ -73,23 +88,52 @@ local layout = hs.loadSpoon('GridLayout')
     :setGrid(positions.full_grid)
     :setMargins('5x5')
 
-if (hs.screen.primaryScreen():name() ~= 'Built-in Retina Display') then
-  layout:selectLayout(1)
+local function isBuiltInDisplay(screen)
+  local name = ((screen and screen:name()) or ''):lower()
+  return name:find('built%-in', 1, false) ~= nil
 end
 
-hs.screen.watcher.new(function()
-  hs.timer.doAfter(1, function()
-    local screen = hs.screen.primaryScreen()
-    local mode = screen:currentMode()
+local function selectDefaultLayout()
+  local screen = hs.screen.primaryScreen()
+  if not screen then
+    return
+  end
 
-    if screen:name() == 'Built-in Retina Display' then
-      layout:selectLayout(2)  -- Fullscreen for laptop
-    elseif mode.w >= 3840 then
-      layout:selectLayout(1)  -- 4K Workspace
-    else
-      layout:selectLayout(4)  -- Standard Dev
-    end
+  local mode = screen:currentMode()
+  local aspectRatio = mode.w / math.max(mode.h, 1)
+  local layoutIndex
+
+  if isBuiltInDisplay(screen) then
+    layoutIndex = 2  -- Fullscreen for the internal display
+  elseif mode.w >= 5000 or aspectRatio >= 2.8 then
+    layoutIndex = 4  -- Ultrawide workspace
+  elseif mode.w >= 3840 or mode.h >= 2160 then
+    layoutIndex = 1  -- 4K workspace
+  else
+    layoutIndex = 3  -- Standard external monitor
+  end
+
+  layout:selectLayout(layoutIndex)
+end
+
+local pendingLayoutSelection = nil
+
+local function scheduleLayoutSelection(delaySeconds)
+  if pendingLayoutSelection then
+    pendingLayoutSelection:stop()
+    pendingLayoutSelection = nil
+  end
+
+  pendingLayoutSelection = hs.timer.doAfter(delaySeconds or 0, function()
+    pendingLayoutSelection = nil
+    selectDefaultLayout()
   end)
+end
+
+scheduleLayoutSelection(0)
+
+hs.screen.watcher.new(function()
+  scheduleLayoutSelection(1)
 end):start()
 
 local windowManagementBindings = {

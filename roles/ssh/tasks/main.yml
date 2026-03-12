@@ -17,12 +17,19 @@
 - name: "SSH | Deploy SSH keys from 1Password"
   ansible.builtin.include_tasks: ssh_keys.yml
   with_items: "{{ op.ssh.github.techdufus }}"
-  when: op_installed | default(false)
+  when: op_authenticated | default(false)
 
 - name: "SSH | Warning - 1Password not installed"
   ansible.builtin.debug:
     msg: "SSH key deployment skipped - 1Password CLI is not installed. Install 1Password CLI to enable automatic SSH key deployment."
   when: not (op_installed | default(false))
+
+- name: "SSH | Warning - 1Password not authenticated"
+  ansible.builtin.debug:
+    msg: "SSH key deployment skipped - 1Password is installed but not authenticated. Unlock 1Password, then rerun dotfiles -t 1password,ssh."
+  when:
+    - op_installed | default(false)
+    - not (op_authenticated | default(false))
 
 # - name: Copy config
 #   ansible.builtin.template:

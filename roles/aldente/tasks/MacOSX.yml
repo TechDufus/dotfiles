@@ -1,5 +1,5 @@
 ---
 - name: "Aldente | MacOSX | Install Aldente"
-  community.general.homebrew:
+  community.general.homebrew_cask:
     name: aldente
     state: present

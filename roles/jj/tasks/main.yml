@@ -9,7 +9,7 @@
   when: distribution_config.stat.exists
 
 - name: "JJ | Read user.email secret from 1Password"
-  when: op_installed | default(false)
+  when: op_authenticated | default(false)
   block:
     - name: "1Password | Get user.email for JJ"
       ansible.builtin.command: "op --account my.1password.com read '{{ op.git.user.email }}'"

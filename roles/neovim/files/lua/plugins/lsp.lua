@@ -161,10 +161,10 @@ return {
       vim.api.nvim_create_autocmd('LspAttach', {
         desc = 'LSP actions',
         callback = function(event)
+          local client = vim.lsp.get_client_by_id(event.data.client_id)
           local noremap = { buffer = event.buf, remap = false }
           local bind = vim.keymap.set
 
-          bind('n', '<leader>r', '<cmd>lua vim.lsp.buf.rename()<cr>', noremap)
           -- Mappings.
           bind('n', 'gD', '<Cmd>lua vim.lsp.buf.declaration()<CR>', noremap)
           bind('n', 'gd', '<Cmd>lua vim.lsp.buf.definition()<CR>', noremap)
@@ -175,13 +175,16 @@ return {
           bind('n', '<Leader>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', noremap)
           bind('n', 'gr', '<cmd>lua require("telescope.builtin").lsp_references()<CR>', noremap)
           bind('n', '<Leader>dl', '<cmd>Telescope diagnostics<CR>', noremap)
-          bind('n', '<Leader>ld', '<cmd>lua vim.diagnostic.open_float()<CR>', noremap)
-          bind('n', '[d', '<cmd>lua vim.lsp.diagnostic.goto_prev()<CR>', noremap)
-          bind('n', ']d', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', noremap)
-          bind('n', '<Leader>q', '<cmd>lua vim.lsp.diagnostic.set_loclist()<CR>', noremap)
+          bind('n', '<Leader>ld', vim.diagnostic.open_float, noremap)
+          bind('n', '[d', function() vim.diagnostic.jump({ count = -1, float = true }) end, noremap)
+          bind('n', ']d', function() vim.diagnostic.jump({ count = 1, float = true }) end, noremap)
+          bind('n', '<Leader>q', vim.diagnostic.setloclist, noremap)
           bind("n", "<Leader>f", "<cmd>lua vim.lsp.buf.format({ async = true })<CR>", noremap)
+          if client and vim.lsp.inlay_hint and client:supports_method('textDocument/inlayHint') then
+            vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
+          end
           -- if client is gopls then define bindings
-          if vim.lsp.get_client_by_id() == 'gopls' then
+          if client and client.name == 'gopls' then
             bind("n", "<Leader>gtf", "<cmd>GoTestFile<CR>", noremap)
             bind("n", "<Leader>gtff", "<cmd>GoTestFunc<CR>", noremap)
             bind("n", "<Leader>gtt", "<cmd>GoTest<CR>", noremap)
@@ -204,9 +207,6 @@ return {
           'lua_ls',
           'yamlls',
           'cssls',
-          'gopls',
-          'jsonls',
-          'lua_ls',
           'pylsp',
         },
         handlers = {
@@ -237,18 +237,6 @@ return {
             },
           },
         },
-      })
-    end
-  },
-  -- inlay hints
-  {
-    'simrat39/inlay-hints.nvim',
-    config = function()
-      require("inlay-hints").setup({
-        only_current_line = false,
-        eol = {
-          right_align = false,
-        }
       })
     end
   },

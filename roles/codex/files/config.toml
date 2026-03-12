@@ -3,18 +3,26 @@
 
 # Minimal, high-quality defaults.
 model_reasoning_effort = "xhigh"
-model_reasoning_summary = "detailed"
-model_verbosity = "high"
+# model_reasoning_summary = "detailed"
+# model_verbosity = "high"
 approval_policy = "on-request"
 sandbox_mode = "danger-full-access"
 web_search = "live"
-tool_output_token_limit = 120000
+# tool_output_token_limit = 120000
 model = "gpt-5.4"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"
+notify = [
+  "sh",
+  "-c",
+  'exec "$HOME/.codex/notify-peon.sh" "$1"',
+  "sh",
+]
 
 [features]
+guardian_approval = true
 multi_agent = true
+undo = true
 voice_transcription = true
 # # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
 # use_linux_sandbox_bwrap = true
@@ -43,3 +51,4 @@ args = ["-y", "@playwright/mcp@latest"]
 environment = "dev"
 log_user_prompt = true
 trace_exporter = "none"
+

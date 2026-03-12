@@ -3,3 +3,8 @@
   community.general.homebrew_cask:
     name: codex
     state: present
+
+- name: "{{ role_name }} | MacOSX | Install | peon-ping"
+  community.general.homebrew:
+    name: peon-ping
+    state: present

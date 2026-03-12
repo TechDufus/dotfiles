@@ -1,5 +1,6 @@
 ---
-- name: "Fonts | MacOSX | Install"
-  community.general.homebrew:
-    name: font-powerline-symbols
-    state: present
+- name: "Fonts | MacOSX | Install BerkeleyMono Nerd Font"
+  ansible.builtin.include_tasks: private_berkeley_mono.yml
+  vars:
+    berkeley_mono_install_dir: "{{ ansible_facts['user_dir'] }}/Library/Fonts"
+    berkeley_mono_refresh_cache: false

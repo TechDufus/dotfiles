@@ -1,0 +1,96 @@
+---
+- name: "Fonts | BerkeleyMono | Ensure install directory exists"
+  ansible.builtin.file:
+    path: "{{ berkeley_mono_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "Fonts | BerkeleyMono | Check installed font files"
+  ansible.builtin.stat:
+    path: "{{ berkeley_mono_install_dir }}/{{ item.filename }}"
+  loop: "{{ op.fonts.berkeley_mono.files }}"
+  register: berkeley_mono_font_stats
+  loop_control:
+    label: "{{ item.filename }}"
+
+- name: "Fonts | BerkeleyMono | Record missing font files"
+  ansible.builtin.set_fact:
+    berkeley_mono_missing_fonts: >-
+      {{
+        berkeley_mono_font_stats.results
+        | selectattr('stat.exists', 'equalto', false)
+        | map(attribute='item')
+        | list
+      }}
+
+- name: "Fonts | BerkeleyMono | Verify 1Password item exists"
+  ansible.builtin.command:
+    argv:
+      - op
+      - item
+      - get
+      - "{{ op.fonts.berkeley_mono.item }}"
+      - --account
+      - my.1password.com
+      - --vault
+      - "{{ op.fonts.berkeley_mono.vault }}"
+      - --format
+      - json
+  changed_when: false
+  failed_when: false
+  register: berkeley_mono_item
+  when:
+    - berkeley_mono_missing_fonts | length > 0
+    - op_authenticated | default(false)
+
+- name: "Fonts | BerkeleyMono | Install missing font files"
+  ansible.builtin.command:
+    argv:
+      - op
+      - read
+      - --account
+      - my.1password.com
+      - --file-mode
+      - "0644"
+      - --out-file
+      - "{{ berkeley_mono_install_dir }}/{{ item.filename }}"
+      - "op://{{ op.fonts.berkeley_mono.vault }}/{{ op.fonts.berkeley_mono.item }}/{{ item.field }}"
+  loop: "{{ berkeley_mono_missing_fonts }}"
+  register: berkeley_mono_downloads
+  loop_control:
+    label: "{{ item.filename }}"
+  when:
+    - berkeley_mono_missing_fonts | length > 0
+    - op_authenticated | default(false)
+    - berkeley_mono_item.rc == 0
+
+- name: "Fonts | BerkeleyMono | Explain how to finish install without 1Password auth"
+  ansible.builtin.debug:
+    msg:
+      - "BerkeleyMono Nerd Font is not fully installed yet."
+      - "Authenticate 1Password, then rerun: dotfiles -t fonts"
+  when:
+    - berkeley_mono_missing_fonts | length > 0
+    - not (op_authenticated | default(false))
+
+- name: "Fonts | BerkeleyMono | Explain missing 1Password item"
+  ansible.builtin.debug:
+    msg:
+      - "1Password item '{{ op.fonts.berkeley_mono.item }}' was not found in vault '{{ op.fonts.berkeley_mono.vault }}'."
+      - "Create it with the four BerkeleyMono font attachments, then rerun: dotfiles -t fonts"
+  when:
+    - berkeley_mono_missing_fonts | length > 0
+    - op_authenticated | default(false)
+    - berkeley_mono_item.rc != 0
+
+- name: "Fonts | BerkeleyMono | Refresh font cache"
+  ansible.builtin.command:
+    argv:
+      - fc-cache
+      - -f
+      - "{{ berkeley_mono_install_dir }}"
+  changed_when: true
+  when:
+    - berkeley_mono_refresh_cache | default(false)
+    - berkeley_mono_downloads is defined
+    - berkeley_mono_downloads is changed

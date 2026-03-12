@@ -1,6 +1,6 @@
 default_roles:
   - system
-  # - 1password
+  - 1password
   - aldente
   - asciiquarium
   - awesomewm
@@ -45,6 +45,7 @@ default_roles:
   # - rust
   - slides
   - spotify
+  - superwhisper
   - ssh
   - sshfs
   - starship
@@ -64,6 +65,19 @@ op:
     user:
       email: "op://Personal/GitHub/email"
     allowed_signers: "op://Personal/TechDufus SSH/allowed_signers"
+  fonts:
+    berkeley_mono:
+      vault: "Private"
+      item: "BerkeleyMono Fonts"
+      files:
+        - field: BerkeleyMonoNerdFont-Regular
+          filename: BerkeleyMonoNerdFont-Regular.otf
+        - field: BerkeleyMonoNerdFont-Italic
+          filename: BerkeleyMonoNerdFont-Italic.otf
+        - field: BerkeleyMonoNerdFont-Bold
+          filename: BerkeleyMonoNerdFont-Bold.otf
+        - field: BerkeleyMonoNerdFont-BoldItalic
+          filename: BerkeleyMonoNerdFont-BoldItalic.otf
   ssh:
     github:
       techdufus:

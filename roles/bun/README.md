@@ -6,7 +6,7 @@ Ansible role for installing [Bun](https://bun.sh/) - a fast all-in-one JavaScrip
 
 | Platform | Installation Method | Status |
 |----------|-------------------|--------|
-| macOS | Homebrew | Supported |
+| macOS | Official Homebrew tap | Supported |
 | Ubuntu | Official install script | Supported |
 | Fedora | - | Not supported |
 | Arch | - | Not supported |
@@ -15,7 +15,7 @@ Ansible role for installing [Bun](https://bun.sh/) - a fast all-in-one JavaScrip
 
 - **Bun runtime** - Fast JavaScript/TypeScript runtime, bundler, and package manager
 - **Ubuntu**: Installed to `~/.bun/bin/bun` via official script
-- **macOS**: Installed via Homebrew
+- **macOS**: Installed via the official `oven-sh/bun` Homebrew tap
 
 ## Configuration
 
@@ -40,5 +40,6 @@ bun --version
 ## Notes
 
 - Ubuntu installation requires `unzip` (installed automatically if sudo available)
+- macOS installation uses `brew tap oven-sh/bun` before installing Bun
 - Bun auto-upgrades on subsequent runs if already installed
 - PATH setup handled by shell role (zsh/bash)

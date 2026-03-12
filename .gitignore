@@ -15,6 +15,8 @@ roles/claude/files/commands/raft/
 roles/claude/files/skills/rafty
 roles/claude/files/commands/raft-*.md
 roles/claude/files/agents/raft-*.md
+roles/claude/files/hooks/peon-ping/
+roles/claude/files/skills/peon-ping-*/
 
 # Crush directory
 .crush/

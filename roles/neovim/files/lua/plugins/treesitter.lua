@@ -9,7 +9,7 @@ return {
     "nvim-treesitter/nvim-treesitter-textobjects",
   },
   config = function()
-    require 'nvim-treesitter.configs'.setup {
+    require('nvim-treesitter.configs').setup({
       -- A list of parser names, or "all"
       ensure_installed = "all",
       -- Ignore parsers that are known to have issues
@@ -41,7 +41,7 @@ return {
           scope_incremental = false,
           node_decremental = "<bs>",
         },
-      }
-    }
+      },
+    })
   end
 }

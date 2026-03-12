@@ -119,7 +119,8 @@
   when:
     - codex_peon_enabled
     - codex_peon_pack_install is defined
-    - codex_peon_pack_install.rc != 0
+    - not (codex_peon_pack_install.skipped | default(false))
+    - (codex_peon_pack_install.rc | default(0)) != 0
 
 - name: "{{ role_name }} | Skills | Ensure ~/.codex/skills directory exists"
   ansible.builtin.file:

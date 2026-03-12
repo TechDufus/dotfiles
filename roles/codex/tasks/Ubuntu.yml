@@ -57,4 +57,5 @@
       - "{{ codex_peon_ubuntu_installer.stderr | default(codex_peon_ubuntu_installer.stdout | default('no output')) }}"
   when:
     - codex_peon_ubuntu_installer is defined
-    - codex_peon_ubuntu_installer.rc != 0
+    - not (codex_peon_ubuntu_installer.skipped | default(false))
+    - (codex_peon_ubuntu_installer.rc | default(0)) != 0

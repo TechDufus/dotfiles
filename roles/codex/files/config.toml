@@ -51,13 +51,3 @@ args = ["-y", "@playwright/mcp@latest"]
 environment = "dev"
 log_user_prompt = true
 trace_exporter = "none"
-
-[projects."/Users/mdegarmo/dev/raft/rdp"]
-trust_level = "trusted"
-
-[projects."/Users/mdegarmo/.dotfiles"]
-trust_level = "trusted"
-
-[projects."/Users/mdegarmo/dev/raft/rdp-mlops"]
-trust_level = "trusted"
-

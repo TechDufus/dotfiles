@@ -21,11 +21,39 @@ elif [ -L "$HOME/.codex/AGENTS.md" ]; then
   _task_done
 fi
 
+if [ -L "$HOME/.codex/notify-peon.sh" ] || [ -f "$HOME/.codex/notify-peon.sh" ]; then
+  __task "Removing legacy Codex peon notify hook"
+  _cmd "rm -f $HOME/.codex/notify-peon.sh"
+  _task_done
+fi
+
+if [ -d "$HOME/.openpeon" ]; then
+  __task "Removing legacy Peon data directory"
+  _cmd "rm -rf $HOME/.openpeon"
+  _task_done
+fi
+
+if [ -d "$HOME/.local/share/codex-peon" ]; then
+  __task "Removing legacy Codex peon install directory"
+  _cmd "rm -rf $HOME/.local/share/codex-peon"
+  _task_done
+fi
+
 case "$(uname -s)" in
   Darwin)
     if command -v brew >/dev/null 2>&1 && brew list --cask codex >/dev/null 2>&1; then
       __task "Removing Codex via Homebrew cask"
       _cmd "brew uninstall --cask codex"
+      _task_done
+    fi
+    if command -v brew >/dev/null 2>&1 && brew list peonping/tap/peon-ping >/dev/null 2>&1; then
+      __task "Removing legacy peon-ping formula"
+      _cmd "brew uninstall peonping/tap/peon-ping"
+      _task_done
+    fi
+    if command -v brew >/dev/null 2>&1 && brew tap | grep -qx 'peonping/tap'; then
+      __task "Removing legacy peon-ping tap"
+      _cmd "brew untap peonping/tap"
       _task_done
     fi
     ;;

@@ -4,12 +4,12 @@
     name: codex
     state: present
 
-- name: "{{ role_name }} | MacOSX | Install | Add peon-ping Homebrew tap"
-  community.general.homebrew_tap:
-    name: peonping/tap
-    state: present
-
-- name: "{{ role_name }} | MacOSX | Install | peon-ping"
+- name: "{{ role_name }} | MacOSX | Remove legacy peon-ping"
   community.general.homebrew:
     name: peonping/tap/peon-ping
-    state: present
+    state: absent
+
+- name: "{{ role_name }} | MacOSX | Remove legacy peon-ping Homebrew tap"
+  community.general.homebrew_tap:
+    name: peonping/tap
+    state: absent

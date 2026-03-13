@@ -12,18 +12,12 @@ web_search = "live"
 model = "gpt-5.4"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"
-notify = [
-  "sh",
-  "-c",
-  'exec "$HOME/.codex/notify-peon.sh" "$1"',
-  "sh",
-]
 
 [features]
 guardian_approval = true
 multi_agent = true
 undo = true
-voice_transcription = true
+voice_transcription = false
 # # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
 # use_linux_sandbox_bwrap = true
 

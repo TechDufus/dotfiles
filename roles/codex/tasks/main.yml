@@ -14,113 +14,16 @@
     state: directory
     mode: "0755"
 
-- name: "{{ role_name }} | Configure | Link Peon notify wrapper"
+- name: "{{ role_name }} | Configure | Remove legacy Peon artifacts"
   ansible.builtin.file:
-    src: "{{ codex_notify_script_source }}"
-    dest: "{{ codex_notify_script_dest }}"
-    state: link
-    force: true
-  when: codex_peon_enabled
-
-- name: "{{ role_name }} | Configure | Ensure Peon data directories exist"
-  ansible.builtin.file:
-    path: "{{ codex_peon_dir }}"
-    state: directory
-    mode: "0755"
-  when: codex_peon_enabled
-
-- name: "{{ role_name }} | Configure | Install Peon config"
-  ansible.builtin.copy:
-    src: "{{ codex_peon_config_source }}"
-    dest: "{{ codex_peon_config_dest }}"
-    mode: "0644"
-  when: codex_peon_enabled
-
-- name: "{{ role_name }} | Configure | Check if peon is installed"
-  ansible.builtin.command: which peon
-  register: codex_peon_path_check
-  check_mode: false
-  changed_when: false
-  failed_when: false
-  when: codex_peon_enabled
-
-- name: "{{ role_name }} | Configure | Check for managed Peon install"
-  ansible.builtin.stat:
-    path: "{{ codex_peon_install_dir }}/peon.sh"
-  register: codex_peon_managed_install
-  when: codex_peon_enabled
-
-- name: "{{ role_name }} | Configure | Link Peon packs from managed install"
-  ansible.builtin.file:
-    src: "{{ codex_peon_install_dir }}/packs"
-    dest: "{{ codex_peon_dir }}/packs"
-    state: link
-    force: true
-  when:
-    - codex_peon_enabled
-    - codex_peon_managed_install.stat.exists
-
-- name: "{{ role_name }} | Configure | Ensure Peon packs directory exists"
-  ansible.builtin.file:
-    path: "{{ codex_peon_dir }}/packs"
-    state: directory
-    mode: "0755"
-  when:
-    - codex_peon_enabled
-    - not codex_peon_managed_install.stat.exists
-
-- name: "{{ role_name }} | Configure | Set Peon CLI argv"
-  ansible.builtin.set_fact:
-    codex_peon_cli_argv: >-
-      {{
-        ['/bin/bash', codex_peon_install_dir ~ '/peon.sh']
-        if codex_peon_managed_install.stat.exists
-        else ['peon']
-      }}
-  when:
-    - codex_peon_enabled
-    - codex_peon_managed_install.stat.exists or codex_peon_path_check.rc == 0
-
-- name: "{{ role_name }} | Configure | Check for default Peon pack"
-  ansible.builtin.stat:
-    path: "{{ codex_peon_dir }}/packs/{{ codex_peon_default_pack }}/openpeon.json"
-  register: codex_peon_default_pack_manifest
-  when:
-    - codex_peon_enabled
-    - codex_peon_cli_argv is defined
-
-- name: "{{ role_name }} | Configure | Install default Peon pack"
-  ansible.builtin.command:
-    argv: "{{ codex_peon_cli_argv + ['packs', 'install', codex_peon_default_pack] }}"
-  environment:
-    CLAUDE_PEON_DIR: "{{ codex_peon_dir }}"
-  register: codex_peon_pack_install
-  changed_when: codex_peon_pack_install.rc == 0
-  failed_when: false
-  when:
-    - codex_peon_enabled
-    - codex_peon_cli_argv is defined
-    - not codex_peon_default_pack_manifest.stat.exists
-
-- name: "{{ role_name }} | Configure | Warn when Peon is unavailable"
-  ansible.builtin.debug:
-    msg:
-      - "peon-ping is not installed for Codex"
-      - "Codex notifications will stay silent until peon-ping is installed"
-  when:
-    - codex_peon_enabled
-    - codex_peon_cli_argv is not defined
-
-- name: "{{ role_name }} | Configure | Warn when Peon pack install fails"
-  ansible.builtin.debug:
-    msg:
-      - "peon-ping pack install failed for {{ codex_peon_default_pack }}"
-      - "{{ codex_peon_pack_install.stderr | default(codex_peon_pack_install.stdout | default('no output')) }}"
-  when:
-    - codex_peon_enabled
-    - codex_peon_pack_install is defined
-    - not (codex_peon_pack_install.skipped | default(false))
-    - (codex_peon_pack_install.rc | default(0)) != 0
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ ansible_facts['env']['HOME'] }}/.codex/notify-peon.sh"
+    - "{{ ansible_facts['env']['HOME'] }}/.openpeon"
+    - "{{ ansible_facts['env']['HOME'] }}/.local/share/codex-peon"
+  loop_control:
+    label: "{{ item }}"
 
 - name: "{{ role_name }} | Skills | Ensure ~/.codex/skills directory exists"
   ansible.builtin.file:

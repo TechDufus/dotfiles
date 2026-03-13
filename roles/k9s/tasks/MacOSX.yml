@@ -4,6 +4,18 @@
     name: k9s
     state: present
 
+- name: "K9s | MacOSX | Ensure k9s config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/Library/Application Support/k9s"
+    state: directory
+    mode: "0755"
+
+- name: "K9s | MacOSX | Ensure k9s skins directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/Library/Application Support/k9s/skins"
+    state: directory
+    mode: "0755"
+
 - name: "K9s | Copy config"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/Library/Application Support/k9s/{{ item }}"

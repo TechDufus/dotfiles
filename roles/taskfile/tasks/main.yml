@@ -34,17 +34,28 @@
 
     - name: "TASKFILE | Calculate os config src"
       ansible.builtin.set_fact:
-        taskfile_os_config: "{{ taskfile_os_distribution_config if taskfile_os_distribution_config.stat.exists else taskfile_os_family_config }}"
+        taskfile_os_src: >-
+          {{
+            role_path ~ '/files/os/Taskfile_' ~ ansible_facts['distribution'] ~ '.yml'
+            if taskfile_os_distribution_config.stat.exists else
+            (
+              role_path ~ '/files/os/Taskfile_' ~ ansible_facts['os_family'] ~ '.yml'
+              if (
+                taskfile_os_family_config is defined and
+                taskfile_os_family_config.stat is defined and
+                taskfile_os_family_config.stat.exists
+              ) else ''
+            )
+          }}
 
-    - name: "TASKFILE | Copy custom bash config for os: {{ taskfile_os_config.stat.path | basename }}"
+    - name: "TASKFILE | Copy OS-specific Taskfile: {{ (taskfile_os_src | default('none', true)) | basename }}"
       ansible.builtin.copy:
         dest: "{{ ansible_facts['user_dir'] }}/Taskfile.yml"
-        src: "{{ taskfile_os_config.stat.path }}"
+        src: "{{ taskfile_os_src }}"
         mode: "0644"
         force: true
       when:
-        - taskfile_os_config is defined
-        - taskfile_os_config.stat.exists
+        - taskfile_os_src | length > 0
 
     - name: "TASKFILE | Mark Ansible-managed file."
       ansible.builtin.blockinfile:
@@ -54,7 +65,6 @@
         append_newline: true
         block: |
           # Ansible Managed File
-          # Original file: {{ taskfile_os_config.stat.path | basename }}
+          # Original file: {{ taskfile_os_src | basename }}
       when:
-        - taskfile_os_config is defined
-        - taskfile_os_config.stat.exists
+        - taskfile_os_src | length > 0

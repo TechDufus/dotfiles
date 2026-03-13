@@ -1,8 +1,9 @@
 return {
   "nvim-treesitter/nvim-treesitter",
+  branch = "master",
   build = ":TSUpdate",
   event = {"BufReadPre", "BufNewFile"},
-  keymaps = {
+  keys = {
     { "n", "<leader>it", ":InspectTree<CR>" },
   },
   dependencies = {
@@ -10,12 +11,12 @@ return {
   },
   config = function()
     require('nvim-treesitter.configs').setup({
-      -- A list of parser names, or "all"
-      ensure_installed = "all",
+      -- Install parsers on demand instead of trying to compile every parser at startup.
+      ensure_installed = {},
       -- Ignore parsers that are known to have issues
       ignore_install = { "ipkg" },
       -- Install parsers synchronously (only applied to `ensure_installed`)
-      sync_install = true,
+      sync_install = false,
       -- Automatically install missing parsers when entering buffer
       -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
       auto_install = true,

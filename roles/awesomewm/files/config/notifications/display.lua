@@ -112,6 +112,12 @@ function M.init()
         -- Get app-specific settings
         local settings = get_app_settings(args.app_name)
 
+        -- App-level urgency overrides are authoritative. This keeps noisy apps
+        -- from punching through with misleading urgency values.
+        if settings.urgency then
+            args.urgency = settings.urgency
+        end
+
         -- Apply settings to notification args
         if settings.timeout and not args.timeout then
             args.timeout = settings.timeout

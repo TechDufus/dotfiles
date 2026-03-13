@@ -137,35 +137,11 @@ else
   })
 end
 
-
-mylauncher = awful.widget.launcher({
-  image = beautiful.awesome_icon,
-  menu = mymainmenu
-})
-
 -- Menubar configuration
 menubar.utils.terminal = terminal -- Set the terminal for applications that require it
 -- }}}
 
 -- {{{ Wibar
--- Create taglist and tasklist button configurations
-local taglist_buttons = gears.table.join(
-  awful.button({}, 1, function(t) t:view_only() end),
-  awful.button({ modkey }, 1, function(t)
-    if client.focus then
-      client.focus:move_to_tag(t)
-    end
-  end),
-  awful.button({}, 3, awful.tag.viewtoggle),
-  awful.button({ modkey }, 3, function(t)
-    if client.focus then
-      client.focus:toggle_tag(t)
-    end
-  end),
-  awful.button({}, 4, function(t) awful.tag.viewnext(t.screen) end),
-  awful.button({}, 5, function(t) awful.tag.viewprev(t.screen) end)
-)
-
 local tasklist_buttons = gears.table.join(
   awful.button({}, 1, function(c)
     if c == client.focus then
@@ -238,7 +214,7 @@ awful.screen.connect_for_each_screen(function(s)
   awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
 
   -- Create the modern wibar with all widgets
-  wibar_config.create_wibar(s, taglist_buttons, tasklist_buttons, mymainmenu)
+  wibar_config.create_wibar(s, tasklist_buttons, mymainmenu)
 end)
 -- }}}
 
@@ -301,30 +277,30 @@ globalkeys = gears.table.join(
     end,
     { description = "restore minimized", group = "client" }),
 
-  -- Volume control keys using volume widget methods
+  -- Volume control keys routed through the active wibar controller
   awful.key({}, "XF86AudioRaiseVolume", function()
-    wibar_config.volume_widget:inc(5)
+    wibar_config.increase_volume(5)
   end, { description = "increase volume", group = "media" }),
 
   awful.key({}, "XF86AudioLowerVolume", function()
-    wibar_config.volume_widget:dec(5)
+    wibar_config.decrease_volume(5)
   end, { description = "decrease volume", group = "media" }),
 
   awful.key({}, "XF86AudioMute", function()
-    wibar_config.volume_widget:toggle()
+    wibar_config.toggle_volume()
   end, { description = "toggle mute", group = "media" }),
 
   awful.key({}, "XF86AudioMicMute", function()
     awful.spawn("pactl set-source-mute @DEFAULT_SOURCE@ toggle")
   end, { description = "toggle mic mute", group = "media" }),
 
-  -- Brightness control keys using brightness widget methods
+  -- Brightness control keys routed through the active wibar controller
   awful.key({}, "XF86MonBrightnessUp", function()
-    wibar_config.brightness_widget:inc()
+    wibar_config.increase_brightness()
   end, { description = "increase brightness", group = "media" }),
 
   awful.key({}, "XF86MonBrightnessDown", function()
-    wibar_config.brightness_widget:dec()
+    wibar_config.decrease_brightness()
   end, { description = "decrease brightness", group = "media" }),
 
   -- Media control keys

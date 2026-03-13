@@ -51,4 +51,3 @@ args = ["-y", "@playwright/mcp@latest"]
 environment = "dev"
 log_user_prompt = true
 trace_exporter = "none"
-

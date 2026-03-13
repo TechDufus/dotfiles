@@ -7,6 +7,9 @@ Install and configure the OpenAI Codex CLI with version-controlled user memory.
 - Installs or upgrades `codex`:
   - macOS: Homebrew cask (`codex`)
   - Linux (Ubuntu/Fedora/Arch): compares installed version to latest GitHub release and installs `~/.local/bin/codex` when missing or outdated
+- Installs `peon-ping` notifications:
+  - macOS: Homebrew formula from `peonping/tap`
+  - Ubuntu: upstream installer script
 - Ensures `~/.codex/AGENTS.md` is a symlink to `roles/codex/files/AGENTS.md`
 - Ensures `~/.codex/config.toml` is a symlink to `roles/codex/files/config.toml`
 - Symlinks custom skills from `roles/codex/files/skills/` into `~/.codex/skills/`

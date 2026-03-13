@@ -4,7 +4,12 @@
     name: codex
     state: present
 
+- name: "{{ role_name }} | MacOSX | Install | Add peon-ping Homebrew tap"
+  community.general.homebrew_tap:
+    name: peonping/tap
+    state: present
+
 - name: "{{ role_name }} | MacOSX | Install | peon-ping"
   community.general.homebrew:
-    name: peon-ping
+    name: peonping/tap/peon-ping
     state: present

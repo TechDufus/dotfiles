@@ -1,7 +1,10 @@
 local awful = require("awful")
+local only_on_screen = require("awful.widget.only_on_screen")
 local wibox = require("wibox")
 
 local ai_usage_widget = require("ai-usage-widget")
+local user_config = require("cell-management.config")
+local screen_helpers = require("cell-management.helpers")
 local clock = require("widgets.clock")
 local controller = require("widgets.controller")
 local dnd = require("widgets.dnd")
@@ -13,6 +16,62 @@ local system = require("widgets.system")
 local tasklist = require("widgets.tasklist")
 
 local M = {}
+local systray = wibox.widget.systray()
+local systray_sections = setmetatable({}, { __mode = "k" })
+
+local function configured_systray_target()
+    return user_config.systray_screen or "primary"
+end
+
+local function resolve_output_screen(output_name)
+    for index = 1, screen.count() do
+        local screen_obj = screen[index]
+        for _, candidate in ipairs(screen_helpers.get_screen_output_names(screen_obj)) do
+            if candidate == output_name then
+                return screen_obj
+            end
+        end
+    end
+
+    return nil
+end
+
+local function resolve_systray_screen()
+    local target = configured_systray_target()
+
+    if target == nil or target == "primary" then
+        return "primary"
+    end
+
+    if type(target) == "number" then
+        return screen[target] or "primary"
+    end
+
+    if type(target) == "string" then
+        local screen_index = target:match("^screen:(%d+)$")
+        if screen_index then
+            return screen[tonumber(screen_index)] or "primary"
+        end
+
+        return resolve_output_screen(target) or "primary"
+    end
+
+    return "primary"
+end
+
+local function sync_systray_target()
+    local target_screen = resolve_systray_screen()
+    local dpi_screen = target_screen == "primary" and awful.screen.primary or target_screen
+
+    systray:set_screen(target_screen)
+    if dpi_screen then
+        systray:set_base_size(shared.screen_dpi(16, dpi_screen))
+    end
+
+    for systray_section in pairs(systray_sections) do
+        systray_section:set_screen(target_screen)
+    end
+end
 
 function M.increase_volume(step)
     controller.increase_volume(step)
@@ -36,6 +95,19 @@ end
 
 function M.create_wibar(screen_obj, tasklist_buttons, mainmenu)
     local screen_spacing = shared.screen_spacing(screen_obj)
+    local systray_section = only_on_screen(
+        wibox.widget {
+            layout = wibox.layout.fixed.horizontal,
+            shared.create_spacer(screen_spacing.section),
+            {
+                systray,
+                valign = "center",
+                widget = wibox.container.place,
+            },
+            shared.create_spacer(screen_spacing.section),
+        },
+        "primary"
+    )
 
     screen_obj.mypromptbox = awful.widget.prompt()
     screen_obj.mytasklist = tasklist.create(screen_obj, tasklist_buttons, shared)
@@ -51,12 +123,7 @@ function M.create_wibar(screen_obj, tasklist_buttons, mainmenu)
     }
 
     controller.register(screen_obj, widgets.media.controls)
-
-    local systray = nil
-    if screen_obj == awful.screen.primary then
-        systray = wibox.widget.systray()
-        systray:set_base_size(shared.screen_dpi(16, screen_obj))
-    end
+    systray_sections[systray_section] = true
 
     screen_obj.mywibox = awful.wibar({
         position = "top",
@@ -103,13 +170,7 @@ function M.create_wibar(screen_obj, tasklist_buttons, mainmenu)
                 widgets.media.volume,
                 shared.create_spacer(screen_spacing.widget),
                 widgets.ai,
-                systray and shared.create_spacer(screen_spacing.section) or nil,
-                systray and {
-                    systray,
-                    valign = "center",
-                    widget = wibox.container.place,
-                } or nil,
-                systray and shared.create_spacer(screen_spacing.section) or nil,
+                systray_section,
                 widgets.dnd,
                 shared.create_spacer(screen_spacing.widget),
                 widgets.clock,
@@ -119,6 +180,12 @@ function M.create_wibar(screen_obj, tasklist_buttons, mainmenu)
             },
         },
     }
+
+    sync_systray_target()
 end
+
+screen.connect_signal("primary_changed", sync_systray_target)
+screen.connect_signal("list", sync_systray_target)
+screen.connect_signal("property::outputs", sync_systray_target)
 
 return M

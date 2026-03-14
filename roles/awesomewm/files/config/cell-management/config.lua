@@ -18,6 +18,11 @@ M.hyper = { 'Shift', 'Mod4', 'Mod1', 'Control' }
 -- }
 M.screen_layouts = {}
 
+-- Optional systray target.
+-- Accepts "primary" (default), an XRandR output name like "DP-1",
+-- or "screen:<index>".
+M.systray_screen = "primary"
+
 -- Virtual grid dimensions (resolution-independent)
 M.grid = {
   width = 80,

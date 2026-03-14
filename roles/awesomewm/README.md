@@ -311,11 +311,14 @@ M.screen_layouts = {
   ["screen:2"] = "Fullscreen", -- Fallback if output names are unstable
   primary = "4K Workspace",    -- Optional default for the primary screen
 }
+
+M.systray_screen = "DP-1"      -- Optional systray target; defaults to "primary"
 ```
 
 Notes:
 - Output-name keys are matched before `primary` and `screen:<index>`.
 - If no explicit mapping matches, Awesome falls back to resolution-based selection.
+- The systray target accepts the same output-name / `screen:<index>` style and falls back to the current primary screen if the configured target is unavailable.
 - `Hyper + p` and `Hyper + ;` now operate on the focused monitor only.
 - `Super + o` and `Super + Shift + o` move the focused client between monitors and re-snap it using the target monitor's active layout.
 - Use `xrandr --query` to find output names such as `DP-1`, `HDMI-1`, or `eDP-1`.

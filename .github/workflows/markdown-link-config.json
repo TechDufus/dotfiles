@@ -2,6 +2,15 @@
   "ignorePatterns": [
     {
       "pattern": "^http://localhost"
+    },
+    {
+      "pattern": "^https://www.freedesktop.org"
+    },
+    {
+      "pattern": "^https://goreleaser.com"
+    },
+    {
+      "pattern": "^https://wttr.in"
     }
   ],
   "replacementPatterns": [

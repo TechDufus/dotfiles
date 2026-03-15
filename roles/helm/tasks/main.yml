@@ -8,9 +8,34 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
-- name: Helm | Add Helm Repos
-  kubernetes.core.helm_repository:
-    name: "{{ item.name }}"
-    url: "{{ item.url }}"
-    repo_state: present
-  loop: "{{ helm.repos }}"
+- name: Helm | List configured repos
+  ansible.builtin.command:
+    argv:
+      - helm
+      - repo
+      - list
+      - --output
+      - yaml
+  register: helm_repo_list
+  changed_when: false
+  when: (helm.repos | default([])) | length > 0
+
+- name: Helm | Build configured repo map
+  ansible.builtin.set_fact:
+    helm_configured_repos: "{{ (helm_repo_list.stdout | default('[]') | from_yaml | default([], true)) | items2dict(key_name='name', value_name='url') }}"
+  when: (helm.repos | default([])) | length > 0
+
+- name: Helm | Add Helm repos
+  ansible.builtin.command:
+    argv:
+      - helm
+      - repo
+      - add
+      - "{{ item.name }}"
+      - "{{ item.url }}"
+      - --force-update
+  loop: "{{ helm.repos | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - (helm_configured_repos | default({})).get(item.name, '') | regex_replace('/+$', '') != item.url | regex_replace('/+$', '')

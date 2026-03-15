@@ -12,12 +12,13 @@ web_search = "live"
 model = "gpt-5.4"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"
+suppress_unstable_features_warning = true
 
 [features]
 guardian_approval = true
 multi_agent = true
 undo = true
-voice_transcription = false
+voice_transcription = true
 # # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
 # use_linux_sandbox_bwrap = true
 
@@ -35,8 +36,8 @@ status_line = ["model-with-reasoning", "git-branch", "current-dir", "context-use
 theme = "catppuccin-mocha"
 
 [mcp_servers.playwright]
-command = "npx"
-args = ["-y", "@playwright/mcp@latest"]
+command = "bunx"
+args = ["@playwright/mcp@latest"]
 
 # Export Codex telemetry to OpenMonitor.
 # NOTE: Codex v0.106.0 does not interpolate env vars in [otel] fields.

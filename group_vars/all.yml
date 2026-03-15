@@ -38,7 +38,7 @@ default_roles:
   - obsidian
   - opencode
   - podman
-  - pwsh
+  # - pwsh
   - python
   - raycast
   # - ruby

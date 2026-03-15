@@ -14,17 +14,6 @@
     state: directory
     mode: "0755"
 
-- name: "{{ role_name }} | Configure | Remove legacy Peon artifacts"
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "{{ ansible_facts['env']['HOME'] }}/.codex/notify-peon.sh"
-    - "{{ ansible_facts['env']['HOME'] }}/.openpeon"
-    - "{{ ansible_facts['env']['HOME'] }}/.local/share/codex-peon"
-  loop_control:
-    label: "{{ item }}"
-
 - name: "{{ role_name }} | Skills | Ensure ~/.codex/skills directory exists"
   ansible.builtin.file:
     path: "{{ codex_skills_dest }}"

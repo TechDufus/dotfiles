@@ -1,6 +1,6 @@
 # 🤖 OpenCode Role
 
-Ansible role for installing and configuring [OpenCode](https://opencode.ai) - an AI-powered terminal assistant that brings Claude to your command line with custom commands, scripts, and workflow automation.
+Ansible role for installing and configuring [OpenCode](https://opencode.ai) with `oh-my-opencode` - an AI-powered terminal assistant with custom commands, scripts, and workflow automation.
 
 ## Overview
 
@@ -29,16 +29,18 @@ The role creates symlinks from the repository to your home directory, maintainin
 graph LR
     A[Role Files] -->|symlink| B[~/.config/opencode/]
     B --> C[opencode.json]
-    B --> D[scripts/]
-    B --> E[command/]
-    B --> F[AGENTS.md]
+    B --> D[oh-my-opencode.json]
+    B --> E[scripts/]
+    B --> F[command/]
+    B --> G[AGENTS.md]
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style B fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 **Deployed Files:**
-- `~/.config/opencode/opencode.json` - Main configuration with permissions, keybinds, and command templates
+- `~/.config/opencode/opencode.json` - Main configuration with model, provider, permission, and plugin defaults
+- `~/.config/opencode/oh-my-opencode.json` - Plugin-specific overrides for `oh-my-opencode`
 - `~/.config/opencode/scripts/` - GitHub workflow automation scripts
 - `~/.config/opencode/command/` - Custom slash command markdown templates
 - `~/.config/opencode/AGENTS.md` - Global agent behavior and engineering standards
@@ -91,11 +93,11 @@ Built-in command templates accessible via `/command-name`:
 
 ### 🎯 Engineering Standards
 
-The `AGENTS.md` file enforces:
-- Staff-level technical discourse (no platitudes)
-- Conventional commit format validation
-- Clear communication standards (no fluff, active voice)
-- Security-first mindset with pushback requirements
+The `AGENTS.md` file keeps OpenCode aligned with the same minimal operating principles used for Codex:
+- Direct, technical communication
+- Evidence-based reasoning with explicit uncertainty
+- Strong boundaries around secrets, fake certainty, and unrequested commits
+- Pragmatic pushback when constraints hurt quality or safety
 
 ## Configuration Management
 
@@ -111,17 +113,15 @@ Existing configurations are automatically backed up before symlink creation:
 
 ### Model Configuration
 
-Default model set to Claude Sonnet 4.5:
+The repo-level OpenCode default is `openai/gpt-5.4`, while `oh-my-opencode` handles its own agent-specific model routing:
 ```json
 {
-  "model": "anthropic/claude-sonnet-4-5",
+  "model": "openai/gpt-5.4",
   "autoupdate": true
 }
 ```
 
-### Keybindings
-
-- `alt+enter` - Insert newline in input (multi-line prompts)
+The plugin's current upstream repository is `code-yeongyu/oh-my-openagent`, but the published npm package name remains `oh-my-opencode`.
 
 ## Workflow Architecture
 
@@ -217,8 +217,9 @@ roles/opencode/
 ## Links
 
 - [OpenCode Official Site](https://opencode.ai)
-- [OpenCode GitHub](https://github.com/sst/opencode)
-- [Claude API Documentation](https://docs.anthropic.com)
+- [OpenCode GitHub](https://github.com/anomalyco/opencode)
+- [oh-my-opencode GitHub](https://github.com/code-yeongyu/oh-my-openagent)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
 - [Conventional Commits](https://www.conventionalcommits.org)
 
 ## Notes

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Work Router"
+  short_description: "Coordinate non-trivial work"
+  default_prompt: "Use $work to classify this task and choose the right execution mode."

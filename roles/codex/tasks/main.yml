@@ -26,7 +26,6 @@
     file_type: any
     recurse: false
   register: codex_skill_root_entries
-  when: codex_cleanup_legacy_official_skills
 
 - name: "{{ role_name }} | Skills | Stat top-level skill entries"
   ansible.builtin.stat:
@@ -38,7 +37,6 @@
     label: "{{ codex_skill_root_entry.path | basename }}"
   register: codex_skill_root_entry_stats
   when:
-    - codex_cleanup_legacy_official_skills
     - codex_skill_root_entry.path | basename != ".system"
 
 - name: "{{ role_name }} | Skills | Remove legacy managed official skill symlinks"
@@ -82,6 +80,29 @@
   when:
     - codex_skills_source_directory.stat.exists
     - codex_skills_source_directory.stat.isdir
+
+- name: "{{ role_name }} | Skills | Validate managed custom skills"
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "{{ role_path }}/files/scripts/validate_skills.py"
+      - "{{ codex_skills_source }}"
+  changed_when: false
+  when: codex_skill_names is defined
+
+- name: "{{ role_name }} | Skills | Remove stale managed custom skill symlinks"
+  ansible.builtin.file:
+    path: "{{ item.stat.path }}"
+    state: absent
+  loop: "{{ codex_skill_root_entry_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.stat.path | basename }}"
+  when:
+    - codex_skill_names is defined
+    - item.stat.exists
+    - item.stat.islnk
+    - item.stat.lnk_source | default('') | regex_search('^' ~ (codex_skills_source | regex_escape) ~ '/') is not none
+    - (item.stat.path | basename) not in (codex_skill_names | default([]))
 
 - name: "{{ role_name }} | Skills | Check custom skill destination paths"
   ansible.builtin.stat:

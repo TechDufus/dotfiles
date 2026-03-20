@@ -1,6 +1,8 @@
 ---
 name: intent
 description: Extract the underlying intent behind a request, issue, PR, or diff. Focus on problem and desired outcome; do not propose implementation, testing strategy, or rollout plans.
+metadata:
+  short-description: Extract the underlying request intent
 ---
 
 # Intent

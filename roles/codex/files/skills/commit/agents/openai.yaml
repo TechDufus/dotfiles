@@ -1,4 +1,4 @@
 interface:
   display_name: "Commit"
   short_description: "Create a conventional commit from repo changes"
-  default_prompt: "Use $commit to stage changes if needed, generate a conventional commit message, and commit."
+  default_prompt: "Use $commit to commit staged changes, or use --all when the user explicitly wants all current changes staged first."

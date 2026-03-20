@@ -10,7 +10,9 @@ Install and configure the OpenAI Codex CLI with version-controlled user memory.
 - Ensures `~/.codex/AGENTS.md` is a symlink to `roles/codex/files/AGENTS.md`
 - Ensures `~/.codex/config.toml` is a symlink to `roles/codex/files/config.toml`
 - Symlinks custom skills from `roles/codex/files/skills/` into `~/.codex/skills/`
+- Validates repo-managed custom skills before symlinking them into `~/.codex/skills/`
 - Optionally cleans up legacy official-skill symlinks/cache from older role versions
+- Removes stale managed custom-skill symlinks that no longer exist in dotfiles
 - Backs up a pre-existing non-symlink `~/.codex/AGENTS.md` to `~/.codex/AGENTS.md.backup`
 - Backs up a pre-existing non-symlink `~/.codex/config.toml` to `~/.codex/config.toml.backup`
 
@@ -46,6 +48,15 @@ The role symlinks each directory into `~/.codex/skills/<skill-name>`.
 
 Built-in `.system` skills are provided by Codex and do not need to be managed by this role.
 
+Current repo-managed skills:
+
+| Skill | Purpose |
+|------|---------|
+| `commit` | Safe conventional commit workflow |
+| `intent` | Extract intent and non-goals from requests, issues, PRs, or diffs |
+| `rafty` | RAFT and Rafty CLI workflows |
+| `work` | Task routing and execution strategy for non-trivial engineering work |
+
 Example:
 
 ```text
@@ -54,6 +65,12 @@ roles/codex/files/skills/
     ├── SKILL.md
     ├── scripts/
     └── references/
+```
+
+Validate custom skills manually:
+
+```bash
+python3 roles/codex/files/scripts/validate_skills.py roles/codex/files/skills
 ```
 
 ## Listing Available Skills
@@ -76,6 +93,14 @@ List experimental skills:
 python3 ~/.codex/skills/.system/skill-installer/scripts/list-skills.py --path skills/.experimental
 ```
 
+Install a curated skill:
+
+```bash
+python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py --repo openai/skills --path skills/.curated/gh-fix-ci
+```
+
+Restart Codex after installing new skills so they are discovered.
+
 ## Files
 
 ```text
@@ -83,6 +108,7 @@ roles/codex/
 ├── defaults/main.yml
 ├── files/AGENTS.md
 ├── files/config.toml
+├── files/scripts/
 ├── files/skills/
 └── tasks/
     ├── main.yml

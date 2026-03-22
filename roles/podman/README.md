@@ -118,6 +118,64 @@ podman machine start
 open /Applications/Podman\ Desktop.app
 ```
 
+## 🧠 Machine Profiles On macOS
+
+This role installs Podman, but it does not create or resize Podman machines for you.
+
+That separation is intentional:
+
+- Machine resource sizing is host-specific
+- Podman on macOS requires a Linux VM
+- Only one Podman-managed VM can be active at a time
+- On newer macOS installs using the `libkrun` backend, changing CPU, memory, or disk on an existing machine is not the right workflow
+
+The recommended pattern is to create a small set of named machines manually per host and switch between them from your shell.
+
+The ZSH role now ships helper functions built around two profile names:
+
+- `podman-low`
+- `podman-high`
+
+Example creation flow:
+
+```bash
+# Low-spec machine for lighter workflows
+podman machine init --cpus 4 --memory 8192 --disk-size 120 podman-low
+
+# High-spec machine for heavier builds or local clusters
+podman machine init --cpus 8 --memory 32768 --disk-size 300 podman-high
+```
+
+You can pick different resource values on each host. The shell helpers only care about the names.
+
+Available helper commands:
+
+```bash
+p.setup    # create podman-low/podman-high if missing, using Podman defaults
+p.low      # stop current machine, start podman-low, switch default connection
+p.high     # stop current machine, start podman-high, switch default connection
+p.use foo  # switch to any existing machine name
+p.off      # stop the running machine
+p.current  # show current machine, resources, and active connection
+p.status   # show machine list plus current selection
+p.help     # show available Podman helper commands
+```
+
+If you want different profile names, override these environment variables before sourcing the helpers:
+
+```bash
+export PODMAN_MACHINE_LOW_NAME=my-low
+export PODMAN_MACHINE_HIGH_NAME=my-high
+```
+
+Recommended first-use flow:
+
+```bash
+p.setup
+```
+
+That command is idempotent. It only creates missing machines, and it creates them with Podman's defaults. If you want larger resources on a given host, keep the same names and recreate those machines manually with the CPU, memory, and disk values you want.
+
 ## 🏗️ Role Structure
 
 ```

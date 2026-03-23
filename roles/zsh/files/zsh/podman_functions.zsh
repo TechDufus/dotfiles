@@ -12,6 +12,7 @@ function __pm_usage() {
   echo -e "  ${CAT_YELLOW}p.high${NC}     ${CAT_SUBTEXT0}Start ${PODMAN_MACHINE_HIGH_NAME} and make it the active connection${NC}"
   echo -e "  ${CAT_YELLOW}p.use${NC}      ${CAT_SUBTEXT0}Switch to any existing machine name or logical profile${NC}"
   echo -e "  ${CAT_YELLOW}p.off${NC}      ${CAT_SUBTEXT0}Stop the currently running Podman machine${NC}"
+  echo -e "  ${CAT_YELLOW}p.stop${NC}     ${CAT_SUBTEXT0}Stop every running Podman machine${NC}"
   echo -e "  ${CAT_YELLOW}p.current${NC}  ${CAT_SUBTEXT0}Show the active machine, resources, and default connection${NC}"
   echo -e "  ${CAT_YELLOW}p.status${NC}   ${CAT_SUBTEXT0}Show machine list plus current active machine details${NC}"
   echo -e "  ${CAT_YELLOW}p.setup${NC}    ${CAT_SUBTEXT0}Ensure the low/high profile machines exist with Podman defaults${NC}"
@@ -51,6 +52,10 @@ function __pm_resolve_machine_name() {
 
 function __pm_running_machine() {
   podman machine list --format '{{range .}}{{if .Running}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null | head -n 1
+}
+
+function __pm_running_machines() {
+  podman machine list --format '{{range .}}{{if .Running}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null
 }
 
 function __pm_machine_exists() {
@@ -219,6 +224,28 @@ function p.off() {
   podman machine stop "$running"
 }
 
+function p.stop() {
+  emulate -L zsh
+
+  __pm_require_podman || return 1
+
+  local -a running_machines
+  local machine status=0
+
+  running_machines=(${(f)"$(__pm_running_machines)"})
+  if (( ${#running_machines[@]} == 0 )); then
+    echo -e "${ARROW} ${GREEN}No Podman machines are running${NC}"
+    return 0
+  fi
+
+  for machine in "${running_machines[@]}"; do
+    echo -e "${ARROW} ${GREEN}Stopping Podman machine:${NC} ${YELLOW}${machine}${NC}"
+    podman machine stop "$machine" || status=1
+  done
+
+  return "$status"
+}
+
 function p.current() {
   emulate -L zsh
 
@@ -291,39 +318,6 @@ function p.help() {
   __pm_usage
 }
 
-function pm.use() {
-  p.use "$@"
-}
-
-function pm.low() {
-  p.low "$@"
-}
-
-function pm.high() {
-  p.high "$@"
-}
-
-function pm.off() {
-  p.off "$@"
-}
-
-function pm.current() {
-  p.current "$@"
-}
-
-function pm.status() {
-  p.status "$@"
-}
-
-function pm.setup() {
-  p.setup "$@"
-}
-
-function pm.help() {
-  p.help "$@"
-}
-
 if [[ -n "$ZSH_VERSION" ]] && [[ -n "${functions[compdef]}" ]]; then
   compdef _p.use p.use
-  compdef _p.use pm.use
 fi

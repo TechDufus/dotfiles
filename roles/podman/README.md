@@ -156,6 +156,7 @@ p.low      # stop current machine, start podman-low, switch default connection
 p.high     # stop current machine, start podman-high, switch default connection
 p.use foo  # switch to any existing machine name
 p.off      # stop the running machine
+p.stop     # stop every running machine
 p.current  # show current machine, resources, and active connection
 p.status   # show machine list plus current selection
 p.help     # show available Podman helper commands

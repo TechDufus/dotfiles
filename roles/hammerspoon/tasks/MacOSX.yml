@@ -23,37 +23,89 @@
 
 - name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon exists"
   ansible.builtin.file:
-    name: "{{ ansible_facts['user_dir'] }}/.hammerspoon"
+    name: "{{ hammerspoon_config_dir }}"
     state: directory
     mode: "0755"
 
 - name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon/Spoons exists"
   ansible.builtin.file:
-    path: "{{ ansible_facts['user_dir'] }}/.hammerspoon/Spoons"
+    path: "{{ hammerspoon_spoons_dir }}"
     state: directory
     mode: "0755"
 
 - name: "Hammerspoon | MacOSX | Deploy Hammerspoon Configuration"
   ansible.builtin.copy:
     src: "config/"
-    dest: "{{ ansible_facts['user_dir'] }}/.hammerspoon"
+    dest: "{{ hammerspoon_config_dir }}"
     mode: "0644"
+
+- name: "Hammerspoon | MacOSX | Remove legacy top-level config modules"
+  ansible.builtin.file:
+    path: "{{ hammerspoon_config_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ hammerspoon_legacy_config_files }}"
 
 - name: "Hammerspoon | MacOSX | Download GridLayout.spoon"
   ansible.builtin.get_url:
-    url: "https://github.com/jesseleite/GridLayout.spoon/releases/latest/download/GridLayout.spoon.zip"
-    dest: "{{ ansible_facts['user_dir'] }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
+    url: "{{ hammerspoon_gridlayout_release_url }}"
+    dest: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon.zip"
     mode: "0644"
+
+- name: "Hammerspoon | MacOSX | Reset GridLayout.spoon bundle"
+  ansible.builtin.file:
+    path: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon"
+    state: absent
 
 - name: "Hammerspoon | MacOSX | Ensure ~/.hammerspoon/Spoons/GridLayout.spoon exists"
   ansible.builtin.file:
-    path: "{{ ansible_facts['user_dir'] }}/.hammerspoon/Spoons/GridLayout.spoon"
+    path: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon"
     state: directory
     mode: "0755"
 
 - name: "Hammerspoon | MacOSX | Install GridLayout.spoon"
   ansible.builtin.unarchive:
-    src: "{{ ansible_facts['user_dir'] }}/.hammerspoon/Spoons/GridLayout.spoon.zip"
-    dest: "{{ ansible_facts['user_dir'] }}/.hammerspoon/Spoons/GridLayout.spoon"
+    src: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon.zip"
+    dest: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon"
     remote_src: true
+
+- name: "Hammerspoon | MacOSX | Cleanup GridLayout.spoon archive"
+  ansible.builtin.file:
+    path: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon.zip"
+    state: absent
+
+- name: "Hammerspoon | MacOSX | Overlay local GridLayout multi-screen patch"
+  when: hammerspoon_gridlayout_overlay_enabled
+  ansible.builtin.copy:
+    src: "{{ hammerspoon_gridlayout_overlay_src }}"
+    dest: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon/helpers.lua"
     mode: "0644"
+
+- name: "Hammerspoon | MacOSX | Assert WorkspaceManager release URL is configured"
+  ansible.builtin.assert:
+    that:
+      - hammerspoon_workspacemanager_release_url | length > 0
+    fail_msg: "Set hammerspoon_workspacemanager_release_url to a WorkspaceManager.spoon release archive."
+
+- name: "Hammerspoon | MacOSX | Download WorkspaceManager.spoon release archive"
+  ansible.builtin.get_url:
+    url: "{{ hammerspoon_workspacemanager_release_url }}"
+    dest: "{{ hammerspoon_spoons_dir }}/WorkspaceManager.spoon.zip"
+    mode: "0644"
+
+- name: "Hammerspoon | MacOSX | Install WorkspaceManager.spoon release archive"
+  block:
+    - name: "Hammerspoon | MacOSX | Reset WorkspaceManager.spoon bundle"
+      ansible.builtin.file:
+        path: "{{ hammerspoon_spoons_dir }}/WorkspaceManager.spoon"
+        state: absent
+
+    - name: "Hammerspoon | MacOSX | Install WorkspaceManager.spoon release archive"
+      ansible.builtin.unarchive:
+        src: "{{ hammerspoon_spoons_dir }}/WorkspaceManager.spoon.zip"
+        dest: "{{ hammerspoon_spoons_dir }}"
+        remote_src: true
+
+- name: "Hammerspoon | MacOSX | Cleanup WorkspaceManager.spoon archive"
+  ansible.builtin.file:
+    path: "{{ hammerspoon_spoons_dir }}/WorkspaceManager.spoon.zip"
+    state: absent

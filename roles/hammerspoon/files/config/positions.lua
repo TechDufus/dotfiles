@@ -37,6 +37,13 @@ return {
     float_center = '10,4 60x32',     -- Large centered float (utilities)
   },
 
+  stack = {
+    top    = '0,0 80x20',
+    bottom = '0,20 80x20',
+    center = '10,4 60x32',
+    full   = '0,0 80x40',
+  },
+
   -- 4K Monitor layout (3840x2160)
   -- Grid-based positioning (80x40 grid)
   fourk = {

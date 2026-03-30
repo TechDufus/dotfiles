@@ -1,0 +1,19 @@
+---
+hammerspoon_config_dir: "{{ ansible_facts['user_dir'] }}/.hammerspoon"
+hammerspoon_spoons_dir: "{{ hammerspoon_config_dir }}/Spoons"
+hammerspoon_legacy_config_files:
+  - grid.lua
+  - screens.lua
+  - summon.lua
+  - workspaces.lua
+
+# GridLayout installs from GitHub Releases, but the latest tagged archive still
+# predates PR #7 (merged Mar 28, 2026), so keep the local helpers.lua overlay
+# enabled until a newer release contains that screen-aware cell support.
+hammerspoon_gridlayout_release_url: "https://github.com/jesseleite/GridLayout.spoon/releases/latest/download/GridLayout.spoon.zip"
+hammerspoon_gridlayout_overlay_enabled: true
+hammerspoon_gridlayout_overlay_src: "spoons/GridLayout.spoon/helpers.lua"
+
+# WorkspaceManager now publishes release artifacts, so install it directly from
+# GitHub Releases instead of vendoring a local snapshot in this repo.
+hammerspoon_workspacemanager_release_url: "https://github.com/TechDufus/WorkspaceManager.spoon/releases/latest/download/WorkspaceManager.spoon.zip"

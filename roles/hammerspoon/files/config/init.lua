@@ -26,8 +26,8 @@ require('helpers')
 
 positions = require('positions')
 apps  = require('apps')
-layouts = require('layouts')
-summon = require('summon')
+local layouts = require('layouts')
+local screenLayouts = require('screen_layouts')
 chain = require('chain')
 require('karabiner').start()
 
@@ -47,7 +47,9 @@ local macros = {
   g = function() hs.eventtap.keyStroke(Hyper, 'g') end, -- gif search (raycast)
 }
 
-local macroModal = registerModalBindings(nil, 'f16', macros, true)
+local macroModal = registerTransientLeader(nil, 'f16', macros, {
+  timeoutSeconds = 1,
+})
 
 --------------------------------------------------------------------------------
 -- Summon Specific Apps
@@ -60,93 +62,82 @@ local summonModalBindings = tableFlip(hs.fnutils.map(apps, function(app)
   return app.summon
 end))
 
-local summonModal = registerModalBindings(nil, 'f13', hs.fnutils.map(summonModalBindings, function(app)
-  return function() summon(app) end
-end), true)
-
--- Double-tap detection: F13 pressed while summon modal is open -> switch to macro modal
-summonModal:bind('', 'f13', function()
-  summonModal:exit()
-  macroModal:enter()
-end)
-
 --------------------------------------------------------------------------------
 -- Window Management
 --------------------------------------------------------------------------------
 -- a     unhide [a]ll application windows
--- p     [p]ick layout
--- u     warp [u]nder another window cell
--- ;     toggle alternate layout
--- '     reset layout
+-- p     [p]ick layout for focused screen
+-- ;     toggle alternate layout variant on focused screen
+-- '     reset focused screen layout overrides
+-- cmd+u bind focused window to a cell on the active screen
+-- cmd+o move focused window to next screen
+-- cmd+O move focused window to previous screen
 
 hs.window.animationDuration = 0
+-- Terminal-like apps resize in discrete steps; this avoids bad frames at screen edges.
+hs.window.setFrameCorrectness = true
 
 local layout = hs.loadSpoon('GridLayout')
     :start()
-    :setLayouts(layouts)
     :setApps(apps)
     :setGrid(positions.full_grid)
     :setMargins('5x5')
 
-local function isBuiltInDisplay(screen)
-  local name = ((screen and screen:name()) or ''):lower()
-  return name:find('built%-in', 1, false) ~= nil
+local workspaceManager = hs.loadSpoon('WorkspaceManager')
+    :start({
+      layoutEngine = layout,
+      apps = apps,
+      layouts = layouts,
+      screenLayouts = screenLayouts,
+    })
+    :apply()
+
+local summonModal = registerTransientLeader(nil, 'f13', hs.fnutils.map(summonModalBindings, function(app)
+  return function() workspaceManager:summon(app) end
+end), {
+  timeoutSeconds = 1,
+})
+
+function macroModal:onEnter()
+  summonModal:exit()
 end
 
-local function selectDefaultLayout()
-  local screen = hs.screen.primaryScreen()
-  if not screen then
-    return
-  end
-
-  local mode = screen:currentMode()
-  local aspectRatio = mode.w / math.max(mode.h, 1)
-  local layoutIndex
-
-  if isBuiltInDisplay(screen) then
-    layoutIndex = 2  -- Fullscreen for the internal display
-  elseif mode.w >= 5000 or aspectRatio >= 2.8 then
-    layoutIndex = 4  -- Ultrawide workspace
-  elseif mode.w >= 3840 or mode.h >= 2160 then
-    layoutIndex = 1  -- 4K workspace
-  else
-    layoutIndex = 3  -- Standard external monitor
-  end
-
-  layout:selectLayout(layoutIndex)
+function summonModal:onEnter()
+  macroModal:exit()
 end
 
-local pendingLayoutSelection = nil
-
-local function scheduleLayoutSelection(delaySeconds)
-  if pendingLayoutSelection then
-    pendingLayoutSelection:stop()
-    pendingLayoutSelection = nil
-  end
-
-  pendingLayoutSelection = hs.timer.doAfter(delaySeconds or 0, function()
-    pendingLayoutSelection = nil
-    selectDefaultLayout()
-  end)
+-- Double-tap detection: F13 pressed while summon modal is open -> switch to macro modal
+function summonModal:onRepeat()
+  macroModal:enter()
 end
-
-scheduleLayoutSelection(0)
-
-hs.screen.watcher.new(function()
-  scheduleLayoutSelection(1)
-end):start()
 
 local windowManagementBindings = {
   ['a'] = function() hs.application.frontmostApplication():focus() end,
-  ['p'] = layout.selectLayout,
-  ['u'] = layout.bindToCell,
-  [';'] = layout.selectNextVariant,
-  ["'"] = layout.resetLayout,
+  ['p'] = function() workspaceManager:showLayoutPicker() end,
+  [';'] = function() workspaceManager:selectNextVariant() end,
+  ["'"] = function() workspaceManager:resetLayout() end,
 }
 
 registerKeyBindings(Hyper, hs.fnutils.map(windowManagementBindings, function(fn)
   return function() fn() end
 end))
+
+registerKeyBindings(lilHyper, {
+  ['o'] = function() workspaceManager:moveFocusedWindowToNextScreen() end,
+})
+
+registerKeyBindings(Hyper, {
+  ['o'] = function() workspaceManager:moveFocusedWindowToPreviousScreen() end,
+})
+
+registerKeyBindings({ 'cmd' }, {
+  ['u'] = function() workspaceManager:bindFocusedWindowToCell() end,
+  ['o'] = function() workspaceManager:moveFocusedWindowToNextScreen() end,
+})
+
+registerKeyBindings({ 'shift', 'cmd' }, {
+  ['o'] = function() workspaceManager:moveFocusedWindowToPreviousScreen() end,
+})
 
 
 -- --------------------------------------------------------------------------------

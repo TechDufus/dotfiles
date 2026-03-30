@@ -73,23 +73,21 @@ end
 -- Modal Helpers
 --------------------------------------------------------------------------------
 
-function activateModal(mods, key, timeout)
-  timeout = timeout or false
+function activateModal(mods, key, timeoutSeconds)
   local modal = hs.hotkey.modal.new(mods, key)
-  local timer = hs.timer.new(1, function() modal:exit() end)
+  local hasTimeout = type(timeoutSeconds) == 'number' and timeoutSeconds > 0
+  local timer = hasTimeout and hs.timer.new(timeoutSeconds, function() modal:exit() end) or nil
   modal:bind('', 'escape', nil, function() modal:exit() end)
   modal:bind('ctrl', 'c', nil, function() modal:exit() end)
   function modal:entered()
-    if timeout then
+    if timer then
       timer:start()
     end
-    print('modal entered')
   end
   function modal:exited()
-    if timeout then
+    if timer then
       timer:stop()
     end
-    print('modal exited')
   end
   return modal
 end
@@ -115,14 +113,164 @@ function registerKeyBindings(mods, bindings)
   end
 end
 
-function registerModalBindings(mods, key, bindings, exitAfter)
+function registerModalBindings(mods, key, bindings, exitAfter, timeoutSeconds)
   exitAfter = exitAfter or false
-  local timeout = exitAfter == true
-  local modal = activateModal(mods, key, timeout)
+  local modal = activateModal(mods, key, timeoutSeconds)
   for modalKey,binding in pairs(bindings) do
     modalBind(modal, modalKey, binding, exitAfter)
   end
   return modal
+end
+
+function registerTransientLeader(mods, key, bindings, options)
+  options = options or {}
+
+  local timeoutSeconds = options.timeoutSeconds or 1
+  local leader = {
+    _active = false,
+    _tap = nil,
+    _timer = nil,
+    _triggerTap = nil,
+  }
+
+  local function debugEnabled()
+    return options.debug == true or hs.settings.get('leader_debug') == true
+  end
+
+  local function debugLog(message)
+    if not debugEnabled() then
+      return
+    end
+
+    hs.printf('leader[%s] %s', key, message)
+  end
+
+  local function flagsMatch(actualFlags)
+    local expectedFlags = {}
+    for _, flag in ipairs(mods or {}) do
+      expectedFlags[flag] = true
+    end
+
+    -- Function-key triggers often report fn=true even when the user did not
+    -- press Fn explicitly. Ignore that noise for leader matching.
+    for _, flag in ipairs({ 'cmd', 'alt', 'shift', 'ctrl' }) do
+      if (actualFlags[flag] or false) ~= (expectedFlags[flag] or false) then
+        return false
+      end
+    end
+
+    return true
+  end
+
+  local function stop()
+    if leader._timer then
+      leader._timer:stop()
+      leader._timer = nil
+    end
+
+    if leader._tap then
+      leader._tap:stop()
+      leader._tap = nil
+    end
+
+    if leader._active then
+      leader._active = false
+      if leader.onExit then
+        leader:onExit()
+      end
+      debugLog('exit')
+    end
+
+    return leader
+  end
+
+  local function dispatch(binding)
+    if not binding then
+      return false
+    end
+
+    hs.timer.doAfter(0, binding)
+    return true
+  end
+
+  function leader:isActive()
+    return leader._active
+  end
+
+  function leader:exit()
+    return stop()
+  end
+
+  function leader:enter()
+    stop()
+
+    if leader.onEnter then
+      leader:onEnter()
+    end
+
+    leader._active = true
+
+    if timeoutSeconds and timeoutSeconds > 0 then
+      leader._timer = hs.timer.doAfter(timeoutSeconds, stop)
+    end
+
+    leader._tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(event)
+      local keyName = hs.keycodes.map[event:getKeyCode()]
+      local flags = event:getFlags()
+
+      if not keyName then
+        stop()
+        return false
+      end
+
+      if keyName == key then
+        stop()
+        if leader.onRepeat then
+          hs.timer.doAfter(0, function()
+            leader:onRepeat()
+          end)
+        end
+        return true
+      end
+
+      if keyName == 'escape' or (flags.ctrl and keyName == 'c') then
+        stop()
+        return true
+      end
+
+      stop()
+      return dispatch(bindings[keyName])
+    end):start()
+
+    debugLog('enter')
+    return leader
+  end
+
+  leader._triggerTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(event)
+    local keyName = hs.keycodes.map[event:getKeyCode()]
+    local flags = event:getFlags()
+
+    if keyName ~= key or not flagsMatch(flags) then
+      return false
+    end
+
+    if leader._active then
+      stop()
+      if leader.onRepeat then
+        hs.timer.doAfter(0, function()
+          leader:onRepeat()
+        end)
+      else
+        leader:enter()
+      end
+      return true
+    end
+
+    leader:enter()
+    return true
+  end):start()
+
+  return leader
 end
 
 

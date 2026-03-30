@@ -6,7 +6,8 @@ model_reasoning_effort = "xhigh"
 # model_reasoning_summary = "detailed"
 # model_verbosity = "high"
 approval_policy = "on-request"
-sandbox_mode = "workspace-write"
+sandbox_mode = "danger-full-access"
+sandbox_workspace_write.network_access = true
 web_search = "live"
 # tool_output_token_limit = 120000
 model = "gpt-5.4"
@@ -47,3 +48,12 @@ args = ["@playwright/mcp@latest"]
 environment = "dev"
 log_user_prompt = true
 trace_exporter = "none"
+
+[plugins."google-calendar@openai-curated"]
+enabled = true
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true

@@ -230,7 +230,7 @@ function p.stop() {
   __pm_require_podman || return 1
 
   local -a running_machines
-  local machine status=0
+  local machine stop_status=0
 
   running_machines=(${(f)"$(__pm_running_machines)"})
   if (( ${#running_machines[@]} == 0 )); then
@@ -240,10 +240,10 @@ function p.stop() {
 
   for machine in "${running_machines[@]}"; do
     echo -e "${ARROW} ${GREEN}Stopping Podman machine:${NC} ${YELLOW}${machine}${NC}"
-    podman machine stop "$machine" || status=1
+    podman machine stop "$machine" || stop_status=1
   done
 
-  return "$status"
+  return "$stop_status"
 }
 
 function p.current() {

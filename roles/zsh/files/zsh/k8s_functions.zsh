@@ -128,116 +128,503 @@ function k.togglePromptInfo() {
 function __k_import_context_complete() {
   local -a opts
   opts=(
-    '--destination[Destination kubeconfig file]:file:_files'
-    '--import[Kubeconfig file to import]:file:_files'
-    '--new-name[New name for context, cluster, and user]:new_name'
-    '--ssh-session[SSH session for remote kubeconfig]:ssh_session:_ssh'
-    '--remote-server[Remote server for the new cluster]:remote_server'
+    '--destination[Destination kubeconfig file]:destination kubeconfig:_files'
+    '--import[Kubeconfig file to import]:source kubeconfig:_files'
+    '--context[Source context inside the import kubeconfig]:source context:'
+    '--new-name[Rename the imported context, cluster, and user to this value]:new name:'
+    '--ssh-session[SSH session used to fetch a remote kubeconfig]:ssh session:_ssh'
+    '--remote-server[Override the imported cluster server URL]:server URL:'
     '--help[Display usage information]'
   )
   _arguments $opts
 }
 
+function __k.importContext_resolve_source_context() {
+  emulate -L zsh
+
+  local kubeconfig_path="$1"
+  local requested_context="$2"
+  local current_context=""
+  local -a contexts
+
+  contexts=("${(@f)$(kubectl config --kubeconfig="$kubeconfig_path" get-contexts -o=name 2>/dev/null)}")
+
+  if (( ${#contexts[@]} == 0 )); then
+    printf "${RED}Error:${NC} no contexts were found in %s\n" "$kubeconfig_path" >&2
+    return 1
+  fi
+
+  if [[ -n "$requested_context" ]]; then
+    if (( ${contexts[(Ie)$requested_context]} )); then
+      print -r -- "$requested_context"
+      return 0
+    fi
+
+    printf "${RED}Error:${NC} context %s was not found in %s\n" "'$requested_context'" "$kubeconfig_path" >&2
+    return 1
+  fi
+
+  current_context="$(kubectl config --kubeconfig="$kubeconfig_path" current-context 2>/dev/null)"
+  if [[ -n "$current_context" ]]; then
+    print -r -- "$current_context"
+    return 0
+  fi
+
+  if (( ${#contexts[@]} == 1 )); then
+    print -r -- "$contexts[1]"
+    return 0
+  fi
+
+  printf "${RED}Error:${NC} multiple contexts were found and the kubeconfig has no current-context\n" >&2
+  printf "Pass ${BOLD}--context${NC} to choose one of:\n" >&2
+  printf "  %s\n" "${contexts[@]}" >&2
+  return 1
+}
+
+function __k.importContext_resolve_host_to_ip() {
+  emulate -L zsh
+
+  local host="$1"
+  local resolved_ip=""
+
+  if [[ -z "$host" ]]; then
+    return 1
+  fi
+
+  host="${host#\[}"
+  host="${host%\]}"
+
+  if [[ "$host" == <->.<->.<->.<-> || "$host" == *:* ]]; then
+    print -r -- "$host"
+    return 0
+  fi
+
+  if command -v getent >/dev/null 2>&1; then
+    resolved_ip="$(getent ahostsv4 "$host" 2>/dev/null | awk 'NR == 1 { print $1; exit }')"
+    if [[ -n "$resolved_ip" ]]; then
+      print -r -- "$resolved_ip"
+      return 0
+    fi
+  fi
+
+  if command -v dscacheutil >/dev/null 2>&1; then
+    resolved_ip="$(dscacheutil -q host -a name "$host" 2>/dev/null | awk '/^ip_address: / { print $2; exit }')"
+    if [[ -n "$resolved_ip" ]]; then
+      print -r -- "$resolved_ip"
+      return 0
+    fi
+  fi
+
+  if command -v dig >/dev/null 2>&1; then
+    resolved_ip="$(dig +short A "$host" 2>/dev/null | awk 'NF { print; exit }')"
+    if [[ -n "$resolved_ip" ]]; then
+      print -r -- "$resolved_ip"
+      return 0
+    fi
+  fi
+
+  if command -v host >/dev/null 2>&1; then
+    resolved_ip="$(host "$host" 2>/dev/null | awk '/ has address / { print $NF; exit }')"
+    if [[ -n "$resolved_ip" ]]; then
+      print -r -- "$resolved_ip"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+function __k.importContext_resolve_ssh_host() {
+  emulate -L zsh
+
+  local ssh_target="$1"
+  local ssh_hostname=""
+  local resolved_host=""
+
+  ssh_hostname="$(ssh -G "$ssh_target" 2>/dev/null | awk '/^hostname / { print $2; exit }')"
+  if [[ -z "$ssh_hostname" ]]; then
+    ssh_hostname="${ssh_target##*@}"
+  fi
+
+  resolved_host="$(__k.importContext_resolve_host_to_ip "$ssh_hostname")"
+  if [[ -z "$resolved_host" ]]; then
+    printf "${RED}Error:${NC} could not resolve SSH target %s to an IP address\n" "'$ssh_target'" >&2
+    return 1
+  fi
+
+  print -r -- "$resolved_host"
+}
+
+function __k.importContext_name_exists() {
+  emulate -L zsh
+
+  local kubeconfig_path="$1"
+  local entry_type="$2"
+  local entry_name="$3"
+  local jsonpath=""
+
+  case "$entry_type" in
+  contexts)
+    jsonpath='{range .contexts[*]}{.name}{"\n"}{end}'
+    ;;
+  clusters)
+    jsonpath='{range .clusters[*]}{.name}{"\n"}{end}'
+    ;;
+  users)
+    jsonpath='{range .users[*]}{.name}{"\n"}{end}'
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+
+  kubectl config view --kubeconfig="$kubeconfig_path" -o "jsonpath=$jsonpath" 2>/dev/null | grep -Fx -- "$entry_name" >/dev/null 2>&1
+}
+
+function __k.importContext_prepare_destination_kubeconfig() {
+  emulate -L zsh
+
+  local source_kubeconfig="$1"
+  local output_kubeconfig="$2"
+  local entry_name="$3"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    printf "jq is required to safely rewrite kubeconfig entries\n" >&2
+    return 1
+  fi
+
+  kubectl config view --kubeconfig="$source_kubeconfig" --raw -o json | \
+    jq -e --indent 2 \
+      --arg entry_name "$entry_name" \
+      '
+      .contexts = ((.contexts // []) | map(select(.name != $entry_name)))
+      | .clusters = ((.clusters // []) | map(select(.name != $entry_name)))
+      | .users = ((.users // []) | map(select(.name != $entry_name)))
+      | if .["current-context"] == $entry_name then
+          del(.["current-context"])
+        else
+          .
+        end
+      ' > "$output_kubeconfig"
+}
+
+function __k.importContext_transform_kubeconfig() {
+  emulate -L zsh
+
+  local source_kubeconfig="$1"
+  local output_kubeconfig="$2"
+  local source_context="$3"
+  local new_name="$4"
+  local remote_server="$5"
+  local ssh_host="$6"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    printf "jq is required to safely rename kubeconfig entries\n" >&2
+    return 1
+  fi
+
+  kubectl --kubeconfig="$source_kubeconfig" --context="$source_context" config view --raw --flatten --minify -o json | \
+    jq -e --indent 2 \
+      --arg new_name "$new_name" \
+      --arg remote_server "$remote_server" \
+      --arg ssh_host "$ssh_host" \
+      -f /dev/fd/3 > "$output_kubeconfig" 3<<'JQ'
+def normalized_host($host):
+  if ($host | contains(":")) and (($host | startswith("[")) | not) then
+    "[\($host)]"
+  else
+    $host
+  end;
+
+def rewrite_loopback_server($host):
+  if . == null or . == "" or $host == "" then
+    .
+  elif test("^(?<scheme>[A-Za-z][A-Za-z0-9+.-]*://)(127\\.0\\.0\\.1|0\\.0\\.0\\.0|localhost)(?<suffix>([:/].*)?)$") then
+    sub(
+      "^(?<scheme>[A-Za-z][A-Za-z0-9+.-]*://)(127\\.0\\.0\\.1|0\\.0\\.0\\.0|localhost)(?<suffix>([:/].*)?)$";
+      "\(.scheme)\(normalized_host($host))\(.suffix // "")"
+    )
+  elif test("^(?<scheme>[A-Za-z][A-Za-z0-9+.-]*://)\\[::1\\](?<suffix>([:/].*)?)$") then
+    sub(
+      "^(?<scheme>[A-Za-z][A-Za-z0-9+.-]*://)\\[::1\\](?<suffix>([:/].*)?)$";
+      "\(.scheme)\(normalized_host($host))\(.suffix // "")"
+    )
+  else
+    .
+  end;
+
+if (.contexts | length) != 1 then
+  error("expected exactly one context after minify")
+elif (.clusters | length) != 1 then
+  error("expected exactly one cluster after minify")
+elif ((.contexts[0].context.user // "") == "" and (.users | length) > 0) then
+  error("found user entries but the selected context does not reference one")
+elif ((.contexts[0].context.user // "") != "" and (.users | length) != 1) then
+  error("expected exactly one user after minify")
+else
+  .contexts[0].name = $new_name
+  | .contexts[0].context.cluster = $new_name
+  | .["current-context"] = $new_name
+  | .clusters[0].name = $new_name
+  | if (.contexts[0].context.user // "") != "" then
+      .users[0].name = $new_name
+      | .contexts[0].context.user = $new_name
+    else
+      .
+    end
+  | if $remote_server != "" then
+      .clusters[0].cluster.server = $remote_server
+    elif $ssh_host != "" then
+      .clusters[0].cluster.server |= rewrite_loopback_server($ssh_host)
+    else
+      .
+    end
+end
+JQ
+}
+
 function __k.importContext_usage() {
-  echo -e "${BOLD}USAGE${NC}"
-  echo "    k.importContext [options]"
   echo ""
-  echo -e "${BOLD}OPTIONS${NC}"
-  echo "  -d <destination_kubeconfig>  Destination kubeconfig file (default: \$HOME/.kube/config)"
-  echo "  -i <import_file>             Kubeconfig file to import"
-  echo "  -n <new_name>                New name for context, cluster, and user"
-  echo "  -s <ssh_session>             SSH session for remote kubeconfig"
-  echo "  -r <remote_server>           Remote server for the new cluster"
-  echo "  -h, --help                   Display this help message"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_TOP}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_MID}${NC}  ${CAT_TEXT}k.importContext${NC} ${CAT_OVERLAY1}Import, rename, and merge kubeconfig contexts${NC} ${CAT_SAPPHIRE}${BOX_MID}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}${BOX_BOT}${NC}"
+  echo ""
+  echo -e "  ${CAT_YELLOW}Usage${NC}"
+  echo -e "  ${CAT_GREEN}k.importContext${NC} ${CAT_BLUE}[options]${NC}"
+  echo ""
+  echo -e "  ${CAT_YELLOW}Required${NC}"
+  echo -e "  ${CAT_GREEN}  -n, --new-name <name>${NC}       ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Target name for context, cluster, and user${NC}"
+  echo ""
+  echo -e "  ${CAT_YELLOW}Options${NC}"
+  echo -e "  ${CAT_GREEN}  -i, --import <path>${NC}         ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Source kubeconfig path${NC}"
+  echo -e "  ${CAT_GREEN}  -d, --destination <path>${NC}    ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Destination kubeconfig ${CAT_OVERLAY0}(default: \$HOME/.kube/config)${NC}"
+  echo -e "  ${CAT_GREEN}  -c, --context <name>${NC}        ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Source context to import when the file has many${NC}"
+  echo -e "  ${CAT_GREEN}  -s, --ssh-session <target>${NC}  ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Fetch the kubeconfig with scp before processing${NC}"
+  echo -e "  ${CAT_GREEN}  -r, --remote-server <url>${NC}   ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Override the imported cluster server URL${NC}"
+  echo -e "  ${CAT_GREEN}  -h, --help${NC}                  ${CAT_SURFACE2}│${NC} ${CAT_TEXT}Display this help message${NC}"
+  echo ""
+  echo -e "  ${CAT_YELLOW}Behavior${NC}"
+  echo -e "  ${CAT_SUBTEXT0}  •${NC} ${CAT_TEXT}Imports one context, renames the context/cluster/user trio, then merges it${NC}"
+  echo -e "  ${CAT_SUBTEXT0}  •${NC} ${CAT_TEXT}Defaults to ${CAT_GREEN}~/.kube/config${NC} ${CAT_TEXT}on the remote SSH account when ${CAT_GREEN}--ssh-session${NC} ${CAT_TEXT}is used without ${CAT_GREEN}--import${NC}"
+  echo -e "  ${CAT_SUBTEXT0}  •${NC} ${CAT_TEXT}Rewrites loopback server endpoints to the resolved SSH target IP${NC}"
+  echo -e "  ${CAT_SUBTEXT0}  •${NC} ${CAT_TEXT}Re-importing the same ${CAT_GREEN}--new-name${NC} ${CAT_TEXT}replaces the existing local entries before merge${NC}"
+  echo -e "  ${CAT_SUBTEXT0}  •${NC} ${CAT_TEXT}Backs up the destination kubeconfig to ${CAT_GREEN}<destination>.bak${NC} ${CAT_TEXT}first${NC}"
+  echo ""
+  echo -e "  ${CAT_YELLOW}Examples${NC}"
+  echo -e "  ${CAT_SAPPHIRE}  k.importContext -i ~/Downloads/dev.yaml -n dev-west${NC}"
+  echo -e "  ${CAT_SAPPHIRE}  k.importContext -i ./vendor.yaml -c staging -n vendor-staging${NC}"
+  echo -e "  ${CAT_SAPPHIRE}  k.importContext -s rl-mdegarmo1 -n rl-mdegarmo1${NC}"
+  echo -e "  ${CAT_SAPPHIRE}  k.importContext -s ops@bastion -i /etc/rancher/k3s/k3s.yaml -n homelab${NC}"
+  echo -e "  ${CAT_SAPPHIRE}  k.importContext -s ops@bastion -i /etc/rancher/k3s/k3s.yaml -n homelab -r https://k3s.example.com:6443${NC}"
+  echo ""
+  echo -e "  ${CAT_SURFACE2}${DIVIDER}${NC}"
+  echo -e "  ${CAT_MAUVE}Tip:${NC} ${CAT_TEXT}Use ${CAT_GREEN}--context${NC} ${CAT_TEXT}whenever the source kubeconfig contains multiple contexts and no clear default.${NC}"
+  echo ""
 }
 
 # A function to take an external kube config file, rename the context,
 # cluster, and user names before merging it with the current kube config
 function k.importContext() {
+  emulate -L zsh
+
   local dest_kubeconfig="$HOME/.kube/config"
   local import_file=""
+  local source_context=""
   local new_name=""
   local ssh_session=""
   local remote_server=""
+  local source_kubeconfig=""
+  local dest_dir=""
+  local backup_path=""
+  local tmp_dir=""
+  local downloaded_kubeconfig=""
+  local prepared_dest_kubeconfig=""
+  local transformed_kubeconfig=""
+  local merged_kubeconfig=""
+  local kubeconfig_chain=""
+  local ssh_host=""
+  local ssh_label=""
+  local remote_import_spec=""
+  local -a conflicts
 
-  # while getopts ":d:i:n:s:r:h" opt; do
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-    -d | --destination)
-      dest_kubeconfig="$2"
-      shift
-      shift
-      ;;
-    -i | --import)
-      import_file="$2"
-      shift
-      shift
-      ;;
-    -n | --new-name)
-      new_name="$2"
-      shift
-      shift
-      ;;
-    -s | --ssh-session)
-      ssh_session="$2"
-      shift
-      shift
-      ;;
-    -r | --remote-server)
-      remote_server="$2"
-      shift
-      shift
-      ;;
-    -h | --help)
+  {
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+      -d | --destination)
+        if [[ $# -lt 2 ]]; then
+          printf "${RED}Error:${NC} %s requires a value\n" "$1" >&2
+          return 1
+        fi
+        dest_kubeconfig="$2"
+        shift 2
+        ;;
+      -i | --import)
+        if [[ $# -lt 2 ]]; then
+          printf "${RED}Error:${NC} %s requires a value\n" "$1" >&2
+          return 1
+        fi
+        import_file="$2"
+        shift 2
+        ;;
+      -c | --context)
+        if [[ $# -lt 2 ]]; then
+          printf "${RED}Error:${NC} %s requires a value\n" "$1" >&2
+          return 1
+        fi
+        source_context="$2"
+        shift 2
+        ;;
+      -n | --new-name)
+        if [[ $# -lt 2 ]]; then
+          printf "${RED}Error:${NC} %s requires a value\n" "$1" >&2
+          return 1
+        fi
+        new_name="$2"
+        shift 2
+        ;;
+      -s | --ssh-session)
+        if [[ $# -lt 2 ]]; then
+          printf "${RED}Error:${NC} %s requires a value\n" "$1" >&2
+          return 1
+        fi
+        ssh_session="$2"
+        shift 2
+        ;;
+      -r | --remote-server)
+        if [[ $# -lt 2 ]]; then
+          printf "${RED}Error:${NC} %s requires a value\n" "$1" >&2
+          return 1
+        fi
+        remote_server="$2"
+        shift 2
+        ;;
+      -h | --help)
+        __k.importContext_usage
+        return 0
+        ;;
+      -* | --*)
+        printf "${RED}Error:${NC} invalid option %s\n" "'$1'" >&2
+        return 1
+        ;;
+      *)
+        printf "${RED}Error:${NC} invalid argument %s\n" "'$1'" >&2
+        return 1
+        ;;
+      esac
+    done
+
+    if [[ -z "$import_file" && -n "$ssh_session" ]]; then
+      import_file="~/.kube/config"
+    fi
+
+    if [[ -z "$new_name" ]]; then
+      printf "${RED}Error:${NC} %s is required\n" "--new-name" >&2
       __k.importContext_usage
-      return 0
-      ;;
-    -* | --*)
-      echo "Invalid option: ${RED}$1${NC}"
       return 1
-      ;;
-    *)
-      printf "Invalid argument: ${RED}$1${NC}\n"
+    fi
+
+    if [[ -z "$import_file" ]]; then
+      printf "${RED}Error:${NC} %s is required unless %s is provided\n" "--import" "--ssh-session" >&2
+      __k.importContext_usage
       return 1
-    esac
-  done
+    fi
 
-  if [ -z "$import_file" ] || [ -z "$new_name" ]; then
-    printf "Missing required arguments ${RED}--import${NC} and ${RED}--new-name${NC}\n"
-    __k.importContext_usage
-    return 1
-  fi
+    if [[ -n "$remote_server" && "$remote_server" != *://* ]]; then
+      printf "${RED}Error:${NC} --remote-server must be a full URL such as https://api.example.com:6443\n" >&2
+      return 1
+    fi
 
-  # Backup the destination kube config
-  __task "Backing up destination kubeconfig file"
-  _cmd "cp $dest_kubeconfig ${dest_kubeconfig}.bak"
+    tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/k.importContext.XXXXXX")" || return 1
+    downloaded_kubeconfig="$tmp_dir/imported-kubeconfig"
+    prepared_dest_kubeconfig="$tmp_dir/prepared-destination-kubeconfig"
+    transformed_kubeconfig="$tmp_dir/transformed-kubeconfig"
+    merged_kubeconfig="$tmp_dir/merged-kubeconfig"
 
-  if [ -n "$ssh_session" ]; then
-    local remote_ip=$(echo "$ssh_session" | awk -F'@' '{print $2}')
-    __task "[$remote_ip]:: Downloading remote kubeconfig file"
-    _cmd "scp $ssh_session:$import_file /tmp/remote_kubeconfig"
-    import_file="/tmp/remote_kubeconfig"
-  fi
+    if [[ -n "$ssh_session" ]]; then
+      ssh_label="${ssh_session##*@}"
+      ssh_host="$(__k.importContext_resolve_ssh_host "$ssh_session")" || return 1
+      remote_import_spec="${ssh_session}:${import_file}"
+      __task "[$ssh_label] Downloading remote kubeconfig"
+      if ! _cmd "scp ${(q)remote_import_spec} ${(q)downloaded_kubeconfig}"; then
+        return 1
+      fi
+      _task_done
+      source_kubeconfig="$downloaded_kubeconfig"
+    else
+      source_kubeconfig="$import_file"
+    fi
 
-  if [ -n "$new_name" ]; then
-    __task "Renaming context, cluster, and user names in the import file"
-    _cmd "kubectl config --kubeconfig=$import_file rename-context $(kubectl config --kubeconfig=$import_file get-contexts -o=name) $new_name"
-    _cmd "kubectl config --kubeconfig=$import_file set-cluster $new_name --server=$remote_ip"
-    _cmd "kubectl config --kubeconfig=$import_file set-credentials $new_name"
-  fi
+    if [[ ! -f "$source_kubeconfig" ]]; then
+      printf "${RED}Error:${NC} kubeconfig not found at %s\n" "$source_kubeconfig" >&2
+      return 1
+    fi
 
-  # Merge the import file with the destination kube config
-  __task "Importing kubeconfig file"
-  _cmd "KUBECONFIG=\"$dest_kubeconfig:$import_file\" kubectl config view --merge --flatten > /tmp/merged_kubeconfig"
-  _cmd "mv /tmp/merged_kubeconfig $dest_kubeconfig"
+    source_context="$(__k.importContext_resolve_source_context "$source_kubeconfig" "$source_context")" || return 1
 
-  # Clean up
-  if [ -n "$ssh_session" ]; then
-    __task "Cleaning up remote kubeconfig file"
-    _cmd "rm /tmp/remote_kubeconfig"
-  fi
+    __task "Preparing context $source_context as $new_name"
+    if ! _cmd "__k.importContext_transform_kubeconfig ${(q)source_kubeconfig} ${(q)transformed_kubeconfig} ${(q)source_context} ${(q)new_name} ${(q)remote_server} ${(q)ssh_host}"; then
+      return 1
+    fi
+    _task_done
 
-  __task "Kube config imported and merged successfully." && _task_done
+    dest_dir="${dest_kubeconfig:h}"
+    if [[ ! -d "$dest_dir" ]]; then
+      __task "Creating destination directory $dest_dir"
+      if ! _cmd "mkdir -p ${(q)dest_dir}"; then
+        return 1
+      fi
+      _task_done
+    fi
+
+    backup_path="${dest_kubeconfig}.bak"
+    if [[ -f "$dest_kubeconfig" ]]; then
+      conflicts=()
+      if __k.importContext_name_exists "$dest_kubeconfig" contexts "$new_name"; then
+        conflicts+=("context")
+      fi
+      if __k.importContext_name_exists "$dest_kubeconfig" clusters "$new_name"; then
+        conflicts+=("cluster")
+      fi
+      if __k.importContext_name_exists "$dest_kubeconfig" users "$new_name"; then
+        conflicts+=("user")
+      fi
+
+      if (( ${#conflicts[@]} > 0 )); then
+        __task "Replacing existing ${(j:, :)conflicts} entries named $new_name"
+        if ! _cmd "__k.importContext_prepare_destination_kubeconfig ${(q)dest_kubeconfig} ${(q)prepared_dest_kubeconfig} ${(q)new_name}"; then
+          return 1
+        fi
+        _task_done
+        kubeconfig_chain="$prepared_dest_kubeconfig:$transformed_kubeconfig"
+      else
+        kubeconfig_chain="$dest_kubeconfig:$transformed_kubeconfig"
+      fi
+
+      __task "Backing up destination kubeconfig to $backup_path"
+      if ! _cmd "cp ${(q)dest_kubeconfig} ${(q)backup_path}"; then
+        return 1
+      fi
+      _task_done
+    else
+      kubeconfig_chain="$transformed_kubeconfig"
+    fi
+
+    __task "Merging kubeconfig into $dest_kubeconfig"
+    if ! _cmd "KUBECONFIG=${(q)kubeconfig_chain} kubectl config view --merge --flatten > ${(q)merged_kubeconfig}"; then
+      return 1
+    fi
+    if ! _cmd "mv ${(q)merged_kubeconfig} ${(q)dest_kubeconfig}"; then
+      return 1
+    fi
+    _task_done
+
+    __task "Kubeconfig imported successfully"
+    _task_done
+  } always {
+    if [[ -n "$tmp_dir" && -d "$tmp_dir" ]]; then
+      rm -rf "$tmp_dir"
+    fi
+  }
 }
 
 compdef __k_import_context_complete k.importContext

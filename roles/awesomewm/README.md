@@ -57,7 +57,10 @@ graph TD
 | Keyboard Type | Summon Modal | Macro Modal |
 |---------------|--------------|-------------|
 | Laptop (no F13) | CapsLock | Double-tap CapsLock (150ms) |
-| External (with F13/F16) | F13 | F16 |
+| External (with F13/F16) | F13 | F16 or double-tap the same summon key |
+
+Some keyboards expose the summon key as `XF86Tools` or raw keycode `#191` instead of literal `F13`.
+AwesomeWM now treats those aliases as the same leader key for both summon activation and double-tap macro entry.
 
 **Default Summon Keys:**
 - `t` → Ghostty Terminal
@@ -78,6 +81,7 @@ graph TD
 - `Hyper + p` → Layout picker
 - `Hyper + ;` → Cycle to next layout
 - `Hyper + u` → Bind focused window to cell
+- `Super/Command + u` → Bind focused window to cell directly
 
 ### Complete Desktop Environment
 
@@ -123,7 +127,7 @@ graph LR
 **Media & System:**
 - `playerctl` - Media key controls
 - `brightnessctl` - Brightness control
-- `pulseaudio-utils` - Audio controls
+- `pulseaudio-utils` - Audio controls via `pactl`
 
 **Settings Tools (No GNOME):**
 - `pavucontrol` - Audio/mic/speaker settings

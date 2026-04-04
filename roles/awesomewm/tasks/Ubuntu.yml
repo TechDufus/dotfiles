@@ -16,8 +16,8 @@
       - rofi               # Application launcher, layout picker
       - i3lock             # Screen locker
       - playerctl          # Media key controls (play/pause/next/prev)
-      - pulseaudio-utils   # Provides pactl for mic mute
-      - libasound2-plugins # ALSA pulse plugin for volume widget (amixer -D pulse)
+      - pulseaudio-utils   # Provides pactl for volume and mic controls
+      - libasound2-plugins # Pulse/PipeWire compatibility for ALSA apps
       - x11-xserver-utils  # Provides xset for keyboard repeat rate
       - flatpak            # Required for Discord, Spotify, Obsidian
       - papirus-icon-theme # Icon theme for UI

@@ -1,5 +1,27 @@
 ---
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
+  community.general.pacman:
+    name:
+      - base-devel
+      - cmake
+      - libtool
+      - pkgconf
+      - ripgrep
+      - tree-sitter-cli
+      - unzip
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
 - name: "Neovim | {{ ansible_facts['distribution'] }} | Install Neovim Nightly"
   kewlfft.aur.aur:
     name: neovim-git
     state: present
+  when: can_install_packages | default(false)
+
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Installation skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Neovim package installation skipped due to missing sudo privileges"
+      - "Managed Tree-sitter parser installs also require the tree-sitter CLI and compiler toolchain"
+  when: not (can_install_packages | default(false))

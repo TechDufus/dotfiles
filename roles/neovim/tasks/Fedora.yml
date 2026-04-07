@@ -8,29 +8,31 @@
   failed_when: false
   no_log: true
 
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
+  ansible.builtin.dnf:
+    name:
+      - ansible-lint
+      - cmake
+      - curl
+      - gcc
+      - gcc-c++
+      - libtool
+      - make
+      - pkgconfig
+      - ripgrep
+      - tree-sitter-cli
+      - unzip
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+  register: nvim_deps_install
+
 # System-wide installation with sudo
 - name: "Neovim | {{ ansible_facts['distribution'] }} | System installation"
   when:
     - can_install_packages | default(false)
     - nvim_check.rc != 0
   block:
-    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
-      ansible.builtin.dnf:
-        name:
-          - cmake
-          - curl
-          - pkgconfig
-          - libtool
-          - unzip
-          - ansible-lint
-          - ripgrep
-          - gcc
-          - gcc-c++
-          - make
-        state: present
-      become: true
-      register: nvim_deps_install
-
     - name: "Neovim | {{ ansible_facts['distribution'] }} | Install from repository"
       ansible.builtin.dnf:
         name: neovim

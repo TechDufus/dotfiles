@@ -34,6 +34,7 @@ This role provides a battle-tested Neovim configuration optimized for software d
 
 **Dependencies:**
 - `cmake`, `curl`, `pkg-config`, `libtool`, `unzip`
+- `tree-sitter` plus a working C compiler toolchain for parser bootstrap
 - `ripgrep` (essential for Telescope fuzzy finding)
 - `ansible-lint` (for Ansible development)
 
@@ -55,7 +56,7 @@ The role symlinks `~/.config/nvim` to the role's `files/` directory:
     ├── plugins/               # 35+ plugin configurations
     │   ├── lsp.lua           # LSP, Mason, and completion
     │   ├── telescope.lua     # Fuzzy finder
-    │   ├── treesitter.lua    # Syntax highlighting
+    │   ├── treesitter.lua    # Syntax highlighting + parser bootstrap
     │   ├── avante.lua        # Claude Code integration
     │   ├── copilot.lua       # GitHub Copilot
     │   ├── neo-tree.lua      # File explorer
@@ -140,7 +141,7 @@ graph TD
 - **Git Worktree** support for multi-branch workflows
 - **ToggleTerm** for integrated terminal
 - **Harpoon** for quick file navigation
-- **Treesitter** for advanced syntax highlighting
+- **Treesitter** for advanced syntax highlighting with a curated startup-managed parser set
 
 ### ⚡ Performance
 - Lazy loading for all plugins
@@ -200,7 +201,7 @@ On first launch, Neovim will:
 1. Auto-install lazy.nvim plugin manager
 2. Download and install all 35+ plugins
 3. Install LSP servers via Mason
-4. Download Treesitter parsers
+4. Load bundled Treesitter queries and install the managed parser set during startup when the `tree-sitter` CLI is available
 
 This may take 1-2 minutes. Subsequent launches are near-instant.
 
@@ -225,6 +226,8 @@ This may take 1-2 minutes. Subsequent launches are near-instant.
 - **ripgrep**: Essential for Telescope searching
 - **fd**: Optional but recommended for faster file finding
 - **git**: Required for plugin management
+- **tree-sitter**: Required for `nvim-treesitter` parser installs on Neovim 0.12+
+- **C compiler toolchain**: Required to build Tree-sitter parsers (`build-essential`/`gcc`/Xcode CLT depending on OS)
 
 ### Optional Dependencies
 - **lazygit**: For visual Git workflows

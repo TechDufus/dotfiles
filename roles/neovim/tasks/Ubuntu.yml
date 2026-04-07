@@ -8,26 +8,29 @@
   failed_when: false
   no_log: true
 
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
+  ansible.builtin.apt:
+    name:
+      - ansible-lint
+      - build-essential
+      - cmake
+      - curl
+      - libtool
+      - pkg-config
+      - ripgrep
+      - tree-sitter-cli
+      - unzip
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+  register: nvim_deps_install
+
 # System-wide installation with sudo
 - name: "Neovim | {{ ansible_facts['distribution'] }} | System installation"
   when:
     - can_install_packages | default(false)
     - nvim_check.rc != 0
   block:
-    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install dependencies"
-      ansible.builtin.apt:
-        name:
-          - cmake
-          - curl
-          - pkg-config
-          - libtool
-          - unzip
-          - ansible-lint
-          - ripgrep
-        state: present
-      become: true
-      register: nvim_deps_install
-
     - name: "Neovim | {{ ansible_facts['distribution'] }} | Add APT Repository"
       ansible.builtin.apt_repository:
         repo: ppa:neovim-ppa/unstable

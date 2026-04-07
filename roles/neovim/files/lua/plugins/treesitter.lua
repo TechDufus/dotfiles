@@ -1,8 +1,8 @@
 return {
   "nvim-treesitter/nvim-treesitter",
-  branch = "master",
+  branch = "main",
   build = ":TSUpdate",
-  event = {"BufReadPre", "BufNewFile"},
+  lazy = false,
   keys = {
     { "n", "<leader>it", ":InspectTree<CR>" },
   },
@@ -10,39 +10,32 @@ return {
     "nvim-treesitter/nvim-treesitter-textobjects",
   },
   config = function()
-    require('nvim-treesitter.configs').setup({
-      -- Install parsers on demand instead of trying to compile every parser at startup.
-      ensure_installed = {},
-      -- Ignore parsers that are known to have issues
-      ignore_install = { "ipkg" },
-      -- Install parsers synchronously (only applied to `ensure_installed`)
-      sync_install = false,
-      -- Automatically install missing parsers when entering buffer
-      -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
-      auto_install = true,
-      highlight = {
-        -- `false` will disable the whole extension
-        enable = true,
-        additional_vim_regex_highlighting = true,
-      },
-      autotag = { enable = true },
-      indent = { enable = true },
-      rainbow = {
-        enable = true,
-        -- Which query to use for finding delimiters
-        query = 'rainbow-parens',
-        -- Highlight the entire buffer all at once
-        strategy = require('rainbow-delimiters').strategy.global,
-      },
-      incremental_selection = {
-        enable = true,
-        keymaps = {
-          init_selection = "<C-n>",
-          node_incremental = "<C-n>",
-          scope_incremental = false,
-          node_decremental = "<bs>",
-        },
-      },
+    local ts = require("nvim-treesitter")
+    ts.setup()
+
+    local group = vim.api.nvim_create_augroup("techdufus_treesitter", { clear = true })
+
+    vim.api.nvim_create_autocmd("FileType", {
+      group = group,
+      pattern = "*",
+      callback = function(args)
+        if vim.bo[args.buf].buftype ~= "" then
+          return
+        end
+
+        local lang = vim.treesitter.language.get_lang(vim.bo[args.buf].filetype)
+        if not lang then
+          return
+        end
+
+        if not pcall(vim.treesitter.start, args.buf) then
+          return
+        end
+
+        if #vim.api.nvim_get_runtime_file(("queries/%s/indents.scm"):format(lang), true) > 0 then
+          vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+      end,
     })
   end
 }

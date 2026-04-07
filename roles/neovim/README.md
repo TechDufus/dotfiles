@@ -34,7 +34,7 @@ This role provides a battle-tested Neovim configuration optimized for software d
 
 **Dependencies:**
 - `cmake`, `curl`, `pkg-config`, `libtool`, `unzip`
-- `tree-sitter` plus a working C compiler toolchain for parser bootstrap
+- `tree-sitter-cli` plus a working C compiler toolchain for parser bootstrap
 - `ripgrep` (essential for Telescope fuzzy finding)
 - `ansible-lint` (for Ansible development)
 
@@ -226,7 +226,7 @@ This may take 1-2 minutes. Subsequent launches are near-instant.
 - **ripgrep**: Essential for Telescope searching
 - **fd**: Optional but recommended for faster file finding
 - **git**: Required for plugin management
-- **tree-sitter**: Required for `nvim-treesitter` parser installs on Neovim 0.12+
+- **tree-sitter-cli**: Required for `nvim-treesitter` parser installs on Neovim 0.12+ (Homebrew split this from `tree-sitter`)
 - **C compiler toolchain**: Required to build Tree-sitter parsers (`build-essential`/`gcc`/Xcode CLT depending on OS)
 
 ### Optional Dependencies

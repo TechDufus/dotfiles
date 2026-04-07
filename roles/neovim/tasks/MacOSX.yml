@@ -6,7 +6,7 @@
       - curl
       - pkg-config
       - libtool
-      - tree-sitter
+      - tree-sitter-cli
       - unzip
       - ansible-lint
       - ripgrep

@@ -11,6 +11,21 @@ return {
   },
   config = function()
     local ts = require("nvim-treesitter")
+
+    local function prefer_non_plugin_parser(lang)
+      local pattern = ("parser/%s.*"):format(lang)
+      for _, path in ipairs(vim.api.nvim_get_runtime_file(pattern, true)) do
+        if not path:find("/lazy/nvim%-treesitter/parser/") then
+          vim.treesitter.language.add(lang, { path = path })
+          return
+        end
+      end
+    end
+
+    -- Old nvim-treesitter installs can leave stale parser binaries in the plugin checkout.
+    -- Prefer Neovim's own `vim` parser so command-line buffers don't load an incompatible binary.
+    prefer_non_plugin_parser("vim")
+
     ts.setup()
 
     local group = vim.api.nvim_create_augroup("techdufus_treesitter", { clear = true })

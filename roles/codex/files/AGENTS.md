@@ -16,6 +16,7 @@
 - For review/assessment tasks, prioritize findings, risks, and regressions before implementation details.
 - Never commit unless explicitly requested.
 - Never expose or commit secrets, tokens, or credentials; prefer 1Password CLI (`op`) for secret retrieval.
+- Never prefix Git branch names or GitHub pull request titles with `codex` or `[codex]`.
 
 ## Response Minimums
 - Start with the action/result; keep language concise, concrete, and technical.

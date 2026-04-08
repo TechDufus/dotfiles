@@ -21,6 +21,27 @@ elif [ -L "$HOME/.codex/AGENTS.md" ]; then
   _task_done
 fi
 
+managed_agents_dir="$(cd "$(dirname "$0")/files/agents" 2>/dev/null && pwd)"
+
+if [ -n "$managed_agents_dir" ] && [ -d "$HOME/.codex/agents" ]; then
+  for managed_source in "$managed_agents_dir"/*.toml; do
+    [ -e "$managed_source" ] || continue
+
+    agent_path="$HOME/.codex/agents/$(basename "$managed_source")"
+    [ -e "$agent_path" ] || [ -L "$agent_path" ] || continue
+
+    __task "Removing Codex custom agent $(basename "$agent_path")"
+    _cmd "rm -f $agent_path"
+    _task_done
+  done
+
+  if [ -f "$HOME/.codex/agents/.managed-by-dotfiles.json" ]; then
+    __task "Removing Codex custom agent manifest"
+    _cmd "rm -f $HOME/.codex/agents/.managed-by-dotfiles.json"
+    _task_done
+  fi
+fi
+
 case "$(uname -s)" in
   Darwin)
     if command -v brew >/dev/null 2>&1 && brew list --cask codex >/dev/null 2>&1; then

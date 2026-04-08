@@ -14,11 +14,124 @@
     state: directory
     mode: "0755"
 
+- name: "{{ role_name }} | Agents | Ensure ~/.codex/agents directory exists"
+  ansible.builtin.file:
+    path: "{{ codex_custom_agents_dest }}"
+    state: directory
+    mode: "0755"
+
 - name: "{{ role_name }} | Skills | Ensure ~/.codex/skills directory exists"
   ansible.builtin.file:
     path: "{{ codex_skills_dest }}"
     state: directory
     mode: "0755"
+
+- name: "{{ role_name }} | Agents | Check custom agents source directory"
+  ansible.builtin.stat:
+    path: "{{ codex_custom_agents_source }}"
+  register: codex_custom_agents_source_directory
+
+- name: "{{ role_name }} | Agents | Find custom agent files in role files"
+  ansible.builtin.find:
+    paths: "{{ codex_custom_agents_source }}"
+    file_type: file
+    patterns: "*.toml"
+    recurse: false
+  register: codex_custom_agent_source_files
+  when:
+    - codex_custom_agents_source_directory.stat.exists
+    - codex_custom_agents_source_directory.stat.isdir
+
+- name: "{{ role_name }} | Agents | Set custom agent file names"
+  ansible.builtin.set_fact:
+    codex_custom_agent_names: >-
+      {{
+        ((codex_custom_agent_source_files | default({'files': []})).files)
+        | map(attribute='path')
+        | map('basename')
+        | list
+      }}
+
+- name: "{{ role_name }} | Agents | Check managed-agent manifest"
+  ansible.builtin.stat:
+    path: "{{ codex_custom_agents_manifest }}"
+  register: codex_custom_agents_manifest_file
+
+- name: "{{ role_name }} | Agents | Read managed-agent manifest"
+  ansible.builtin.slurp:
+    path: "{{ codex_custom_agents_manifest }}"
+  register: codex_custom_agents_manifest_slurp
+  when: codex_custom_agents_manifest_file.stat.exists
+
+- name: "{{ role_name }} | Agents | Set previously managed agent names"
+  ansible.builtin.set_fact:
+    codex_previous_custom_agent_names: >-
+      {{
+        (codex_custom_agents_manifest_slurp.content | b64decode | from_json)
+        if codex_custom_agents_manifest_file.stat.exists
+        else []
+      }}
+
+- name: "{{ role_name }} | Agents | Remove stale managed custom agent files"
+  ansible.builtin.file:
+    path: "{{ codex_custom_agents_dest }}/{{ codex_stale_custom_agent_name }}"
+    state: absent
+  loop: "{{ codex_previous_custom_agent_names | difference(codex_custom_agent_names) }}"
+  loop_control:
+    loop_var: codex_stale_custom_agent_name
+    label: "{{ codex_stale_custom_agent_name }}"
+
+- name: "{{ role_name }} | Agents | Check custom agent destination paths"
+  ansible.builtin.stat:
+    path: "{{ codex_custom_agents_dest }}/{{ codex_custom_agent_name }}"
+    follow: false
+  loop: "{{ codex_custom_agent_names | default([]) }}"
+  loop_control:
+    loop_var: codex_custom_agent_name
+    label: "{{ codex_custom_agent_name }}"
+  register: codex_custom_agent_destinations
+  when: codex_custom_agent_names is defined
+
+- name: "{{ role_name }} | Agents | Fail when custom agent destination is unmanaged"
+  ansible.builtin.fail:
+    msg: >-
+      Custom Codex agent destination {{ codex_custom_agents_dest }}/{{ item.codex_custom_agent_name }}
+      exists and is not managed by this role. Move or remove it, then rerun `dotfiles -t codex`.
+  loop: "{{ codex_custom_agent_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.codex_custom_agent_name }}"
+  when:
+    - item.stat.exists
+    - not item.stat.islnk
+    - item.codex_custom_agent_name not in codex_previous_custom_agent_names
+
+- name: "{{ role_name }} | Agents | Remove managed custom agent symlinks before copying"
+  ansible.builtin.file:
+    path: "{{ codex_custom_agents_dest }}/{{ item.codex_custom_agent_name }}"
+    state: absent
+  loop: "{{ codex_custom_agent_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.codex_custom_agent_name }}"
+  when:
+    - item.stat.exists
+    - item.stat.islnk
+
+- name: "{{ role_name }} | Agents | Copy custom agents from role files"
+  ansible.builtin.copy:
+    src: "{{ codex_custom_agent_source_file.path }}"
+    dest: "{{ codex_custom_agents_dest }}/{{ codex_custom_agent_source_file.path | basename }}"
+    remote_src: true
+    mode: "0644"
+  loop: "{{ codex_custom_agent_source_files.files | default([]) }}"
+  loop_control:
+    loop_var: codex_custom_agent_source_file
+    label: "{{ codex_custom_agent_source_file.path | basename }}"
+
+- name: "{{ role_name }} | Agents | Write managed-agent manifest"
+  ansible.builtin.copy:
+    content: "{{ codex_custom_agent_names | to_nice_json }}\n"
+    dest: "{{ codex_custom_agents_manifest }}"
+    mode: "0644"
 
 - name: "{{ role_name }} | Skills | Find existing top-level skill entries"
   ansible.builtin.find:

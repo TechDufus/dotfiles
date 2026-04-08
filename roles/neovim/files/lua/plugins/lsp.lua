@@ -1,6 +1,21 @@
+local lsp_servers = {
+  "gopls",
+  "ansiblels",
+  "bashls",
+  "dockerls",
+  "jsonls",
+  "powershell_es",
+  "solargraph",
+  "terraformls",
+  "lua_ls",
+  "yamlls",
+  "cssls",
+  "pylsp",
+}
+
 return {
   {
-    'williamboman/mason.nvim',
+    'mason-org/mason.nvim',
     lazy = false,
     opts = {},
   },
@@ -138,48 +153,82 @@ return {
   -- LSP
   {
     'neovim/nvim-lspconfig',
-    cmd = { 'LspInfo', 'LspInstall', 'LspStart' },
+    cmd = { 'LspInfo', 'LspInstall', 'LspStart', 'LspStop', 'LspRestart' },
     event = { 'BufReadPre', 'BufNewFile' },
     dependencies = {
       { 'hrsh7th/cmp-nvim-lsp' },
-      { 'williamboman/mason.nvim' },
-      { 'williamboman/mason-lspconfig.nvim' },
+      { 'mason-org/mason.nvim' },
+      { 'mason-org/mason-lspconfig.nvim' },
     },
     config = function()
-      local lsp_defaults = require('lspconfig').util.default_config
+      local capabilities = require('cmp_nvim_lsp').default_capabilities()
+      local lsp_group = vim.api.nvim_create_augroup('techdufus_lsp', { clear = true })
 
-      -- Add cmp_nvim_lsp capabilities settings to lspconfig
-      -- This should be executed before you configure any language server
-      lsp_defaults.capabilities = vim.tbl_deep_extend(
-        'force',
-        lsp_defaults.capabilities,
-        require('cmp_nvim_lsp').default_capabilities()
-      )
+      local function telescope_lsp(method)
+        return function()
+          require("telescope.builtin")[method]()
+        end
+      end
 
-      -- LspAttach is where you enable features that only work
-      -- if there is a language server active in the file
+      local function jump_diagnostic(count)
+        vim.diagnostic.jump({
+          count = count,
+          on_jump = function()
+            vim.diagnostic.open_float(nil, {
+              focus = false,
+              scope = "cursor",
+            })
+          end,
+        })
+      end
+
+      vim.lsp.config('*', {
+        capabilities = capabilities,
+      })
+
+      vim.lsp.config('lua_ls', {
+        settings = {
+          Lua = {
+            diagnostics = {
+              globals = { 'vim', 'hs', 'spoon' },
+              disable = { 'lowercase-global' },
+            },
+          },
+        },
+      })
+
+      vim.lsp.config('ansiblels', {
+        settings = {
+          ansible = {
+            diagnostics = {
+              disable = { 'name[template]' }
+            },
+          },
+        },
+      })
+
       vim.api.nvim_create_autocmd('LspAttach', {
+        group = lsp_group,
         desc = 'LSP actions',
         callback = function(event)
           local client = vim.lsp.get_client_by_id(event.data.client_id)
           local noremap = { buffer = event.buf, remap = false }
           local bind = vim.keymap.set
 
-          -- Mappings.
-          bind('n', 'gD', '<Cmd>lua vim.lsp.buf.declaration()<CR>', noremap)
-          bind('n', 'gd', '<Cmd>lua vim.lsp.buf.definition()<CR>', noremap)
-          bind('n', 'K', '<Cmd>lua vim.lsp.buf.hover()<CR>', noremap)
-          bind('n', 'gi', '<cmd>lua require("telescope.builtin").lsp_implementations()<CR>', noremap)
-          bind('n', 'gt', '<cmd>lua require("telescope.builtin").lsp_type_definitions()<CR>', noremap)
-          bind('n', '<Leader>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', noremap)
-          bind('n', '<Leader>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', noremap)
-          bind('n', 'gr', '<cmd>lua require("telescope.builtin").lsp_references()<CR>', noremap)
-          bind('n', '<Leader>dl', '<cmd>Telescope diagnostics<CR>', noremap)
+          bind('n', 'gD', vim.lsp.buf.declaration, noremap)
+          bind('n', 'gd', vim.lsp.buf.definition, noremap)
+          bind('n', 'K', vim.lsp.buf.hover, noremap)
+          bind('n', 'gi', telescope_lsp("lsp_implementations"), noremap)
+          bind('n', 'gt', telescope_lsp("lsp_type_definitions"), noremap)
+          bind('n', '<Leader>rn', vim.lsp.buf.rename, noremap)
+          bind('n', '<Leader>ca', vim.lsp.buf.code_action, noremap)
+          bind('n', 'gr', telescope_lsp("lsp_references"), noremap)
+          bind('n', '<Leader>dl', telescope_lsp("diagnostics"), noremap)
           bind('n', '<Leader>ld', vim.diagnostic.open_float, noremap)
-          bind('n', '[d', function() vim.diagnostic.jump({ count = -1, float = true }) end, noremap)
-          bind('n', ']d', function() vim.diagnostic.jump({ count = 1, float = true }) end, noremap)
+          bind('n', '[d', function() jump_diagnostic(-1) end, noremap)
+          bind('n', ']d', function() jump_diagnostic(1) end, noremap)
           bind('n', '<Leader>q', vim.diagnostic.setloclist, noremap)
-          bind("n", "<Leader>f", "<cmd>lua vim.lsp.buf.format({ async = true })<CR>", noremap)
+          bind("n", "<Leader>f", function() vim.lsp.buf.format({ async = true }) end, noremap)
           if client and vim.lsp.inlay_hint and client:supports_method('textDocument/inlayHint') then
             vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
           end
@@ -193,51 +242,11 @@ return {
         end,
       })
 
-
       require('mason-lspconfig').setup({
-        ensure_installed = {
-          'gopls',
-          'ansiblels',
-          'bashls',
-          'dockerls',
-          'jsonls',
-          'powershell_es',
-          'solargraph',
-          'terraformls',
-          'lua_ls',
-          'yamlls',
-          'cssls',
-          'pylsp',
-        },
-        handlers = {
-          -- this first function is the "default handler"
-          -- it applies to every language server without a "custom handler"
-          function(server_name)
-            require('lspconfig')[server_name].setup({})
-          end,
-        }
+        ensure_installed = lsp_servers,
+        automatic_enable = false,
       })
-      require('lspconfig').lua_ls.setup({
-        settings = {
-          Lua = {
-            diagnostics = {
-              globals = { 'vim', 'hs', 'spoon' },
-              disable = { 'lowercase-global' },
-            },
-          },
-        },
-      })
-
-      -- ansiblels disable settings
-      require('lspconfig').ansiblels.setup({
-        settings = {
-          ansible = {
-            diagnostics = {
-              disable = { 'name[template]' }
-            },
-          },
-        },
-      })
+      vim.lsp.enable(lsp_servers)
     end
   },
   {

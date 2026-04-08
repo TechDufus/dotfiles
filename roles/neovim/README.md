@@ -4,7 +4,7 @@ A comprehensive Ansible role that transforms Neovim into a modern, feature-rich 
 
 ## Overview
 
-This role provides a battle-tested Neovim configuration optimized for software development across multiple languages and platforms. It features automatic plugin management via [lazy.nvim](https://github.com/folke/lazy.nvim), complete LSP integration with [Mason](https://github.com/williamboman/mason.nvim), and AI-powered assistance through GitHub Copilot and Claude Code integration.
+This role provides a battle-tested Neovim configuration optimized for software development across multiple languages and platforms. It features automatic plugin management via [lazy.nvim](https://github.com/folke/lazy.nvim), complete LSP integration via [Mason](https://github.com/mason-org/mason.nvim), and AI-powered assistance through GitHub Copilot and Claude Code integration.
 
 **Key Highlights:**
 - 🎯 **35+ curated plugins** for development productivity
@@ -327,7 +327,7 @@ The role uses Ansible's standard OS detection pattern:
 
 - [Neovim](https://neovim.io/)
 - [lazy.nvim](https://github.com/folke/lazy.nvim)
-- [Mason](https://github.com/williamboman/mason.nvim)
+- [Mason](https://github.com/mason-org/mason.nvim)
 - [Telescope](https://github.com/nvim-telescope/telescope.nvim)
 - [Catppuccin](https://github.com/catppuccin/nvim)
 - [Avante (Claude Code)](https://github.com/yetone/avante.nvim)

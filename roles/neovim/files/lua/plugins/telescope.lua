@@ -4,7 +4,6 @@ return {
   "nvim-telescope/telescope.nvim",
   cmd = 'Telescope',
   tag = '0.1.8',
-  lazy = false,
   dependencies = {
     "nvim-lua/plenary.nvim",
     "jvgrootveld/telescope-zoxide",

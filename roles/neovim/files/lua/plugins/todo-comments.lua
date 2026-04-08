@@ -9,7 +9,6 @@ return  {
   keys = {
     { "<leader>td", "<cmd>TodoTelescope<cr>", { desc = 'Show all [T]o[D]o Comments' } },
   },
-  lazy = false,
   opts = {
     signs = true,           -- show icons in the signs column
     merge_keywords = true, -- use only these
@@ -65,4 +64,3 @@ return  {
     }
   }
 }
-

@@ -25,7 +25,8 @@ voice_transcription = true
 # use_linux_sandbox_bwrap = true
 
 [agents]
-max_threads = 6
+max_threads = 12
+max_depth = 2
 
 # Keep local session history so resume/fork workflows stay useful.
 [history]

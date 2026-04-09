@@ -21,19 +21,20 @@ That run now does all of the following:
 
 - copies `files/config/*.lua` into `~/.hammerspoon/`
 - installs `GridLayout.spoon` from GitHub Releases
-- overlays [files/spoons/GridLayout.spoon/helpers.lua](files/spoons/GridLayout.spoon/helpers.lua)
-  because the latest tagged GridLayout release still predates PR #7
 - installs `WorkspaceManager.spoon` from GitHub Releases
 
 ## Current Release State
 
-As of March 29, 2026:
+As of April 9, 2026:
 
-- `GridLayout.spoon` screen-aware cells merged in
+- `GridLayout.spoon` release
+  [`0.3.1`](https://github.com/jesseleite/GridLayout.spoon/releases/tag/0.3.1)
+  ships both the screen-aware cells from
   [`jesseleite/GridLayout.spoon#7`](https://github.com/jesseleite/GridLayout.spoon/pull/7)
-  on March 28, 2026.
-- the latest `GridLayout.spoon` release archive is still the tagged release line, so this role
-  keeps the local `helpers.lua` overlay enabled until a newer release actually ships that code.
+  and the secondary-display coordinate fix from
+  [`jesseleite/GridLayout.spoon#8`](https://github.com/jesseleite/GridLayout.spoon/pull/8).
+- this role now installs the upstream `GridLayout.spoon` release archive directly with no local
+  overlay.
 - `WorkspaceManager.spoon` now publishes release zips, so the role no longer vendors a local
   snapshot.
 
@@ -63,11 +64,6 @@ Personal configuration stays here:
   GridLayout release archive URL.
 - `hammerspoon_legacy_config_files`
   Old top-level runtime modules removed during deploy now that the spoon bundles own that code.
-- `hammerspoon_gridlayout_overlay_enabled`
-  Keeps the local multi-monitor helper patch active until an upstream GridLayout release includes
-  PR #7.
-- `hammerspoon_gridlayout_overlay_src`
-  Local helper overlay copied on top of the released GridLayout bundle.
 - `hammerspoon_workspacemanager_release_url`
   WorkspaceManager release archive URL.
 
@@ -112,9 +108,7 @@ Legacy `lilHyper+o` and `Hyper+o` bindings still exist as alternate screen-move 
   Cell geometry primitives consumed by layouts.
 - [files/config/screen_layouts.lua](files/config/screen_layouts.lua)
   Optional per-screen default layout selection.
-- [files/spoons/GridLayout.spoon/helpers.lua](files/spoons/GridLayout.spoon/helpers.lua)
-  Temporary overlay for screen-aware GridLayout cells until a tagged upstream release includes PR #7.
 - [tasks/MacOSX.yml](tasks/MacOSX.yml)
   Installation and deployment tasks for the role.
 - [defaults/main.yml](defaults/main.yml)
-  Release URLs and GridLayout overlay toggles.
+  Release URLs and legacy module cleanup settings.

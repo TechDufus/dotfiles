@@ -73,13 +73,6 @@
     path: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon.zip"
     state: absent
 
-- name: "Hammerspoon | MacOSX | Overlay local GridLayout multi-screen patch"
-  when: hammerspoon_gridlayout_overlay_enabled
-  ansible.builtin.copy:
-    src: "{{ hammerspoon_gridlayout_overlay_src }}"
-    dest: "{{ hammerspoon_spoons_dir }}/GridLayout.spoon/helpers.lua"
-    mode: "0644"
-
 - name: "Hammerspoon | MacOSX | Assert WorkspaceManager release URL is configured"
   ansible.builtin.assert:
     that:

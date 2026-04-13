@@ -7,14 +7,16 @@ return {
     { "n", "<leader>it", ":InspectTree<CR>" },
   },
   dependencies = {
-    "nvim-treesitter/nvim-treesitter-textobjects",
+    { "nvim-treesitter/nvim-treesitter-textobjects", branch = "main" },
   },
   config = function()
     local ts = require("nvim-treesitter")
     local install_dir = vim.fs.joinpath(vim.fn.stdpath("data"), "site")
     local install_timeout_ms = 300000
+    local minimum_cli_version = { 0, 26, 1 }
     local failed_installs = {}
     local warned_about_missing_cli = false
+    local warned_about_incompatible_cli = false
     local managed_languages = {
       "bash",
       "css",
@@ -83,6 +85,44 @@ return {
       end
     end
 
+    local function parse_semver(output)
+      local major, minor, patch = output:match("(%d+)%.(%d+)%.(%d+)")
+      if not major then
+        return nil
+      end
+
+      return { tonumber(major), tonumber(minor), tonumber(patch) }
+    end
+
+    local function format_semver(version)
+      return table.concat(version, ".")
+    end
+
+    local function semver_at_least(version, minimum)
+      for index = 1, math.max(#version, #minimum) do
+        local lhs = version[index] or 0
+        local rhs = minimum[index] or 0
+        if lhs ~= rhs then
+          return lhs > rhs
+        end
+      end
+
+      return true
+    end
+
+    local function get_cli_version()
+      if vim.fn.executable("tree-sitter") ~= 1 then
+        return nil
+      end
+
+      local result = vim.system({ "tree-sitter", "--version" }, { text = true }):wait()
+      if result.code ~= 0 then
+        return nil
+      end
+
+      return parse_semver(result.stdout or "")
+    end
+
     local function get_missing_managed_languages()
       local installed_parsers = ts.get_installed("parsers")
       local installed_queries = ts.get_installed("queries")
@@ -103,15 +143,35 @@ return {
     end
 
     local function install_languages(languages)
+      languages = vim.tbl_filter(function(lang)
+        return not failed_installs[lang]
+      end, languages)
+
       if #languages == 0 then
-        return true
+        return false
       end
 
-      if vim.fn.executable("tree-sitter") ~= 1 then
+      local cli_version = get_cli_version()
+      if not cli_version then
         if not warned_about_missing_cli then
           warned_about_missing_cli = true
           vim.notify_once(
             "tree-sitter CLI is not installed, so managed Tree-sitter parsers cannot be bootstrapped automatically. Run the Neovim role again or install tree-sitter manually.",
+            vim.log.levels.WARN
+          )
+        end
+        mark_install_failed(languages)
+        return false
+      end
+
+      if not semver_at_least(cli_version, minimum_cli_version) then
+        if not warned_about_incompatible_cli then
+          warned_about_incompatible_cli = true
+          vim.notify_once(
+            ("tree-sitter CLI %s is installed, but nvim-treesitter main requires %s or newer. Parser auto-install is disabled until the CLI is upgraded."):format(
+              format_semver(cli_version),
+              format_semver(minimum_cli_version)
+            ),
             vim.log.levels.WARN
           )
         end

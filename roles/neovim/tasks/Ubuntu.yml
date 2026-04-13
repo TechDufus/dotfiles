@@ -18,12 +18,124 @@
       - libtool
       - pkg-config
       - ripgrep
-      - tree-sitter-cli
       - unzip
     state: present
+    update_cache: true
   become: true
   when: can_install_packages | default(false)
   register: nvim_deps_install
+
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Check tree-sitter CLI version"
+  ansible.builtin.command: tree-sitter --version
+  register: tree_sitter_cli_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Set tree-sitter CLI facts"
+  ansible.builtin.set_fact:
+    tree_sitter_cli_min_version: "0.26.1"
+    tree_sitter_cli_version: "{{ (tree_sitter_cli_check.stdout | regex_search('\\d+\\.\\d+\\.\\d+')) | default('') }}"
+    tree_sitter_cli_arch: >-
+      {{ 'x64' if ansible_facts['architecture'] in ['x86_64', 'amd64']
+      else 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64']
+      else '' }}
+
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Install compatible tree-sitter CLI"
+  when:
+    - can_install_packages | default(false)
+    - tree_sitter_cli_arch != ''
+    - tree_sitter_cli_check.rc != 0 or tree_sitter_cli_version == '' or (tree_sitter_cli_version is version(tree_sitter_cli_min_version, '<'))
+  block:
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Get latest tree-sitter CLI release"
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/tree-sitter/tree-sitter/releases/latest
+        return_content: yes
+      register: tree_sitter_cli_release
+      no_log: true
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Set tree-sitter CLI download facts"
+      ansible.builtin.set_fact:
+        tree_sitter_cli_asset_name: "tree-sitter-cli-linux-{{ tree_sitter_cli_arch }}.zip"
+        tree_sitter_cli_tmp_archive: "/tmp/tree-sitter-cli-{{ tree_sitter_cli_release.json.tag_name }}.zip"
+        tree_sitter_cli_tmp_dir: "/tmp/tree-sitter-cli-{{ tree_sitter_cli_release.json.tag_name }}"
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Resolve tree-sitter CLI asset"
+      ansible.builtin.set_fact:
+        tree_sitter_cli_download_url: >-
+          {{ (tree_sitter_cli_release.json.assets
+          | selectattr('name', 'equalto', tree_sitter_cli_asset_name)
+          | map(attribute='browser_download_url')
+          | first) | default('') }}
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Download tree-sitter CLI"
+      ansible.builtin.get_url:
+        url: "{{ tree_sitter_cli_download_url }}"
+        dest: "{{ tree_sitter_cli_tmp_archive }}"
+        mode: "0644"
+      when: tree_sitter_cli_download_url != ''
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Create tree-sitter CLI temp directory"
+      ansible.builtin.file:
+        path: "{{ tree_sitter_cli_tmp_dir }}"
+        state: directory
+        mode: "0755"
+      when: tree_sitter_cli_download_url != ''
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Extract tree-sitter CLI"
+      ansible.builtin.unarchive:
+        src: "{{ tree_sitter_cli_tmp_archive }}"
+        dest: "{{ tree_sitter_cli_tmp_dir }}"
+        remote_src: true
+      when: tree_sitter_cli_download_url != ''
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Find tree-sitter CLI binary"
+      ansible.builtin.find:
+        paths: "{{ tree_sitter_cli_tmp_dir }}"
+        recurse: true
+        patterns: tree-sitter
+        file_type: file
+      register: tree_sitter_cli_binary
+      when: tree_sitter_cli_download_url != ''
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Ensure /usr/local/bin exists"
+      ansible.builtin.file:
+        path: /usr/local/bin
+        state: directory
+        mode: "0755"
+      become: true
+      when:
+        - tree_sitter_cli_download_url != ''
+        - tree_sitter_cli_binary.matched | default(0) > 0
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Install tree-sitter CLI"
+      ansible.builtin.copy:
+        src: "{{ tree_sitter_cli_binary.files[0].path }}"
+        dest: /usr/local/bin/tree-sitter
+        mode: "0755"
+        remote_src: true
+      become: true
+      when:
+        - tree_sitter_cli_download_url != ''
+        - tree_sitter_cli_binary.matched | default(0) > 0
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Cleanup tree-sitter CLI archive"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ tree_sitter_cli_tmp_archive }}"
+        - "{{ tree_sitter_cli_tmp_dir }}"
+      when: tree_sitter_cli_download_url != ''
+
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Warn when tree-sitter CLI asset is unavailable"
+      ansible.builtin.debug:
+        msg: "Unable to resolve a compatible tree-sitter CLI release asset for architecture {{ ansible_facts['architecture'] }}. Parser auto-install may remain disabled."
+      when: tree_sitter_cli_download_url == ''
+  rescue:
+    - name: "Neovim | {{ ansible_facts['distribution'] }} | Warn when tree-sitter CLI installation fails"
+      ansible.builtin.debug:
+        msg: "Failed to install a compatible tree-sitter CLI automatically. Neovim will continue, but parser auto-install may remain disabled until tree-sitter 0.26.1+ is installed."
 
 # System-wide installation with sudo
 - name: "Neovim | {{ ansible_facts['distribution'] }} | System installation"

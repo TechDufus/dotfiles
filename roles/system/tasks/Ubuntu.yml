@@ -25,6 +25,46 @@
       - "Please run with sudo or contact your system administrator"
   when: not (can_install_packages | default(false))
 
+- name: "System | {{ ansible_facts['distribution'] }} | Ensure X11 keyboard config directory exists"
+  ansible.builtin.file:
+    path: /etc/X11/xorg.conf.d
+    state: directory
+    mode: "0755"
+  become: true
+  when:
+    - keyboard is defined
+    - can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Configure console and display-manager keyboard defaults"
+  ansible.builtin.template:
+    src: default-keyboard.j2
+    dest: /etc/default/keyboard
+    mode: "0644"
+  become: true
+  when:
+    - keyboard is defined
+    - can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Configure X11 keyboard defaults"
+  ansible.builtin.template:
+    src: 00-keyboard.conf.j2
+    dest: /etc/X11/xorg.conf.d/00-keyboard.conf
+    mode: "0644"
+  become: true
+  when:
+    - keyboard is defined
+    - can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Keyboard configuration skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Keyboard configuration skipped due to missing sudo privileges"
+      - "Requested layout: {{ keyboard.layout | default('us') }}"
+      - "Requested variant: {{ keyboard.variant | default('(none)') }}"
+  when:
+    - keyboard is defined
+    - not (can_install_packages | default(false))
+
 # =============================================================================
 # System Performance Optimizations (ported from Fedora)
 # =============================================================================

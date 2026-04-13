@@ -1,0 +1,7 @@
+{% set keyboard_config = keyboard | default({}) %}
+{% set keyboard_options = keyboard_config.options | default([]) %}
+XKBMODEL="{{ keyboard_config.model | default('pc105') }}"
+XKBLAYOUT="{{ keyboard_config.layout | default('us') }}"
+XKBVARIANT="{{ keyboard_config.variant | default('') }}"
+XKBOPTIONS="{% if keyboard_options is string %}{{ keyboard_options }}{% else %}{{ keyboard_options | join(',') }}{% endif %}"
+BACKSPACE="guess"

@@ -1,0 +1,14 @@
+{% set keyboard_config = keyboard | default({}) %}
+{% set keyboard_options = keyboard_config.options | default([]) %}
+Section "InputClass"
+        Identifier "system-keyboard"
+        MatchIsKeyboard "on"
+        Option "XkbLayout" "{{ keyboard_config.layout | default('us') }}"
+        Option "XkbModel" "{{ keyboard_config.model | default('pc105') }}"
+{% if keyboard_config.variant | default('') %}
+        Option "XkbVariant" "{{ keyboard_config.variant }}"
+{% endif %}
+{% if keyboard_options %}
+        Option "XkbOptions" "{% if keyboard_options is string %}{{ keyboard_options }}{% else %}{{ keyboard_options | join(',') }}{% endif %}"
+{% endif %}
+EndSection

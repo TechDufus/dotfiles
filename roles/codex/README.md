@@ -12,6 +12,9 @@ Install and configure the OpenAI Codex CLI with version-controlled user memory.
 - Copies custom agents from `roles/codex/files/agents/` into `~/.codex/agents/`
 - Symlinks custom skills from `roles/codex/files/skills/` into `~/.codex/skills/`
 - Validates repo-managed custom skills before symlinking them into `~/.codex/skills/`
+- Clones or updates upstream Caveman under `~/.local/share/codex-external/caveman`
+- Symlinks upstream Caveman Codex skills into `~/.codex/skills/`
+- Removes the older repo-managed Caveman startup hook if this role created it
 - Optionally cleans up legacy official-skill symlinks/cache from older role versions
 - Removes stale managed custom-agent files that no longer exist in dotfiles
 - Removes stale managed custom-skill symlinks that no longer exist in dotfiles
@@ -44,6 +47,10 @@ Override these vars in inventory/group vars if needed:
 - `codex_skills_source`
 - `codex_skills_dest`
 - `codex_cleanup_legacy_official_skills`
+- `codex_caveman_enabled`
+- `codex_caveman_repo_url`
+- `codex_caveman_version`
+- `codex_caveman_clone_path`
 
 ## Custom Agents in Dotfiles
 
@@ -88,9 +95,40 @@ Current repo-managed skills:
 | Skill | Purpose |
 |------|---------|
 | `commit` | Safe conventional commit workflow |
+| `github-issue-hierarchy` | Create and link GitHub issues with parent/sub-issue structure |
 | `intent` | Extract intent and non-goals from requests, issues, PRs, or diffs |
-| `rafty` | RAFT and Rafty CLI workflows |
 | `work` | Task routing and execution strategy for non-trivial engineering work |
+
+## Caveman Skill
+
+The role manages Caveman as an external upstream clone instead of vendoring its skill files into this repo.
+That is intentional:
+
+- you did not want third-party skill content committed into your dotfiles repo
+- `ansible.builtin.git` gives you a user-scoped clone that updates on `dotfiles -t codex`
+- the official skill stays upstream-managed, while your dotfiles own only the install wiring
+
+Default runtime paths:
+
+- clone: `~/.local/share/codex-external/caveman`
+- skills:
+  - `~/.codex/skills/caveman -> ~/.local/share/codex-external/caveman/plugins/caveman/skills/caveman`
+  - `~/.codex/skills/compress -> ~/.local/share/codex-external/caveman/plugins/caveman/skills/compress`
+
+By default the role tracks upstream `main`. If you want stability over freshness, pin `codex_caveman_version` to a tag or commit SHA.
+
+This role does not auto-activate Caveman.
+Start a new session normally, then invoke the installed skill explicitly.
+
+Recommended Codex trigger:
+
+```text
+$caveman
+```
+
+Then continue in the same session. Upstream skill docs also say natural phrases like `caveman mode`, `talk like caveman`, or `use caveman` should trigger it.
+
+To stop in-session, say `normal mode` or `stop caveman`.
 
 Example:
 

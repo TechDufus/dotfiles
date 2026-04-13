@@ -151,6 +151,17 @@ default_roles:
 # This will be used for git config user.name
 git_user_name: "Your Full Name"
 
+# Optional: Keyboard layout for Linux/X11 systems.
+# This config is applied by the `system` role on Ubuntu and is also used
+# by the AwesomeWM startup remap so your session keeps the intended layout.
+#
+# keyboard:
+#   model: pc105
+#   layout: us
+#   variant: dvorak
+#   options:
+#     - caps:none
+
 # --------------------------------------------------------------------
 # 1PASSWORD INTEGRATION (Optional but Recommended)
 # --------------------------------------------------------------------

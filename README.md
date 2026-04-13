@@ -135,6 +135,7 @@ Below is a list of all available values. Not all are required but incorrect valu
 | ---------------- | -------------------------------------- | -------- |
 | git_user_name    | string                                 | yes      |
 | op               | object `(see OP Variable below)`       | yes      |
+| keyboard         | object `(Linux/X11 keyboard settings)` | no       |
 | go.packages      | list `(for extra go bin installs)`     | no       |
 | helm.repos       | list `(add extra helm repos)`          | no       |
 | k8s.repo.version | string `(specify kubectl bin version)` | no       |

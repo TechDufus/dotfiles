@@ -42,6 +42,24 @@ default_roles:
   - tmux
 ```
 
+### Keyboard
+
+| Variable | Description |
+|----------|-------------|
+| `keyboard.model` | XKB keyboard model for Linux/X11 |
+| `keyboard.layout` | XKB layout, for example `us` |
+| `keyboard.variant` | XKB variant, for example `dvorak` |
+| `keyboard.options` | XKB options list, for example `caps:none` |
+
+```yaml
+keyboard:
+  model: pc105
+  layout: us
+  variant: dvorak
+  options:
+    - caps:none
+```
+
 ### Package Lists
 
 | Variable | Description |

@@ -60,6 +60,14 @@ default_roles:
   - zsh
 
 git_user_name: "TechDufus"
+
+keyboard:
+  model: pc105
+  layout: us
+  variant: dvorak
+  options:
+    - caps:none
+
 op:
   git:
     user:

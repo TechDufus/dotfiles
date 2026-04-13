@@ -13,3 +13,12 @@ codex_skills_dest: "{{ ansible_facts['env']['HOME'] }}/.codex/skills"
 codex_cleanup_legacy_official_skills: true
 codex_legacy_official_skills_prefix: "{{ ansible_facts['env']['HOME'] }}/.local/share/codex/skills/openai-skills/skills/.curated/"
 codex_legacy_official_skills_cache_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/codex/skills/openai-skills"
+codex_external_plugins_root: "{{ ansible_facts['env']['HOME'] }}/.local/share/codex-external"
+codex_caveman_enabled: true
+codex_caveman_repo_url: "https://github.com/JuliusBrussee/caveman.git"
+codex_caveman_version: "main"
+codex_caveman_clone_path: "{{ codex_external_plugins_root }}/caveman"
+codex_caveman_skills_root: "{{ codex_caveman_clone_path }}/plugins/caveman/skills"
+codex_caveman_skill_names:
+  - caveman
+  - compress

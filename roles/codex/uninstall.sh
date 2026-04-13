@@ -21,7 +21,29 @@ elif [ -L "$HOME/.codex/AGENTS.md" ]; then
   _task_done
 fi
 
+if [ -f "$HOME/.codex/hooks.json.backup" ]; then
+  __task "Restoring backup Codex hooks.json"
+  _cmd "mv $HOME/.codex/hooks.json.backup $HOME/.codex/hooks.json"
+  _task_done
+elif [ -L "$HOME/.codex/hooks.json" ]; then
+  __task "Removing Codex hooks.json symlink"
+  _cmd "rm -f $HOME/.codex/hooks.json"
+  _task_done
+fi
+
+if [ -f "$HOME/.codex/caveman_session_start.py.backup" ]; then
+  __task "Restoring backup Codex caveman_session_start.py"
+  _cmd "mv $HOME/.codex/caveman_session_start.py.backup $HOME/.codex/caveman_session_start.py"
+  _task_done
+elif [ -L "$HOME/.codex/caveman_session_start.py" ]; then
+  __task "Removing Codex caveman_session_start.py symlink"
+  _cmd "rm -f $HOME/.codex/caveman_session_start.py"
+  _task_done
+fi
+
 managed_agents_dir="$(cd "$(dirname "$0")/files/agents" 2>/dev/null && pwd)"
+managed_skills_dir="$(cd "$(dirname "$0")/files/skills" 2>/dev/null && pwd)"
+external_caveman_dir="$HOME/.local/share/codex-external/caveman"
 
 if [ -n "$managed_agents_dir" ] && [ -d "$HOME/.codex/agents" ]; then
   for managed_source in "$managed_agents_dir"/*.toml; do
@@ -40,6 +62,36 @@ if [ -n "$managed_agents_dir" ] && [ -d "$HOME/.codex/agents" ]; then
     _cmd "rm -f $HOME/.codex/agents/.managed-by-dotfiles.json"
     _task_done
   fi
+fi
+
+if [ -n "$managed_skills_dir" ] && [ -d "$HOME/.codex/skills" ]; then
+  for managed_source in "$managed_skills_dir"/*; do
+    [ -d "$managed_source" ] || continue
+
+    skill_path="$HOME/.codex/skills/$(basename "$managed_source")"
+    [ -L "$skill_path" ] || continue
+
+    __task "Removing Codex custom skill $(basename "$skill_path")"
+    _cmd "rm -f $skill_path"
+    _task_done
+  done
+fi
+
+if [ -d "$HOME/.codex/skills" ]; then
+  for external_skill in caveman compress; do
+    skill_path="$HOME/.codex/skills/$external_skill"
+    [ -L "$skill_path" ] || continue
+
+    __task "Removing external Codex skill $external_skill"
+    _cmd "rm -f $skill_path"
+    _task_done
+  done
+fi
+
+if [ -d "$external_caveman_dir" ]; then
+  __task "Removing external Caveman clone"
+  _cmd "rm -rf $external_caveman_dir"
+  _task_done
 fi
 
 case "$(uname -s)" in

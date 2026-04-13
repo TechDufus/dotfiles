@@ -250,6 +250,105 @@
     loop_var: codex_skill_source_directory
     label: "{{ codex_skill_source_directory.path | basename }}"
 
+- name: "{{ role_name }} | Caveman | Ensure external plugin root exists"
+  ansible.builtin.file:
+    path: "{{ codex_external_plugins_root }}"
+    state: directory
+    mode: "0755"
+  when: codex_caveman_enabled
+
+- name: "{{ role_name }} | Caveman | Clone or update upstream repository"
+  ansible.builtin.git:
+    repo: "{{ codex_caveman_repo_url }}"
+    dest: "{{ codex_caveman_clone_path }}"
+    version: "{{ codex_caveman_version }}"
+    update: true
+    depth: 1
+  when: codex_caveman_enabled
+
+- name: "{{ role_name }} | Caveman | Check upstream skill root"
+  ansible.builtin.stat:
+    path: "{{ codex_caveman_skills_root }}"
+  register: codex_caveman_skills_root_directory
+  when: codex_caveman_enabled
+
+- name: "{{ role_name }} | Caveman | Fail when upstream skill root is missing"
+  ansible.builtin.fail:
+    msg: >-
+      Caveman skills root {{ codex_caveman_skills_root }} was not found after cloning
+      {{ codex_caveman_repo_url }} at {{ codex_caveman_version }}.
+  when:
+    - codex_caveman_enabled
+    - not codex_caveman_skills_root_directory.stat.isdir
+
+- name: "{{ role_name }} | Caveman | Validate upstream skills"
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "{{ role_path }}/files/scripts/validate_skills.py"
+      - "{{ codex_caveman_skills_root }}"
+  changed_when: false
+  when: codex_caveman_enabled
+
+- name: "{{ role_name }} | Caveman | Check configured upstream skill sources"
+  ansible.builtin.stat:
+    path: "{{ codex_caveman_skills_root }}/{{ codex_caveman_skill_name }}/SKILL.md"
+  loop: "{{ codex_caveman_skill_names }}"
+  loop_control:
+    loop_var: codex_caveman_skill_name
+    label: "{{ codex_caveman_skill_name }}"
+  register: codex_caveman_skill_sources
+  when: codex_caveman_enabled
+
+- name: "{{ role_name }} | Caveman | Fail when configured upstream skill source is missing"
+  ansible.builtin.fail:
+    msg: >-
+      Configured Caveman skill {{ item.codex_caveman_skill_name }} was not found at
+      {{ codex_caveman_skills_root }}/{{ item.codex_caveman_skill_name }}/SKILL.md.
+      Update codex_caveman_skill_names or pin a compatible upstream revision.
+  loop: "{{ codex_caveman_skill_sources.results | default([]) }}"
+  loop_control:
+    label: "{{ item.codex_caveman_skill_name }}"
+  when:
+    - codex_caveman_enabled
+    - not item.stat.exists
+
+- name: "{{ role_name }} | Caveman | Check external skill destination paths"
+  ansible.builtin.stat:
+    path: "{{ codex_skills_dest }}/{{ codex_caveman_skill_name }}"
+    follow: false
+  loop: "{{ codex_caveman_skill_names }}"
+  loop_control:
+    loop_var: codex_caveman_skill_name
+    label: "{{ codex_caveman_skill_name }}"
+  register: codex_caveman_skill_destinations
+  when: codex_caveman_enabled
+
+- name: "{{ role_name }} | Caveman | Fail when external skill destination is not a symlink"
+  ansible.builtin.fail:
+    msg: >-
+      External Caveman skill destination {{ codex_skills_dest }}/{{ item.codex_caveman_skill_name }}
+      exists and is not a symlink. Move or remove it, then rerun `dotfiles -t codex`.
+  loop: "{{ codex_caveman_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.codex_caveman_skill_name }}"
+  when:
+    - codex_caveman_enabled
+    - item.stat.exists
+    - not item.stat.islnk
+
+- name: "{{ role_name }} | Caveman | Symlink external skills into ~/.codex/skills"
+  ansible.builtin.file:
+    src: "{{ codex_caveman_skills_root }}/{{ codex_caveman_skill_name }}"
+    dest: "{{ codex_skills_dest }}/{{ codex_caveman_skill_name }}"
+    state: link
+    force: true
+  loop: "{{ codex_caveman_skill_names }}"
+  loop_control:
+    loop_var: codex_caveman_skill_name
+    label: "{{ codex_caveman_skill_name }}"
+  when: codex_caveman_enabled
+
 - name: "{{ role_name }} | Symlink | Check if config.toml already exists"
   ansible.builtin.stat:
     path: "{{ codex_config_dest }}"
@@ -301,3 +400,33 @@
     dest: "{{ codex_agents_dest }}"
     state: link
     force: true
+
+- name: "{{ role_name }} | Cleanup | Check for legacy managed hooks.json symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.codex/hooks.json"
+    follow: false
+  register: codex_legacy_hooks_file
+
+- name: "{{ role_name }} | Cleanup | Remove legacy managed hooks.json symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.codex/hooks.json"
+    state: absent
+  when:
+    - codex_legacy_hooks_file.stat.exists
+    - codex_legacy_hooks_file.stat.islnk
+    - codex_legacy_hooks_file.stat.lnk_source | default('') == (role_path ~ '/files/hooks.json')
+
+- name: "{{ role_name }} | Cleanup | Check for legacy managed caveman_session_start.py symlink"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.codex/caveman_session_start.py"
+    follow: false
+  register: codex_legacy_hook_script_file
+
+- name: "{{ role_name }} | Cleanup | Remove legacy managed caveman_session_start.py symlink"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.codex/caveman_session_start.py"
+    state: absent
+  when:
+    - codex_legacy_hook_script_file.stat.exists
+    - codex_legacy_hook_script_file.stat.islnk
+    - codex_legacy_hook_script_file.stat.lnk_source | default('') == (role_path ~ '/files/scripts/caveman_session_start.py')

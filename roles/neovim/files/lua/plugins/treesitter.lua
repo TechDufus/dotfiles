@@ -31,6 +31,7 @@ return {
       "just",
       "lua",
       "luadoc",
+      "make",
       "markdown",
       "markdown_inline",
       "python",
@@ -206,13 +207,14 @@ return {
     end
 
     -- Old nvim-treesitter installs can leave stale parser binaries in the plugin checkout.
-    -- Prefer Neovim's own `vim` parser so command-line buffers don't load an incompatible binary.
+    -- Prefer managed or bundled parsers over those stale plugin-local binaries.
     ts.setup({
       install_dir = install_dir,
     })
 
-    prefer_non_plugin_parser("vim")
     install_languages(get_missing_managed_languages())
+    prefer_non_plugin_parser("vim")
+    prefer_non_plugin_parser("make")
 
     local group = vim.api.nvim_create_augroup("techdufus_treesitter", { clear = true })
 

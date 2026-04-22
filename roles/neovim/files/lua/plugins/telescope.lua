@@ -3,7 +3,7 @@ local techdufus = require_on_exported_call('techdufus.telescope.pickers')
 return {
   "nvim-telescope/telescope.nvim",
   cmd = 'Telescope',
-  tag = '0.1.8',
+  version = '*',
   dependencies = {
     "nvim-lua/plenary.nvim",
     "jvgrootveld/telescope-zoxide",

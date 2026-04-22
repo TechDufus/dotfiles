@@ -16,6 +16,24 @@ local summon_trigger_keys = {
   Caps_Lock = true,
 }
 
+local function has_modifier(modifiers, target)
+  for _, modifier in ipairs(modifiers or {}) do
+    if modifier == target then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function binding_key_for_event(modifiers, key)
+  if has_modifier(modifiers, "Shift") and type(key) == "string" and #key == 1 then
+    return key:upper()
+  end
+
+  return key
+end
+
 -- Simple same-class window cycling (no external dependencies)
 local function cycle_same_class()
   local focused = client.focus
@@ -59,6 +77,8 @@ summon_modal = awful.keygrabber {
   timeout = 1,  -- 1 second timeout for modal auto-close
   autostart = false,
   keypressed_callback = function(self, mod, key, event)
+    local binding_key = binding_key_for_event(mod, key)
+
     -- Treat any recognized summon trigger as a second tap to enter macro mode.
     if summon_trigger_keys[key] then
       self:stop()
@@ -70,7 +90,7 @@ summon_modal = awful.keygrabber {
 
     -- Check if it's a summon key
     for app_name, app_cfg in pairs(apps) do
-      if app_cfg.summon == key then
+      if app_cfg.summon == binding_key then
         local app = app_name  -- Capture for closure
         self:stop()
         gears.timer.delayed_call(function()

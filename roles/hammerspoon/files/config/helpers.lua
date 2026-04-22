@@ -193,6 +193,14 @@ function registerTransientLeader(mods, key, bindings, options)
     return true
   end
 
+  local function bindingKeyForEvent(keyName, flags)
+    if flags.shift and type(keyName) == 'string' and #keyName == 1 then
+      return string.upper(keyName)
+    end
+
+    return keyName
+  end
+
   function leader:isActive()
     return leader._active
   end
@@ -238,8 +246,9 @@ function registerTransientLeader(mods, key, bindings, options)
         return true
       end
 
+      local bindingKey = bindingKeyForEvent(keyName, flags)
       stop()
-      return dispatch(bindings[keyName])
+      return dispatch(bindings[bindingKey] or bindings[keyName])
     end):start()
 
     debugLog('enter')

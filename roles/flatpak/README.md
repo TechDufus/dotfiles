@@ -26,6 +26,7 @@ When a graphical desktop environment is detected, the following applications are
 |------------|------------|-------------|
 | **Brave Browser** | `com.brave.Browser` | Privacy-focused web browser |
 | **Discord** | `com.discordapp.Discord` | Voice, video, and text communication |
+| **Signal** | `org.signal.Signal` | Private messenger (Flathub community redistribution) |
 | **Spotify** | `com.spotify.Client` | Music streaming service |
 | **Obsidian** | `md.obsidian.Obsidian` | Markdown-based knowledge base |
 | **Steam** | `com.valvesoftware.Steam` | Gaming platform |
@@ -113,9 +114,10 @@ graph LR
     D -->|No| F[Skip Apps]
     E --> G[Brave Browser]
     E --> H[Discord]
-    E --> I[Spotify]
-    E --> J[Obsidian]
-    E --> K[Steam]
+    E --> I[Signal]
+    E --> J[Spotify]
+    E --> K[Obsidian]
+    E --> L[Steam]
 ```
 
 ## Key Implementation Details

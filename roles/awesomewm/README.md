@@ -66,6 +66,7 @@ AwesomeWM now treats those aliases as the same leader key for both summon activa
 - `t` → Ghostty Terminal
 - `b` → Brave Browser
 - `d` → Discord
+- `Shift+c` → Signal
 - `s` → Spotify
 - `n` → Obsidian
 - `o` → 1Password
@@ -281,6 +282,15 @@ Hyper + l
      class = "myapp",     -- From xprop (usually lowercase)
      summon = "m",        -- CapsLock/F13 + m
      exec = "myapp-cmd",  -- Launch command
+   },
+   ```
+
+   Shifted summon keys are supported by using uppercase letters:
+   ```lua
+   Signal = {
+     class = "signal",
+     summon = "C",       -- CapsLock/F13 + Shift+c
+     exec = "flatpak run org.signal.Signal",
    },
    ```
 

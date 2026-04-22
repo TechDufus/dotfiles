@@ -17,6 +17,11 @@ return {
     summon = "d",
     exec = "flatpak run com.discordapp.Discord",
   },
+  Signal = {
+    class = "signal",
+    summon = "C",
+    exec = "flatpak run org.signal.Signal",
+  },
   Spotify = {
     class = "Spotify",           -- Note: Spotify uses capital S
     summon = "s",

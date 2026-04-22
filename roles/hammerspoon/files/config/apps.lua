@@ -11,6 +11,10 @@ return {
     id = 'Mattermost.Desktop',
     summon = 'c', -- [C]hat
   },
+  Signal      = {
+    id = 'org.whispersystems.signal-desktop',
+    summon = 'C', -- Signal chat
+  },
   Discord     = {
     id = 'com.hnc.Discord',
     summon = 'd', -- [D]iscord

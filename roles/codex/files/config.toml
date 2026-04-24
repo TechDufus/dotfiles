@@ -1,5 +1,5 @@
 # Codex CLI config (managed by dotfiles role)
-# Reference: https://github.com/openai/codex/blob/main/docs/config.md
+# Reference: https://developers.openai.com/codex/config-reference
 
 # Minimal, high-quality defaults.
 model_reasoning_effort = "xhigh"
@@ -10,19 +10,18 @@ sandbox_mode = "danger-full-access"
 sandbox_workspace_write.network_access = true
 web_search = "live"
 # tool_output_token_limit = 120000
-model = "gpt-5.4"
+model = "gpt-5.5"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"
 suppress_unstable_features_warning = true
-approvals_reviewer = "guardian_subagent"
+approvals_reviewer = "auto_review"
+personality = "pragmatic"
 
 [features]
 guardian_approval = true
 multi_agent = true
 undo = true
-voice_transcription = true
-# # Improves compatibility on Linux hosts where Landlock is unavailable/restricted.
-# use_linux_sandbox_bwrap = true
+memories = true
 
 [agents]
 max_threads = 12
@@ -58,3 +57,20 @@ enabled = true
 
 [plugins."github@openai-curated"]
 enabled = true
+
+[plugins."granola@openai-curated"]
+enabled = true
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[marketplaces.openai-bundled]
+last_updated = "2026-04-22T02:44:14Z"
+source_type = "local"
+source = "/Users/mdegarmo/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[memories]
+no_memories_if_mcp_or_web_search = true

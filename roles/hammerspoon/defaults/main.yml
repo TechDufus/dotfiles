@@ -3,6 +3,7 @@ hammerspoon_config_dir: "{{ ansible_facts['user_dir'] }}/.hammerspoon"
 hammerspoon_spoons_dir: "{{ hammerspoon_config_dir }}/Spoons"
 hammerspoon_legacy_config_files:
   - grid.lua
+  - karabiner.lua
   - screens.lua
   - summon.lua
   - workspaces.lua

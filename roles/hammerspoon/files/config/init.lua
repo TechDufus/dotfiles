@@ -29,7 +29,6 @@ apps  = require('apps')
 local layouts = require('layouts')
 local screenLayouts = require('screen_layouts')
 chain = require('chain')
-require('karabiner').start()
 
 --------------------------------------------------------------------------------
 -- Misc Macros

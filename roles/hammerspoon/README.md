@@ -8,6 +8,8 @@ The split is intentional:
 - `GridLayout.spoon` is the low-level placement engine.
 - `WorkspaceManager.spoon` is the stateful runtime layered on top.
 - `files/config/` holds your personal app catalog, layouts, screen defaults, and keybindings.
+- Karabiner is only used for the CapsLock to `F13` remap; Hammerspoon does not restart
+  Karabiner services.
 
 ## Deploy
 
@@ -19,6 +21,7 @@ dotfiles -t hammerspoon
 
 That run now does all of the following:
 
+- deploys the Karabiner CapsLock to `F13` config
 - copies `files/config/*.lua` into `~/.hammerspoon/`
 - installs `GridLayout.spoon` from GitHub Releases
 - installs `WorkspaceManager.spoon` from GitHub Releases

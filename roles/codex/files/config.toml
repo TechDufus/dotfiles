@@ -37,6 +37,9 @@ show_tooltips = false
 status_line = ["model-with-reasoning", "git-branch", "current-dir", "context-used", "five-hour-limit"]
 theme = "catppuccin-mocha"
 
+[tui.keymap.editor]
+insert_newline = "alt-enter"
+
 [mcp_servers.playwright]
 command = "bunx"
 args = ["@playwright/mcp@latest"]
@@ -67,10 +70,27 @@ enabled = true
 [plugins."computer-use@openai-bundled"]
 enabled = true
 
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
 [marketplaces.openai-bundled]
-last_updated = "2026-04-22T02:44:14Z"
+last_updated = "2026-04-26T19:35:06Z"
 source_type = "local"
 source = "/Users/mdegarmo/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-04-26T20:05:09Z"
+source_type = "local"
+source = "/Users/mdegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
 [memories]
 no_memories_if_mcp_or_web_search = true

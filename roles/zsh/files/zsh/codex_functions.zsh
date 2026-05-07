@@ -38,6 +38,11 @@ c.review() {
   codex review "$@"
 }
 
+# Summon/dismiss the tmux Codex pane dashboard.
+c.dashboard() {
+  "$HOME/.codex/scripts/codex-dashboard" "$@"
+}
+
 # Show all Codex functions.
 c.help() {
   echo ""
@@ -54,6 +59,8 @@ c.help() {
   echo -e "  ${CAT_YELLOW}Automation${NC}"
   echo -e "  ${CAT_GREEN}  c.exec${NC}              ${CAT_SURFACE2}│${NC} Run Codex non-interactively"
   echo -e "  ${CAT_GREEN}  c.review${NC}            ${CAT_SURFACE2}│${NC} Run Codex code review mode"
+  echo -e "  ${CAT_GREEN}  c.dashboard${NC}         ${CAT_SURFACE2}│${NC} Summon/dismiss tmux Codex dashboard"
+  echo -e "  ${CAT_GREEN}  c.dash${NC}              ${CAT_SURFACE2}│${NC} Alias for c.dashboard"
   echo ""
   echo -e "  ${CAT_YELLOW}Help${NC}"
   echo -e "  ${CAT_GREEN}  c.help${NC}              ${CAT_SURFACE2}│${NC} Show this help message"
@@ -65,3 +72,4 @@ c.help() {
 
 # Alias for common continue patterns.
 alias c.c='c.continue'
+alias c.dash='c.dashboard'

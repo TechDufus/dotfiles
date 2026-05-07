@@ -142,6 +142,7 @@ Advanced session management with fuzzy finding:
 ### 4. Claude AI Dashboard
 Quick access to Claude Code status:
 - `prefix + a` - Show Claude dashboard
+- `prefix + A` - Show Codex pane dashboard
 - Status bar shows real-time Claude activity
 - Visual indicators for working/done/idle states
 
@@ -191,6 +192,7 @@ Ctrl+b o  # Opens sesh session manager
 | `prefix + S` | Synchronize panes |
 | `prefix + o` | Sesh session manager |
 | `prefix + a` | Claude dashboard |
+| `prefix + A` | Codex dashboard |
 | `prefix + u` | Open URL in browser |
 
 ## Customization

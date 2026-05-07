@@ -31,6 +31,10 @@ return {
     id = 'com.openai.chat',
     summon = 'g', -- [G]enAI / ChatGPT
   },
+  Codex       = {
+    id = 'com.openai.codex',
+    summon = 'G', -- Codex app
+  },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',
     summon = 'h', -- Screen S[h]aring

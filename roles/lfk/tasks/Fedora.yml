@@ -1,0 +1,3 @@
+---
+- name: "{{ role_name }} | Fedora | Install lfk from GitHub Release"
+  ansible.builtin.include_tasks: install_github_release.yml

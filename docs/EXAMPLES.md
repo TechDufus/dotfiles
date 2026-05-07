@@ -88,6 +88,7 @@ default_roles:
   - helm         # Kubernetes package manager
   - k8s          # Kubernetes tools
   - k9s          # Kubernetes UI
+  - lfk          # Fast Kubernetes UI alternative
   - gh
   - lazygit
   - python
@@ -183,6 +184,7 @@ default_roles:
   - helm
   - k8s
   - k9s
+  - lfk
   
   # Productivity
   - obsidian     # Note taking

@@ -1,0 +1,26 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Set install path"
+  ansible.builtin.set_fact:
+    lfk_install_path: "{{ '/usr/local/bin' if can_install_packages | default(false) else ansible_facts['user_dir'] + '/.local/bin' }}"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Ensure user-local bin exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+  when: not (can_install_packages | default(false))
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install from GitHub Release"
+  ansible.builtin.include_role:
+    name: github_release
+  vars:
+    github_release_repo: "janosmiko/lfk"
+    github_release_binary_name: "lfk"
+    github_release_asset_name_pattern: "lfk_.*_linux_{{ ansible_facts['architecture'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.tar.gz"
+    github_release_check_command: "lfk version"
+    github_release_version_pattern: '[0-9]+\.[0-9]+\.[0-9]+'
+    github_release_install_path: "{{ lfk_install_path }}"
+    github_release_install_mode: "0755"
+    github_release_become: "{{ can_install_packages | default(false) }}"
+    github_release_owner: "{{ host_user | default(ansible_facts['user_id']) }}"
+    github_release_group: "{{ host_user | default(ansible_facts['user_id']) }}"

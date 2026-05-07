@@ -100,6 +100,7 @@ Everything else is configured by editing the actual config files directly:
 | starship | `roles/starship/files/starship.toml` |
 | kitty | `roles/kitty/files/kitty.conf` |
 | ghostty | `roles/ghostty/files/config` |
+| lfk | `roles/lfk/files/config.yaml` |
 | git | `roles/git/files/gitconfig` |
 
 This is intentional. Config files are readable, portable, and self-contained. You look at the file and know exactly what it does.

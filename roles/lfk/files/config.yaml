@@ -1,0 +1,64 @@
+# ~/.config/lfk/config.yaml
+# Keep lfk visually close to the repo-managed K9s setup:
+# Catppuccin Mocha, transparent bars, no mouse capture, and direct resource browsing.
+
+colorscheme: catppuccin-mocha
+transparent_background: true
+icons: auto
+mouse: false
+dashboard: false
+tips: false
+confirm_on_exit: false
+
+watch_interval: 1s
+log_tail_lines: 200
+log_tail_lines_short: 10
+log_render_ansi: true
+scrollback_lines: 5000
+
+terminal: pty
+read_only: false
+secret_lazy_loading: true
+informer_cache: auto
+
+keybindings:
+  logs: "L"
+  refresh: "R"
+  describe: "v"
+  delete: "D"
+
+abbreviations:
+  dep: deployment
+  deploy: deployment
+  dp: deployment
+  po: pod
+  svc: service
+  ing: ingress
+  cm: configmap
+  sec: secret
+  ns: namespace
+  no: node
+  pvc: persistentvolumeclaim
+  pv: persistentvolume
+  sc: storageclass
+  sa: serviceaccount
+  hpa: horizontalpodautoscaler
+  vpa: verticalpodautoscaler
+  cj: cronjob
+  crd: customresourcedefinition
+  ev: event
+  netpol: networkpolicy
+
+resource_columns:
+  Pod: ["IP", "Node", "Image", "CPU", "MEM", "CPU/R", "CPU/L", "MEM/R", "MEM/L"]
+  Deployment: ["Replicas", "Available", "CPU", "MEM"]
+  StatefulSet: ["Replicas"]
+  Service: ["*"]
+
+pinned_groups:
+  - argoproj.io
+  - monitoring.coreos.com
+  - external-secrets.io
+  - helm.toolkit.fluxcd.io
+  - source.toolkit.fluxcd.io
+  - keda.sh

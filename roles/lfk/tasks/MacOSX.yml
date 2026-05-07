@@ -1,0 +1,24 @@
+---
+- name: "{{ role_name }} | MacOSX | Check Homebrew taps"
+  ansible.builtin.command: brew tap
+  register: lfk_homebrew_taps
+  changed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | MacOSX | Add official lfk Homebrew tap"
+  community.general.homebrew_tap:
+    name: janosmiko/tap
+    state: present
+
+- name: "{{ role_name }} | MacOSX | Install lfk via Homebrew"
+  community.general.homebrew:
+    name: janosmiko/tap/lfk
+    state: present
+  when: not ansible_check_mode or 'janosmiko/tap' in lfk_homebrew_taps.stdout_lines
+
+- name: "{{ role_name }} | MacOSX | Note skipped install in check mode"
+  ansible.builtin.debug:
+    msg: "Skipping lfk formula check because janosmiko/tap is not tapped during check mode."
+  when:
+    - ansible_check_mode
+    - "'janosmiko/tap' not in lfk_homebrew_taps.stdout_lines"

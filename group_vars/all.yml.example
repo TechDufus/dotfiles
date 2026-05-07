@@ -58,6 +58,7 @@ default_roles:
   # - helm         # Kubernetes package manager
   # - k8s          # Kubernetes command-line tools
   # - k9s          # Kubernetes cluster management UI
+  # - lfk          # Fast Kubernetes terminal UI alternative to k9s
   
   # === GitHub Integration ===
   - gh             # GitHub CLI for repo management
@@ -271,7 +272,7 @@ git_user_name: "Your Full Name"
 # 
 # Minimal: system, git, zsh, neovim, tmux, fzf, bat, lsd, starship, fonts
 # Web Dev: Add nvm, npm, python, docker, gh, lazygit
-# DevOps: Add terraform, helm, k8s, k9s, btop, taskfile
+# DevOps: Add terraform, helm, k8s, k9s, lfk, btop, taskfile
 # Full:    Enable most/all roles for complete development environment
 
 # --------------------------------------------------------------------

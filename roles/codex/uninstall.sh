@@ -31,19 +31,8 @@ elif [ -L "$HOME/.codex/hooks.json" ]; then
   _task_done
 fi
 
-if [ -f "$HOME/.codex/caveman_session_start.py.backup" ]; then
-  __task "Restoring backup Codex caveman_session_start.py"
-  _cmd "mv $HOME/.codex/caveman_session_start.py.backup $HOME/.codex/caveman_session_start.py"
-  _task_done
-elif [ -L "$HOME/.codex/caveman_session_start.py" ]; then
-  __task "Removing Codex caveman_session_start.py symlink"
-  _cmd "rm -f $HOME/.codex/caveman_session_start.py"
-  _task_done
-fi
-
 managed_agents_dir="$(cd "$(dirname "$0")/files/agents" 2>/dev/null && pwd)"
 managed_skills_dir="$(cd "$(dirname "$0")/files/skills" 2>/dev/null && pwd)"
-external_caveman_dir="$HOME/.local/share/codex-external/caveman"
 
 if [ -n "$managed_agents_dir" ] && [ -d "$HOME/.codex/agents" ]; then
   for managed_source in "$managed_agents_dir"/*.toml; do
@@ -75,23 +64,6 @@ if [ -n "$managed_skills_dir" ] && [ -d "$HOME/.codex/skills" ]; then
     _cmd "rm -f $skill_path"
     _task_done
   done
-fi
-
-if [ -d "$HOME/.codex/skills" ]; then
-  for external_skill in caveman compress; do
-    skill_path="$HOME/.codex/skills/$external_skill"
-    [ -L "$skill_path" ] || continue
-
-    __task "Removing external Codex skill $external_skill"
-    _cmd "rm -f $skill_path"
-    _task_done
-  done
-fi
-
-if [ -d "$external_caveman_dir" ]; then
-  __task "Removing external Caveman clone"
-  _cmd "rm -rf $external_caveman_dir"
-  _task_done
 fi
 
 case "$(uname -s)" in

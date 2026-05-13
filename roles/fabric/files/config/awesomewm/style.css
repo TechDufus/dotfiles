@@ -1,0 +1,421 @@
+:vars {
+  --base: #05070d;
+  --rail: #090f19;
+  --surface0: #0d1420;
+  --surface1: #131d2b;
+  --surface2: #253247;
+  --text: #e8f0fb;
+  --subtext: #91a5bc;
+  --muted: #5f7289;
+  --cyan: #55e6ff;
+  --blue: #6aa8ff;
+  --violet: #b49cff;
+  --green: #8ff0a4;
+  --yellow: #f6d365;
+  --red: #ff6b8a;
+}
+
+* {
+  all: unset;
+  color: var(--text);
+  font-family: "BerkeleyMono Nerd Font";
+  font-size: 10px;
+}
+
+#fabric-awesomewm-bar {
+  background-color: transparent;
+}
+
+#bar-inner {
+  min-height: 29px;
+  padding: 3px 10px;
+  background-color: alpha(var(--base), 0.97);
+  border-bottom: 2px solid alpha(var(--cyan), 0.55);
+}
+
+#start-container,
+#center-container,
+#end-container {
+  min-height: 23px;
+}
+
+#start-container {
+  padding-left: 0;
+}
+
+#end-container {
+  padding-right: 0;
+}
+
+#launcher-button,
+#settings-button,
+#task-overflow,
+#task-button,
+#status-pill,
+#dnd-button,
+#volume-button,
+#ai-button,
+#clock-button {
+  min-height: 22px;
+  border-radius: 3px;
+  background-color: alpha(var(--surface0), 0.92);
+  border: 1px solid alpha(var(--surface2), 0.82);
+}
+
+#launcher-button {
+  min-width: 28px;
+  padding: 0 7px;
+  border-color: alpha(var(--cyan), 0.9);
+  color: var(--cyan);
+  background-color: alpha(var(--surface1), 0.75);
+}
+
+#settings-button {
+  min-width: 27px;
+  border-color: alpha(var(--blue), 0.8);
+  color: var(--blue);
+}
+
+#status-pill {
+  padding: 0 7px;
+}
+
+#status-pill #pill-label {
+  color: var(--subtext);
+  font-weight: 700;
+}
+
+#status-pill #pill-value {
+  color: var(--text);
+}
+
+#task-strip {
+  min-height: 23px;
+  padding: 0;
+}
+
+#task-strip-label {
+  color: var(--violet);
+  font-weight: 700;
+}
+
+#task-buttons {
+  min-height: 23px;
+}
+
+#task-button {
+  min-width: 23px;
+  min-height: 23px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--text);
+  background-color: alpha(var(--surface1), 0.72);
+  border: 1px solid alpha(var(--surface2), 0.62);
+}
+
+#task-button:hover,
+#status-pill:hover,
+#settings-button:hover,
+#launcher-button:hover,
+#task-overflow:hover,
+#volume-button:hover,
+#ai-button:hover,
+#clock-button:hover,
+#dnd-button:hover {
+  background-color: alpha(var(--surface1), 0.96);
+  border-color: alpha(var(--cyan), 0.75);
+}
+
+#task-button.focused {
+  border-color: alpha(var(--cyan), 0.95);
+  border-bottom: 2px solid var(--cyan);
+}
+
+#task-button-inner {
+  min-height: 16px;
+}
+
+#task-initials {
+  color: var(--text);
+  font-weight: 700;
+}
+
+#task-count-badge {
+  min-width: 8px;
+  padding: 0 2px;
+  color: var(--base);
+  background-color: var(--cyan);
+  border-radius: 3px;
+  font-size: 7px;
+  font-weight: 700;
+}
+
+#task-empty,
+#task-overflow {
+  color: var(--muted);
+}
+
+#task-overflow {
+  min-width: 25px;
+  padding: 0 6px;
+}
+
+#date-time {
+  padding: 0 12px;
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+#clock-button {
+  border-color: alpha(var(--cyan), 0.42);
+  background-color: alpha(var(--rail), 0.84);
+}
+
+#center-container {
+  border-bottom: 1px solid alpha(var(--cyan), 0.28);
+}
+
+#dnd-button {
+  padding: 0;
+}
+
+#dnd-button #status-pill {
+  padding: 0 7px;
+  background-color: transparent;
+  border: none;
+}
+
+#dnd-button.dnd-on {
+  border-color: alpha(var(--yellow), 0.88);
+  background-color: alpha(var(--yellow), 0.14);
+}
+
+#dnd-button.dnd-on #pill-value {
+  color: var(--yellow);
+}
+
+#dnd-button.dnd-off #pill-value {
+  color: var(--muted);
+}
+
+#popout-panel {
+  min-width: 260px;
+  padding: 10px;
+  background-color: alpha(var(--base), 0.98);
+  border: 1px solid alpha(var(--cyan), 0.55);
+  border-bottom: 2px solid alpha(var(--cyan), 0.72);
+  border-radius: 4px;
+}
+
+#calendar-panel {
+  padding: 10px;
+  background-color: alpha(var(--base), 0.98);
+  border: 1px solid alpha(var(--cyan), 0.55);
+  border-bottom: 2px solid alpha(var(--cyan), 0.72);
+  border-radius: 4px;
+}
+
+#calendar-label {
+  color: var(--text);
+}
+
+#popout-title {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+#popout-section {
+  color: var(--violet);
+  font-weight: 700;
+}
+
+#popout-muted {
+  color: var(--muted);
+}
+
+#audio-device-row {
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: 3px;
+  color: var(--text);
+  background-color: alpha(var(--surface0), 0.78);
+  border: 1px solid alpha(var(--surface2), 0.6);
+}
+
+#audio-device-row:hover,
+#audio-device-row.active {
+  border-color: alpha(var(--cyan), 0.86);
+  background-color: alpha(var(--surface1), 0.92);
+}
+
+tooltip {
+  background-color: var(--base);
+  border: 1px solid var(--cyan);
+  border-radius: 3px;
+}
+
+#ai-panel {
+  min-width: 290px;
+  padding: 11px;
+  background-color: alpha(var(--base), 0.985);
+  border: 1px solid alpha(var(--blue), 0.62);
+  border-bottom: 2px solid alpha(var(--cyan), 0.82);
+  border-radius: 4px;
+}
+
+#ai-header {
+  min-height: 23px;
+}
+
+#ai-title {
+  color: var(--text);
+  font-weight: 700;
+}
+
+#ai-primary-percent {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+#ai-status-badge {
+  padding: 0 6px;
+  border-radius: 3px;
+  font-weight: 700;
+  background-color: alpha(var(--surface1), 0.9);
+  border: 1px solid alpha(var(--surface2), 0.8);
+}
+
+#ai-provider-tabs {
+  min-height: 24px;
+}
+
+#ai-provider-tab {
+  min-height: 23px;
+  padding: 0 10px;
+  border-radius: 3px;
+  color: var(--subtext);
+  background-color: alpha(var(--surface0), 0.88);
+  border: 1px solid alpha(var(--surface2), 0.72);
+}
+
+#ai-provider-tab.active {
+  color: var(--base);
+  background-color: var(--cyan);
+  border-color: alpha(var(--cyan), 0.95);
+  font-weight: 700;
+}
+
+#ai-provider-tab.unavailable {
+  color: var(--muted);
+  border-color: alpha(var(--red), 0.36);
+}
+
+#ai-metric-row {
+  padding: 7px;
+  border-radius: 4px;
+  background-color: alpha(var(--surface0), 0.72);
+  border: 1px solid alpha(var(--surface2), 0.64);
+}
+
+#ai-metric-head,
+#ai-metric-foot {
+  min-height: 14px;
+}
+
+#ai-metric-label,
+#ai-metric-reset {
+  color: var(--subtext);
+}
+
+#ai-metric-value,
+#ai-metric-status {
+  color: var(--text);
+  font-weight: 700;
+}
+
+#ai-progress {
+  min-height: 8px;
+}
+
+#ai-progress trough {
+  min-height: 4px;
+  border-radius: 2px;
+  background-color: alpha(var(--surface2), 0.62);
+}
+
+#ai-progress highlight {
+  min-height: 4px;
+  border-radius: 2px;
+  background-color: var(--green);
+}
+
+#ai-progress slider {
+  min-width: 0;
+  min-height: 0;
+  background-color: transparent;
+  border: none;
+}
+
+#ai-progress.warm highlight {
+  background-color: var(--yellow);
+}
+
+#ai-progress.hot highlight {
+  background-color: var(--violet);
+}
+
+#ai-progress.critical highlight {
+  background-color: var(--red);
+}
+
+#ai-status-badge.cool,
+#ai-metric-value.cool,
+#ai-metric-status.cool {
+  color: var(--green);
+}
+
+#ai-status-badge.warm,
+#ai-metric-value.warm,
+#ai-metric-status.warm {
+  color: var(--yellow);
+}
+
+#ai-status-badge.hot,
+#ai-metric-value.hot,
+#ai-metric-status.hot {
+  color: var(--violet);
+}
+
+#ai-status-badge.critical,
+#ai-metric-value.critical,
+#ai-metric-status.critical {
+  color: var(--red);
+}
+
+#ai-status-message {
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--muted);
+  background-color: alpha(var(--surface0), 0.7);
+  border: 1px solid alpha(var(--red), 0.38);
+}
+
+#ai-footer {
+  min-height: 23px;
+}
+
+#ai-footer-button {
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 3px;
+  color: var(--subtext);
+  background-color: alpha(var(--surface0), 0.88);
+  border: 1px solid alpha(var(--surface2), 0.72);
+}
+
+#ai-footer-button:hover,
+#ai-provider-tab:hover {
+  color: var(--text);
+  border-color: alpha(var(--cyan), 0.76);
+  background-color: alpha(var(--surface1), 0.94);
+}

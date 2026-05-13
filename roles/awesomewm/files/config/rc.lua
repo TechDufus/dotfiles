@@ -25,6 +25,19 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Window switcher (Alt+Tab style)
 local window_switcher = require("window-switcher")
 
+local function file_exists(path)
+  local file = io.open(path, "r")
+  if file then
+    file:close()
+    return true
+  end
+
+  return false
+end
+
+local fabric_ui_enabled = file_exists(gears.filesystem.get_configuration_dir() .. "fabric-ui-enabled")
+local fabric_bar_height = 37
+
 -- {{{ Startup commands
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
@@ -74,6 +87,11 @@ awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1
 
 -- Start NetworkManager applet for WiFi management in systray
 awful.spawn.once("nm-applet")
+
+-- Start Fabric UI when the opt-in sentinel is deployed by the fabric role.
+if fabric_ui_enabled then
+  awful.spawn.with_shell([[if [ -x "$HOME/.local/bin/fabric-awesomewm" ]; then "$HOME/.local/bin/fabric-awesomewm"; fi]])
+end
 
 -- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
 -- }}}
@@ -171,6 +189,46 @@ end
 menubar.utils.terminal = terminal -- Set the terminal for applications that require it
 -- }}}
 
+local function increase_volume(step)
+  if fabric_ui_enabled then
+    awful.spawn.with_shell(string.format("pactl set-sink-volume @DEFAULT_SINK@ +%d%%", step or 5))
+  else
+    wibar_config.increase_volume(step)
+  end
+end
+
+local function decrease_volume(step)
+  if fabric_ui_enabled then
+    awful.spawn.with_shell(string.format("pactl set-sink-volume @DEFAULT_SINK@ -%d%%", step or 5))
+  else
+    wibar_config.decrease_volume(step)
+  end
+end
+
+local function toggle_volume()
+  if fabric_ui_enabled then
+    awful.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
+  else
+    wibar_config.toggle_volume()
+  end
+end
+
+local function increase_brightness()
+  if fabric_ui_enabled then
+    awful.spawn("brightnessctl set 5%+")
+  else
+    wibar_config.increase_brightness()
+  end
+end
+
+local function decrease_brightness()
+  if fabric_ui_enabled then
+    awful.spawn("brightnessctl set 5%-")
+  else
+    wibar_config.decrease_brightness()
+  end
+end
+
 -- {{{ Wibar
 local tasklist_buttons = gears.table.join(
   awful.button({}, 1, function(c)
@@ -211,8 +269,12 @@ end
 
 local function configure_screen_metrics(s)
   s.dpi = screen_dpi_for_geometry(s)
+  local top_bar_height = beautiful.xresources.apply_dpi(fabric_bar_height, s)
   if s.mywibox then
     s.mywibox.height = beautiful.xresources.apply_dpi(28, s)
+  end
+  if s.fabric_reserve_wibar then
+    s.fabric_reserve_wibar.height = top_bar_height
   end
 end
 
@@ -243,8 +305,23 @@ awful.screen.connect_for_each_screen(function(s)
   -- Each screen has its own tag table.
   awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
 
-  -- Create the modern wibar with all widgets
-  wibar_config.create_wibar(s, tasklist_buttons, mymainmenu)
+  if fabric_ui_enabled then
+    s.mypromptbox = awful.widget.prompt()
+    s.fabric_reserve_wibar = awful.wibar({
+      position = "top",
+      screen = s,
+      height = beautiful.xresources.apply_dpi(fabric_bar_height, s),
+      bg = "#00000000",
+      fg = "#00000000",
+      visible = true,
+      ontop = false,
+      type = "dock",
+      input_passthrough = true,
+    })
+  else
+    -- Create the modern wibar with all widgets
+    wibar_config.create_wibar(s, tasklist_buttons, mymainmenu)
+  end
 end)
 -- }}}
 
@@ -313,15 +390,15 @@ globalkeys = gears.table.join(
 
   -- Volume control keys routed through the active wibar controller
   awful.key({}, "XF86AudioRaiseVolume", function()
-    wibar_config.increase_volume(5)
+    increase_volume(5)
   end, { description = "increase volume", group = "media" }),
 
   awful.key({}, "XF86AudioLowerVolume", function()
-    wibar_config.decrease_volume(5)
+    decrease_volume(5)
   end, { description = "decrease volume", group = "media" }),
 
   awful.key({}, "XF86AudioMute", function()
-    wibar_config.toggle_volume()
+    toggle_volume()
   end, { description = "toggle mute", group = "media" }),
 
   awful.key({}, "XF86AudioMicMute", function()
@@ -330,11 +407,11 @@ globalkeys = gears.table.join(
 
   -- Brightness control keys routed through the active wibar controller
   awful.key({}, "XF86MonBrightnessUp", function()
-    wibar_config.increase_brightness()
+    increase_brightness()
   end, { description = "increase brightness", group = "media" }),
 
   awful.key({}, "XF86MonBrightnessDown", function()
-    wibar_config.decrease_brightness()
+    decrease_brightness()
   end, { description = "decrease brightness", group = "media" }),
 
   -- Media control keys

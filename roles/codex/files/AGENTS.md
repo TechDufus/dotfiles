@@ -12,6 +12,8 @@
 - Start with the action/result. If blocked, state the blocker and next best path immediately.
 - Parallelize or delegate when it improves throughput, coverage, or quality without blurring ownership.
 - Prefer durable repo-managed fixes over temporary local or cached behavior.
+- For commits, follow the repo-managed commit skill when generating messages
+  or committing changes.
 
 ## Evidence And Intent
 - Optimize for intent over literal wording; if instructions and intent conflict, call it out and correct course.

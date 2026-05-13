@@ -52,6 +52,7 @@ module.AI_STATUS_PATH = status_path
 module.AI_PROVIDER_PREF_PATH = status_path.parent / "provider.txt"
 module.AI_PROVIDER_PREF_PATH.write_text("codex\n")
 module.codex_live_usage_text = lambda: None
+assert module.launcher_command() == ["awesome-client", "awesome.emit_signal('techdufus::launch_flare')"]
 assert module.ai_usage_text() == "13%"
 assert module.VOLUME_POLL_MS <= 1000
 assert module.AI_POLL_MS <= 5000

@@ -35,6 +35,7 @@ BAR_HEIGHT = 37
 VOLUME_POLL_MS = 1000
 AI_POLL_MS = 5000
 AI_PROVIDER_SWITCH_REFRESH_DELAYS_MS = (350, 1250)
+LAUNCHER_SIGNAL = "techdufus::launch_flare"
 AI_USAGE_URLS = {
     "codex": "https://chatgpt.com/codex/settings/usage",
     "claude": "https://console.anthropic.com/settings/limits",
@@ -121,6 +122,14 @@ def primary_monitor_width() -> int:
 
 def run_command(command: list[str]) -> None:
     subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def launcher_command() -> list[str]:
+    return ["awesome-client", f"awesome.emit_signal('{LAUNCHER_SIGNAL}')"]
+
+
+def open_launcher() -> None:
+    run_command(launcher_command())
 
 
 def shell_output(command: str, fallback: str = "...") -> str:
@@ -1508,7 +1517,7 @@ class StatusBar(Window):
                         name="launcher-button",
                         tooltip_text="Launcher",
                         child=Label(label=">"),
-                        on_clicked=lambda *_: run_command([str(HOME / ".local/bin/flare")]),
+                        on_clicked=lambda *_: open_launcher(),
                     ),
                     self.tasks,
                 ],

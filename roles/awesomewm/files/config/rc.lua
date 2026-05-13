@@ -149,6 +149,11 @@ editor_cmd = terminal .. " -e " .. editor
 -- I suggest you to remap Mod4 to another key using xmodmap or other tools.
 -- However, you can use another modifier like Mod1, but it may interact with others.
 modkey = "Mod4"
+local flare_launcher_command = os.getenv("HOME") .. "/.local/bin/flare"
+local flare_single_instance_service = "org.dev_byteatatime_flare.SingleInstance"
+local flare_single_instance_path = "/org/dev_byteatatime_flare/SingleInstance"
+local flare_single_instance_interface = "org.SingleInstance.DBus"
+local flare_callback_cwd = os.getenv("HOME") or "/"
 
 -- CELL MANAGEMENT MODE: Only floating layout enabled
 -- All window positioning is handled by the cell-based layout system
@@ -156,6 +161,65 @@ awful.layout.layouts = {
   awful.layout.suit.floating,
 }
 -- }}}
+
+local function is_flare_client(c)
+  return c
+      and ((c.class or "") == "Flare"
+        or (c.instance or "") == "flare"
+        or (c.name or "") == "Flare")
+end
+
+local function center_flare_clients()
+  local centered = false
+  for _, c in ipairs(client.get()) do
+    if is_flare_client(c) then
+      c.floating = true
+      c.screen = awful.screen.focused()
+      awful.placement.centered(c, { honor_workarea = true })
+      c:emit_signal("request::activate", "flare-launcher", { raise = true })
+      centered = true
+    end
+  end
+  return centered
+end
+
+local function schedule_flare_centering()
+  for _, delay in ipairs({ 0.12, 0.35, 0.8 }) do
+    gears.timer.start_new(delay, function()
+      center_flare_clients()
+      return false
+    end)
+  end
+end
+
+local function reveal_flare_via_dbus(callback)
+  awful.spawn.easy_async({
+    "busctl", "--user", "--quiet", "call",
+    flare_single_instance_service,
+    flare_single_instance_path,
+    flare_single_instance_interface,
+    "ExecuteCallback",
+    "ass", "1", "flare", flare_callback_cwd,
+  }, function(_, _, _, exit_code)
+    callback(exit_code == 0)
+  end)
+end
+
+local function launch_flare_centered()
+  if center_flare_clients() then
+    schedule_flare_centering()
+    return
+  end
+
+  reveal_flare_via_dbus(function(revealed)
+    if not revealed then
+      awful.spawn(flare_launcher_command)
+    end
+    schedule_flare_centering()
+  end)
+end
+
+awesome.connect_signal("techdufus::launch_flare", launch_flare_centered)
 
 -- {{{ Menu
 -- Create a launcher widget and a main menu
@@ -454,7 +518,7 @@ globalkeys = gears.table.join(
 
   -- Flare launcher (Raycast-like: clipboard, calculator, extensions, AI)
   awful.key({ modkey }, "space", function()
-    awful.spawn("/home/techdufus/.local/bin/flare")
+    launch_flare_centered()
   end, { description = "flare launcher", group = "launcher" }),
 
   -- Clipboard manager (CopyQ)
@@ -618,6 +682,26 @@ awful.rules.rules = {
       screen = awful.screen.preferred,
       placement = awful.placement.no_overlap + awful.placement.no_offscreen
     }
+  },
+
+  -- Flare launcher should behave like a centered command palette.
+  {
+    rule_any = {
+      class = { "Flare" },
+      instance = { "flare" },
+      name = { "Flare" },
+    },
+    properties = {
+      floating = true,
+      titlebars_enabled = false,
+    },
+    callback = function(c)
+      gears.timer.delayed_call(function()
+        if c.valid then
+          center_flare_clients()
+        end
+      end)
+    end
   },
 
   -- Floating clients.

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title AI Usage: Open Codex
+# @vicinae.mode compact
+# @vicinae.keywords ["ai", "codex", "usage", "limits"]
+
+set -euo pipefail
+
+url="https://chatgpt.com/codex/settings/usage"
+
+if command -v xdg-open >/dev/null 2>&1; then
+  nohup xdg-open "$url" >/dev/null 2>&1 &
+  exit 0
+fi
+
+printf 'xdg-open is not installed\n' >&2
+exit 1

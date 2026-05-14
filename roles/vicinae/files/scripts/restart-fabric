@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Restart Fabric Bar
+# @vicinae.mode compact
+# @vicinae.keywords ["desktop", "fabric", "bar", "restart", "reload"]
+
+set -euo pipefail
+
+config_file="${FABRIC_AWESOMEWM_CONFIG:-$HOME/.config/fabric/awesomewm}/config.py"
+launcher="$HOME/.local/bin/fabric-awesomewm"
+
+pkill -u "$USER" -f "$config_file" >/dev/null 2>&1 || true
+
+if [ -x "$launcher" ]; then
+  nohup "$launcher" >/dev/null 2>&1 &
+  exit 0
+fi
+
+printf 'fabric-awesomewm launcher is not installed\n' >&2
+exit 1

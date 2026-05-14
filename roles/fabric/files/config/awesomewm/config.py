@@ -35,7 +35,9 @@ BAR_HEIGHT = 37
 VOLUME_POLL_MS = 1000
 AI_POLL_MS = 5000
 AI_PROVIDER_SWITCH_REFRESH_DELAYS_MS = (350, 1250)
-LAUNCHER_SIGNAL = "techdufus::launch_flare"
+ROOT_LAUNCHER_SIGNAL = "techdufus::launcher_root"
+SETTINGS_LAUNCHER_SIGNAL = "techdufus::launcher_settings"
+LAUNCHER_SIGNAL = ROOT_LAUNCHER_SIGNAL
 AI_USAGE_URLS = {
     "codex": "https://chatgpt.com/codex/settings/usage",
     "claude": "https://console.anthropic.com/settings/limits",
@@ -124,12 +126,24 @@ def run_command(command: list[str]) -> None:
     subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def awesome_signal_command(signal: str) -> list[str]:
+    return ["awesome-client", f"awesome.emit_signal('{signal}')"]
+
+
 def launcher_command() -> list[str]:
-    return ["awesome-client", f"awesome.emit_signal('{LAUNCHER_SIGNAL}')"]
+    return awesome_signal_command(LAUNCHER_SIGNAL)
+
+
+def settings_command() -> list[str]:
+    return awesome_signal_command(SETTINGS_LAUNCHER_SIGNAL)
 
 
 def open_launcher() -> None:
     run_command(launcher_command())
+
+
+def open_settings_launcher() -> None:
+    run_command(settings_command())
 
 
 def shell_output(command: str, fallback: str = "...") -> str:
@@ -1493,13 +1507,7 @@ class StatusBar(Window):
                 Button(
                     name="settings-button",
                     child=Label(label="SET"),
-                    on_clicked=lambda *_: run_command(
-                        [
-                            "sh",
-                            "-c",
-                            "printf '%s\\n' 'Audio (pavucontrol)' 'Display (arandr)' 'GTK Themes (lxappearance)' 'Bluetooth (blueman-manager)' 'Network (nm-connection-editor)' 'Power (xfce4-power-manager-settings)' | rofi -dmenu -i -p Settings | sed 's/.*(\\(.*\\))/\\1/' | xargs -r -I{} sh -c '{}'",
-                        ]
-                    ),
+                    on_clicked=lambda *_: open_settings_launcher(),
                 ),
             ]
         )

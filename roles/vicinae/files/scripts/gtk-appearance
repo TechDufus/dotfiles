@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title GTK Appearance
+# @vicinae.mode compact
+# @vicinae.keywords ["settings", "theme", "appearance", "gtk"]
+
+set -euo pipefail
+
+if command -v lxappearance >/dev/null 2>&1; then
+  exec lxappearance
+fi
+
+printf 'lxappearance is not installed\n' >&2
+exit 1

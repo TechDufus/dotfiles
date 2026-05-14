@@ -4,6 +4,7 @@ default_roles:
   - aldente
   - asciiquarium
   - awesomewm
+  - vicinae
   - bash
   - bat
   - borders

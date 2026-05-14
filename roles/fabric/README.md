@@ -40,7 +40,8 @@ The first Fabric config provides:
 - workspace placeholders for AwesomeWM tags 1-9
 - command-backed status pills for load, memory, network, battery, volume, AI
   usage, DND, settings, and clock
-- a settings launcher that reuses the existing rofi settings picker
+- launcher and settings buttons that emit AwesomeWM signals, allowing AwesomeWM
+  to route to Vicinae or fallbacks consistently with keyboard shortcuts
 
 ## Notes
 

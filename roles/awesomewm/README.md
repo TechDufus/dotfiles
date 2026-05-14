@@ -123,7 +123,8 @@ graph LR
 - `thunar` - Lightweight file manager
 - `ristretto` - Image viewer
 - `rofimoji` - Emoji picker (via pipx)
-- Flare launcher (AppImage)
+- Flare launcher (AppImage, retained temporarily during Vicinae migration)
+- Vicinae primary launcher support when the separate `vicinae` role is installed
 
 **Media & System:**
 - `playerctl` - Media key controls
@@ -202,7 +203,7 @@ graph LR
 └── catppuccin-mocha-blue-standard+default/  # GTK theme
 
 ~/.local/bin/
-├── flare                           # Application launcher
+├── flare                           # Legacy launcher kept during Vicinae migration
 └── rofimoji                        # Emoji picker
 ```
 

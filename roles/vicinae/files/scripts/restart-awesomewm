@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Restart AwesomeWM
+# @vicinae.mode compact
+# @vicinae.keywords ["desktop", "awesome", "restart", "reload", "window manager"]
+
+set -euo pipefail
+
+if command -v awesome-client >/dev/null 2>&1; then
+  exec awesome-client 'awesome.restart()'
+fi
+
+printf 'awesome-client is not installed\n' >&2
+exit 1

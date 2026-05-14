@@ -93,7 +93,7 @@ if fabric_ui_enabled then
   awful.spawn.with_shell([[if [ -x "$HOME/.local/bin/fabric-awesomewm" ]; then "$HOME/.local/bin/fabric-awesomewm"; fi]])
 end
 
--- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
+-- Vicinae launcher server starts after launcher helpers are defined below.
 -- }}}
 
 -- {{{ Error handling
@@ -149,11 +149,9 @@ editor_cmd = terminal .. " -e " .. editor
 -- I suggest you to remap Mod4 to another key using xmodmap or other tools.
 -- However, you can use another modifier like Mod1, but it may interact with others.
 modkey = "Mod4"
-local flare_launcher_command = os.getenv("HOME") .. "/.local/bin/flare"
-local flare_single_instance_service = "org.dev_byteatatime_flare.SingleInstance"
-local flare_single_instance_path = "/org/dev_byteatatime_flare/SingleInstance"
-local flare_single_instance_interface = "org.SingleInstance.DBus"
-local flare_callback_cwd = os.getenv("HOME") or "/"
+local settings_picker_command = [[
+printf '%s\n' 'Audio (pavucontrol)' 'Display (arandr)' 'GTK Themes (lxappearance)' 'Bluetooth (blueman-manager)' 'Network (nm-connection-editor)' 'Power (xfce4-power-manager-settings)' | rofi -dmenu -i -p Settings | sed 's/.*(\(.*\))/\1/' | xargs -r -I{} sh -c '{}'
+]]
 
 -- CELL MANAGEMENT MODE: Only floating layout enabled
 -- All window positioning is handled by the cell-based layout system
@@ -162,64 +160,62 @@ awful.layout.layouts = {
 }
 -- }}}
 
-local function is_flare_client(c)
-  return c
-      and ((c.class or "") == "Flare"
-        or (c.instance or "") == "flare"
-        or (c.name or "") == "Flare")
+local function notify_vicinae_fallback()
+  naughty.notify({
+    title = "Vicinae unavailable",
+    text = "Falling back to rofi. Run dotfiles -t vicinae to install it.",
+  })
 end
 
-local function center_flare_clients()
-  local centered = false
-  for _, c in ipairs(client.get()) do
-    if is_flare_client(c) then
-      c.floating = true
-      c.screen = awful.screen.focused()
-      awful.placement.centered(c, { honor_workarea = true })
-      c:emit_signal("request::activate", "flare-launcher", { raise = true })
-      centered = true
+local function launch_rofi_apps()
+  awful.spawn("rofi -show drun -show-icons")
+end
+
+local function launch_copyq_clipboard()
+  awful.spawn("copyq toggle")
+end
+
+local function launch_rofi_settings()
+  awful.spawn.with_shell(settings_picker_command)
+end
+
+local function launch_vicinae(uri, fallback)
+  awful.spawn.easy_async({ "sh", "-lc", "command -v vicinae >/dev/null 2>&1" }, function(_, _, _, exit_code)
+    if exit_code == 0 then
+      awful.spawn({ "vicinae", uri })
+    else
+      notify_vicinae_fallback()
+      if fallback then
+        fallback()
+      end
     end
-  end
-  return centered
-end
-
-local function schedule_flare_centering()
-  for _, delay in ipairs({ 0.12, 0.35, 0.8 }) do
-    gears.timer.start_new(delay, function()
-      center_flare_clients()
-      return false
-    end)
-  end
-end
-
-local function reveal_flare_via_dbus(callback)
-  awful.spawn.easy_async({
-    "busctl", "--user", "--quiet", "call",
-    flare_single_instance_service,
-    flare_single_instance_path,
-    flare_single_instance_interface,
-    "ExecuteCallback",
-    "ass", "1", "flare", flare_callback_cwd,
-  }, function(_, _, _, exit_code)
-    callback(exit_code == 0)
   end)
 end
 
-local function launch_flare_centered()
-  if center_flare_clients() then
-    schedule_flare_centering()
-    return
-  end
+local function launch_vicinae_root()
+  launch_vicinae("vicinae://toggle", launch_rofi_apps)
+end
 
-  reveal_flare_via_dbus(function(revealed)
-    if not revealed then
-      awful.spawn(flare_launcher_command)
+local function launch_vicinae_open_root()
+  launch_vicinae("vicinae://open?popToRoot=true", launch_rofi_apps)
+end
+
+local function start_vicinae_server()
+  awful.spawn.easy_async({ "sh", "-lc", "command -v vicinae >/dev/null 2>&1" }, function(_, _, _, exit_code)
+    if exit_code == 0 then
+      awful.spawn.once("vicinae server --replace")
     end
-    schedule_flare_centering()
   end)
 end
 
-awesome.connect_signal("techdufus::launch_flare", launch_flare_centered)
+awesome.connect_signal("techdufus::launcher_root", launch_vicinae_root)
+awesome.connect_signal("techdufus::launcher_open_root", launch_vicinae_open_root)
+awesome.connect_signal("techdufus::launcher_apps", launch_rofi_apps)
+awesome.connect_signal("techdufus::launcher_clipboard", launch_copyq_clipboard)
+awesome.connect_signal("techdufus::launcher_settings", launch_rofi_settings)
+awesome.connect_signal("techdufus::launch_flare", launch_vicinae_root)
+
+start_vicinae_server()
 
 -- {{{ Menu
 -- Create a launcher widget and a main menu
@@ -512,18 +508,19 @@ globalkeys = gears.table.join(
     awful.spawn("flameshot full -p " .. os.getenv("HOME") .. "/Pictures")
   end, { description = "screenshot full screen to file", group = "screenshot" }),
 
-  -- Prompt (rofi application launcher)
-  awful.key({ "Mod1" }, "space", function() awful.spawn("rofi -show drun -show-icons") end,
-    { description = "application launcher (rofi)", group = "launcher" }),
+  -- Fallback application launcher.
+  awful.key({ "Mod1" }, "space", function()
+    awesome.emit_signal("techdufus::launcher_apps")
+  end, { description = "application launcher", group = "launcher" }),
 
-  -- Flare launcher (Raycast-like: clipboard, calculator, extensions, AI)
+  -- Primary command launcher.
   awful.key({ modkey }, "space", function()
-    launch_flare_centered()
-  end, { description = "flare launcher", group = "launcher" }),
+    awesome.emit_signal("techdufus::launcher_root")
+  end, { description = "vicinae launcher", group = "launcher" }),
 
-  -- Clipboard manager (CopyQ)
+  -- Clipboard manager. CopyQ remains the first-phase fallback.
   awful.key({ modkey }, "v", function()
-    awful.spawn("copyq toggle")
+    awesome.emit_signal("techdufus::launcher_clipboard")
   end, { description = "clipboard history", group = "launcher" }),
 
   awful.key({ modkey }, "x",
@@ -684,21 +681,26 @@ awful.rules.rules = {
     }
   },
 
-  -- Flare launcher should behave like a centered command palette.
+  -- Vicinae launcher should behave like a centered command palette.
   {
     rule_any = {
-      class = { "Flare" },
-      instance = { "flare" },
-      name = { "Flare" },
+      class = { "Vicinae", "vicinae" },
+      instance = { "command", "Vicinae", "vicinae" },
+      name = { "Vicinae Launcher", "Vicinae", "vicinae" },
     },
     properties = {
       floating = true,
       titlebars_enabled = false,
+      skip_taskbar = true,
+      ontop = true,
     },
     callback = function(c)
       gears.timer.delayed_call(function()
         if c.valid then
-          center_flare_clients()
+          c.floating = true
+          c.screen = awful.screen.focused()
+          awful.placement.centered(c, { honor_workarea = true })
+          c:emit_signal("request::activate", "vicinae-launcher", { raise = true })
         end
       end)
     end

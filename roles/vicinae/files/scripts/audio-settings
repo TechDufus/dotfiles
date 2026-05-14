@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Audio Settings
+# @vicinae.mode compact
+# @vicinae.keywords ["settings", "sound", "volume", "microphone"]
+
+set -euo pipefail
+
+if command -v pavucontrol >/dev/null 2>&1; then
+  exec pavucontrol
+fi
+
+printf 'pavucontrol is not installed\n' >&2
+exit 1

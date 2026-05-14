@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Network Settings
+# @vicinae.mode compact
+# @vicinae.keywords ["settings", "network", "wifi", "ethernet"]
+
+set -euo pipefail
+
+if command -v nm-connection-editor >/dev/null 2>&1; then
+  exec nm-connection-editor
+fi
+
+printf 'nm-connection-editor is not installed\n' >&2
+exit 1

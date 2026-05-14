@@ -123,11 +123,11 @@ macro_modal = awful.keygrabber {
       return
     end
 
-    -- e: Emoji picker with bemoji
+    -- e: Emoji picker
     if key == 'e' then
       self:stop()
       gears.timer.delayed_call(function()
-        awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -cn --hist-limit 5")
+        awesome.emit_signal("techdufus::launcher_emoji")
       end)
       return
     end
@@ -141,13 +141,11 @@ macro_modal = awful.keygrabber {
       return
     end
 
-    -- g: GUI Settings menu (rofi picker)
+    -- g: GUI Settings command deck
     if key == 'g' then
       self:stop()
       gears.timer.delayed_call(function()
-        awful.spawn.easy_async_with_shell([[
-          printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" "Power (xfce4-power-manager-settings)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
-        ]], function() end)
+        awesome.emit_signal("techdufus::launcher_settings")
       end)
       return
     end

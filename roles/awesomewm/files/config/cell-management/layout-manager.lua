@@ -1,9 +1,23 @@
 -- layout-manager.lua - Layout switching and manual cell binding
 local awful = require("awful")
+local gears = require("gears")
+local naughty = require("naughty")
 local state = require("cell-management.state")
 local helpers = require("cell-management.helpers")
 
 local M = {}
+
+local key_to_number = {
+  ["1"] = 1, ["KP_1"] = 1,
+  ["2"] = 2, ["KP_2"] = 2,
+  ["3"] = 3, ["KP_3"] = 3,
+  ["4"] = 4, ["KP_4"] = 4,
+  ["5"] = 5, ["KP_5"] = 5,
+  ["6"] = 6, ["KP_6"] = 6,
+  ["7"] = 7, ["KP_7"] = 7,
+  ["8"] = 8, ["KP_8"] = 8,
+  ["9"] = 9, ["KP_9"] = 9,
+}
 
 local function get_relative_screen(base_screen, offset)
   if not base_screen or screen.count() < 2 then
@@ -13,10 +27,6 @@ local function get_relative_screen(base_screen, offset)
   local base_index = base_screen.index or 1
   local target_index = ((base_index - 1 + offset) % screen.count()) + 1
   return screen[target_index] or base_screen
-end
-
-local function escape_rofi_prompt(text)
-  return tostring(text):gsub('"', '\\"')
 end
 
 local function reapply_layout_for_screen(target_screen)
@@ -44,6 +54,85 @@ local function reapply_layout_for_screen(target_screen)
       end
     end
   end
+end
+
+local function notify_picker(title, lines)
+  naughty.notify({
+    title = title,
+    text = table.concat(lines, "\n"),
+    timeout = 2,
+  })
+end
+
+local function start_numeric_picker(title, lines, max_index, callback)
+  notify_picker(title, lines)
+
+  local picker = awful.keygrabber {
+    stop_key = "Escape",
+    stop_event = "press",
+    timeout = 2,
+    autostart = false,
+    keypressed_callback = function(self, mod, key)
+      local index = key_to_number[key]
+
+      if index and index <= max_index then
+        self:stop()
+        gears.timer.delayed_call(function()
+          callback(index)
+        end)
+        return
+      end
+
+      self:stop()
+    end,
+  }
+
+  picker:start()
+end
+
+local function move_client_to_cell(c, cell_index, target_screen, layout)
+  if not c or not c.valid then
+    return
+  end
+
+  cell_index = tonumber(cell_index)
+  if not cell_index then
+    print("[WARN] Invalid cell index: " .. tostring(cell_index))
+    return
+  end
+
+  target_screen = target_screen or c.screen
+  layout = layout or state.get_current_layout(target_screen)
+
+  if not layout or not layout.cells then
+    print("[WARN] No layout configured for " .. helpers.get_screen_label(target_screen))
+    return
+  end
+
+  if cell_index < 1 or cell_index > #layout.cells then
+    print("[WARN] Invalid cell index: " .. tostring(cell_index))
+    return
+  end
+
+  local app_name = c.class and helpers.find_app_by_class(c.class) or nil
+  if app_name and layout.apps and layout.apps[app_name] then
+    state.set_app_cell_override(app_name, cell_index, target_screen)
+    helpers.position_client_in_cell(c, app_name, layout)
+    return
+  end
+
+  local cell_def = layout.cells[cell_index]
+  local geom = require("cell-management.grid").cell_to_geometry(cell_def, c.screen)
+
+  c.fullscreen = false
+  c.maximized = false
+  c.maximized_vertical = false
+  c.maximized_horizontal = false
+  c.floating = true
+  c.x = geom.x
+  c.y = geom.y
+  c.width = geom.width
+  c.height = geom.height
 end
 
 local function move_client_to_screen(c, target_screen, follow)
@@ -112,49 +201,25 @@ function M.move_client_to_previous_screen(c, follow)
   move_client_to_screen(c, get_relative_screen(c.screen, -1), follow ~= false)
 end
 
--- Interactive layout picker (Hyper+p) - Uses rofi for visual selection
+-- Interactive layout picker (Hyper+p)
 function M.select_layout(target_screen)
   target_screen = state.resolve_screen(target_screen)
 
   local layouts = state.get_all_layouts()
   local current_index = state.get_current_layout_index(target_screen)
   local screen_label = helpers.get_screen_label(target_screen)
-
-  -- Build rofi menu with layout names
-  local menu_items = {}
+  local picker_lines = {}
   for i, layout in ipairs(layouts) do
-    local marker = (i == current_index) and "* " or "  "
-    local menu_line = string.format("%s%d. %s", marker, i, layout.name)
-    table.insert(menu_items, menu_line)
+    local marker = (i == current_index) and "*" or " "
+    table.insert(picker_lines, string.format("%s %d  %s", marker, i, layout.name))
   end
 
-  -- Create temporary file with menu items
-  local menu_file = "/tmp/awesomewm-layout-menu"
-  local f = io.open(menu_file, "w")
-  if f then
-    f:write(table.concat(menu_items, "\n"))
-    f:close()
-  end
-
-  -- Launch rofi and handle selection
-  awful.spawn.easy_async_with_shell(
-    string.format(
-      'rofi -dmenu -i -p "%s" -format s < %s',
-      escape_rofi_prompt("Layout for " .. screen_label),
-      menu_file
-    ),
-    function(stdout, stderr, reason, exit_code)
-      -- Parse selection: "  2. My Layout" -> extract "2"
-      local index = stdout:match("^%s*%*?%s*(%d+)%.")
-      if index then
-        index = tonumber(index)
-        if index then
-          M.switch_layout(index, target_screen)
-        end
-      end
-
-      -- Clean up temp file
-      os.remove(menu_file)
+  start_numeric_picker(
+    "Layout for " .. screen_label,
+    picker_lines,
+    #layouts,
+    function(index)
+      M.switch_layout(index, target_screen)
     end
   )
 end
@@ -169,8 +234,8 @@ function M.select_next_variant(target_screen)
   M.switch_layout(next_index, target_screen)
 end
 
--- Bind window to cell (Hyper+u) - Uses rofi for visual selection
-function M.bind_to_cell()
+-- Bind window to cell (Hyper+u)
+function M.bind_to_cell(cell_index)
   local c = client.focus
   if not c then
     print("[WARN] No focused client")
@@ -185,10 +250,13 @@ function M.bind_to_cell()
     return
   end
 
-  -- Build rofi menu with cell information
-  local menu_items = {}
+  if cell_index then
+    move_client_to_cell(c, cell_index, target_screen, layout)
+    return
+  end
+
+  local picker_lines = {}
   for i, _ in ipairs(layout.cells) do
-    -- Find which apps are assigned to this cell
     local apps_in_cell = {}
     for app_name, app_config in pairs(layout.apps or {}) do
       if app_config.cell == i then
@@ -196,53 +264,16 @@ function M.bind_to_cell()
       end
     end
 
-    -- Build menu line: "Cell 1: Terminal, Browser" or "Cell 1: (empty)"
     local app_list = #apps_in_cell > 0 and table.concat(apps_in_cell, ", ") or "(empty)"
-    local menu_line = string.format("Cell %d: %s", i, app_list)
-    table.insert(menu_items, menu_line)
+    table.insert(picker_lines, string.format("%d  %s", i, app_list))
   end
 
-  -- Create temporary file with menu items
-  local menu_file = "/tmp/awesomewm-cell-menu"
-  local f = io.open(menu_file, "w")
-  if f then
-    f:write(table.concat(menu_items, "\n"))
-    f:close()
-  end
-
-  -- Launch rofi and handle selection
-  awful.spawn.easy_async_with_shell(
-    string.format(
-      'rofi -dmenu -i -p "%s" -format s < %s',
-      escape_rofi_prompt(string.format("Move %s on %s to cell", c.class or "window", helpers.get_screen_label(target_screen))),
-      menu_file
-    ),
-    function(stdout, stderr, reason, exit_code)
-      -- Parse selection: "Cell 3: Spotify" -> extract "3"
-      local cell_index = stdout:match("^Cell (%d+):")
-      if cell_index then
-        cell_index = tonumber(cell_index)
-
-        if cell_index and cell_index >= 1 and cell_index <= #layout.cells then
-          local app_name = c.class and helpers.find_app_by_class(c.class) or nil
-          if app_name and layout.apps and layout.apps[app_name] then
-            state.set_app_cell_override(app_name, cell_index, target_screen)
-            helpers.position_client_in_cell(c, app_name, layout)
-          else
-            local cell_def = layout.cells[cell_index]
-            local geom = require("cell-management.grid").cell_to_geometry(cell_def, c.screen)
-
-            c.floating = true
-            c.x = geom.x
-            c.y = geom.y
-            c.width = geom.width
-            c.height = geom.height
-          end
-        end
-      end
-
-      -- Clean up temp file
-      os.remove(menu_file)
+  start_numeric_picker(
+    string.format("Move %s on %s to cell", c.class or "window", helpers.get_screen_label(target_screen)),
+    picker_lines,
+    #layout.cells,
+    function(index)
+      move_client_to_cell(c, index, target_screen, layout)
     end
   )
 end

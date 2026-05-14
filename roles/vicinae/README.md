@@ -66,5 +66,6 @@ TypeScript extension only after scripts or dmenu prove insufficient.
 
 ## Rollout Boundary
 
-This role does not remove Flare, rofi, CopyQ, or bemoji. Those remain recovery
-paths until Vicinae has passed the live validation gates in the migration plan.
+This role only installs and configures Vicinae. The AwesomeWM role owns desktop
+keybindings and removes the retired rofi, CopyQ, and bemoji fallback tools once
+the Vicinae launcher, clipboard, app search, emoji, and settings flows validate.

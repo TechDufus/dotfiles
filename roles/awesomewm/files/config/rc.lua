@@ -79,9 +79,6 @@ fi
 xmodmap -e 'keycode 66 = F13'
 ]])
 
--- Start clipboard manager daemon (CopyQ)
-awful.spawn.once("copyq")
-
 -- Start polkit authentication agent for 1Password system auth
 awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1")
 
@@ -149,9 +146,6 @@ editor_cmd = terminal .. " -e " .. editor
 -- I suggest you to remap Mod4 to another key using xmodmap or other tools.
 -- However, you can use another modifier like Mod1, but it may interact with others.
 modkey = "Mod4"
-local settings_picker_command = [[
-printf '%s\n' 'Audio (pavucontrol)' 'Display (arandr)' 'GTK Themes (lxappearance)' 'Bluetooth (blueman-manager)' 'Network (nm-connection-editor)' 'Power (xfce4-power-manager-settings)' | rofi -dmenu -i -p Settings | sed 's/.*(\(.*\))/\1/' | xargs -r -I{} sh -c '{}'
-]]
 
 -- CELL MANAGEMENT MODE: Only floating layout enabled
 -- All window positioning is handled by the cell-based layout system
@@ -163,41 +157,42 @@ awful.layout.layouts = {
 local function notify_vicinae_fallback()
   naughty.notify({
     title = "Vicinae unavailable",
-    text = "Falling back to rofi. Run dotfiles -t vicinae to install it.",
+    text = "Run dotfiles -t vicinae to install it, or use Super+Return for a terminal.",
   })
 end
 
-local function launch_rofi_apps()
-  awful.spawn("rofi -show drun -show-icons")
-end
-
-local function launch_copyq_clipboard()
-  awful.spawn("copyq toggle")
-end
-
-local function launch_rofi_settings()
-  awful.spawn.with_shell(settings_picker_command)
-end
-
-local function launch_vicinae(uri, fallback)
+local function launch_vicinae(uri)
   awful.spawn.easy_async({ "sh", "-lc", "command -v vicinae >/dev/null 2>&1" }, function(_, _, _, exit_code)
     if exit_code == 0 then
       awful.spawn({ "vicinae", uri })
     else
       notify_vicinae_fallback()
-      if fallback then
-        fallback()
-      end
     end
   end)
 end
 
 local function launch_vicinae_root()
-  launch_vicinae("vicinae://toggle", launch_rofi_apps)
+  launch_vicinae("vicinae://toggle")
 end
 
 local function launch_vicinae_open_root()
-  launch_vicinae("vicinae://open?popToRoot=true", launch_rofi_apps)
+  launch_vicinae("vicinae://open?popToRoot=true")
+end
+
+local function launch_vicinae_apps()
+  launch_vicinae("vicinae://launch/applications?toggle=true")
+end
+
+local function launch_vicinae_clipboard()
+  launch_vicinae("vicinae://launch/clipboard/history?toggle=true")
+end
+
+local function launch_vicinae_emoji()
+  launch_vicinae("vicinae://launch/core/search-emojis?toggle=true")
+end
+
+local function launch_vicinae_settings()
+  launch_vicinae("vicinae://launch/scripts?fallbackText=settings&toggle=true")
 end
 
 local function start_vicinae_server()
@@ -210,9 +205,10 @@ end
 
 awesome.connect_signal("techdufus::launcher_root", launch_vicinae_root)
 awesome.connect_signal("techdufus::launcher_open_root", launch_vicinae_open_root)
-awesome.connect_signal("techdufus::launcher_apps", launch_rofi_apps)
-awesome.connect_signal("techdufus::launcher_clipboard", launch_copyq_clipboard)
-awesome.connect_signal("techdufus::launcher_settings", launch_rofi_settings)
+awesome.connect_signal("techdufus::launcher_apps", launch_vicinae_apps)
+awesome.connect_signal("techdufus::launcher_clipboard", launch_vicinae_clipboard)
+awesome.connect_signal("techdufus::launcher_emoji", launch_vicinae_emoji)
+awesome.connect_signal("techdufus::launcher_settings", launch_vicinae_settings)
 awesome.connect_signal("techdufus::launch_flare", launch_vicinae_root)
 
 start_vicinae_server()
@@ -508,7 +504,7 @@ globalkeys = gears.table.join(
     awful.spawn("flameshot full -p " .. os.getenv("HOME") .. "/Pictures")
   end, { description = "screenshot full screen to file", group = "screenshot" }),
 
-  -- Fallback application launcher.
+  -- Application launcher.
   awful.key({ "Mod1" }, "space", function()
     awesome.emit_signal("techdufus::launcher_apps")
   end, { description = "application launcher", group = "launcher" }),
@@ -518,7 +514,7 @@ globalkeys = gears.table.join(
     awesome.emit_signal("techdufus::launcher_root")
   end, { description = "vicinae launcher", group = "launcher" }),
 
-  -- Clipboard manager. CopyQ remains the first-phase fallback.
+  -- Clipboard manager.
   awful.key({ modkey }, "v", function()
     awesome.emit_signal("techdufus::launcher_clipboard")
   end, { description = "clipboard history", group = "launcher" }),
@@ -711,7 +707,6 @@ awful.rules.rules = {
     rule_any = {
       instance = {
         "DTA",     -- Firefox addon DownThemAll.
-        "copyq",   -- CopyQ clipboard manager
         "pinentry",
       },
       class = {

@@ -6,6 +6,8 @@ config_path="$repo_root/roles/awesomewm/files/config/rc.lua"
 layout_manager_path="$repo_root/roles/awesomewm/files/config/cell-management/layout-manager.lua"
 tasks_path="$repo_root/roles/awesomewm/tasks/Ubuntu.yml"
 defaults_path="$repo_root/roles/awesomewm/defaults/main.yml"
+rofi_config_path="$repo_root/roles/awesomewm/files/rofi/config.rasi"
+rofi_theme_path="$repo_root/roles/awesomewm/files/rofi/catppuccin-mocha.rasi"
 
 grep -q "techdufus::launcher_root" "$config_path"
 grep -q "techdufus::launcher_apps" "$config_path"
@@ -25,6 +27,7 @@ grep -q "vicinae://launch/clipboard/history?toggle=true" "$config_path"
 grep -q "vicinae://launch/core/search-emojis?toggle=true" "$config_path"
 grep -q "vicinae://launch/scripts?fallbackText=settings&toggle=true" "$config_path"
 grep -q "vicinae server --replace" "$config_path"
+grep -q "fabric-awesomewm\" --replace" "$config_path"
 grep -q "Run dotfiles -t vicinae" "$config_path"
 grep -q 'class = { "Vicinae", "vicinae" }' "$config_path"
 grep -q 'instance = { "command", "Vicinae", "vicinae" }' "$config_path"
@@ -36,25 +39,39 @@ if grep -q "org.dev_byteatatime_flare.SingleInstance" "$config_path"; then
   exit 1
 fi
 
-if grep -Eq "\\b(rofi|copyq|bemoji|rofimoji)\\b" "$config_path" "$layout_manager_path"; then
-  echo "Legacy rofi/CopyQ/bemoji runtime references should not remain" >&2
+if grep -Eq "\\b(copyq|bemoji|rofimoji)\\b" "$config_path" "$layout_manager_path"; then
+  echo "Legacy CopyQ/bemoji runtime references should not remain" >&2
   exit 1
 fi
 
-if grep -Eq "Install bemoji|Download bemoji|Deploy rofi|Deploy CopyQ|rofi[[:space:]]+#|copyq[[:space:]]+#" "$tasks_path"; then
-  echo "Legacy rofi/CopyQ/bemoji install or deploy tasks should not remain" >&2
+if grep -Eq "Install bemoji|Download bemoji|Deploy CopyQ|copyq[[:space:]]+#" "$tasks_path"; then
+  echo "Legacy CopyQ/bemoji install or deploy tasks should not remain" >&2
   exit 1
 fi
 
 grep -q "awesomewm_remove_legacy_launcher_tools: true" "$defaults_path"
 grep -q "awesomewm_legacy_launcher_packages:" "$defaults_path"
-grep -q "rofi" "$defaults_path"
 grep -q "copyq" "$defaults_path"
 grep -q "bemoji" "$defaults_path"
-grep -q "awful.keygrabber" "$layout_manager_path"
+if grep -q "rofi" "$defaults_path"; then
+  echo "rofi should not be removed as a legacy launcher tool" >&2
+  exit 1
+fi
+
+grep -q "rofi" "$tasks_path"
+grep -q "Deploy rofi configuration" "$tasks_path"
+grep -q "Deploy rofi Catppuccin theme" "$tasks_path"
+grep -q "rofi -dmenu" "$layout_manager_path"
+grep -q "escape_rofi_prompt" "$layout_manager_path"
+test -f "$rofi_config_path"
+test -f "$rofi_theme_path"
 grep -q "function M.bind_to_cell(cell_index)" "$layout_manager_path"
 grep -q "move_client_to_cell" "$layout_manager_path"
 
 keybindings_path="$repo_root/roles/awesomewm/files/config/cell-management/keybindings.lua"
 grep -q "techdufus::launcher_emoji" "$keybindings_path"
 grep -q "techdufus::launcher_settings" "$keybindings_path"
+
+grep -q "1password --quick-access" "$config_path"
+grep -q "{ modkey }, \"space\"" "$config_path"
+grep -q "techdufus::launcher_clipboard" "$config_path"

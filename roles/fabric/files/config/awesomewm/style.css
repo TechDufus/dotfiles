@@ -53,6 +53,8 @@
 #task-button,
 #status-pill,
 #dnd-button,
+#network-button,
+#battery-button,
 #volume-button,
 #ai-button,
 #clock-button {
@@ -119,6 +121,8 @@
 #launcher-button:hover,
 #task-overflow:hover,
 #volume-button:hover,
+#network-button:hover,
+#battery-button:hover,
 #ai-button:hover,
 #clock-button:hover,
 #dnd-button:hover {
@@ -175,8 +179,22 @@
   border-bottom: 1px solid alpha(var(--cyan), 0.28);
 }
 
-#dnd-button {
+#dnd-button,
+#ai-button,
+#battery-button {
   padding: 0;
+}
+
+#network-button {
+  padding: 0;
+}
+
+#network-button #status-pill,
+#ai-button #status-pill,
+#battery-button #status-pill {
+  padding: 0 7px;
+  background-color: transparent;
+  border: none;
 }
 
 #dnd-button #status-pill {
@@ -336,6 +354,63 @@
 #audio-device-row.active {
   border-color: alpha(var(--cyan), 0.86);
   background-color: alpha(var(--surface1), 0.92);
+}
+
+#network-action-row {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 3px;
+  color: var(--text);
+  background-color: alpha(var(--surface0), 0.78);
+  border: 1px solid alpha(var(--surface2), 0.6);
+}
+
+#network-action-row:hover {
+  border-color: alpha(var(--cyan), 0.86);
+  background-color: alpha(var(--surface1), 0.92);
+}
+
+#battery-panel {
+  min-width: 268px;
+  padding: 10px;
+  background-color: alpha(var(--base), 0.98);
+  border: 1px solid alpha(var(--green), 0.55);
+  border-bottom: 2px solid alpha(var(--green), 0.72);
+  border-radius: 4px;
+}
+
+#battery-detail-row {
+  min-height: 20px;
+  padding: 0 6px;
+}
+
+#battery-detail-label {
+  color: var(--subtext);
+}
+
+#battery-detail-value {
+  color: var(--text);
+  font-weight: 700;
+}
+
+#battery-profile-row {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 3px;
+  color: var(--text);
+  background-color: alpha(var(--surface0), 0.78);
+  border: 1px solid alpha(var(--surface2), 0.6);
+}
+
+#battery-profile-row:hover,
+#battery-profile-row.active {
+  border-color: alpha(var(--green), 0.86);
+  background-color: alpha(var(--surface1), 0.92);
+}
+
+#battery-profile-row.active {
+  color: var(--green);
+  font-weight: 700;
 }
 
 tooltip {

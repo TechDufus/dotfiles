@@ -13,6 +13,7 @@
       - ristretto          # Lightweight image viewer (Xfce)
       - curl               # AI usage monitor HTTP client
       - xclip              # General X11 clipboard CLI
+      - rofi               # Layout and cell picker menu
       - i3lock             # Screen locker
       - playerctl          # Media key controls (play/pause/next/prev)
       - pulseaudio-utils   # Provides pactl for volume and mic controls
@@ -31,6 +32,7 @@
       - policykit-1-gnome  # Polkit auth agent for 1Password system auth
       - network-manager-gnome # nm-applet for WiFi systray widget
       - jq                   # JSON parsing for AI usage monitor
+      - power-profiles-daemon # powerprofilesctl for battery profile switching
     state: present
     update_cache: true
   become: true
@@ -162,6 +164,24 @@
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/rc.lua"
     mode: "0644"
   notify: "awesomewm | Ubuntu | Restart AwesomeWM"
+
+- name: "awesomewm | Ubuntu | Ensure rofi config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/rofi"
+    state: directory
+    mode: "0755"
+
+- name: "awesomewm | Ubuntu | Deploy rofi configuration"
+  ansible.builtin.copy:
+    src: "rofi/config.rasi"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/rofi/config.rasi"
+    mode: "0644"
+
+- name: "awesomewm | Ubuntu | Deploy rofi Catppuccin theme"
+  ansible.builtin.copy:
+    src: "rofi/catppuccin-mocha.rasi"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/rofi/catppuccin-mocha.rasi"
+    mode: "0644"
 
 - name: "awesomewm | Ubuntu | Install GTK theme prerequisites"
   ansible.builtin.apt:

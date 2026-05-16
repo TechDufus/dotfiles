@@ -125,6 +125,8 @@ APP_LABELS = {
     "firefox": "Firefox",
     "ghostty": "Ghostty",
     "google-chrome": "Chrome",
+    "signal": "Signal",
+    "signal-desktop": "Signal",
     "slack": "Slack",
     "spotify": "Spotify",
     "steam": "Steam",
@@ -141,10 +143,30 @@ ICON_NAMES = {
     "firefox": "firefox",
     "ghostty": "com.mitchellh.ghostty",
     "google-chrome": "google-chrome",
+    "signal": "signal-desktop",
+    "signal-desktop": "signal-desktop",
     "slack": "slack",
     "spotify": "spotify",
     "steam": "steam",
 }
+
+NETWORK_ACTION_DEFS = (
+    {
+        "key": "connections",
+        "label": "Connections",
+        "command": ["nm-connection-editor"],
+    },
+    {
+        "key": "wifi",
+        "label": "Wi-Fi",
+        "command": ["nm-connection-editor", "--type=802-11-wireless", "--show"],
+    },
+    {
+        "key": "ethernet",
+        "label": "Ethernet",
+        "command": ["nm-connection-editor", "--type=802-3-ethernet", "--show"],
+    },
+)
 
 Task = dict[str, object]
 BarVisibilityState = dict[str, object]
@@ -419,6 +441,19 @@ def network_label_from_interface(interface: str) -> str:
     return "NET"
 
 
+def network_settings_actions() -> list[dict[str, object]]:
+    return copy.deepcopy(list(NETWORK_ACTION_DEFS))
+
+
+def open_network_action(action_key: str) -> None:
+    for action in NETWORK_ACTION_DEFS:
+        if action["key"] == action_key:
+            command = action["command"]
+            if isinstance(command, list):
+                run_command([str(part) for part in command])
+            return
+
+
 def volume_text() -> str:
     return shell_output(
         "pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | awk -F'/' 'NR==1 {gsub(/ /,\"\",$2); print $2}'",
@@ -638,14 +673,101 @@ def battery_value_from_output(text: str) -> str | None:
     return value or None
 
 
+def parse_upower_battery_info(text: str) -> dict[str, str]:
+    parsed = {
+        "state": "",
+        "percentage": "",
+        "time_to_full": "",
+        "time_to_empty": "",
+        "energy_rate": "",
+    }
+    key_map = {
+        "state": "state",
+        "percentage": "percentage",
+        "time to full": "time_to_full",
+        "time to empty": "time_to_empty",
+        "energy-rate": "energy_rate",
+        "energy rate": "energy_rate",
+    }
+    for line in text.splitlines():
+        key, separator, value = line.strip().partition(":")
+        if not separator:
+            continue
+        normalized_key = re.sub(r"\s+", " ", key.strip().lower())
+        target = key_map.get(normalized_key)
+        if target:
+            parsed[target] = value.strip()
+    return parsed
+
+
+def battery_summary_from_info(info: dict[str, str]) -> str | None:
+    percentage = info.get("percentage", "").strip()
+    if not percentage:
+        return None
+
+    state = info.get("state", "").strip().lower()
+    state_label = {
+        "charging": "CHG",
+        "discharging": "BAT",
+        "fully-charged": "AC",
+        "pending-charge": "AC",
+        "pending-discharge": "AC",
+        "empty": "LOW",
+    }.get(state, "")
+    return f"{percentage} {state_label}".strip()
+
+
+def battery_detail_rows(info: dict[str, str]) -> list[tuple[str, str]]:
+    rows = []
+    for key, label in (
+        ("state", "State"),
+        ("percentage", "Charge"),
+        ("time_to_full", "Time to full"),
+        ("time_to_empty", "Time to empty"),
+        ("energy_rate", "Energy rate"),
+    ):
+        value = info.get(key, "").strip()
+        if value:
+            rows.append((label, value))
+    return rows
+
+
+def first_battery_path() -> str:
+    return command_output(["sh", "-c", "upower -e 2>/dev/null | grep '/battery_' | head -n1"], "")
+
+
+def battery_info() -> dict[str, str]:
+    battery_path = first_battery_path()
+    if not battery_path:
+        return parse_upower_battery_info("")
+    return parse_upower_battery_info(command_output(["upower", "-i", battery_path], ""))
+
+
 def battery_value() -> str | None:
-    return battery_value_from_output(
-        shell_output(
-            'battery="$(upower -e 2>/dev/null | grep BAT | head -n1)"; '
-            'if [ -n "$battery" ]; then upower -i "$battery" | awk \'/percentage:/ {print $2; exit}\'; fi',
-            "",
-        )
-    )
+    return battery_summary_from_info(battery_info())
+
+
+def parse_power_profiles(text: str) -> list[dict[str, object]]:
+    profiles = []
+    for line in text.splitlines():
+        match = re.match(r"^\s*(\*)?\s*([A-Za-z0-9-]+):\s*$", line)
+        if match:
+            profiles.append({"name": match.group(2), "active": bool(match.group(1))})
+    return profiles
+
+
+def power_profiles() -> list[dict[str, object]]:
+    return parse_power_profiles(command_output(["powerprofilesctl", "list"], ""))
+
+
+def set_power_profile(profile: str) -> None:
+    if not re.match(r"^[A-Za-z0-9-]+$", profile):
+        return
+    run_command(["powerprofilesctl", "set", profile])
+
+
+def profile_display_name(profile: str) -> str:
+    return profile.replace("-", " ").title()
 
 
 def dnd_lua(command: str) -> str:
@@ -1223,15 +1345,6 @@ def open_ai_usage_url(provider: str) -> None:
     run_command(["xdg-open", url])
 
 
-def event_has_shift(event: object) -> bool:
-    try:
-        from gi.repository import Gdk
-
-        return bool(int(getattr(event, "state", 0)) & int(Gdk.ModifierType.SHIFT_MASK))
-    except Exception:
-        return "shift" in str(getattr(event, "state", "")).lower()
-
-
 def codex_usage_from_rate_limits(rate_limits: object) -> str | None:
     if isinstance(rate_limits, list):
         for item in reversed(rate_limits):
@@ -1561,6 +1674,109 @@ class AudioDevicePopout(MonitorWindow):
         self.show_all()
 
 
+class NetworkSettingsPopout(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry):
+        self.rows = Box(name="network-popout-rows", orientation="v", spacing=4)
+        super().__init__(
+            monitor,
+            title="fabric-network-popout",
+            name="network-popout",
+            layer="top",
+            geometry="top-right",
+            margin="37px 10px 0px 0px",
+            type_hint="dialog",
+            visible=False,
+            child=Box(
+                name="popout-panel",
+                orientation="v",
+                spacing=8,
+                children=[
+                    Label(name="popout-title", label="NETWORK"),
+                    self.rows,
+                ],
+            ),
+        )
+
+    def refresh(self) -> None:
+        self.rows.children = [
+            Label(name="popout-section", label=f"ACTIVE {network_text()}"),
+            *self.action_rows(),
+        ]
+
+    def action_rows(self) -> list[Button]:
+        rows: list[Button] = []
+        for action in network_settings_actions():
+            key = str(action["key"])
+            label = str(action["label"])
+            rows.append(
+                Button(
+                    name="network-action-row",
+                    child=Label(label=label),
+                    on_clicked=lambda *_args, target=key: open_network_action(target),
+                )
+            )
+        return rows
+
+
+class BatteryPowerPopout(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry):
+        self.panel = Box(name="battery-panel", orientation="v", spacing=8)
+        super().__init__(
+            monitor,
+            title="fabric-battery-popout",
+            name="battery-popout",
+            layer="top",
+            geometry="top-right",
+            margin="37px 10px 0px 0px",
+            type_hint="dialog",
+            visible=False,
+            child=self.panel,
+        )
+
+    def refresh(self) -> None:
+        info = battery_info()
+        profiles = power_profiles()
+        children: list[Box | Button | Label] = [Label(name="popout-title", label="BATTERY")]
+        detail_rows = battery_detail_rows(info)
+        if detail_rows:
+            children.extend(self.detail_row(label, value) for label, value in detail_rows)
+        else:
+            children.append(Label(name="popout-muted", label="battery unavailable"))
+
+        children.append(Label(name="popout-section", label="POWER PROFILE"))
+        if profiles:
+            children.extend(self.profile_row(profile) for profile in profiles)
+        else:
+            children.append(Label(name="popout-muted", label="profiles unavailable"))
+        self.panel.children = children
+
+    def detail_row(self, label: str, value: str) -> Box:
+        return Box(
+            name="battery-detail-row",
+            orientation="h",
+            spacing=10,
+            children=[
+                Label(name="battery-detail-label", h_expand=True, label=label),
+                Label(name="battery-detail-value", label=value),
+            ],
+        )
+
+    def profile_row(self, profile: dict[str, object]) -> Button:
+        name = str(profile.get("name") or "")
+        active = bool(profile.get("active"))
+        marker = ">" if active else " "
+        return Button(
+            name="battery-profile-row",
+            style_classes=["active"] if active else [],
+            child=Label(label=f"{marker} {profile_display_name(name)}"),
+            on_clicked=lambda *_args, target=name: self.select_profile(target),
+        )
+
+    def select_profile(self, profile: str) -> None:
+        set_power_profile(profile)
+        self.refresh()
+
+
 class AIUsagePopout(MonitorWindow):
     def __init__(self, monitor: MonitorGeometry, on_provider_changed=None):
         self.on_provider_changed = on_provider_changed
@@ -1849,6 +2065,12 @@ class StatusBar(MonitorWindow):
         self.popup_manager = PopupManager()
         self.hidden_for_fullscreen = False
         self.network = StatusPill("NET", "...")
+        self.network_popout = NetworkSettingsPopout(monitor)
+        self.network_button = Button(
+            name="network-button",
+            child=self.network,
+            on_clicked=lambda *_: self.popup_manager.toggle("network"),
+        )
         self.volume = StatusPill("VOL", "...")
         self.audio_popout = AudioDevicePopout(monitor)
         self.volume_button = EventBox(
@@ -1860,13 +2082,13 @@ class StatusBar(MonitorWindow):
         self.volume_button.connect("scroll-event", self.on_volume_scroll)
         self.ai = StatusPill("AI", "AI")
         self.ai_popout = AIUsagePopout(monitor, on_provider_changed=self.refresh_ai_usage)
-        self.ai_button = EventBox(
+        self.ai_button = Button(
             name="ai-button",
-            events=["button-press"],
             child=self.ai,
+            on_clicked=lambda *_: self.popup_manager.toggle("ai"),
         )
-        self.ai_button.connect("button-press-event", self.on_ai_button_press)
         self.calendar_popout = CalendarPopout(monitor)
+        self.register_popup("network", self.network_popout)
         self.register_popup("audio", self.audio_popout)
         self.register_popup("ai", self.ai_popout)
         self.register_popup("calendar", self.calendar_popout)
@@ -1878,14 +2100,26 @@ class StatusBar(MonitorWindow):
         )
         battery_initial = battery_value()
         self.battery = StatusPill("BAT", battery_initial) if battery_initial is not None else None
+        self.battery_popout = BatteryPowerPopout(monitor) if self.battery is not None else None
+        self.battery_button = (
+            Button(
+                name="battery-button",
+                child=self.battery,
+                on_clicked=lambda *_: self.popup_manager.toggle("battery"),
+            )
+            if self.battery is not None
+            else None
+        )
+        if self.battery_popout is not None:
+            self.register_popup("battery", self.battery_popout)
 
         end_children = [
-            self.network,
+            self.network_button,
             self.volume_button,
             self.ai_button,
         ]
-        if self.battery is not None:
-            end_children.append(self.battery)
+        if self.battery_button is not None:
+            end_children.append(self.battery_button)
         end_children.extend(
             [
                 self.dnd_button,
@@ -1963,7 +2197,10 @@ class StatusBar(MonitorWindow):
         self.set_fullscreen_visibility(bar_visibility_for_monitor(self.monitor))
 
     def windows(self) -> list[Window]:
-        return [self, self.audio_popout, self.ai_popout, self.calendar_popout]
+        windows: list[Window] = [self, self.network_popout, self.audio_popout, self.ai_popout, self.calendar_popout]
+        if self.battery_popout is not None:
+            windows.append(self.battery_popout)
+        return windows
 
     def register_popup(self, name: str, popup: Window) -> None:
         self.popup_manager.register(name, popup)
@@ -2024,32 +2261,8 @@ class StatusBar(MonitorWindow):
             change_volume(-5)
         return True
 
-    def on_ai_button_press(self, _widget, event) -> bool:
-        button = int(getattr(event, "button", 0))
-        if button == 1 and event_has_shift(event):
-            restart_ai_usage_monitor()
-        elif button == 1:
-            self.popup_manager.toggle("ai")
-        elif button == 2:
-            self.switch_ai_provider()
-        elif button == 3:
-            provider = load_ai_provider_preference()
-            open_ai_usage_url(provider)
-        return True
-
     def refresh_ai_usage(self) -> None:
         self.ai.set_value(ai_usage_text())
-
-    def switch_ai_provider(self) -> None:
-        save_ai_provider_preference(next_ai_provider(load_ai_provider_preference()))
-        restart_ai_usage_monitor()
-        self.refresh_after_ai_provider_change()
-        schedule_ai_provider_refreshes(self.refresh_after_ai_provider_change)
-
-    def refresh_after_ai_provider_change(self) -> None:
-        self.refresh_ai_usage()
-        if self.ai_popout.get_visible():
-            self.ai_popout.refresh()
 
     def refresh_dnd(self, value: str) -> None:
         state = normalize_dnd_text(value)

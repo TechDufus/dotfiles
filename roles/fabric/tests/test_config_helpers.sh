@@ -49,6 +49,7 @@ module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
+config_source = config_path.read_text()
 
 module.AI_STATUS_PATH = status_path
 module.AI_PROVIDER_PREF_PATH = status_path.parent / "provider.txt"
@@ -340,6 +341,7 @@ assert grouped == [
 ]
 assert module.overflow_count_for_tasks(tasks, max_icons=2) == 1
 assert module.icon_name_for_class("com.mitchellh.ghostty") in {"com.mitchellh.ghostty", "utilities-terminal", "terminal"}
+assert module.icon_name_for_class("Signal") == "signal-desktop"
 assert module.icon_name_for_class("") == "application-x-executable"
 assert module.initials_for_label("1Password") == "1"
 assert module.initials_for_label("Chromium") == "C"
@@ -350,6 +352,7 @@ assert module.network_label_from_interface("wlp0s20f3") == "WIFI"
 assert module.network_label_from_interface("tailscale0") == "VPN"
 assert module.network_label_from_interface("tun0") == "VPN"
 assert module.network_label_from_interface("") == "OFF"
+assert [action["label"] for action in module.network_settings_actions()] == ["Connections", "Wi-Fi", "Ethernet"]
 
 assert module.normalize_dnd_text('string "on"') == "on"
 assert module.normalize_dnd_text('string "off"') == "off"
@@ -359,6 +362,44 @@ assert module.normalize_dnd_text("") == "off"
 assert module.battery_value_from_output("83%") == "83%"
 assert module.battery_value_from_output("") is None
 assert module.battery_value_from_output("   ") is None
+battery_info = module.parse_upower_battery_info(
+    """
+      state:               charging
+      percentage:          83%
+      time to full:        1.2 hours
+      energy-rate:         14.2 W
+    """
+)
+assert battery_info == {
+    "state": "charging",
+    "percentage": "83%",
+    "time_to_full": "1.2 hours",
+    "time_to_empty": "",
+    "energy_rate": "14.2 W",
+}
+assert module.battery_summary_from_info(battery_info) == "83% CHG"
+assert module.battery_detail_rows(battery_info) == [
+    ("State", "charging"),
+    ("Charge", "83%"),
+    ("Time to full", "1.2 hours"),
+    ("Energy rate", "14.2 W"),
+]
+
+discharging_info = module.parse_upower_battery_info("state: discharging\npercentage: 54%\ntime to empty: 3.5 hours\n")
+assert module.battery_summary_from_info(discharging_info) == "54% BAT"
+
+profile_listing = """
+* balanced:
+    PlatformDriver: placeholder
+
+  power-saver:
+    PlatformDriver: placeholder
+"""
+profiles = module.parse_power_profiles(profile_listing)
+assert profiles == [
+    {"name": "balanced", "active": True},
+    {"name": "power-saver", "active": False},
+]
 
 audio_listing = """default_sink\talsa_output.usb.DAC
 sink\talsa_output.usb.DAC
@@ -494,6 +535,19 @@ bar_body = bar_inner.group("body")
 assert "background-color: alpha(var(--base), 0.97)" in bar_body
 assert "border-bottom: 2px solid alpha(var(--cyan), 0.55)" in bar_body
 assert "padding: 3px 10px" in bar_body
+
+for button_id in ("#network-button", "#ai-button", "#battery-button"):
+    assert button_id in css
+
+assert "#ai-button #status-pill" in css
+assert "#battery-button #status-pill" in css
+assert "self.ai_button = Button(" in config_source
+assert "self.ai_button = EventBox(" not in config_source
+assert 'on_clicked=lambda *_: self.popup_manager.toggle("ai")' in config_source
+assert 'self.ai_button.connect("button-press-event"' not in config_source
+assert "def on_ai_button_press" not in config_source
+assert "def switch_ai_provider" not in config_source
+assert "event_has_shift" not in config_source
 
 task_strip = re.search(r"#task-strip\s*\{(?P<body>.*?)\}", css, re.S)
 assert task_strip is not None

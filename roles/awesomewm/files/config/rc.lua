@@ -55,7 +55,7 @@ awful.spawn.once("nm-applet")
 
 -- Start Fabric UI when the opt-in sentinel is deployed by the fabric role.
 if fabric_ui_enabled then
-  awful.spawn.with_shell([[if [ -x "$HOME/.local/bin/fabric-awesomewm" ]; then "$HOME/.local/bin/fabric-awesomewm"; fi]])
+  awful.spawn.with_shell([[if [ -x "$HOME/.local/bin/fabric-awesomewm" ]; then "$HOME/.local/bin/fabric-awesomewm" --replace; fi]])
 end
 
 -- Vicinae launcher server starts after launcher helpers are defined below.
@@ -161,6 +161,10 @@ end
 
 local function launch_vicinae_settings()
   launch_vicinae("vicinae://launch/scripts?fallbackText=settings&toggle=true")
+end
+
+local function launch_1password_quick_access()
+  awful.spawn.with_shell("command -v 1password >/dev/null 2>&1 && 1password --quick-access")
 end
 
 local function start_vicinae_server()
@@ -478,14 +482,18 @@ globalkeys = gears.table.join(
   end, { description = "application launcher", group = "launcher" }),
 
   -- Primary command launcher.
-  awful.key({ modkey }, "space", function()
-    awesome.emit_signal("techdufus::launcher_root")
-  end, { description = "vicinae launcher", group = "launcher" }),
+  awful.key({ modkey, "Shift" }, "space", launch_1password_quick_access,
+    { description = "1Password Quick Access", group = "launcher" }),
 
   -- Clipboard manager.
-  awful.key({ modkey }, "v", function()
+  awful.key({ modkey }, "space", function()
     awesome.emit_signal("techdufus::launcher_clipboard")
   end, { description = "clipboard history", group = "launcher" }),
+
+  -- Primary command launcher.
+  awful.key({ modkey }, "v", function()
+    awesome.emit_signal("techdufus::launcher_root")
+  end, { description = "vicinae launcher", group = "launcher" }),
 
   awful.key({ modkey }, "x",
     function()

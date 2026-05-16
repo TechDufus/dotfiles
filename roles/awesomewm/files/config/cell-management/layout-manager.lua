@@ -1,23 +1,9 @@
 -- layout-manager.lua - Layout switching and manual cell binding
 local awful = require("awful")
-local gears = require("gears")
-local naughty = require("naughty")
 local state = require("cell-management.state")
 local helpers = require("cell-management.helpers")
 
 local M = {}
-
-local key_to_number = {
-  ["1"] = 1, ["KP_1"] = 1,
-  ["2"] = 2, ["KP_2"] = 2,
-  ["3"] = 3, ["KP_3"] = 3,
-  ["4"] = 4, ["KP_4"] = 4,
-  ["5"] = 5, ["KP_5"] = 5,
-  ["6"] = 6, ["KP_6"] = 6,
-  ["7"] = 7, ["KP_7"] = 7,
-  ["8"] = 8, ["KP_8"] = 8,
-  ["9"] = 9, ["KP_9"] = 9,
-}
 
 local function get_relative_screen(base_screen, offset)
   if not base_screen or screen.count() < 2 then
@@ -27,6 +13,22 @@ local function get_relative_screen(base_screen, offset)
   local base_index = base_screen.index or 1
   local target_index = ((base_index - 1 + offset) % screen.count()) + 1
   return screen[target_index] or base_screen
+end
+
+local function shell_quote(text)
+  return "'" .. tostring(text):gsub("'", "'\\''") .. "'"
+end
+
+local function escape_rofi_prompt(text)
+  return shell_quote(text)
+end
+
+local function build_rofi_input(lines)
+  local quoted_lines = {}
+  for _, line in ipairs(lines) do
+    table.insert(quoted_lines, shell_quote(line))
+  end
+  return table.concat(quoted_lines, " ")
 end
 
 local function reapply_layout_for_screen(target_screen)
@@ -56,38 +58,27 @@ local function reapply_layout_for_screen(target_screen)
   end
 end
 
-local function notify_picker(title, lines)
-  naughty.notify({
-    title = title,
-    text = table.concat(lines, "\n"),
-    timeout = 2,
-  })
-end
+local function start_rofi_picker(prompt, lines, callback)
+  if #lines == 0 then
+    return
+  end
 
-local function start_numeric_picker(title, lines, max_index, callback)
-  notify_picker(title, lines)
+  local command = string.format(
+    "printf '%%s\\n' %s | rofi -dmenu -i -p %s -format s",
+    build_rofi_input(lines),
+    escape_rofi_prompt(prompt)
+  )
 
-  local picker = awful.keygrabber {
-    stop_key = "Escape",
-    stop_event = "press",
-    timeout = 2,
-    autostart = false,
-    keypressed_callback = function(self, mod, key)
-      local index = key_to_number[key]
+  awful.spawn.easy_async_with_shell(command, function(stdout, stderr, reason, exit_code)
+    if exit_code ~= 0 then
+      return
+    end
 
-      if index and index <= max_index then
-        self:stop()
-        gears.timer.delayed_call(function()
-          callback(index)
-        end)
-        return
-      end
-
-      self:stop()
-    end,
-  }
-
-  picker:start()
+    local selection = stdout:gsub("%s+$", "")
+    if selection ~= "" then
+      callback(selection)
+    end
+  end)
 end
 
 local function move_client_to_cell(c, cell_index, target_screen, layout)
@@ -210,16 +201,18 @@ function M.select_layout(target_screen)
   local screen_label = helpers.get_screen_label(target_screen)
   local picker_lines = {}
   for i, layout in ipairs(layouts) do
-    local marker = (i == current_index) and "*" or " "
-    table.insert(picker_lines, string.format("%s %d  %s", marker, i, layout.name))
+    local marker = (i == current_index) and "* " or "  "
+    table.insert(picker_lines, string.format("%s%d. %s", marker, i, layout.name))
   end
 
-  start_numeric_picker(
+  start_rofi_picker(
     "Layout for " .. screen_label,
     picker_lines,
-    #layouts,
-    function(index)
-      M.switch_layout(index, target_screen)
+    function(selection)
+      local index = selection:match("^%s*%*?%s*(%d+)%.")
+      if index then
+        M.switch_layout(tonumber(index), target_screen)
+      end
     end
   )
 end
@@ -268,12 +261,14 @@ function M.bind_to_cell(cell_index)
     table.insert(picker_lines, string.format("%d  %s", i, app_list))
   end
 
-  start_numeric_picker(
+  start_rofi_picker(
     string.format("Move %s on %s to cell", c.class or "window", helpers.get_screen_label(target_screen)),
     picker_lines,
-    #layout.cells,
-    function(index)
-      move_client_to_cell(c, index, target_screen, layout)
+    function(selection)
+      local index = selection:match("^(%d+)%s+") or selection:match("^Cell%s+(%d+):")
+      if index then
+        move_client_to_cell(c, tonumber(index), target_screen, layout)
+      end
     end
   )
 end

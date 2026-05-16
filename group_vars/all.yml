@@ -36,6 +36,7 @@ default_roles:
   - nerdfetch
   - nvm  # Must run before npm
   - npm
+  - clawpatch
   - obsidian
   - opencode
   - podman

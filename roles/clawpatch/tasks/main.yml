@@ -1,0 +1,111 @@
+---
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Install | Check npm is available"
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.npm-global/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:${PATH}"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+      . "$NVM_DIR/nvm.sh"
+    fi
+    command -v npm
+  args:
+    executable: /bin/bash
+  register: clawpatch_npm_check
+  changed_when: false
+
+- name: "{{ role_name }} | Install | Check Node.js version"
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.npm-global/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:${PATH}"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+      . "$NVM_DIR/nvm.sh"
+    fi
+    node -p "process.versions.node"
+  args:
+    executable: /bin/bash
+  register: clawpatch_node_version
+  changed_when: false
+
+- name: "{{ role_name }} | Install | Fail if Node.js is too old"
+  ansible.builtin.fail:
+    msg: >-
+      Clawpatch requires Node.js >= {{ clawpatch_min_node_major }}.
+      Current Node.js version is {{ clawpatch_node_version.stdout }}.
+      Run the nvm/npm roles first or upgrade Node.js.
+  when: (clawpatch_node_version.stdout.split('.')[0] | int) < clawpatch_min_node_major
+
+- name: "{{ role_name }} | Install | Resolve latest Clawpatch version"
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.npm-global/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:${PATH}"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+      . "$NVM_DIR/nvm.sh"
+    fi
+    npm view "{{ clawpatch_npm_package }}" version
+  args:
+    executable: /bin/bash
+  register: clawpatch_latest_version
+  changed_when: false
+  when: clawpatch_version == "latest"
+
+- name: "{{ role_name }} | Install | Set desired Clawpatch version"
+  ansible.builtin.set_fact:
+    clawpatch_resolved_version: >-
+      {{ clawpatch_latest_version.stdout
+         if clawpatch_version == "latest"
+         else clawpatch_version }}
+
+- name: "{{ role_name }} | Install | Check installed Clawpatch version"
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.npm-global/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:${PATH}"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+      . "$NVM_DIR/nvm.sh"
+    fi
+    clawpatch --version
+  args:
+    executable: /bin/bash
+  register: clawpatch_current_version
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Install | Install or update Clawpatch"
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.npm-global/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:${PATH}"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+      . "$NVM_DIR/nvm.sh"
+    fi
+    npm install -g "{{ clawpatch_npm_package }}@{{ clawpatch_resolved_version }}"
+  args:
+    executable: /bin/bash
+  register: clawpatch_install_result
+  changed_when: true
+  when: >-
+    clawpatch_current_version.rc != 0 or
+    clawpatch_current_version.stdout != clawpatch_resolved_version
+
+- name: "{{ role_name }} | Install | Verify Clawpatch"
+  ansible.builtin.shell: |
+    export PATH="{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.npm-global/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:${PATH}"
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+      . "$NVM_DIR/nvm.sh"
+    fi
+    clawpatch --version
+  args:
+    executable: /bin/bash
+  register: clawpatch_verify
+  changed_when: false
+
+- name: "{{ role_name }} | Install | Report status"
+  ansible.builtin.debug:
+    msg: "Clawpatch {{ clawpatch_verify.stdout }} installed via npm package {{ clawpatch_npm_package }}"

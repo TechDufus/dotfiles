@@ -44,40 +44,8 @@ awful.spawn.once("xset r rate 300 40")
 
 -- Remap Caps Lock to F13 for laptop keyboard support
 -- This allows the summon modal (F13) to work on keyboards without F13 key
--- Must run in sequence: setxkbmap first (preserving the system XKB layout), then xmodmap
--- Runs on every startup/reload to ensure remapping persists after any setxkbmap changes
--- Small delay ensures X server is ready to accept the remapping
-awful.spawn.with_shell([[
-sleep 0.2
-
-layout="$(localectl status | awk -F': *' '/X11 Layout:/ {print $2}')"
-model="$(localectl status | awk -F': *' '/X11 Model:/ {print $2}')"
-variant="$(localectl status | awk -F': *' '/X11 Variant:/ {print $2}')"
-options="$(localectl status | awk -F': *' '/X11 Options:/ {print $2}')"
-
-if [ -z "$layout" ]; then layout="us"; fi
-if [ -z "$model" ]; then model="pc105"; fi
-
-case ",$options," in
-  *,caps:none,*)
-    ;;
-  *)
-    if [ -n "$options" ]; then
-      options="$options,caps:none"
-    else
-      options="caps:none"
-    fi
-    ;;
-esac
-
-if [ -n "$variant" ]; then
-  setxkbmap -model "$model" -layout "$layout" -variant "$variant" -option "$options"
-else
-  setxkbmap -model "$model" -layout "$layout" -option "$options"
-fi
-
-xmodmap -e 'keycode 66 = F13'
-]])
+-- Runs on every startup/reload to ensure remapping persists after any XKB changes.
+awful.spawn.with_shell([[sleep 0.2; if [ -x "$HOME/.local/bin/remap-caps-to-f13.sh" ]; then "$HOME/.local/bin/remap-caps-to-f13.sh"; fi]])
 
 -- Start polkit authentication agent for 1Password system auth
 awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1")

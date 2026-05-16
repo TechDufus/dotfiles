@@ -149,6 +149,13 @@
     mode: "0644"
   notify: "awesomewm | Ubuntu | Restart AwesomeWM"
 
+- name: "awesomewm | Ubuntu | Deploy CapsLock to F13 remap script"
+  ansible.builtin.copy:
+    src: "scripts/remap-caps-to-f13.sh"
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/remap-caps-to-f13.sh"
+    mode: "0755"
+  notify: "awesomewm | Ubuntu | Restart AwesomeWM"
+
 - name: "awesomewm | Ubuntu | Deploy rc.lua"
   ansible.builtin.copy:
     src: "config/rc.lua"

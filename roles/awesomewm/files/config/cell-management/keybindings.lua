@@ -16,6 +16,23 @@ local summon_trigger_keys = {
   Caps_Lock = true,
 }
 
+local modifier_keys = {
+  Shift_L = true,
+  Shift_R = true,
+  Control_L = true,
+  Control_R = true,
+  Alt_L = true,
+  Alt_R = true,
+  Super_L = true,
+  Super_R = true,
+  Meta_L = true,
+  Meta_R = true,
+  Hyper_L = true,
+  Hyper_R = true,
+  ISO_Level3_Shift = true,
+  ISO_Level5_Shift = true,
+}
+
 local function has_modifier(modifiers, target)
   for _, modifier in ipairs(modifiers or {}) do
     if modifier == target then
@@ -77,6 +94,10 @@ summon_modal = awful.keygrabber {
   timeout = 1,  -- 1 second timeout for modal auto-close
   autostart = false,
   keypressed_callback = function(self, mod, key, event)
+    if modifier_keys[key] then
+      return
+    end
+
     local binding_key = binding_key_for_event(mod, key)
 
     -- Treat any recognized summon trigger as a second tap to enter macro mode.

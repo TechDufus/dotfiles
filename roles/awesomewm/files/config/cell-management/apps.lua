@@ -20,7 +20,7 @@ return {
   Signal = {
     class = "signal",
     summon = "C",
-    exec = "flatpak run org.signal.Signal",
+    exec = "signal-desktop",
   },
   Spotify = {
     class = "Spotify",           -- Note: Spotify uses capital S

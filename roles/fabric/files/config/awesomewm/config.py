@@ -8,7 +8,8 @@ import re
 import subprocess
 import sys
 import time
-from datetime import date, datetime, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fabric import Application, Fabricator
@@ -106,20 +107,68 @@ ICON_NAMES = {
 Task = dict[str, object]
 
 
+@dataclass(frozen=True)
+class MonitorGeometry:
+    index: int
+    x: int
+    y: int
+    width: int
+    height: int
+    scale_factor: int = 1
+    primary: bool = False
+    name: str = ""
+
+
 def bar_size_from_monitor_width(width: int) -> tuple[int, int]:
     return (width, BAR_HEIGHT)
 
 
-def primary_monitor_width() -> int:
+def fallback_monitor_geometries() -> list[MonitorGeometry]:
+    return [MonitorGeometry(index=0, x=0, y=0, width=1920, height=1080, primary=True, name="fallback")]
+
+
+def monitor_geometries() -> list[MonitorGeometry]:
     try:
         from gi.repository import Gdk
 
         display = Gdk.Display.get_default()
-        monitor = display.get_primary_monitor() if display else None
-        geometry = monitor.get_geometry() if monitor else None
-        return int(geometry.width) if geometry else 1920
+        if display is None:
+            return fallback_monitor_geometries()
+
+        primary_monitor = display.get_primary_monitor()
+        monitors = []
+        for index in range(display.get_n_monitors()):
+            monitor = display.get_monitor(index)
+            if monitor is None:
+                continue
+            geometry = monitor.get_geometry()
+            monitors.append(
+                MonitorGeometry(
+                    index=index,
+                    x=int(geometry.x),
+                    y=int(geometry.y),
+                    width=max(1, int(geometry.width)),
+                    height=max(1, int(geometry.height)),
+                    scale_factor=max(1, int(monitor.get_scale_factor())),
+                    primary=monitor == primary_monitor,
+                    name=str(monitor.get_model() or f"monitor-{index}"),
+                )
+            )
+
+        return monitors or fallback_monitor_geometries()
     except Exception:
-        return 1920
+        return fallback_monitor_geometries()
+
+
+def monitor_rectangle(monitor: MonitorGeometry):
+    from gi.repository import Gdk
+
+    rectangle = Gdk.Rectangle()
+    rectangle.x = monitor.x
+    rectangle.y = monitor.y
+    rectangle.width = monitor.width
+    rectangle.height = monitor.height
+    return rectangle
 
 
 def run_command(command: list[str]) -> None:
@@ -424,6 +473,121 @@ def calendar_text_for_months(year: int, month: int) -> str:
 def calendar_text() -> str:
     today = date.today()
     return calendar_text_for_months(today.year, today.month)
+
+
+def shifted_date_by_days(value: date, delta: int) -> date:
+    return value + timedelta(days=delta)
+
+
+def calendar_day_style_classes(
+    day: date,
+    today: date,
+    selected: date,
+    marker_days: set[date] | None = None,
+) -> list[str]:
+    marker_days = marker_days or set()
+    classes = ["current-month"] if day.month == selected.month else ["adjacent-month"]
+    if day == today:
+        classes.append("today")
+    if day == selected:
+        classes.append("selected")
+    if day in marker_days:
+        classes.append("has-marker")
+    if day.weekday() >= 5:
+        classes.append("weekend")
+    return classes
+
+
+def calendar_month_model(
+    year: int,
+    month: int,
+    today: date | None = None,
+    selected: date | None = None,
+    marker_days: set[date] | None = None,
+) -> dict[str, object]:
+    today = today or date.today()
+    selected = selected or today
+    marker_days = marker_days or set()
+    renderer = calendar.Calendar(calendar.SUNDAY)
+    weeks = []
+    for week in renderer.monthdatescalendar(year, month):
+        weeks.append(
+            [
+                {
+                    "date": day,
+                    "day": str(day.day),
+                    "style_classes": calendar_day_style_classes(day, today, selected, marker_days),
+                }
+                for day in week
+            ]
+        )
+
+    while len(weeks) < 6:
+        last_day = weeks[-1][-1]["date"]
+        weeks.append(
+            [
+                {
+                    "date": shifted_date_by_days(last_day, offset),
+                    "day": str(shifted_date_by_days(last_day, offset).day),
+                    "style_classes": calendar_day_style_classes(
+                        shifted_date_by_days(last_day, offset),
+                        today,
+                        selected,
+                        marker_days,
+                    ),
+                }
+                for offset in range(1, 8)
+            ]
+        )
+
+    return {
+        "title": f"{calendar.month_name[month]} {year}",
+        "year": year,
+        "month": month,
+        "today": today,
+        "selected": selected,
+        "selected_label": selected.strftime("%a %b %-d, %Y"),
+        "weekdays": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+        "weeks": weeks[:6],
+    }
+
+
+def calendar_action_for_key(key_name: str) -> str | None:
+    normalized = str(key_name or "").strip()
+    actions = {
+        "h": "month-prev",
+        "H": "month-prev",
+        "Left": "month-prev",
+        "Page_Up": "month-prev",
+        "l": "month-next",
+        "L": "month-next",
+        "Right": "month-next",
+        "Page_Down": "month-next",
+        "k": "week-prev",
+        "K": "week-prev",
+        "Up": "week-prev",
+        "j": "week-next",
+        "J": "week-next",
+        "Down": "week-next",
+        "t": "today",
+        "T": "today",
+        "Home": "today",
+        "Return": "today",
+        "KP_Enter": "today",
+    }
+    return actions.get(normalized)
+
+
+def key_name_from_event(event: object) -> str:
+    try:
+        from gi.repository import Gdk
+
+        key_name = Gdk.keyval_name(int(getattr(event, "keyval", 0)))
+        if key_name:
+            return str(key_name)
+    except Exception:
+        pass
+    return str(getattr(event, "keyval", ""))
 
 
 def battery_value_from_output(text: str) -> str | None:
@@ -1211,10 +1375,26 @@ class PopupManager:
         self.open(name)
 
 
-class AudioDevicePopout(Window):
-    def __init__(self):
+class MonitorWindow(Window):
+    def __init__(self, monitor: MonitorGeometry, *args, **kwargs):
+        self.monitor = monitor
+        super().__init__(*args, **kwargs)
+
+    def do_get_display_props(self):
+        from gi.repository import Gdk
+
+        display = Gdk.Display.get_default()
+        if display is None:
+            raise RuntimeError("GDK display unavailable")
+        return display, monitor_rectangle(self.monitor), self.monitor.scale_factor
+
+
+class AudioDevicePopout(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry):
         self.rows = Box(name="audio-popout-rows", orientation="v", spacing=4)
         super().__init__(
+            monitor,
+            title="fabric-audio-popout",
             name="audio-popout",
             layer="top",
             geometry="top-right",
@@ -1269,11 +1449,13 @@ class AudioDevicePopout(Window):
         self.show_all()
 
 
-class AIUsagePopout(Window):
-    def __init__(self, on_provider_changed=None):
+class AIUsagePopout(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry, on_provider_changed=None):
         self.on_provider_changed = on_provider_changed
         self.panel = Box(name="ai-panel", orientation="v", spacing=9)
         super().__init__(
+            monitor,
+            title="fabric-ai-popout",
             name="ai-popout",
             layer="top",
             geometry="top-right",
@@ -1421,10 +1603,17 @@ class AIUsagePopout(Window):
         self.show_all()
 
 
-class CalendarPopout(Window):
-    def __init__(self):
-        self.calendar_label = Label(name="calendar-label", label="")
+class CalendarPopout(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry):
+        self.selected_date = date.today()
+        self.view_year = self.selected_date.year
+        self.view_month = self.selected_date.month
+        self.title_label = Label(name="calendar-title", h_expand=True, label="")
+        self.day_grid = Box(name="calendar-grid", orientation="v", spacing=4)
+        self.selected_label = Label(name="calendar-selected", label="")
         super().__init__(
+            monitor,
+            title="fabric-calendar-popout",
             name="calendar-popout",
             layer="top",
             geometry="top",
@@ -1434,30 +1623,113 @@ class CalendarPopout(Window):
             child=Box(
                 name="calendar-panel",
                 orientation="v",
-                spacing=6,
+                spacing=8,
                 children=[
-                    Label(name="popout-title", label="CALENDAR"),
-                    self.calendar_label,
+                    Box(
+                        name="calendar-header",
+                        orientation="h",
+                        spacing=8,
+                        children=[
+                            Button(name="calendar-nav", child=Label(label="<"), on_clicked=lambda *_: self.shift_month(-1)),
+                            self.title_label,
+                            Button(name="calendar-nav", child=Label(label=">"), on_clicked=lambda *_: self.shift_month(1)),
+                        ],
+                    ),
+                    Box(
+                        name="calendar-weekdays",
+                        orientation="h",
+                        spacing=4,
+                        children=[Label(name="calendar-weekday", label=day) for day in ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]],
+                    ),
+                    self.day_grid,
+                    self.selected_label,
+                    Label(name="calendar-hints", label="h/l month  k/j week  t today  esc close"),
                 ],
             ),
         )
+
+    def refresh(self) -> None:
+        model = calendar_month_model(self.view_year, self.view_month, today=date.today(), selected=self.selected_date)
+        self.title_label.set_label(str(model["title"]).upper())
+        self.selected_label.set_label(str(model["selected_label"]))
+        self.day_grid.children = [self.week_row(week) for week in model["weeks"]]
+
+    def week_row(self, week: list[dict[str, object]]) -> Box:
+        return Box(
+            name="calendar-week",
+            orientation="h",
+            spacing=4,
+            children=[self.day_button(day) for day in week],
+        )
+
+    def day_button(self, day: dict[str, object]) -> Button:
+        day_date = day["date"]
+        return Button(
+            name="calendar-day",
+            style_classes=list(day["style_classes"]),
+            child=Label(label=str(day["day"])),
+            on_clicked=lambda *_args, target=day_date: self.select_date(target),
+        )
+
+    def select_date(self, target: date) -> None:
+        self.selected_date = target
+        self.view_year = target.year
+        self.view_month = target.month
+        self.refresh()
+
+    def shift_month(self, delta: int) -> None:
+        self.view_year, self.view_month = shifted_month(self.view_year, self.view_month, delta)
+        month_last_day = calendar.monthrange(self.view_year, self.view_month)[1]
+        selected_day = min(self.selected_date.day, month_last_day)
+        self.selected_date = date(self.view_year, self.view_month, selected_day)
+        self.refresh()
+
+    def shift_week(self, delta: int) -> None:
+        self.select_date(shifted_date_by_days(self.selected_date, delta * 7))
+
+    def go_today(self) -> None:
+        self.select_date(date.today())
+
+    def handle_key_press(self, event) -> bool:
+        action = calendar_action_for_key(key_name_from_event(event))
+        if action == "month-prev":
+            self.shift_month(-1)
+            return True
+        if action == "month-next":
+            self.shift_month(1)
+            return True
+        if action == "week-prev":
+            self.shift_week(-1)
+            return True
+        if action == "week-next":
+            self.shift_week(1)
+            return True
+        if action == "today":
+            self.go_today()
+            return True
+        return False
 
     def toggle(self) -> None:
         if self.get_visible():
             self.hide()
             return
-        self.calendar_label.set_label(calendar_text())
+        self.refresh()
         self.show_all()
 
 
-class StatusBar(Window):
-    def __init__(self):
+class StatusBar(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry):
+        self.monitor = monitor
         super().__init__(
+            monitor,
+            title="fabric-bar",
             name="fabric-awesomewm-bar",
             layer="top",
-            geometry="top",
+            geometry="top-left",
             type_hint="dock",
-            size=bar_size_from_monitor_width(primary_monitor_width()),
+            type="popup",
+            focusable=False,
+            size=bar_size_from_monitor_width(monitor.width),
             visible=False,
         )
 
@@ -1465,7 +1737,7 @@ class StatusBar(Window):
         self.popup_manager = PopupManager()
         self.network = StatusPill("NET", "...")
         self.volume = StatusPill("VOL", "...")
-        self.audio_popout = AudioDevicePopout()
+        self.audio_popout = AudioDevicePopout(monitor)
         self.volume_button = EventBox(
             name="volume-button",
             events=["button-press", "scroll"],
@@ -1474,14 +1746,14 @@ class StatusBar(Window):
         self.volume_button.connect("button-press-event", self.on_volume_button_press)
         self.volume_button.connect("scroll-event", self.on_volume_scroll)
         self.ai = StatusPill("AI", "AI")
-        self.ai_popout = AIUsagePopout(on_provider_changed=self.refresh_ai_usage)
+        self.ai_popout = AIUsagePopout(monitor, on_provider_changed=self.refresh_ai_usage)
         self.ai_button = EventBox(
             name="ai-button",
             events=["button-press"],
             child=self.ai,
         )
         self.ai_button.connect("button-press-event", self.on_ai_button_press)
-        self.calendar_popout = CalendarPopout()
+        self.calendar_popout = CalendarPopout(monitor)
         self.register_popup("audio", self.audio_popout)
         self.register_popup("ai", self.ai_popout)
         self.register_popup("calendar", self.calendar_popout)
@@ -1550,6 +1822,9 @@ class StatusBar(Window):
             ),
         )
 
+        self.set_default_size(monitor.width, BAR_HEIGHT)
+        self.set_size_request(monitor.width, BAR_HEIGHT)
+
         self.pollers = [
             Fabricator(interval=2000, poll_from=lambda _: running_tasks(), on_changed=lambda _, value: self.tasks.set_tasks(value)),
             Fabricator(interval=10000, poll_from=lambda _: network_text(), on_changed=lambda _, value: self.network.set_value(value)),
@@ -1581,16 +1856,14 @@ class StatusBar(Window):
         return False
 
     def on_popup_key_press(self, name: str, event) -> bool:
-        try:
-            from gi.repository import Gdk
-
-            if int(getattr(event, "keyval", 0)) == int(Gdk.KEY_Escape):
-                self.popup_manager.close(name)
-                return True
-        except Exception:
-            if str(getattr(event, "keyval", "")).lower() == "escape":
-                self.popup_manager.close(name)
-                return True
+        key_name = key_name_from_event(event)
+        if key_name == "Escape" or key_name.lower() == "escape":
+            self.popup_manager.close(name)
+            return True
+        popup = self.popup_manager.popups.get(name)
+        handle_key_press = getattr(popup, "handle_key_press", None)
+        if callable(handle_key_press):
+            return bool(handle_key_press(event))
         return False
 
     def on_volume_button_press(self, _widget, event) -> bool:
@@ -1648,8 +1921,10 @@ if __name__ == "__main__":
     if "--check" in sys.argv:
         raise SystemExit(run_self_check())
 
-    bar = StatusBar()
-    app = Application("fabric-awesomewm", *bar.windows())
+    bars = [StatusBar(monitor) for monitor in monitor_geometries()]
+    windows = [window for bar in bars for window in bar.windows()]
+    app = Application("fabric-awesomewm", *windows)
     app.set_stylesheet_from_file(get_relative_path("./style.css"))
-    bar.show_all()
+    for bar in bars:
+        bar.show_all()
     app.run()

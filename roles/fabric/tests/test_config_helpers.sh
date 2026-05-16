@@ -38,6 +38,7 @@ import json
 import pathlib
 import re
 import sys
+from datetime import date
 
 config_path = pathlib.Path(sys.argv[1])
 status_path = pathlib.Path(sys.argv[2])
@@ -46,6 +47,7 @@ css_path = pathlib.Path(sys.argv[3])
 spec = importlib.util.spec_from_file_location("fabric_awesomewm_config", config_path)
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 module.AI_STATUS_PATH = status_path
@@ -59,6 +61,10 @@ assert module.VOLUME_POLL_MS <= 1000
 assert module.AI_POLL_MS <= 5000
 assert module.bar_size_from_monitor_width(1920) == (1920, 37)
 assert module.bar_size_from_monitor_width(1) == (1, 37)
+fallback_monitors = module.fallback_monitor_geometries()
+assert fallback_monitors == [
+    module.MonitorGeometry(index=0, x=0, y=0, width=1920, height=1080, scale_factor=1, primary=True, name="fallback")
+]
 
 codex_rate_limits = {
     "limit_id": "codex",
@@ -308,6 +314,39 @@ rendered_calendar = module.calendar_text_for_months(2026, 5)
 assert "May 2026" in rendered_calendar
 assert "June 2026" in rendered_calendar
 assert "1  2" in rendered_calendar
+assert callable(getattr(module.CalendarPopout, "refresh", None))
+
+calendar_model = module.calendar_month_model(
+    2026,
+    5,
+    today=date(2026, 5, 14),
+    selected=date(2026, 5, 14),
+    marker_days={date(2026, 5, 1), date(2026, 5, 15)},
+)
+assert calendar_model["title"] == "May 2026"
+assert calendar_model["selected_label"] == "Thu May 14, 2026"
+assert len(calendar_model["weeks"]) == 6
+assert all(len(week) == 7 for week in calendar_model["weeks"])
+assert calendar_model["weeks"][0][0]["date"] == date(2026, 4, 26)
+selected_day = calendar_model["weeks"][2][4]
+assert selected_day["day"] == "14"
+assert selected_day["style_classes"] == ["current-month", "today", "selected"]
+marked_day = calendar_model["weeks"][0][5]
+assert marked_day["date"] == date(2026, 5, 1)
+assert "has-marker" in marked_day["style_classes"]
+assert module.shifted_date_by_days(date(2026, 5, 1), -7) == date(2026, 4, 24)
+assert module.shifted_date_by_days(date(2026, 12, 29), 7) == date(2027, 1, 5)
+assert module.calendar_action_for_key("h") == "month-prev"
+assert module.calendar_action_for_key("Left") == "month-prev"
+assert module.calendar_action_for_key("l") == "month-next"
+assert module.calendar_action_for_key("Right") == "month-next"
+assert module.calendar_action_for_key("k") == "week-prev"
+assert module.calendar_action_for_key("Up") == "week-prev"
+assert module.calendar_action_for_key("j") == "week-next"
+assert module.calendar_action_for_key("Down") == "week-next"
+assert module.calendar_action_for_key("t") == "today"
+assert module.calendar_action_for_key("Return") == "today"
+assert module.calendar_action_for_key("space") is None
 
 now = [100.0]
 
@@ -400,6 +439,18 @@ for selector in (
     "#ai-metric-row",
     "#ai-progress",
     "#ai-footer-button",
+    "#calendar-header",
+    "#calendar-grid",
+    "#calendar-day",
+    "#calendar-day.today",
+    "#calendar-day.selected",
+    "#calendar-day.has-marker",
+    "#calendar-selected",
+    "#calendar-hints",
 ):
     assert selector in css
 PY
+
+bash -n "$repo_root/roles/fabric/files/bin/fabric-awesomewm"
+grep -q -- "--replace" "$repo_root/roles/fabric/files/bin/fabric-awesomewm"
+grep -q "pkill -u" "$repo_root/roles/fabric/files/bin/fabric-awesomewm"

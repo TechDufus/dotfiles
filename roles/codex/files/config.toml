@@ -22,6 +22,7 @@ guardian_approval = true
 multi_agent = true
 undo = true
 memories = true
+hooks = true
 
 [agents]
 max_threads = 12
@@ -70,9 +71,6 @@ enabled = true
 [plugins."computer-use@openai-bundled"]
 enabled = true
 
-[plugins."browser-use@openai-bundled"]
-enabled = true
-
 [plugins."documents@openai-primary-runtime"]
 enabled = true
 
@@ -82,13 +80,22 @@ enabled = true
 [plugins."presentations@openai-primary-runtime"]
 enabled = true
 
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."cloudflare@openai-curated"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
+enabled = true
+
 [marketplaces.openai-bundled]
-last_updated = "2026-04-26T19:35:06Z"
+last_updated = "2026-05-18T15:11:51Z"
 source_type = "local"
 source = "/Users/mdegarmo/.codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-04-26T20:05:09Z"
+last_updated = "2026-05-18T16:05:12Z"
 source_type = "local"
 source = "/Users/mdegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 

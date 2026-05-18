@@ -35,6 +35,8 @@ MAX_TASK_LABELS = 5
 BAR_HEIGHT = 37
 VOLUME_POLL_MS = 1000
 AI_POLL_MS = 5000
+BAR_VISIBILITY_POLL_MS = 500
+SCREEN_MATCH_TOLERANCE_PX = 4
 AI_PROVIDER_SWITCH_REFRESH_DELAYS_MS = (350, 1250)
 ROOT_LAUNCHER_SIGNAL = "techdufus::launcher_root"
 SETTINGS_LAUNCHER_SIGNAL = "techdufus::launcher_settings"
@@ -73,6 +75,46 @@ end
 return table.concat(out, "\n")
 '''
 
+AWESOME_BAR_VISIBILITY_LUA = r'''
+local tolerance = 4
+
+local function covers_screen(cg, sg)
+  return cg.x <= sg.x + tolerance
+    and cg.y <= sg.y + tolerance
+    and cg.x + cg.width >= sg.x + sg.width - tolerance
+    and cg.y + cg.height >= sg.y + sg.height - tolerance
+end
+
+local function can_cover_bar(c)
+  if not c.valid or c.minimized or c.hidden then
+    return false
+  end
+  if not c:isvisible() then
+    return false
+  end
+  local client_type = c.type or ""
+  return client_type ~= "desktop" and client_type ~= "dock"
+end
+
+local out = {}
+local focused = client.focus
+for s in screen do
+  local sg = s.geometry
+  local hidden = false
+  for _, c in ipairs(client.get()) do
+    if c == focused and c.screen == s and can_cover_bar(c) then
+      local cg = c:geometry()
+      if c.fullscreen or covers_screen(cg, sg) then
+        hidden = true
+        break
+      end
+    end
+  end
+  table.insert(out, string.format("%d\t%d\t%d\t%d\t%s", sg.x, sg.y, sg.width, sg.height, hidden and "hidden" or "visible"))
+end
+return table.concat(out, "\n")
+'''
+
 APP_LABELS = {
     "1password": "1Password",
     "chromium": "Chromium",
@@ -105,6 +147,7 @@ ICON_NAMES = {
 }
 
 Task = dict[str, object]
+BarVisibilityState = dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -826,6 +869,75 @@ def running_tasks() -> list[Task]:
 
 def running_apps_text() -> str:
     return tasks_text(running_tasks())
+
+
+def parse_awesome_bar_visibility(stdout: str) -> list[BarVisibilityState]:
+    states = []
+    for line in decode_awesome_string(stdout).splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        if len(parts) < 5:
+            continue
+        try:
+            x = int(parts[0])
+            y = int(parts[1])
+            width = int(parts[2])
+            height = int(parts[3])
+        except ValueError:
+            continue
+        if width <= 0 or height <= 0:
+            continue
+
+        raw_visibility = parts[4].strip().lower()
+        if raw_visibility in {"hidden", "true", "1", "covered"}:
+            visibility = "hidden"
+        elif raw_visibility in {"visible", "false", "0", "clear"}:
+            visibility = "visible"
+        else:
+            continue
+
+        states.append(
+            {
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height,
+                "visibility": visibility,
+            }
+        )
+    return states
+
+
+def screen_state_matches_monitor(
+    monitor: MonitorGeometry,
+    state: BarVisibilityState,
+    tolerance: int = SCREEN_MATCH_TOLERANCE_PX,
+) -> bool:
+    try:
+        return (
+            abs(int(state.get("x")) - monitor.x) <= tolerance
+            and abs(int(state.get("y")) - monitor.y) <= tolerance
+            and abs(int(state.get("width")) - monitor.width) <= tolerance
+            and abs(int(state.get("height")) - monitor.height) <= tolerance
+        )
+    except Exception:
+        return False
+
+
+def screen_bar_states() -> list[BarVisibilityState]:
+    return parse_awesome_bar_visibility(command_output(["awesome-client", AWESOME_BAR_VISIBILITY_LUA], ""))
+
+
+def bar_visibility_for_monitor(
+    monitor: MonitorGeometry,
+    states: list[BarVisibilityState] | None = None,
+) -> str:
+    candidate_states = states if states is not None else screen_bar_states()
+    for state in candidate_states:
+        if screen_state_matches_monitor(monitor, state):
+            return str(state.get("visibility") or "unknown")
+    return "unknown"
 
 
 def ai_usage_from_status(data: object) -> str:
@@ -1735,6 +1847,7 @@ class StatusBar(MonitorWindow):
 
         self.tasks = TaskStrip()
         self.popup_manager = PopupManager()
+        self.hidden_for_fullscreen = False
         self.network = StatusPill("NET", "...")
         self.volume = StatusPill("VOL", "...")
         self.audio_popout = AudioDevicePopout(monitor)
@@ -1826,6 +1939,11 @@ class StatusBar(MonitorWindow):
         self.set_size_request(monitor.width, BAR_HEIGHT)
 
         self.pollers = [
+            Fabricator(
+                interval=BAR_VISIBILITY_POLL_MS,
+                poll_from=lambda _: bar_visibility_for_monitor(self.monitor),
+                on_changed=lambda _, value: self.set_fullscreen_visibility(str(value)),
+            ),
             Fabricator(interval=2000, poll_from=lambda _: running_tasks(), on_changed=lambda _, value: self.tasks.set_tasks(value)),
             Fabricator(interval=10000, poll_from=lambda _: network_text(), on_changed=lambda _, value: self.network.set_value(value)),
             Fabricator(interval=VOLUME_POLL_MS, poll_from=lambda _: volume_text(), on_changed=lambda _, value: self.volume.set_value(value)),
@@ -1842,6 +1960,7 @@ class StatusBar(MonitorWindow):
         self.volume.set_value(volume_text())
         self.refresh_ai_usage()
         self.refresh_dnd(dnd_text())
+        self.set_fullscreen_visibility(bar_visibility_for_monitor(self.monitor))
 
     def windows(self) -> list[Window]:
         return [self, self.audio_popout, self.ai_popout, self.calendar_popout]
@@ -1850,6 +1969,27 @@ class StatusBar(MonitorWindow):
         self.popup_manager.register(name, popup)
         popup.connect("focus-out-event", lambda *_args, target=name: self.on_popup_focus_out(target))
         popup.connect("key-press-event", lambda _widget, event, target=name: self.on_popup_key_press(target, event))
+
+    def show_all(self) -> None:
+        if self.hidden_for_fullscreen:
+            return
+        super().show_all()
+
+    def set_fullscreen_visibility(self, visibility: str) -> None:
+        if visibility not in {"hidden", "visible"}:
+            return
+
+        hidden = visibility == "hidden"
+        if hidden == self.hidden_for_fullscreen:
+            return
+
+        self.hidden_for_fullscreen = hidden
+        if hidden:
+            self.popup_manager.close_all()
+            self.hide()
+            return
+
+        self.show_all()
 
     def on_popup_focus_out(self, name: str) -> bool:
         self.popup_manager.close(name, reason="focus-out")

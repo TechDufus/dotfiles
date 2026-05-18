@@ -66,6 +66,72 @@ assert fallback_monitors == [
     module.MonitorGeometry(index=0, x=0, y=0, width=1920, height=1080, scale_factor=1, primary=True, name="fallback")
 ]
 
+assert "c.fullscreen" in module.AWESOME_BAR_VISIBILITY_LUA
+assert "c:isvisible()" in module.AWESOME_BAR_VISIBILITY_LUA
+assert "c:geometry()" in module.AWESOME_BAR_VISIBILITY_LUA
+assert "local focused = client.focus" in module.AWESOME_BAR_VISIBILITY_LUA
+assert "c == focused" in module.AWESOME_BAR_VISIBILITY_LUA
+
+bar_visibility_stdout = '''   string "0\t0\t1920\t1080\thidden
+1920\t0\t2560\t1440\tvisible"'''
+bar_states = module.parse_awesome_bar_visibility(bar_visibility_stdout)
+assert bar_states == [
+    {"x": 0, "y": 0, "width": 1920, "height": 1080, "visibility": "hidden"},
+    {"x": 1920, "y": 0, "width": 2560, "height": 1440, "visibility": "visible"},
+]
+assert module.parse_awesome_bar_visibility("not parseable") == []
+assert module.bar_visibility_for_monitor(
+    module.MonitorGeometry(index=0, x=0, y=0, width=1920, height=1080),
+    bar_states,
+) == "hidden"
+assert module.bar_visibility_for_monitor(
+    module.MonitorGeometry(index=1, x=1921, y=0, width=2559, height=1440),
+    bar_states,
+) == "visible"
+assert module.bar_visibility_for_monitor(
+    module.MonitorGeometry(index=2, x=4480, y=0, width=1920, height=1080),
+    bar_states,
+) == "unknown"
+
+
+class DummyPopupManager:
+    def __init__(self):
+        self.close_count = 0
+
+    def close_all(self):
+        self.close_count += 1
+
+
+class DummyBar:
+    def __init__(self):
+        self.hidden_for_fullscreen = False
+        self.popup_manager = DummyPopupManager()
+        self.hide_count = 0
+        self.show_count = 0
+
+    def hide(self):
+        self.hide_count += 1
+
+    def show_all(self):
+        self.show_count += 1
+
+
+dummy_bar = DummyBar()
+module.StatusBar.set_fullscreen_visibility(dummy_bar, "hidden")
+assert dummy_bar.hidden_for_fullscreen is True
+assert dummy_bar.popup_manager.close_count == 1
+assert dummy_bar.hide_count == 1
+assert dummy_bar.show_count == 0
+module.StatusBar.set_fullscreen_visibility(dummy_bar, "hidden")
+assert dummy_bar.popup_manager.close_count == 1
+assert dummy_bar.hide_count == 1
+module.StatusBar.set_fullscreen_visibility(dummy_bar, "unknown")
+assert dummy_bar.hidden_for_fullscreen is True
+assert dummy_bar.show_count == 0
+module.StatusBar.set_fullscreen_visibility(dummy_bar, "visible")
+assert dummy_bar.hidden_for_fullscreen is False
+assert dummy_bar.show_count == 1
+
 codex_rate_limits = {
     "limit_id": "codex",
     "primary": {

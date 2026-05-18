@@ -164,6 +164,38 @@
   padding: 0 6px;
 }
 
+#task-action-panel {
+  min-width: 286px;
+  padding: 10px;
+  background-color: alpha(var(--base), 0.98);
+  border: 1px solid alpha(var(--cyan), 0.55);
+  border-bottom: 2px solid alpha(var(--cyan), 0.72);
+  border-radius: 4px;
+}
+
+#task-action-row {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 3px;
+  color: var(--text);
+  background-color: alpha(var(--surface0), 0.78);
+  border: 1px solid alpha(var(--surface2), 0.6);
+}
+
+#task-action-row:hover {
+  border-color: alpha(var(--cyan), 0.86);
+  background-color: alpha(var(--surface1), 0.92);
+}
+
+#task-action-row.danger {
+  color: var(--red);
+}
+
+#task-action-row.danger:hover {
+  border-color: alpha(var(--red), 0.86);
+  background-color: alpha(var(--red), 0.13);
+}
+
 #date-time {
   padding: 0 12px;
   color: var(--cyan);

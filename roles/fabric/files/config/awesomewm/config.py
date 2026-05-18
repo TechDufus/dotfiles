@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -33,6 +34,8 @@ CODEX_SESSION_FILE_LIMIT = 12
 CODEX_SESSION_TAIL_BYTES = 512 * 1024
 MAX_TASK_LABELS = 5
 BAR_HEIGHT = 37
+TASK_ACTION_MENU_WIDTH = 286
+TASK_ACTION_MENU_HEIGHT = 260
 VOLUME_POLL_MS = 1000
 AI_POLL_MS = 5000
 BAR_VISIBILITY_POLL_MS = 500
@@ -799,27 +802,68 @@ def toggle_dnd() -> str:
     )
 
 
-def focus_window(window_id: str) -> None:
-    if not window_id.isdigit():
-        return
+def valid_window_id(window_id: object) -> str | None:
+    value = str(window_id or "").strip()
+    return value if value.isdigit() else None
 
-    run_command(
-        [
-            "awesome-client",
-            (
-                "local target = tonumber('%s'); "
-                "for _, c in ipairs(client.get()) do "
-                "if c.window == target then "
-                "c.minimized = false; "
-                "c:emit_signal('request::activate', 'fabric-taskbar', {raise = true}); "
-                "return true "
-                "end "
-                "end "
-                "return false"
-            )
-            % window_id,
-        ]
+
+def valid_window_ids(window_ids: object) -> list[str]:
+    values = window_ids if isinstance(window_ids, (list, tuple)) else [window_ids]
+    ids: list[str] = []
+    for item in values:
+        window_id = valid_window_id(item)
+        if window_id and window_id not in ids:
+            ids.append(window_id)
+    return ids
+
+
+def awesome_focus_window_lua(window_id: object) -> str | None:
+    target = valid_window_id(window_id)
+    if target is None:
+        return None
+    return (
+        "local target = tonumber('%s'); "
+        "for _, c in ipairs(client.get()) do "
+        "if c.window == target then "
+        "c.minimized = false; "
+        "c:emit_signal('request::activate', 'fabric-taskbar', {raise = true}); "
+        "return true "
+        "end "
+        "end "
+        "return false"
+    ) % target
+
+
+def awesome_close_windows_lua(window_ids: object) -> str | None:
+    ids = valid_window_ids(window_ids)
+    if not ids:
+        return None
+    targets = ", ".join(f"[{window_id}]=true" for window_id in ids)
+    return (
+        f"local targets = {{{targets}}}; "
+        "for _, c in ipairs(client.get()) do "
+        "if targets[c.window] then "
+        "c:kill(); "
+        "end "
+        "end "
+        "return true"
     )
+
+
+def focus_window(window_id: object) -> None:
+    script = awesome_focus_window_lua(window_id)
+    if script is not None:
+        run_command(["awesome-client", script])
+
+
+def close_windows(window_ids: object) -> None:
+    script = awesome_close_windows_lua(window_ids)
+    if script is not None:
+        run_command(["awesome-client", script])
+
+
+def close_window(window_id: object) -> None:
+    close_windows([window_id])
 
 
 def open_client_menu() -> None:
@@ -920,6 +964,7 @@ def parse_awesome_clients(stdout: str) -> list[Task]:
             continue
         tasks.append(
             {
+                "title": title,
                 "label": app_label(title, class_name),
                 "class_name": class_name,
                 "minimized": minimized,
@@ -945,6 +990,15 @@ def group_tasks_for_dock(tasks: list[Task], max_icons: int = MAX_TASK_LABELS) ->
                 "label": label,
                 "class_name": class_name,
                 "window_ids": [window_id],
+                "windows": [
+                    {
+                        "title": str(task.get("title") or label),
+                        "label": label,
+                        "window_id": window_id,
+                        "focused": bool(task.get("focused")),
+                        "minimized": bool(task.get("minimized")),
+                    }
+                ],
                 "count": 1,
                 "focused": bool(task.get("focused")),
             }
@@ -952,6 +1006,17 @@ def group_tasks_for_dock(tasks: list[Task], max_icons: int = MAX_TASK_LABELS) ->
             ordered.append(grouped)
         else:
             existing["window_ids"].append(window_id)
+            windows = existing.get("windows")
+            if isinstance(windows, list):
+                windows.append(
+                    {
+                        "title": str(task.get("title") or label),
+                        "label": label,
+                        "window_id": window_id,
+                        "focused": bool(task.get("focused")),
+                        "minimized": bool(task.get("minimized")),
+                    }
+                )
             existing["count"] = int(existing["count"]) + 1
             existing["focused"] = bool(existing.get("focused")) or bool(task.get("focused"))
 
@@ -961,6 +1026,105 @@ def group_tasks_for_dock(tasks: list[Task], max_icons: int = MAX_TASK_LABELS) ->
 def overflow_count_for_tasks(tasks: list[Task], max_icons: int = MAX_TASK_LABELS) -> int:
     unique_count = len(group_tasks_for_dock(tasks, max_icons=1000))
     return max(0, unique_count - max_icons)
+
+
+def short_task_action_text(text: object, limit: int = 44) -> str:
+    value = re.sub(r"\s+", " ", str(text or "")).strip() or "Window"
+    if len(value) <= limit:
+        return value
+    if limit <= 3:
+        return value[:limit]
+    return f"{value[:limit - 3]}..."
+
+
+def task_windows(task: Task) -> list[dict[str, object]]:
+    raw_windows = task.get("windows")
+    if isinstance(raw_windows, list):
+        windows = [window for window in raw_windows if isinstance(window, dict)]
+    else:
+        windows = []
+
+    if not windows:
+        window_ids = task.get("window_ids")
+        windows = [
+            {
+                "title": task.get("label") or "Window",
+                "label": task.get("label") or "App",
+                "window_id": window_id,
+                "focused": bool(task.get("focused")),
+                "minimized": False,
+            }
+            for window_id in valid_window_ids(window_ids)
+        ]
+
+    filtered = []
+    for window in windows:
+        window_id = valid_window_id(window.get("window_id"))
+        if window_id:
+            filtered.append(
+                {
+                    "title": str(window.get("title") or window.get("label") or task.get("label") or "Window"),
+                    "label": str(window.get("label") or task.get("label") or "App"),
+                    "window_id": window_id,
+                    "focused": bool(window.get("focused")),
+                    "minimized": bool(window.get("minimized")),
+                }
+            )
+    return filtered
+
+
+def task_action_model(task: Task) -> dict[str, object]:
+    label = str(task.get("label") or "App")
+    class_name = str(task.get("class_name") or label)
+    windows = task_windows(task)
+    rows: list[dict[str, object]] = []
+
+    if not windows:
+        rows.append({"kind": "muted", "label": "window unavailable"})
+        return {"title": label, "subtitle": class_name, "rows": rows}
+
+    first_window_id = str(windows[0]["window_id"])
+    rows.append({"kind": "action", "action": "focus", "label": "Focus", "window_id": first_window_id})
+
+    if len(windows) == 1:
+        rows.append({"kind": "action", "action": "close", "label": "Close Window", "window_id": first_window_id})
+        return {"title": label, "subtitle": class_name, "rows": rows}
+
+    rows.append({"kind": "section", "label": "WINDOWS"})
+    for index, window in enumerate(windows, start=1):
+        window_id = str(window["window_id"])
+        title = short_task_action_text(window.get("title"), limit=38)
+        rows.append({"kind": "action", "action": "focus", "label": f"Focus {index}: {title}", "window_id": window_id})
+        rows.append({"kind": "action", "action": "close", "label": f"Close {index}: {title}", "window_id": window_id})
+
+    rows.append({"kind": "section", "label": "GROUP"})
+    rows.append(
+        {
+            "kind": "action",
+            "action": "close-all",
+            "label": f"Close All {len(windows)} Windows",
+            "window_ids": [str(window["window_id"]) for window in windows],
+        }
+    )
+
+    return {"title": label, "subtitle": class_name, "rows": rows}
+
+
+def task_action_margin_for_pointer(monitor: MonitorGeometry, x_root: object, y_root: object) -> str:
+    try:
+        x_value = int(float(x_root))
+    except (TypeError, ValueError):
+        x_value = monitor.x + 8
+    try:
+        y_value = int(float(y_root))
+    except (TypeError, ValueError):
+        y_value = monitor.y + BAR_HEIGHT
+
+    max_x = max(8, monitor.width - TASK_ACTION_MENU_WIDTH - 8)
+    max_y = max(BAR_HEIGHT, monitor.height - TASK_ACTION_MENU_HEIGHT - 8)
+    x = min(max(8, x_value - monitor.x), max_x)
+    y = min(max(BAR_HEIGHT, y_value - monitor.y + 8), max_y)
+    return f"{y}px 0px 0px {x}px"
 
 
 def task_button_labels(tasks: list[Task]) -> list[str]:
@@ -1458,7 +1622,8 @@ class StatusPill(Box):
 
 
 class TaskStrip(Box):
-    def __init__(self, **kwargs):
+    def __init__(self, on_task_secondary_click: Callable[[Task, object], None] | None = None, **kwargs):
+        self.on_task_secondary_click = on_task_secondary_click
         self.task_buttons = Box(
             name="task-buttons",
             orientation="h",
@@ -1504,15 +1669,16 @@ class TaskStrip(Box):
         grouped_tasks = group_tasks_for_dock(tasks)
         children = []
         for task in grouped_tasks:
-            window_ids = task.get("window_ids") if isinstance(task.get("window_ids"), list) else []
-            window_id = str(window_ids[0]) if window_ids else ""
             label = str(task.get("label") or "App")
             class_name = str(task.get("class_name") or label)
             button = Button(
                 name="task-button",
                 style_classes=["focused"] if bool(task.get("focused")) else [],
                 child=self.task_child(task),
-                on_clicked=lambda *_args, target=window_id: focus_window(target),
+            )
+            button.connect(
+                "button-press-event",
+                lambda widget, event, target=copy.deepcopy(task): self.on_task_button_press(widget, event, target),
             )
             button.set_tooltip_text(class_name)
             children.append(button)
@@ -1528,6 +1694,17 @@ class TaskStrip(Box):
             )
 
         self.task_buttons.children = children
+
+    def on_task_button_press(self, _widget, event, task: Task) -> bool:
+        button = int(getattr(event, "button", 0))
+        raw_window_ids = task.get("window_ids") if isinstance(task.get("window_ids"), list) else []
+        window_ids = valid_window_ids(raw_window_ids)
+        if button == 1:
+            if window_ids:
+                focus_window(window_ids[0])
+        elif button == 3 and callable(self.on_task_secondary_click):
+            self.on_task_secondary_click(task, event)
+        return True
 
 
 class PopupManager:
@@ -1612,6 +1789,71 @@ class MonitorWindow(Window):
         if display is None:
             raise RuntimeError("GDK display unavailable")
         return display, monitor_rectangle(self.monitor), self.monitor.scale_factor
+
+
+class TaskActionPopout(MonitorWindow):
+    def __init__(self, monitor: MonitorGeometry):
+        self.current_task: Task = {}
+        self.panel = Box(name="task-action-panel", orientation="v", spacing=6)
+        super().__init__(
+            monitor,
+            title="fabric-task-action-popout",
+            name="task-action-popout",
+            layer="top",
+            geometry="top-left",
+            margin=f"{BAR_HEIGHT}px 0px 0px 48px",
+            type_hint="popup-menu",
+            visible=False,
+            child=self.panel,
+        )
+
+    def set_task(self, task: Task) -> None:
+        self.current_task = copy.deepcopy(task)
+
+    def set_anchor_from_event(self, event: object) -> None:
+        self.margin = task_action_margin_for_pointer(
+            self.monitor,
+            getattr(event, "x_root", self.monitor.x + 8),
+            getattr(event, "y_root", self.monitor.y + BAR_HEIGHT),
+        )
+
+    def refresh(self) -> None:
+        model = task_action_model(self.current_task)
+        children: list[Box | Button | Label] = [
+            Label(name="popout-title", label=str(model["title"])),
+        ]
+        subtitle = str(model.get("subtitle") or "")
+        if subtitle and subtitle != str(model["title"]):
+            children.append(Label(name="popout-muted", label=short_task_action_text(subtitle, limit=42)))
+
+        for row in model["rows"]:
+            children.append(self.row_widget(row))
+        self.panel.children = children
+
+    def row_widget(self, row: dict[str, object]) -> Button | Label:
+        kind = str(row.get("kind") or "")
+        if kind == "section":
+            return Label(name="popout-section", label=str(row.get("label") or ""))
+        if kind == "muted":
+            return Label(name="popout-muted", label=str(row.get("label") or ""))
+
+        style_classes = ["danger"] if str(row.get("action") or "").startswith("close") else []
+        return Button(
+            name="task-action-row",
+            style_classes=style_classes,
+            child=Label(label=str(row.get("label") or "")),
+            on_clicked=lambda *_args, action=copy.deepcopy(row): self.activate_action(action),
+        )
+
+    def activate_action(self, row: dict[str, object]) -> None:
+        action = str(row.get("action") or "")
+        if action == "focus":
+            focus_window(row.get("window_id"))
+        elif action == "close":
+            close_window(row.get("window_id"))
+        elif action == "close-all":
+            close_windows(row.get("window_ids"))
+        self.hide()
 
 
 class AudioDevicePopout(MonitorWindow):
@@ -2061,9 +2303,10 @@ class StatusBar(MonitorWindow):
             visible=False,
         )
 
-        self.tasks = TaskStrip()
         self.popup_manager = PopupManager()
         self.hidden_for_fullscreen = False
+        self.task_action_popout = TaskActionPopout(monitor)
+        self.tasks = TaskStrip(on_task_secondary_click=self.open_task_actions)
         self.network = StatusPill("NET", "...")
         self.network_popout = NetworkSettingsPopout(monitor)
         self.network_button = Button(
@@ -2088,6 +2331,7 @@ class StatusBar(MonitorWindow):
             on_clicked=lambda *_: self.popup_manager.toggle("ai"),
         )
         self.calendar_popout = CalendarPopout(monitor)
+        self.register_popup("task-actions", self.task_action_popout)
         self.register_popup("network", self.network_popout)
         self.register_popup("audio", self.audio_popout)
         self.register_popup("ai", self.ai_popout)
@@ -2197,7 +2441,14 @@ class StatusBar(MonitorWindow):
         self.set_fullscreen_visibility(bar_visibility_for_monitor(self.monitor))
 
     def windows(self) -> list[Window]:
-        windows: list[Window] = [self, self.network_popout, self.audio_popout, self.ai_popout, self.calendar_popout]
+        windows: list[Window] = [
+            self,
+            self.task_action_popout,
+            self.network_popout,
+            self.audio_popout,
+            self.ai_popout,
+            self.calendar_popout,
+        ]
         if self.battery_popout is not None:
             windows.append(self.battery_popout)
         return windows
@@ -2242,6 +2493,11 @@ class StatusBar(MonitorWindow):
         if callable(handle_key_press):
             return bool(handle_key_press(event))
         return False
+
+    def open_task_actions(self, task: Task, event: object) -> None:
+        self.task_action_popout.set_task(task)
+        self.task_action_popout.set_anchor_from_event(event)
+        self.popup_manager.open("task-actions")
 
     def on_volume_button_press(self, _widget, event) -> bool:
         button = int(getattr(event, "button", 0))

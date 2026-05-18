@@ -306,10 +306,38 @@ Untitled - Chromium\tChromium-browser\tfalse\t41943044\tfalse
 /home/techdufus/.config/fabric/awesomewm/config.py\tpython3\tfalse\t41943045\tfalse"'''
 tasks = module.parse_awesome_clients(awesome_stdout)
 assert tasks == [
-    {"label": "1Password", "class_name": "1Password", "minimized": False, "window_id": "41943041", "focused": False},
-    {"label": "Ghostty", "class_name": "com.mitchellh.ghostty", "minimized": False, "window_id": "41943042", "focused": True},
-    {"label": "Ghostty", "class_name": "com.mitchellh.ghostty", "minimized": True, "window_id": "41943043", "focused": False},
-    {"label": "Chromium", "class_name": "Chromium-browser", "minimized": False, "window_id": "41943044", "focused": False},
+    {
+        "title": "Family - HomeLab - 1Password",
+        "label": "1Password",
+        "class_name": "1Password",
+        "minimized": False,
+        "window_id": "41943041",
+        "focused": False,
+    },
+    {
+        "title": "tmux",
+        "label": "Ghostty",
+        "class_name": "com.mitchellh.ghostty",
+        "minimized": False,
+        "window_id": "41943042",
+        "focused": True,
+    },
+    {
+        "title": "tmux",
+        "label": "Ghostty",
+        "class_name": "com.mitchellh.ghostty",
+        "minimized": True,
+        "window_id": "41943043",
+        "focused": False,
+    },
+    {
+        "title": "Untitled - Chromium",
+        "label": "Chromium",
+        "class_name": "Chromium-browser",
+        "minimized": False,
+        "window_id": "41943044",
+        "focused": False,
+    },
 ]
 assert module.task_button_labels(tasks) == ["1Password", "Ghostty", "Ghostty 2", "Chromium"]
 assert module.tasks_text(tasks) == "1Password  Ghostty  Ghostty 2  Chromium"
@@ -321,6 +349,15 @@ assert grouped == [
         "label": "1Password",
         "class_name": "1Password",
         "window_ids": ["41943041"],
+        "windows": [
+            {
+                "title": "Family - HomeLab - 1Password",
+                "label": "1Password",
+                "window_id": "41943041",
+                "focused": False,
+                "minimized": False,
+            }
+        ],
         "count": 1,
         "focused": False,
     },
@@ -328,6 +365,10 @@ assert grouped == [
         "label": "Ghostty",
         "class_name": "com.mitchellh.ghostty",
         "window_ids": ["41943042", "41943043"],
+        "windows": [
+            {"title": "tmux", "label": "Ghostty", "window_id": "41943042", "focused": True, "minimized": False},
+            {"title": "tmux", "label": "Ghostty", "window_id": "41943043", "focused": False, "minimized": True},
+        ],
         "count": 2,
         "focused": True,
     },
@@ -335,11 +376,50 @@ assert grouped == [
         "label": "Chromium",
         "class_name": "Chromium-browser",
         "window_ids": ["41943044"],
+        "windows": [
+            {
+                "title": "Untitled - Chromium",
+                "label": "Chromium",
+                "window_id": "41943044",
+                "focused": False,
+                "minimized": False,
+            }
+        ],
         "count": 1,
         "focused": False,
     },
 ]
 assert module.overflow_count_for_tasks(tasks, max_icons=2) == 1
+assert module.valid_window_id("41943041") == "41943041"
+assert module.valid_window_id("abc") is None
+assert module.valid_window_ids(["41943041", "abc", "41943042", "41943041"]) == ["41943041", "41943042"]
+focus_lua = module.awesome_focus_window_lua("41943041")
+assert focus_lua is not None
+assert "request::activate" in focus_lua
+assert "c:kill()" not in focus_lua
+close_lua = module.awesome_close_windows_lua(["41943041", "abc", "41943042"])
+assert close_lua is not None
+assert "[41943041]=true" in close_lua
+assert "[41943042]=true" in close_lua
+assert "abc" not in close_lua
+assert "c:kill()" in close_lua
+assert module.awesome_close_windows_lua(["abc"]) is None
+assert module.short_task_action_text("x" * 80, limit=12) == "xxxxxxxxx..."
+single_action_model = module.task_action_model(grouped[0])
+assert single_action_model["title"] == "1Password"
+assert [row["label"] for row in single_action_model["rows"]] == ["Focus", "Close Window"]
+grouped_action_model = module.task_action_model(grouped[1])
+assert grouped_action_model["title"] == "Ghostty"
+assert grouped_action_model["rows"][0]["label"] == "Focus"
+assert grouped_action_model["rows"][1]["kind"] == "section"
+assert grouped_action_model["rows"][2]["label"] == "Focus 1: tmux"
+assert grouped_action_model["rows"][3]["label"] == "Close 1: tmux"
+assert grouped_action_model["rows"][4]["label"] == "Focus 2: tmux"
+assert grouped_action_model["rows"][5]["label"] == "Close 2: tmux"
+assert grouped_action_model["rows"][6]["label"] == "GROUP"
+assert grouped_action_model["rows"][7]["label"] == "Close All 2 Windows"
+assert module.task_action_margin_for_pointer(module.MonitorGeometry(index=0, x=0, y=0, width=1920, height=1080), 100, 9) == "37px 0px 0px 100px"
+assert module.task_action_margin_for_pointer(module.MonitorGeometry(index=0, x=0, y=0, width=320, height=240), 900, 900) == "37px 0px 0px 26px"
 assert module.icon_name_for_class("com.mitchellh.ghostty") in {"com.mitchellh.ghostty", "utilities-terminal", "terminal"}
 assert module.icon_name_for_class("Signal") == "signal-desktop"
 assert module.icon_name_for_class("") == "application-x-executable"
@@ -548,11 +628,16 @@ assert 'self.ai_button.connect("button-press-event"' not in config_source
 assert "def on_ai_button_press" not in config_source
 assert "def switch_ai_provider" not in config_source
 assert "event_has_shift" not in config_source
+assert "class TaskActionPopout" in config_source
+assert "def on_task_button_press" in config_source
+assert "button == 3" in config_source
 
 task_strip = re.search(r"#task-strip\s*\{(?P<body>.*?)\}", css, re.S)
 assert task_strip is not None
 assert "min-width" not in task_strip.group("body")
 for selector in (
+    "#task-action-panel",
+    "#task-action-row",
     "#ai-panel",
     "#ai-provider-tabs",
     "#ai-provider-tab",

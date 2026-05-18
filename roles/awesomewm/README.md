@@ -120,8 +120,8 @@ graph LR
 - `flameshot` - Screenshot tool
 - `thunar` - Lightweight file manager
 - `ristretto` - Image viewer
-- Flare launcher (AppImage, retained temporarily during Vicinae migration)
-- Vicinae primary launcher, clipboard, app search, emoji, and settings support when the separate `vicinae` role is installed
+- Vicinae launcher hooks for command search, clipboard, app search, emoji, and
+  settings support when the separate `vicinae` role is installed
 
 **Media & System:**
 - `playerctl` - Media key controls
@@ -191,8 +191,6 @@ graph LR
 ~/.themes/
 └── catppuccin-mocha-blue-standard+default/  # GTK theme
 
-~/.local/bin/
-└── flare                           # Legacy launcher kept during Vicinae migration
 ```
 
 ### Theming
@@ -278,7 +276,7 @@ Hyper + l
    Signal = {
      class = "signal",
      summon = "C",       -- CapsLock/F13 + Shift+c
-     exec = "flatpak run org.signal.Signal",
+     exec = "signal-desktop",
    },
    ```
 

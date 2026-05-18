@@ -15,7 +15,6 @@ vicinae_install_input_server: true
 vicinae_install_browser_manifests: false
 vicinae_enable_user_service: false
 vicinae_start_from_awesomewm: true
-vicinae_remove_flare_after_migration: false
 
 vicinae_install_qalc: true
 vicinae_appimage_asset_regex: "^Vicinae.*x86_64.*AppImage$"

@@ -75,13 +75,6 @@
     state: present
   become: true
 
-- name: "awesomewm | Ubuntu | Download Flare launcher"
-  ansible.builtin.get_url:
-    url: https://github.com/ByteAtATime/flare/releases/download/v0.1.0/flare_0.1.0_amd64.AppImage
-    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/flare"
-    mode: "0755"
-  register: flare_download
-
 - name: "awesomewm | Ubuntu | Ensure ~/.config/awesome exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config/awesome"

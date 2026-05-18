@@ -181,7 +181,6 @@ awesome.connect_signal("techdufus::launcher_apps", launch_vicinae_apps)
 awesome.connect_signal("techdufus::launcher_clipboard", launch_vicinae_clipboard)
 awesome.connect_signal("techdufus::launcher_emoji", launch_vicinae_emoji)
 awesome.connect_signal("techdufus::launcher_settings", launch_vicinae_settings)
-awesome.connect_signal("techdufus::launch_flare", launch_vicinae_root)
 
 start_vicinae_server()
 

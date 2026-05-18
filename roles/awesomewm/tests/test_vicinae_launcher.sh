@@ -14,7 +14,6 @@ grep -q "techdufus::launcher_apps" "$config_path"
 grep -q "techdufus::launcher_clipboard" "$config_path"
 grep -q "techdufus::launcher_emoji" "$config_path"
 grep -q "techdufus::launcher_settings" "$config_path"
-grep -q "techdufus::launch_flare" "$config_path"
 grep -q "launch_vicinae_root" "$config_path"
 grep -q "launch_vicinae_apps" "$config_path"
 grep -q "launch_vicinae_clipboard" "$config_path"
@@ -39,6 +38,11 @@ if grep -q "org.dev_byteatatime_flare.SingleInstance" "$config_path"; then
   exit 1
 fi
 
+if grep -Eq "techdufus::launch_flare|Download Flare|flare_0\\.1\\.0|/\\.local/bin/flare" "$config_path" "$tasks_path"; then
+  echo "Legacy Flare launcher runtime or install path should not remain" >&2
+  exit 1
+fi
+
 if grep -Eq "\\b(copyq|bemoji|rofimoji)\\b" "$config_path" "$layout_manager_path"; then
   echo "Legacy CopyQ/bemoji runtime references should not remain" >&2
   exit 1
@@ -53,6 +57,7 @@ grep -q "awesomewm_remove_legacy_launcher_tools: true" "$defaults_path"
 grep -q "awesomewm_legacy_launcher_packages:" "$defaults_path"
 grep -q "copyq" "$defaults_path"
 grep -q "bemoji" "$defaults_path"
+grep -q ".local/bin/flare" "$defaults_path"
 if grep -q "rofi" "$defaults_path"; then
   echo "rofi should not be removed as a legacy launcher tool" >&2
   exit 1
@@ -67,6 +72,11 @@ test -f "$rofi_config_path"
 test -f "$rofi_theme_path"
 grep -q "function M.bind_to_cell(cell_index)" "$layout_manager_path"
 grep -q "move_client_to_cell" "$layout_manager_path"
+
+if grep -q "flatpak run org.signal.Signal" "$repo_root/roles/awesomewm/README.md" "$repo_root/roles/awesomewm/files/config/cell-management/apps.lua"; then
+  echo "Signal should use the APT-installed signal-desktop command" >&2
+  exit 1
+fi
 
 keybindings_path="$repo_root/roles/awesomewm/files/config/cell-management/keybindings.lua"
 grep -q "techdufus::launcher_emoji" "$keybindings_path"

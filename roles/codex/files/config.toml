@@ -23,6 +23,7 @@ multi_agent = true
 undo = true
 memories = true
 hooks = true
+goals = true
 
 [agents]
 max_threads = 12

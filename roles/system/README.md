@@ -260,7 +260,7 @@ See `tasks/hosts-management-archive.yml` for archived implementation.
 
 - [Ansible Documentation](https://docs.ansible.com/)
 - [DNF Configuration Reference](https://dnf.readthedocs.io/en/latest/conf_ref.html)
-- [systemd Journal Size Management](https://www.freedesktop.org/software/systemd/man/journald.conf.html)
+- [systemd Journal Size Management](https://www.freedesktop.org/software/systemd/man/latest/journald.conf.html)
 - [ZRAM Configuration](https://www.kernel.org/doc/html/latest/admin-guide/blockdev/zram.html)
 - [win32yank GitHub](https://github.com/equalsraf/win32yank)
 

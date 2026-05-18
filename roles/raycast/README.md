@@ -136,7 +136,6 @@ rm -rf ~/Library/Preferences/com.raycast.macos.plist
 - [Documentation](https://developers.raycast.com/)
 - [Extension Store](https://www.raycast.com/store)
 - [GitHub Repository](https://github.com/raycast)
-- [Community Forum](https://raycast.com/community)
 
 ## License
 

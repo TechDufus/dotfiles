@@ -77,7 +77,7 @@ flowchart TD
 
 - **Official Repository**: [maaslalani/slides](https://github.com/maaslalani/slides)
 - **Documentation**: [GitHub README](https://github.com/maaslalani/slides#readme)
-- **Terminal Trove**: [slides overview](https://terminaltrove.com/slides/)
+- **Terminal Trove**: slides overview
 
 ## 📝 Example
 

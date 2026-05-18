@@ -25,49 +25,27 @@ local has_fdo, freedesktop = pcall(require, "freedesktop")
 -- Window switcher (Alt+Tab style)
 local window_switcher = require("window-switcher")
 
+local function file_exists(path)
+  local file = io.open(path, "r")
+  if file then
+    file:close()
+    return true
+  end
+
+  return false
+end
+
+local fabric_ui_enabled = file_exists(gears.filesystem.get_configuration_dir() .. "fabric-ui-enabled")
+local fabric_bar_height = 37
+
 -- {{{ Startup commands
 -- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
 awful.spawn.once("xset r rate 300 40")
 
 -- Remap Caps Lock to F13 for laptop keyboard support
 -- This allows the summon modal (F13) to work on keyboards without F13 key
--- Must run in sequence: setxkbmap first (preserving the system XKB layout), then xmodmap
--- Runs on every startup/reload to ensure remapping persists after any setxkbmap changes
--- Small delay ensures X server is ready to accept the remapping
-awful.spawn.with_shell([[
-sleep 0.2
-
-layout="$(localectl status | awk -F': *' '/X11 Layout:/ {print $2}')"
-model="$(localectl status | awk -F': *' '/X11 Model:/ {print $2}')"
-variant="$(localectl status | awk -F': *' '/X11 Variant:/ {print $2}')"
-options="$(localectl status | awk -F': *' '/X11 Options:/ {print $2}')"
-
-if [ -z "$layout" ]; then layout="us"; fi
-if [ -z "$model" ]; then model="pc105"; fi
-
-case ",$options," in
-  *,caps:none,*)
-    ;;
-  *)
-    if [ -n "$options" ]; then
-      options="$options,caps:none"
-    else
-      options="caps:none"
-    fi
-    ;;
-esac
-
-if [ -n "$variant" ]; then
-  setxkbmap -model "$model" -layout "$layout" -variant "$variant" -option "$options"
-else
-  setxkbmap -model "$model" -layout "$layout" -option "$options"
-fi
-
-xmodmap -e 'keycode 66 = F13'
-]])
-
--- Start clipboard manager daemon (CopyQ)
-awful.spawn.once("copyq")
+-- Runs on every startup/reload to ensure remapping persists after any XKB changes.
+awful.spawn.with_shell([[sleep 0.2; if [ -x "$HOME/.local/bin/remap-caps-to-f13.sh" ]; then "$HOME/.local/bin/remap-caps-to-f13.sh"; fi]])
 
 -- Start polkit authentication agent for 1Password system auth
 awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1")
@@ -75,7 +53,12 @@ awful.spawn.once("/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1
 -- Start NetworkManager applet for WiFi management in systray
 awful.spawn.once("nm-applet")
 
--- Flare launcher starts on-demand (Super+Space) - no auto-start to avoid popup
+-- Start Fabric UI when the opt-in sentinel is deployed by the fabric role.
+if fabric_ui_enabled then
+  awful.spawn.with_shell([[if [ -x "$HOME/.local/bin/fabric-awesomewm" ]; then "$HOME/.local/bin/fabric-awesomewm" --replace; fi]])
+end
+
+-- Vicinae launcher server starts after launcher helpers are defined below.
 -- }}}
 
 -- {{{ Error handling
@@ -139,6 +122,68 @@ awful.layout.layouts = {
 }
 -- }}}
 
+local function notify_vicinae_fallback()
+  naughty.notify({
+    title = "Vicinae unavailable",
+    text = "Run dotfiles -t vicinae to install it, or use Super+Return for a terminal.",
+  })
+end
+
+local function launch_vicinae(uri)
+  awful.spawn.easy_async({ "sh", "-lc", "command -v vicinae >/dev/null 2>&1" }, function(_, _, _, exit_code)
+    if exit_code == 0 then
+      awful.spawn({ "vicinae", uri })
+    else
+      notify_vicinae_fallback()
+    end
+  end)
+end
+
+local function launch_vicinae_root()
+  launch_vicinae("vicinae://toggle")
+end
+
+local function launch_vicinae_open_root()
+  launch_vicinae("vicinae://open?popToRoot=true")
+end
+
+local function launch_vicinae_apps()
+  launch_vicinae("vicinae://launch/applications?toggle=true")
+end
+
+local function launch_vicinae_clipboard()
+  launch_vicinae("vicinae://launch/clipboard/history?toggle=true")
+end
+
+local function launch_vicinae_emoji()
+  launch_vicinae("vicinae://launch/core/search-emojis?toggle=true")
+end
+
+local function launch_vicinae_settings()
+  launch_vicinae("vicinae://launch/scripts?fallbackText=settings&toggle=true")
+end
+
+local function launch_1password_quick_access()
+  awful.spawn.with_shell("command -v 1password >/dev/null 2>&1 && 1password --quick-access")
+end
+
+local function start_vicinae_server()
+  awful.spawn.easy_async({ "sh", "-lc", "command -v vicinae >/dev/null 2>&1" }, function(_, _, _, exit_code)
+    if exit_code == 0 then
+      awful.spawn.once("vicinae server --replace")
+    end
+  end)
+end
+
+awesome.connect_signal("techdufus::launcher_root", launch_vicinae_root)
+awesome.connect_signal("techdufus::launcher_open_root", launch_vicinae_open_root)
+awesome.connect_signal("techdufus::launcher_apps", launch_vicinae_apps)
+awesome.connect_signal("techdufus::launcher_clipboard", launch_vicinae_clipboard)
+awesome.connect_signal("techdufus::launcher_emoji", launch_vicinae_emoji)
+awesome.connect_signal("techdufus::launcher_settings", launch_vicinae_settings)
+
+start_vicinae_server()
+
 -- {{{ Menu
 -- Create a launcher widget and a main menu
 myawesomemenu = {
@@ -170,6 +215,46 @@ end
 -- Menubar configuration
 menubar.utils.terminal = terminal -- Set the terminal for applications that require it
 -- }}}
+
+local function increase_volume(step)
+  if fabric_ui_enabled then
+    awful.spawn.with_shell(string.format("pactl set-sink-volume @DEFAULT_SINK@ +%d%%", step or 5))
+  else
+    wibar_config.increase_volume(step)
+  end
+end
+
+local function decrease_volume(step)
+  if fabric_ui_enabled then
+    awful.spawn.with_shell(string.format("pactl set-sink-volume @DEFAULT_SINK@ -%d%%", step or 5))
+  else
+    wibar_config.decrease_volume(step)
+  end
+end
+
+local function toggle_volume()
+  if fabric_ui_enabled then
+    awful.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle")
+  else
+    wibar_config.toggle_volume()
+  end
+end
+
+local function increase_brightness()
+  if fabric_ui_enabled then
+    awful.spawn("brightnessctl set 5%+")
+  else
+    wibar_config.increase_brightness()
+  end
+end
+
+local function decrease_brightness()
+  if fabric_ui_enabled then
+    awful.spawn("brightnessctl set 5%-")
+  else
+    wibar_config.decrease_brightness()
+  end
+end
 
 -- {{{ Wibar
 local tasklist_buttons = gears.table.join(
@@ -211,8 +296,12 @@ end
 
 local function configure_screen_metrics(s)
   s.dpi = screen_dpi_for_geometry(s)
+  local top_bar_height = beautiful.xresources.apply_dpi(fabric_bar_height, s)
   if s.mywibox then
     s.mywibox.height = beautiful.xresources.apply_dpi(28, s)
+  end
+  if s.fabric_reserve_wibar then
+    s.fabric_reserve_wibar.height = top_bar_height
   end
 end
 
@@ -243,8 +332,23 @@ awful.screen.connect_for_each_screen(function(s)
   -- Each screen has its own tag table.
   awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
 
-  -- Create the modern wibar with all widgets
-  wibar_config.create_wibar(s, tasklist_buttons, mymainmenu)
+  if fabric_ui_enabled then
+    s.mypromptbox = awful.widget.prompt()
+    s.fabric_reserve_wibar = awful.wibar({
+      position = "top",
+      screen = s,
+      height = beautiful.xresources.apply_dpi(fabric_bar_height, s),
+      bg = "#00000000",
+      fg = "#00000000",
+      visible = true,
+      ontop = false,
+      type = "dock",
+      input_passthrough = true,
+    })
+  else
+    -- Create the modern wibar with all widgets
+    wibar_config.create_wibar(s, tasklist_buttons, mymainmenu)
+  end
 end)
 -- }}}
 
@@ -313,15 +417,15 @@ globalkeys = gears.table.join(
 
   -- Volume control keys routed through the active wibar controller
   awful.key({}, "XF86AudioRaiseVolume", function()
-    wibar_config.increase_volume(5)
+    increase_volume(5)
   end, { description = "increase volume", group = "media" }),
 
   awful.key({}, "XF86AudioLowerVolume", function()
-    wibar_config.decrease_volume(5)
+    decrease_volume(5)
   end, { description = "decrease volume", group = "media" }),
 
   awful.key({}, "XF86AudioMute", function()
-    wibar_config.toggle_volume()
+    toggle_volume()
   end, { description = "toggle mute", group = "media" }),
 
   awful.key({}, "XF86AudioMicMute", function()
@@ -330,11 +434,11 @@ globalkeys = gears.table.join(
 
   -- Brightness control keys routed through the active wibar controller
   awful.key({}, "XF86MonBrightnessUp", function()
-    wibar_config.increase_brightness()
+    increase_brightness()
   end, { description = "increase brightness", group = "media" }),
 
   awful.key({}, "XF86MonBrightnessDown", function()
-    wibar_config.decrease_brightness()
+    decrease_brightness()
   end, { description = "decrease brightness", group = "media" }),
 
   -- Media control keys
@@ -371,19 +475,24 @@ globalkeys = gears.table.join(
     awful.spawn("flameshot full -p " .. os.getenv("HOME") .. "/Pictures")
   end, { description = "screenshot full screen to file", group = "screenshot" }),
 
-  -- Prompt (rofi application launcher)
-  awful.key({ "Mod1" }, "space", function() awful.spawn("rofi -show drun -show-icons") end,
-    { description = "application launcher (rofi)", group = "launcher" }),
+  -- Application launcher.
+  awful.key({ "Mod1" }, "space", function()
+    awesome.emit_signal("techdufus::launcher_apps")
+  end, { description = "application launcher", group = "launcher" }),
 
-  -- Flare launcher (Raycast-like: clipboard, calculator, extensions, AI)
+  -- Primary command launcher.
+  awful.key({ modkey, "Shift" }, "space", launch_1password_quick_access,
+    { description = "1Password Quick Access", group = "launcher" }),
+
+  -- Clipboard manager.
   awful.key({ modkey }, "space", function()
-    awful.spawn("/home/techdufus/.local/bin/flare")
-  end, { description = "flare launcher", group = "launcher" }),
-
-  -- Clipboard manager (CopyQ)
-  awful.key({ modkey }, "v", function()
-    awful.spawn("copyq toggle")
+    awesome.emit_signal("techdufus::launcher_clipboard")
   end, { description = "clipboard history", group = "launcher" }),
+
+  -- Primary command launcher.
+  awful.key({ modkey }, "v", function()
+    awesome.emit_signal("techdufus::launcher_root")
+  end, { description = "vicinae launcher", group = "launcher" }),
 
   awful.key({ modkey }, "x",
     function()
@@ -543,12 +652,36 @@ awful.rules.rules = {
     }
   },
 
+  -- Vicinae launcher should behave like a centered command palette.
+  {
+    rule_any = {
+      class = { "Vicinae", "vicinae" },
+      instance = { "command", "Vicinae", "vicinae" },
+      name = { "Vicinae Launcher", "Vicinae", "vicinae" },
+    },
+    properties = {
+      floating = true,
+      titlebars_enabled = false,
+      skip_taskbar = true,
+      ontop = true,
+    },
+    callback = function(c)
+      gears.timer.delayed_call(function()
+        if c.valid then
+          c.floating = true
+          c.screen = awful.screen.focused()
+          awful.placement.centered(c, { honor_workarea = true })
+          c:emit_signal("request::activate", "vicinae-launcher", { raise = true })
+        end
+      end)
+    end
+  },
+
   -- Floating clients.
   {
     rule_any = {
       instance = {
         "DTA",     -- Firefox addon DownThemAll.
-        "copyq",   -- CopyQ clipboard manager
         "pinentry",
       },
       class = {

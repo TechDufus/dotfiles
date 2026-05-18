@@ -50,3 +50,7 @@ node_modules/
 
 # Task files
 tasks.json
+
+# Superpowers local state
+.superpowers/
+docs/superpowers/

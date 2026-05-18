@@ -11,9 +11,9 @@
       - thunar             # Lightweight file manager
       - tumbler            # Thumbnail service for Thunar
       - ristretto          # Lightweight image viewer (Xfce)
-      - curl               # For bemoji installation
-      - xclip              # Clipboard tool for bemoji and other apps
-      - rofi               # Application launcher, layout picker
+      - curl               # AI usage monitor HTTP client
+      - xclip              # General X11 clipboard CLI
+      - rofi               # Layout and cell picker menu
       - i3lock             # Screen locker
       - playerctl          # Media key controls (play/pause/next/prev)
       - pulseaudio-utils   # Provides pactl for volume and mic controls
@@ -23,7 +23,6 @@
       - papirus-icon-theme # Icon theme for UI
       - procps             # Provides top, free for widgets
       - iproute2           # Provides ip command for network widgets
-      - copyq              # Clipboard manager (Super + v)
       # Standalone settings tools (no GNOME deps)
       - pavucontrol        # Audio/mic/speaker settings
       - arandr             # Display/monitor layout
@@ -33,9 +32,35 @@
       - policykit-1-gnome  # Polkit auth agent for 1Password system auth
       - network-manager-gnome # nm-applet for WiFi systray widget
       - jq                   # JSON parsing for AI usage monitor
+      - power-profiles-daemon # powerprofilesctl for battery profile switching
     state: present
     update_cache: true
   become: true
+
+- name: "awesomewm | Ubuntu | Stop legacy CopyQ process"
+  ansible.builtin.command:
+    argv:
+      - copyq
+      - exit
+  changed_when: false
+  failed_when: false
+  when: awesomewm_remove_legacy_launcher_tools | bool
+
+- name: "awesomewm | Ubuntu | Remove legacy launcher packages"
+  ansible.builtin.apt:
+    name: "{{ awesomewm_legacy_launcher_packages }}"
+    state: absent
+  become: true
+  when:
+    - awesomewm_remove_legacy_launcher_tools | bool
+    - awesomewm_legacy_launcher_packages | length > 0
+
+- name: "awesomewm | Ubuntu | Remove legacy launcher managed files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ awesomewm_legacy_launcher_paths }}"
+  when: awesomewm_remove_legacy_launcher_tools | bool
 
 - name: "awesomewm | Ubuntu | Add user to video group for backlight control"
   ansible.builtin.user:
@@ -49,29 +74,6 @@
     name: upower
     state: present
   become: true
-
-- name: "awesomewm | Ubuntu | Install bemoji emoji picker"
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/marty-oehme/bemoji/main/bemoji
-    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/bemoji"
-    mode: "0755"
-
-- name: "awesomewm | Ubuntu | Download bemoji emoji database"
-  ansible.builtin.shell: |
-    {{ ansible_facts['user_dir'] }}/.local/bin/bemoji -D all
-  args:
-    creates: "{{ ansible_facts['user_dir'] }}/.local/share/bemoji/emojis.txt"
-  become: false
-  changed_when: true
-  # bemoji -D outputs to stderr and returns exit code 1 even on success
-  failed_when: false
-
-- name: "awesomewm | Ubuntu | Download Flare launcher"
-  ansible.builtin.get_url:
-    url: https://github.com/ByteAtATime/flare/releases/download/v0.1.0/flare_0.1.0_amd64.AppImage
-    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/flare"
-    mode: "0755"
-  register: flare_download
 
 - name: "awesomewm | Ubuntu | Ensure ~/.config/awesome exists"
   ansible.builtin.file:
@@ -140,6 +142,13 @@
     src: "config/themes/"
     dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/themes/"
     mode: "0644"
+  notify: "awesomewm | Ubuntu | Restart AwesomeWM"
+
+- name: "awesomewm | Ubuntu | Deploy CapsLock to F13 remap script"
+  ansible.builtin.copy:
+    src: "scripts/remap-caps-to-f13.sh"
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/remap-caps-to-f13.sh"
+    mode: "0755"
   notify: "awesomewm | Ubuntu | Restart AwesomeWM"
 
 - name: "awesomewm | Ubuntu | Deploy rc.lua"
@@ -239,24 +248,6 @@
   ansible.builtin.copy:
     src: "flameshot/flameshot.ini"
     dest: "{{ ansible_facts['user_dir'] }}/.config/flameshot/flameshot.ini"
-    mode: "0644"
-
-- name: "awesomewm | Ubuntu | Ensure CopyQ config directory exists"
-  ansible.builtin.file:
-    path: "{{ ansible_facts['user_dir'] }}/.config/copyq"
-    state: directory
-    mode: "0755"
-
-- name: "awesomewm | Ubuntu | Deploy CopyQ configuration"
-  ansible.builtin.copy:
-    src: "copyq/copyq.conf"
-    dest: "{{ ansible_facts['user_dir'] }}/.config/copyq/copyq.conf"
-    mode: "0644"
-
-- name: "awesomewm | Ubuntu | Deploy CopyQ commands"
-  ansible.builtin.copy:
-    src: "copyq/copyq-commands.ini"
-    dest: "{{ ansible_facts['user_dir'] }}/.config/copyq/copyq-commands.ini"
     mode: "0644"
 
 - name: "awesomewm | Ubuntu | Copy AI usage monitor script"

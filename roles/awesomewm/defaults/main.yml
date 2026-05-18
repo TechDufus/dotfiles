@@ -1,3 +1,12 @@
 ---
 # AwesomeWM role defaults
 role_name: "awesomewm"
+
+awesomewm_remove_legacy_launcher_tools: true
+awesomewm_legacy_launcher_packages:
+  - copyq
+awesomewm_legacy_launcher_paths:
+  - "{{ ansible_facts['user_dir'] }}/.config/copyq"
+  - "{{ ansible_facts['user_dir'] }}/.local/bin/bemoji"
+  - "{{ ansible_facts['user_dir'] }}/.local/share/bemoji"
+  - "{{ ansible_facts['user_dir'] }}/.local/bin/flare"

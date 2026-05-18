@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title AI Usage: Switch To Codex
+# @vicinae.mode compact
+# @vicinae.keywords ["ai", "codex", "usage", "provider"]
+
+set -euo pipefail
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ai-usage-monitor"
+mkdir -p "$cache_dir"
+printf 'codex\n' >"$cache_dir/provider.txt"
+systemctl --user restart ai-usage-monitor.service >/dev/null 2>&1 || true

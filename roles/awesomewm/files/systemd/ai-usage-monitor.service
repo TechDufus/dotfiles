@@ -1,5 +1,5 @@
 [Unit]
-Description=AI Usage Monitor - polls Claude API usage limits
+Description=AI Usage Monitor - polls the active AI provider
 
 [Service]
 Type=simple

@@ -1,0 +1,57 @@
+---
+- name: "{{ role_name }} | Ubuntu | Remove Signal Flatpak"
+  community.general.flatpak:
+    name: org.signal.Signal
+    state: absent
+  become: true
+  failed_when: false
+
+- name: "{{ role_name }} | Ubuntu | Install Signal APT prerequisites"
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gnupg
+    state: present
+    update_cache: true
+  become: true
+
+- name: "{{ role_name }} | Ubuntu | Download Signal signing key"
+  ansible.builtin.get_url:
+    url: https://updates.signal.org/desktop/apt/keys.asc
+    dest: /usr/share/keyrings/signal-desktop-keyring.asc
+    mode: "0644"
+  become: true
+  register: signal_key_download
+
+- name: "{{ role_name }} | Ubuntu | Check Signal keyring"
+  ansible.builtin.stat:
+    path: /usr/share/keyrings/signal-desktop-keyring.gpg
+  register: signal_keyring
+
+- name: "{{ role_name }} | Ubuntu | Install Signal signing keyring"
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --dearmor
+      - --yes
+      - --output
+      - /usr/share/keyrings/signal-desktop-keyring.gpg
+      - /usr/share/keyrings/signal-desktop-keyring.asc
+  become: true
+  changed_when: signal_key_download.changed or not signal_keyring.stat.exists
+  when: signal_key_download.changed or not signal_keyring.stat.exists
+
+- name: "{{ role_name }} | Ubuntu | Add Signal APT repository"
+  ansible.builtin.get_url:
+    url: https://updates.signal.org/static/desktop/apt/signal-desktop.sources
+    dest: /etc/apt/sources.list.d/signal-desktop.sources
+    mode: "0644"
+  become: true
+  register: signal_sources
+
+- name: "{{ role_name }} | Ubuntu | Install Signal Desktop"
+  ansible.builtin.apt:
+    name: signal-desktop
+    state: present
+    update_cache: "{{ signal_sources.changed or signal_key_download.changed or not signal_keyring.stat.exists }}"
+  become: true

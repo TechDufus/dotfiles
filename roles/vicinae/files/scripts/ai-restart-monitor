@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title AI Usage: Restart Monitor
+# @vicinae.mode compact
+# @vicinae.keywords ["ai", "usage", "monitor", "restart"]
+
+set -euo pipefail
+
+systemctl --user restart ai-usage-monitor.service >/dev/null 2>&1

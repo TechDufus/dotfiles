@@ -11,7 +11,7 @@ This role provides a fully-configured AwesomeWM desktop environment with:
 - **Intelligent app positioning** with multi-resolution support
 - **Catppuccin Mocha theme** across all UI components
 - **Standalone settings tools** (no GNOME dependencies)
-- **Complete desktop utilities** (launcher, clipboard, screenshots, notifications)
+- **Complete desktop utilities** (Vicinae launcher hooks, screenshots, notifications)
 
 Perfect for developers migrating from macOS Hammerspoon or seeking advanced tiling functionality on Ubuntu.
 
@@ -50,7 +50,7 @@ graph TD
 - Pre-configured layouts for different workflows
 - Assign apps to specific cells
 - Optional auto-launch on layout activation
-- Interactive layout picker (Hyper+p)
+- Keyboard-native layout picker (Hyper+p)
 
 ### Modal Application Summoning
 
@@ -92,14 +92,14 @@ graph LR
     A --> C[Status Bar]
     A --> D[Notifications]
 
-    E[Utilities] --> F[Rofi Launcher]
-    E --> G[CopyQ Clipboard]
+    E[Utilities] --> F[Vicinae Launcher Signals]
+    E --> G[Vicinae Clipboard/Emoji]
     E --> H[Flameshot Screenshots]
     E --> I[Settings Tools]
 
     J[Theme] --> K[Catppuccin Mocha]
     K --> L[GTK Apps]
-    K --> M[Rofi]
+    K --> M[Fabric]
     K --> N[Status Bar]
 
     style A fill:#89b4fa
@@ -114,16 +114,14 @@ graph LR
 **Window Management:**
 - `awesome` - AwesomeWM window manager
 - `xdotool` - Window manipulation tool
-- `rofi` - Application launcher and layout picker
 - `i3lock` - Screen locker
 
 **Desktop Utilities:**
 - `flameshot` - Screenshot tool
-- `copyq` - Clipboard manager
 - `thunar` - Lightweight file manager
 - `ristretto` - Image viewer
-- `rofimoji` - Emoji picker (via pipx)
-- Flare launcher (AppImage)
+- Vicinae launcher hooks for command search, clipboard, app search, emoji, and
+  settings support when the separate `vicinae` role is installed
 
 **Media & System:**
 - `playerctl` - Media key controls
@@ -179,10 +177,6 @@ graph LR
 ├── awesome-wm-widgets/             # Cloned from GitHub
 └── cyclefocus/                     # Cloned from GitHub
 
-~/.config/rofi/
-├── config.rasi                     # Rofi configuration
-└── catppuccin-mocha.rasi          # Catppuccin theme
-
 ~/.config/gtk-3.0/
 └── settings.ini                    # GTK3 dark theme
 
@@ -194,16 +188,9 @@ graph LR
 ~/.config/flameshot/
 └── flameshot.ini                   # Screenshot tool config
 
-~/.config/copyq/
-├── copyq.conf                      # Clipboard manager config
-└── copyq-commands.ini              # Custom commands
-
 ~/.themes/
 └── catppuccin-mocha-blue-standard+default/  # GTK theme
 
-~/.local/bin/
-├── flare                           # Application launcher
-└── rofimoji                        # Emoji picker
 ```
 
 ### Theming
@@ -211,7 +198,6 @@ graph LR
 **Catppuccin Mocha** applied consistently across:
 - AwesomeWM (status bar, window borders, notifications)
 - GTK3/GTK4 applications
-- Rofi launcher
 - Papirus-Dark icon theme
 
 **Theme Colors:**
@@ -290,7 +276,7 @@ Hyper + l
    Signal = {
      class = "signal",
      summon = "C",       -- CapsLock/F13 + Shift+c
-     exec = "flatpak run org.signal.Signal",
+     exec = "signal-desktop",
    },
    ```
 
@@ -402,12 +388,13 @@ None. This role is self-contained.
 
 **Automatically installed:**
 - Flatpak (for Discord, Spotify, Obsidian)
-- Python 3 + pipx (for rofimoji)
-- Git (for cloning widget repositories)
+- Desktop utility packages listed above
 
 **Not installed by this role:**
 - Ghostty terminal (install via [ghostty](../ghostty/) role)
 - 1Password (install via [1password](../1password/) role)
+- Vicinae launcher binary (install via [vicinae](../vicinae/) role)
+- Git client, which is required by the widget repository clone tasks
 
 ## Troubleshooting
 
@@ -491,7 +478,7 @@ M.hyper = { 'Mod4', 'Shift' }  -- Super+Shift (easier)
 
 **Complete removal:**
 ```bash
-sudo apt remove awesome xdotool flameshot rofi i3lock copyq
+sudo apt remove awesome xdotool flameshot i3lock
 rm -rf ~/.config/awesome
 rm -rf ~/.themes/catppuccin-mocha-*
 ```

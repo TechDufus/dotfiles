@@ -16,6 +16,23 @@ local summon_trigger_keys = {
   Caps_Lock = true,
 }
 
+local modifier_keys = {
+  Shift_L = true,
+  Shift_R = true,
+  Control_L = true,
+  Control_R = true,
+  Alt_L = true,
+  Alt_R = true,
+  Super_L = true,
+  Super_R = true,
+  Meta_L = true,
+  Meta_R = true,
+  Hyper_L = true,
+  Hyper_R = true,
+  ISO_Level3_Shift = true,
+  ISO_Level5_Shift = true,
+}
+
 local function has_modifier(modifiers, target)
   for _, modifier in ipairs(modifiers or {}) do
     if modifier == target then
@@ -77,6 +94,10 @@ summon_modal = awful.keygrabber {
   timeout = 1,  -- 1 second timeout for modal auto-close
   autostart = false,
   keypressed_callback = function(self, mod, key, event)
+    if modifier_keys[key] then
+      return
+    end
+
     local binding_key = binding_key_for_event(mod, key)
 
     -- Treat any recognized summon trigger as a second tap to enter macro mode.
@@ -123,11 +144,11 @@ macro_modal = awful.keygrabber {
       return
     end
 
-    -- e: Emoji picker with bemoji
+    -- e: Emoji picker
     if key == 'e' then
       self:stop()
       gears.timer.delayed_call(function()
-        awful.spawn(os.getenv("HOME") .. "/.local/bin/bemoji -cn --hist-limit 5")
+        awesome.emit_signal("techdufus::launcher_emoji")
       end)
       return
     end
@@ -141,13 +162,11 @@ macro_modal = awful.keygrabber {
       return
     end
 
-    -- g: GUI Settings menu (rofi picker)
+    -- g: GUI Settings command deck
     if key == 'g' then
       self:stop()
       gears.timer.delayed_call(function()
-        awful.spawn.easy_async_with_shell([[
-          printf '%s\n' "Audio (pavucontrol)" "Display (arandr)" "GTK Themes (lxappearance)" "Bluetooth (blueman-manager)" "Network (nm-connection-editor)" "Power (xfce4-power-manager-settings)" | rofi -dmenu -i -p "Settings" | sed 's/.*(\(.*\))/\1/' | xargs -I{} sh -c '{}'
-        ]], function() end)
+        awesome.emit_signal("techdufus::launcher_settings")
       end)
       return
     end

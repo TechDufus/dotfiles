@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Power Settings
+# @vicinae.mode compact
+# @vicinae.keywords ["settings", "power", "battery", "sleep"]
+
+set -euo pipefail
+
+if command -v xfce4-power-manager-settings >/dev/null 2>&1; then
+  exec xfce4-power-manager-settings
+fi
+
+printf 'xfce4-power-manager-settings is not installed\n' >&2
+exit 1

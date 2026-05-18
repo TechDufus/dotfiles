@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Display Settings
+# @vicinae.mode compact
+# @vicinae.keywords ["settings", "display", "monitor", "screen"]
+
+set -euo pipefail
+
+if command -v arandr >/dev/null 2>&1; then
+  exec arandr
+fi
+
+printf 'arandr is not installed\n' >&2
+exit 1

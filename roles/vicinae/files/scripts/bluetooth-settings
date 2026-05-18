@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title Bluetooth Settings
+# @vicinae.mode compact
+# @vicinae.keywords ["settings", "bluetooth", "devices"]
+
+set -euo pipefail
+
+if command -v blueman-manager >/dev/null 2>&1; then
+  exec blueman-manager
+fi
+
+printf 'blueman-manager is not installed\n' >&2
+exit 1

@@ -31,7 +31,6 @@
   loop:
     - com.brave.Browser
     - com.discordapp.Discord
-    - org.signal.Signal
     - com.spotify.Client
     - md.obsidian.Obsidian
     - com.valvesoftware.Steam

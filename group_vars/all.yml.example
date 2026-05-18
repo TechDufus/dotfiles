@@ -95,6 +95,9 @@ default_roles:
   # - aldente      # Battery charge limiter for macOS
   
   # === Linux Specific ===
+  # - awesomewm     # X11 window manager and keyboard-driven desktop
+  # - vicinae       # Raycast-style launcher for Linux/AwesomeWM
+  # - fabric        # AwesomeWM top command deck UI
   # - flatpak      # Universal Linux package manager
   # - nala         # Better apt frontend for Ubuntu/Debian
   

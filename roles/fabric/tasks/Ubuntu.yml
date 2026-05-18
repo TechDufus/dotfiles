@@ -1,0 +1,153 @@
+---
+- name: "{{ role_name }} | Ubuntu | Install Fabric system dependencies"
+  ansible.builtin.apt:
+    name: "{{ fabric_ubuntu_packages }}"
+    state: present
+    update_cache: true
+  become: true
+
+- name: "{{ role_name }} | Ubuntu | Ensure Fabric state directory exists"
+  ansible.builtin.file:
+    path: "{{ fabric_venv_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Ensure local bin directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Install uv"
+  ansible.builtin.command:
+    argv:
+      - pipx
+      - install
+      - uv
+  args:
+    creates: "{{ fabric_uv_path }}"
+  environment:
+    PIPX_HOME: "{{ ansible_facts['user_dir'] }}/.local/share/pipx"
+    PIPX_BIN_DIR: "{{ ansible_facts['user_dir'] }}/.local/bin"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Skip uv install in check mode"
+  ansible.builtin.debug:
+    msg: "Skipping uv install in check mode."
+  when: ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Create Fabric virtualenv with uv"
+  ansible.builtin.command:
+    argv:
+      - "{{ fabric_uv_path }}"
+      - venv
+      - --system-site-packages
+      - "{{ fabric_venv_path }}"
+  args:
+    creates: "{{ fabric_venv_path }}/bin/python"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Install Fabric into virtualenv with uv"
+  ansible.builtin.command:
+    argv:
+      - "{{ fabric_uv_path }}"
+      - pip
+      - install
+      - --python
+      - "{{ fabric_venv_path }}/bin/python"
+      - --upgrade
+      - --no-deps
+      - "{{ fabric_source_url }}"
+  register: fabric_uv_install
+  changed_when: >
+    'Installed ' in (fabric_uv_install.stdout ~ fabric_uv_install.stderr) or
+    'Updated ' in (fabric_uv_install.stdout ~ fabric_uv_install.stderr) or
+    'Uninstalled ' in (fabric_uv_install.stdout ~ fabric_uv_install.stderr)
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Skip Fabric uv install in check mode"
+  ansible.builtin.debug:
+    msg: "Skipping Fabric uv install in check mode."
+  when: ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Ensure Fabric config directory exists"
+  ansible.builtin.file:
+    path: "{{ fabric_config_path }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Deploy AwesomeWM Fabric config"
+  ansible.builtin.copy:
+    src: "config/{{ fabric_config_name }}/"
+    dest: "{{ fabric_config_path }}/"
+    mode: "0644"
+
+- name: "{{ role_name }} | Ubuntu | Deploy AwesomeWM Fabric launcher"
+  ansible.builtin.copy:
+    src: "bin/fabric-awesomewm"
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/fabric-awesomewm"
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Check installed Fabric launcher"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin/fabric-awesomewm"
+  register: fabric_launcher
+
+- name: "{{ role_name }} | Ubuntu | Check Fabric import"
+  ansible.builtin.command:
+    argv:
+      - "{{ fabric_venv_path }}/bin/python"
+      - -c
+      - "import fabric"
+  register: fabric_import
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Check AwesomeWM Fabric config"
+  ansible.builtin.command:
+    argv:
+      - "{{ fabric_venv_path }}/bin/python"
+      - "{{ fabric_config_path }}/config.py"
+      - --check
+  register: fabric_config_check
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Skip Fabric import check in check mode"
+  ansible.builtin.debug:
+    msg: "Skipping Fabric import/config checks in check mode."
+  when: ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Ensure AwesomeWM config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/awesome"
+    state: directory
+    mode: "0755"
+  when: fabric_enable_awesomewm_ui | bool
+
+- name: "{{ role_name }} | Ubuntu | Enable Fabric UI for AwesomeWM"
+  ansible.builtin.copy:
+    content: |
+      managed-by=dotfiles
+      fabric-config={{ fabric_config_name }}
+    dest: "{{ ansible_facts['user_dir'] }}/.config/awesome/fabric-ui-enabled"
+    mode: "0644"
+  when:
+    - fabric_enable_awesomewm_ui | bool
+    - fabric_launcher.stat.exists | bool
+    - fabric_import.rc | default(1) == 0
+    - fabric_config_check.rc | default(1) == 0
+
+- name: "{{ role_name }} | Ubuntu | Disable Fabric UI for AwesomeWM when validation fails"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/awesome/fabric-ui-enabled"
+    state: absent
+  when:
+    - not ansible_check_mode
+    - fabric_enable_awesomewm_ui | bool
+    - >
+      not fabric_launcher.stat.exists | bool or
+      fabric_import.rc | default(1) != 0 or
+      fabric_config_check.rc | default(1) != 0

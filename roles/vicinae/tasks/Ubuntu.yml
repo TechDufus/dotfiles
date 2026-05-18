@@ -1,0 +1,494 @@
+---
+- name: "{{ role_name }} | Ubuntu | Install Vicinae prerequisites"
+  ansible.builtin.apt:
+    name: "{{ vicinae_ubuntu_packages + [vicinae_appimage_fuse_package] + ((vicinae_install_qalc | bool) | ternary(['qalc'], [])) }}"
+    state: present
+    update_cache: true
+  become: true
+
+- name: "{{ role_name }} | Ubuntu | Ensure Vicinae config directory exists"
+  ansible.builtin.file:
+    path: "{{ vicinae_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Deploy managed Vicinae config import"
+  ansible.builtin.template:
+    src: dotfiles.json.j2
+    dest: "{{ vicinae_config_dir }}/dotfiles.json"
+    mode: "0644"
+
+- name: "{{ role_name }} | Ubuntu | Check Vicinae user settings"
+  ansible.builtin.stat:
+    path: "{{ vicinae_config_dir }}/settings.json"
+  register: vicinae_settings
+
+- name: "{{ role_name }} | Ubuntu | Create Vicinae user settings import file"
+  ansible.builtin.template:
+    src: settings.json.j2
+    dest: "{{ vicinae_config_dir }}/settings.json"
+    mode: "0644"
+  when: not vicinae_settings.stat.exists
+
+- name: "{{ role_name }} | Ubuntu | Read existing Vicinae user settings"
+  ansible.builtin.slurp:
+    src: "{{ vicinae_config_dir }}/settings.json"
+  register: vicinae_settings_content
+  when: vicinae_settings.stat.exists
+
+- name: "{{ role_name }} | Ubuntu | Warn when user settings do not import dotfiles config"
+  ansible.builtin.debug:
+    msg: >-
+      Existing {{ vicinae_config_dir }}/settings.json does not import ./dotfiles.json.
+      Leaving it untouched; add the import manually if you want repo-managed Vicinae defaults.
+  when:
+    - vicinae_settings.stat.exists
+    - "'dotfiles.json' not in (vicinae_settings_content.content | b64decode)"
+
+- name: "{{ role_name }} | Ubuntu | Ensure Vicinae script command directory exists"
+  ansible.builtin.file:
+    path: "{{ vicinae_scripts_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Deploy Vicinae script commands"
+  ansible.builtin.copy:
+    src: scripts/
+    dest: "{{ vicinae_scripts_dir }}/"
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Note Vicinae script command refresh behavior"
+  ansible.builtin.debug:
+    msg: "Vicinae scans script commands at startup and periodically; restart the server only if immediate reindexing is required."
+
+- name: "{{ role_name }} | Ubuntu | Skip Vicinae binary install in check mode"
+  ansible.builtin.debug:
+    msg: "Skipping Vicinae release lookup and extracted AppImage install in check mode."
+  when: ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Get latest Vicinae release"
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ vicinae_repo }}/releases/latest"
+    headers:
+      Accept: application/vnd.github.v3+json
+    return_content: true
+  register: vicinae_latest_release_response
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - vicinae_version == "latest"
+
+- name: "{{ role_name }} | Ubuntu | Get pinned Vicinae release"
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ vicinae_repo }}/releases/tags/{{ vicinae_version }}"
+    headers:
+      Accept: application/vnd.github.v3+json
+    return_content: true
+  register: vicinae_pinned_release_response
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - vicinae_version != "latest"
+
+- name: "{{ role_name }} | Ubuntu | Set Vicinae release response"
+  ansible.builtin.set_fact:
+    vicinae_release_json: "{{ vicinae_latest_release_response.json if vicinae_version == 'latest' else vicinae_pinned_release_response.json }}"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Select Vicinae AppImage asset"
+  ansible.builtin.set_fact:
+    vicinae_target_tag: "{{ vicinae_release_json.tag_name }}"
+    vicinae_target_version: "{{ vicinae_release_json.tag_name | regex_replace('^v', '') }}"
+    vicinae_appimage_assets: "{{ vicinae_release_json.assets | selectattr('name', 'match', vicinae_appimage_asset_regex) | list }}"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Validate Vicinae AppImage asset"
+  ansible.builtin.assert:
+    that:
+      - vicinae_appimage_assets | length > 0
+    fail_msg: "Could not find a Vicinae x86_64 AppImage asset in {{ vicinae_target_tag }}."
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Set Vicinae AppImage asset"
+  ansible.builtin.set_fact:
+    vicinae_appimage_asset: "{{ vicinae_appimage_assets | first }}"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Check installed Vicinae version"
+  ansible.builtin.command:
+    argv:
+      - "{{ vicinae_bin_dir }}/vicinae"
+      - version
+  register: vicinae_installed_version
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Extract installed Vicinae version"
+  ansible.builtin.set_fact:
+    vicinae_installed_version_number: "{{ (vicinae_installed_version.stdout ~ vicinae_installed_version.stderr) | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+') | default('none', true) | string | trim }}"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Determine whether Vicinae install is needed"
+  ansible.builtin.set_fact:
+    vicinae_needs_install: "{{ (vicinae_installed_version.rc | int != 0) or (vicinae_installed_version_number != (vicinae_target_version | string | trim)) }}"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Show Vicinae install decision"
+  ansible.builtin.debug:
+    msg:
+      - "Target: {{ vicinae_target_tag }}"
+      - "Installed: {{ vicinae_installed_version_number }}"
+      - "Install needed: {{ vicinae_needs_install }}"
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Install Vicinae from extracted AppImage"
+  when:
+    - not ansible_check_mode
+    - vicinae_needs_install | bool
+  block:
+    - name: "{{ role_name }} | Ubuntu | Create Vicinae install temp directory"
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: vicinae
+      register: vicinae_temp_dir
+
+    - name: "{{ role_name }} | Ubuntu | Download Vicinae AppImage"
+      ansible.builtin.get_url:
+        url: "{{ vicinae_appimage_asset.browser_download_url }}"
+        dest: "{{ vicinae_temp_dir.path }}/{{ vicinae_appimage_asset.name }}"
+        mode: "0755"
+        force: true
+
+    - name: "{{ role_name }} | Ubuntu | Extract Vicinae AppImage"
+      ansible.builtin.command:
+        argv:
+          - "{{ vicinae_temp_dir.path }}/{{ vicinae_appimage_asset.name }}"
+          - --appimage-extract
+      args:
+        chdir: "{{ vicinae_temp_dir.path }}"
+      changed_when: true
+
+    - name: "{{ role_name }} | Ubuntu | Check extracted Vicinae binary"
+      ansible.builtin.stat:
+        path: "{{ vicinae_temp_dir.path }}/squashfs-root/usr/bin/vicinae"
+      register: vicinae_extracted_bin
+
+    - name: "{{ role_name }} | Ubuntu | Check extracted Vicinae AppRun fallback"
+      ansible.builtin.stat:
+        path: "{{ vicinae_temp_dir.path }}/squashfs-root/AppRun"
+      register: vicinae_extracted_apprun
+
+    - name: "{{ role_name }} | Ubuntu | Validate extracted Vicinae binary"
+      ansible.builtin.assert:
+        that:
+          - vicinae_extracted_bin.stat.exists or vicinae_extracted_apprun.stat.exists
+        fail_msg: "Vicinae binary was not found after AppImage extraction."
+
+    - name: "{{ role_name }} | Ubuntu | Ensure Vicinae system directories exist"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ vicinae_bin_dir }}"
+        - "{{ vicinae_prefix }}/lib"
+        - "{{ vicinae_themes_dir }}"
+        - "{{ vicinae_applications_dir }}"
+        - "{{ vicinae_systemd_user_dir }}"
+      become: true
+
+    - name: "{{ role_name }} | Ubuntu | Remove previous managed Vicinae install"
+      ansible.builtin.file:
+        path: "{{ vicinae_install_dir }}"
+        state: absent
+      become: true
+
+    - name: "{{ role_name }} | Ubuntu | Move extracted Vicinae tree into place"
+      ansible.builtin.command:
+        argv:
+          - mv
+          - "{{ vicinae_temp_dir.path }}/squashfs-root"
+          - "{{ vicinae_install_dir }}"
+      changed_when: true
+      become: true
+
+    - name: "{{ role_name }} | Ubuntu | Normalize Vicinae install tree ownership"
+      ansible.builtin.file:
+        path: "{{ vicinae_install_dir }}"
+        state: directory
+        owner: root
+        group: root
+        recurse: true
+      become: true
+
+    - name: "{{ role_name }} | Ubuntu | Set installed Vicinae binary path"
+      ansible.builtin.set_fact:
+        vicinae_installed_binary_path: "{{ vicinae_install_dir }}/{{ 'usr/bin/vicinae' if vicinae_extracted_bin.stat.exists else 'AppRun' }}"
+
+    - name: "{{ role_name }} | Ubuntu | Symlink Vicinae binary"
+      ansible.builtin.file:
+        src: "{{ vicinae_installed_binary_path }}"
+        dest: "{{ vicinae_bin_dir }}/vicinae"
+        state: link
+        force: true
+      become: true
+
+    - name: "{{ role_name }} | Ubuntu | Check bundled Vicinae node"
+      ansible.builtin.stat:
+        path: "{{ vicinae_install_dir }}/usr/bin/node"
+      register: vicinae_node
+
+    - name: "{{ role_name }} | Ubuntu | Symlink bundled Vicinae node"
+      ansible.builtin.file:
+        src: "{{ vicinae_install_dir }}/usr/bin/node"
+        dest: "{{ vicinae_bin_dir }}/vicinae-node"
+        state: link
+        force: true
+      become: true
+      when: vicinae_node.stat.exists
+
+    - name: "{{ role_name }} | Ubuntu | Remove stale bundled Vicinae node symlink"
+      ansible.builtin.file:
+        path: "{{ vicinae_bin_dir }}/vicinae-node"
+        state: absent
+      become: true
+      when: not vicinae_node.stat.exists
+
+    - name: "{{ role_name }} | Ubuntu | Check bundled Vicinae themes"
+      ansible.builtin.stat:
+        path: "{{ vicinae_install_dir }}/usr/share/vicinae/themes"
+      register: vicinae_bundled_themes
+
+    - name: "{{ role_name }} | Ubuntu | Install bundled Vicinae themes"
+      ansible.builtin.copy:
+        src: "{{ vicinae_install_dir }}/usr/share/vicinae/themes/"
+        dest: "{{ vicinae_themes_dir }}/"
+        remote_src: true
+        mode: preserve
+      become: true
+      when: vicinae_bundled_themes.stat.isdir | default(false)
+
+    - name: "{{ role_name }} | Ubuntu | Check bundled Vicinae desktop file directory"
+      ansible.builtin.stat:
+        path: "{{ vicinae_install_dir }}/usr/share/applications"
+      register: vicinae_applications_source
+
+    - name: "{{ role_name }} | Ubuntu | Find bundled Vicinae desktop files"
+      ansible.builtin.find:
+        paths: "{{ vicinae_install_dir }}/usr/share/applications"
+        patterns: "vicinae*.desktop"
+        file_type: file
+      register: vicinae_desktop_files
+      when: vicinae_applications_source.stat.isdir | default(false)
+
+    - name: "{{ role_name }} | Ubuntu | Install Vicinae desktop files"
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ vicinae_applications_dir }}/{{ item.path | basename }}"
+        remote_src: true
+        mode: preserve
+      loop: "{{ vicinae_desktop_files.files if vicinae_desktop_files is defined else [] }}"
+      become: true
+
+    - name: "{{ role_name }} | Ubuntu | Update desktop database"
+      ansible.builtin.command:
+        argv:
+          - update-desktop-database
+          - "{{ vicinae_applications_dir }}"
+      changed_when: false
+      failed_when: false
+      become: true
+      when:
+        - vicinae_desktop_files is defined
+        - vicinae_desktop_files.matched | default(0) | int > 0
+
+    - name: "{{ role_name }} | Ubuntu | Check bundled Vicinae systemd service"
+      ansible.builtin.stat:
+        path: "{{ vicinae_install_dir }}/usr/lib/systemd/user/vicinae.service"
+      register: vicinae_systemd_service
+
+    - name: "{{ role_name }} | Ubuntu | Install Vicinae systemd user service"
+      ansible.builtin.copy:
+        src: "{{ vicinae_install_dir }}/usr/lib/systemd/user/vicinae.service"
+        dest: "{{ vicinae_systemd_user_dir }}/vicinae.service"
+        remote_src: true
+        mode: "0644"
+      become: true
+      when: vicinae_systemd_service.stat.exists
+
+    - name: "{{ role_name }} | Ubuntu | Pin Vicinae service ExecStart to installed binary"
+      ansible.builtin.replace:
+        path: "{{ vicinae_systemd_user_dir }}/vicinae.service"
+        regexp: "^ExecStart=vicinae"
+        replace: "ExecStart={{ vicinae_bin_dir }}/vicinae"
+      become: true
+      when: vicinae_systemd_service.stat.exists
+
+    - name: "{{ role_name }} | Ubuntu | Reload user systemd after Vicinae service install"
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - --user
+          - daemon-reload
+      changed_when: false
+      failed_when: false
+      when: vicinae_systemd_service.stat.exists
+
+    - name: "{{ role_name }} | Ubuntu | Check bundled Vicinae modules-load directory"
+      ansible.builtin.stat:
+        path: "{{ vicinae_install_dir }}/usr/lib/modules-load.d"
+      register: vicinae_modules_load_dir_source
+      when: vicinae_install_input_server | bool
+
+    - name: "{{ role_name }} | Ubuntu | Check bundled Vicinae modules-load config"
+      ansible.builtin.find:
+        paths: "{{ vicinae_install_dir }}/usr/lib/modules-load.d"
+        file_type: file
+      register: vicinae_modules_load_files
+      when:
+        - vicinae_install_input_server | bool
+        - vicinae_modules_load_dir_source.stat.isdir | default(false)
+
+    - name: "{{ role_name }} | Ubuntu | Ensure Vicinae modules-load directory exists"
+      ansible.builtin.file:
+        path: "{{ vicinae_modules_load_dir }}"
+        state: directory
+        mode: "0755"
+      become: true
+      when:
+        - vicinae_install_input_server | bool
+        - vicinae_modules_load_files.matched | default(0) | int > 0
+
+    - name: "{{ role_name }} | Ubuntu | Install Vicinae modules-load config"
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ vicinae_modules_load_dir }}/{{ item.path | basename }}"
+        remote_src: true
+        mode: preserve
+      loop: "{{ vicinae_modules_load_files.files if vicinae_modules_load_files is defined else [] }}"
+      become: true
+      when: vicinae_install_input_server | bool
+
+    - name: "{{ role_name }} | Ubuntu | Load uinput module for Vicinae input server"
+      ansible.builtin.command:
+        argv:
+          - modprobe
+          - uinput
+      changed_when: false
+      failed_when: false
+      become: true
+      when:
+        - vicinae_install_input_server | bool
+        - vicinae_modules_load_files.matched | default(0) | int > 0
+
+    - name: "{{ role_name }} | Ubuntu | Check Vicinae input server binary"
+      ansible.builtin.stat:
+        path: "{{ vicinae_install_dir }}/usr/libexec/vicinae/vicinae-input-server"
+      register: vicinae_input_server
+      when: vicinae_install_input_server | bool
+
+    - name: "{{ role_name }} | Ubuntu | Check Vicinae input server capabilities"
+      ansible.builtin.command:
+        argv:
+          - getcap
+          - "{{ vicinae_install_dir }}/usr/libexec/vicinae/vicinae-input-server"
+      register: vicinae_input_server_caps
+      changed_when: false
+      failed_when: false
+      when:
+        - vicinae_install_input_server | bool
+        - vicinae_input_server.stat.exists | default(false)
+
+    - name: "{{ role_name }} | Ubuntu | Set Vicinae input server capabilities"
+      ansible.builtin.command:
+        argv:
+          - setcap
+          - cap_dac_override=ep
+          - "{{ vicinae_install_dir }}/usr/libexec/vicinae/vicinae-input-server"
+      changed_when: true
+      become: true
+      when:
+        - vicinae_install_input_server | bool
+        - vicinae_input_server.stat.exists | default(false)
+        - "'cap_dac_override=ep' not in (vicinae_input_server_caps.stdout | default(''))"
+
+    - name: "{{ role_name }} | Ubuntu | Warn when browser manifests are requested"
+      ansible.builtin.debug:
+        msg: "Browser native messaging manifest install is intentionally deferred in this role."
+      when: vicinae_install_browser_manifests | bool
+
+  always:
+    - name: "{{ role_name }} | Ubuntu | Remove Vicinae install temp directory"
+      ansible.builtin.file:
+        path: "{{ vicinae_temp_dir.path }}"
+        state: absent
+      failed_when: false
+      when:
+        - vicinae_temp_dir is defined
+        - vicinae_temp_dir.path is defined
+
+- name: "{{ role_name }} | Ubuntu | Check managed Vicinae install directory"
+  ansible.builtin.stat:
+    path: "{{ vicinae_install_dir }}"
+  register: vicinae_managed_install_dir
+  when: not ansible_check_mode
+
+- name: "{{ role_name }} | Ubuntu | Ensure managed Vicinae install tree ownership"
+  ansible.builtin.file:
+    path: "{{ vicinae_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    recurse: true
+  become: true
+  when:
+    - not ansible_check_mode
+    - vicinae_managed_install_dir.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Ubuntu | Check installed Vicinae input server binary"
+  ansible.builtin.stat:
+    path: "{{ vicinae_install_dir }}/usr/libexec/vicinae/vicinae-input-server"
+  register: vicinae_installed_input_server
+  when:
+    - not ansible_check_mode
+    - vicinae_install_input_server | bool
+
+- name: "{{ role_name }} | Ubuntu | Check installed Vicinae input server capabilities"
+  ansible.builtin.command:
+    argv:
+      - getcap
+      - "{{ vicinae_install_dir }}/usr/libexec/vicinae/vicinae-input-server"
+  register: vicinae_installed_input_server_caps
+  changed_when: false
+  failed_when: false
+  when:
+    - not ansible_check_mode
+    - vicinae_install_input_server | bool
+    - vicinae_installed_input_server.stat.exists | default(false)
+
+- name: "{{ role_name }} | Ubuntu | Ensure installed Vicinae input server capabilities"
+  ansible.builtin.command:
+    argv:
+      - setcap
+      - cap_dac_override=ep
+      - "{{ vicinae_install_dir }}/usr/libexec/vicinae/vicinae-input-server"
+  changed_when: true
+  become: true
+  when:
+    - not ansible_check_mode
+    - vicinae_install_input_server | bool
+    - vicinae_installed_input_server.stat.exists | default(false)
+    - "'cap_dac_override=ep' not in (vicinae_installed_input_server_caps.stdout | default(''))"
+
+- name: "{{ role_name }} | Ubuntu | Enable Vicinae user service when requested"
+  ansible.builtin.systemd:
+    name: vicinae.service
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true
+  failed_when: false
+  when:
+    - not ansible_check_mode
+    - vicinae_enable_user_service | bool

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title AI Usage: Open Claude
+# @vicinae.mode compact
+# @vicinae.keywords ["ai", "claude", "usage", "limits"]
+
+set -euo pipefail
+
+url="https://console.anthropic.com/settings/limits"
+
+if command -v xdg-open >/dev/null 2>&1; then
+  nohup xdg-open "$url" >/dev/null 2>&1 &
+  exit 0
+fi
+
+printf 'xdg-open is not installed\n' >&2
+exit 1

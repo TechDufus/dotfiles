@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_dir="${FABRIC_AWESOMEWM_CONFIG:-$HOME/.config/fabric/awesomewm}"
+venv="${FABRIC_AWESOMEWM_VENV:-$HOME/.local/share/fabric-awesomewm/venv}"
+config_file="$config_dir/config.py"
+log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/fabric-awesomewm"
+log_file="$log_dir/fabric-awesomewm.log"
+replace=false
+
+if [ "${1:-}" = "--replace" ]; then
+  replace=true
+  shift
+fi
+
+if [ ! -x "$venv/bin/python" ] || [ ! -f "$config_file" ]; then
+  exit 0
+fi
+
+if pgrep -u "${USER}" -f "$config_file" >/dev/null 2>&1; then
+  if [ "$replace" = false ]; then
+    exit 0
+  fi
+
+  pkill -u "${USER}" -f "$config_file" >/dev/null 2>&1 || true
+  sleep 0.2
+fi
+
+mkdir -p "$log_dir"
+exec "$venv/bin/python" "$config_file" >>"$log_file" 2>&1

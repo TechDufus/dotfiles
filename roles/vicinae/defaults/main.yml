@@ -1,0 +1,31 @@
+---
+role_name: vicinae
+
+vicinae_repo: vicinaehq/vicinae
+vicinae_version: latest
+vicinae_prefix: /usr/local
+vicinae_install_dir: "{{ vicinae_prefix }}/lib/vicinae"
+vicinae_bin_dir: "{{ vicinae_prefix }}/bin"
+vicinae_themes_dir: "{{ vicinae_prefix }}/share/vicinae/themes"
+vicinae_applications_dir: "{{ vicinae_prefix }}/share/applications"
+vicinae_systemd_user_dir: "{{ vicinae_prefix }}/lib/systemd/user"
+vicinae_modules_load_dir: "{{ vicinae_prefix }}/lib/modules-load.d"
+
+vicinae_install_input_server: true
+vicinae_install_browser_manifests: false
+vicinae_enable_user_service: false
+vicinae_start_from_awesomewm: true
+
+vicinae_install_qalc: true
+vicinae_appimage_asset_regex: "^Vicinae.*x86_64.*AppImage$"
+vicinae_appimage_fuse_package: "{{ 'libfuse2t64' if (ansible_facts['distribution_major_version'] | int) >= 24 else 'libfuse2' }}"
+vicinae_ubuntu_packages:
+  - ca-certificates
+  - curl
+  - desktop-file-utils
+  - jq
+  - libcap2-bin
+  - xz-utils
+
+vicinae_config_dir: "{{ ansible_facts['user_dir'] }}/.config/vicinae"
+vicinae_scripts_dir: "{{ ansible_facts['user_dir'] }}/.local/share/vicinae/scripts/techdufus"

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# @vicinae.schemaVersion 1
+# @vicinae.title AI Usage: Status
+# @vicinae.mode fullOutput
+# @vicinae.keywords ["ai", "usage", "status", "codex", "claude"]
+
+set -euo pipefail
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ai-usage-monitor"
+status_file="$cache_dir/status.json"
+provider_file="$cache_dir/provider.txt"
+provider="codex"
+
+if [ -f "$provider_file" ]; then
+  provider="$(tr -d '[:space:]' <"$provider_file")"
+fi
+
+case "$provider" in
+  codex|claude) ;;
+  *) provider="codex" ;;
+esac
+
+if [ ! -f "$status_file" ]; then
+  printf 'No AI usage status file found at %s\n' "$status_file"
+  exit 0
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  cat "$status_file"
+  exit 0
+fi
+
+jq -r --arg provider "$provider" '
+  def metric_value($metric):
+    if ($metric | type) == "object" then $metric.utilization
+    elif $metric == null then null
+    else $metric
+    end;
+  def pct($value):
+    if $value == null then "n/a"
+    else (($value | tonumber | round | tostring) + "%")
+    end;
+  . as $root
+  | ($root[$provider] // {}) as $active
+  | [
+      ("Provider: " + $provider),
+      ("Available: " + (($active.available // false) | tostring)),
+      ("Session: " + pct(metric_value($active.session // $active.five_hour))),
+      ("Weekly: " + pct(metric_value($active.weekly // $active.seven_day))),
+      ("Updated: " + ($root.timestamp // "unknown")),
+      ("Error: " + (($active.error // $root.errors[0]? // "none") | tostring))
+    ]
+  | .[]
+' "$status_file"

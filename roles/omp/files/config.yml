@@ -98,3 +98,5 @@ mcp:
 
 dev:
   autoqa: false
+
+lastChangelogVersion: "15.1.7"

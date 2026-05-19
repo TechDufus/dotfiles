@@ -85,6 +85,80 @@
     state: link
     force: true
 
+- name: "{{ role_name }} | Check installed omp mcp config"
+  ansible.builtin.stat:
+    path: "{{ omp_mcp_config_path }}"
+    follow: false
+  register: omp_installed_mcp_config
+  no_log: true
+
+- name: "{{ role_name }} | Refuse symlinked omp mcp config"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_mcp_config_path }} is a symlink. Refusing to write MCP config through
+      a symlink because OAuth reauthorization may store per-user credentials in
+      the target. Replace it with a regular file or remove it and rerun the role.
+  when: omp_installed_mcp_config.stat.islnk | default(false)
+
+- name: "{{ role_name }} | Refuse non-file omp mcp config"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_mcp_config_path }} exists but is not a regular file. Move it aside
+      or replace it with a regular JSON file before re-running the role.
+  when:
+    - omp_installed_mcp_config.stat.exists
+    - not (omp_installed_mcp_config.stat.isreg | default(false))
+
+- name: "{{ role_name }} | Initialize existing omp mcp config"
+  ansible.builtin.set_fact:
+    omp_existing_mcp_config: {}
+  no_log: true
+
+- name: "{{ role_name }} | Read existing omp mcp config"
+  ansible.builtin.slurp:
+    src: "{{ omp_mcp_config_path }}"
+  register: omp_existing_mcp_config_slurp
+  when: omp_installed_mcp_config.stat.exists
+  no_log: true
+
+- name: "{{ role_name }} | Parse existing omp mcp config"
+  ansible.builtin.set_fact:
+    omp_existing_mcp_config: "{{ omp_existing_mcp_config_slurp.content | b64decode | from_json }}"
+  when: omp_installed_mcp_config.stat.exists
+  no_log: true
+
+- name: "{{ role_name }} | Merge managed omp mcp servers"
+  ansible.builtin.set_fact:
+    omp_merged_mcp_config: >-
+      {{
+        omp_existing_mcp_config
+        | combine({
+            '$schema': omp_mcp_schema_url,
+            'mcpServers': (
+              (omp_existing_mcp_config.mcpServers | default({}, true))
+              | combine(omp_managed_mcp_servers, recursive=true)
+            )
+          }, recursive=true)
+      }}
+  no_log: true
+
+- name: "{{ role_name }} | Validate managed omp mcp config"
+  ansible.builtin.assert:
+    that:
+      - omp_merged_mcp_config.mcpServers.playwright.type == "stdio"
+      - omp_merged_mcp_config.mcpServers.playwright.command == "bunx"
+      - '"@playwright/mcp@latest" in omp_merged_mcp_config.mcpServers.playwright.args'
+      - omp_merged_mcp_config.mcpServers.granola.type == "http"
+      - omp_merged_mcp_config.mcpServers.granola.url == "https://mcp.granola.ai/mcp"
+    quiet: true
+
+- name: "{{ role_name }} | Deploy global omp mcp config"
+  ansible.builtin.copy:
+    content: "{{ omp_merged_mcp_config | to_nice_json }}\n"
+    dest: "{{ omp_mcp_config_path }}"
+    mode: "0600"
+  no_log: true
+
 - name: "{{ role_name }} | Deploy global OMP guidance"
   ansible.builtin.copy:
     src: AGENTS.md

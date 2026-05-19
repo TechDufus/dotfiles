@@ -16,3 +16,14 @@ omp_real_bin: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/omp"
 omp_config_root: "{{ ansible_facts['env']['HOME'] }}/.omp"
 omp_agent_dir: "{{ omp_config_root }}/agent"
 omp_config_path: "{{ omp_agent_dir }}/config.yml"
+omp_mcp_config_path: "{{ omp_agent_dir }}/mcp.json"
+omp_mcp_schema_url: "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json"
+omp_managed_mcp_servers:
+  playwright:
+    type: stdio
+    command: bunx
+    args:
+      - "@playwright/mcp@latest"
+  granola:
+    type: http
+    url: "https://mcp.granola.ai/mcp"

@@ -1,0 +1,99 @@
+---
+- name: "{{ role_name }} | Check if bun is installed"
+  ansible.builtin.stat:
+    path: "{{ omp_bun_bin }}"
+  register: omp_bun
+
+- name: "{{ role_name }} | Check managed omp binary"
+  ansible.builtin.stat:
+    path: "{{ omp_real_bin }}"
+  register: omp_binary
+
+- name: "{{ role_name }} | Install omp via bun"
+  ansible.builtin.command:
+    argv:
+      - "{{ omp_bun_bin }}"
+      - install
+      - -g
+      - "{{ omp_package }}{{ ('@' ~ omp_package_version) if (omp_package_version | string) != 'latest' else '' }}"
+  register: omp_install
+  changed_when: omp_install.rc == 0
+  when:
+    - omp_manage_install | bool
+    - omp_bun.stat.exists
+    - not omp_binary.stat.exists
+
+- name: "{{ role_name }} | Warn if bun is not installed"
+  ansible.builtin.debug:
+    msg: "WARNING: bun is not installed. Run the bun role before omp or set omp_manage_install=false and provide omp_real_bin."
+  when:
+    - omp_manage_install | bool
+    - not omp_bun.stat.exists
+
+- name: "{{ role_name }} | Ensure default config directories exist"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ omp_config_root }}"
+    - "{{ omp_agent_dir }}"
+
+- name: "{{ role_name }} | Check repo omp config"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/config.yml"
+    checksum_algorithm: sha256
+  register: omp_repo_config
+  failed_when: not omp_repo_config.stat.exists
+
+- name: "{{ role_name }} | Check installed omp config"
+  ansible.builtin.stat:
+    path: "{{ omp_config_path }}"
+    follow: false
+    checksum_algorithm: sha256
+  register: omp_installed_config
+
+- name: "{{ role_name }} | Refuse to overwrite unmanaged omp config"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_config_path }} is a regular file and differs from
+      {{ role_path }}/files/config.yml. Copy the live changes into the repo file
+      before re-running the role, or remove the file to allow the managed symlink.
+  when:
+    - omp_installed_config.stat.exists
+    - omp_installed_config.stat.isreg | default(false)
+    - omp_installed_config.stat.checksum != omp_repo_config.stat.checksum
+
+- name: "{{ role_name }} | Link default omp config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/config.yml"
+    dest: "{{ omp_config_path }}"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Deploy global OMP guidance"
+  ansible.builtin.copy:
+    src: AGENTS.md
+    dest: "{{ omp_agent_dir }}/AGENTS.md"
+    mode: "0644"
+
+- name: "{{ role_name }} | Deploy global OMP skills"
+  ansible.builtin.copy:
+    src: skills/
+    dest: "{{ omp_agent_dir }}/skills/"
+    mode: "0644"
+    directory_mode: "0755"
+
+- name: "{{ role_name }} | Validate default omp config"
+  ansible.builtin.command:
+    argv:
+      - "{{ omp_real_bin }}"
+      - config
+      - list
+  environment:
+    PI_CONFIG_DIR: ""
+    PI_CODING_AGENT_DIR: ""
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - omp_binary.stat.exists or (omp_install is defined and omp_install.rc == 0)

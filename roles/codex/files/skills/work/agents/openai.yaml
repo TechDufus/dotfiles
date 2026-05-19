@@ -1,4 +1,7 @@
 interface:
-  display_name: "Work Router"
-  short_description: "Coordinate non-trivial work"
-  default_prompt: "Use $work to classify this task and choose the right execution mode."
+  display_name: "Work"
+  short_description: "Route complex work with focus"
+  default_prompt: "Use $work to route this complex engineering task into the smallest effective execution shape."
+
+policy:
+  allow_implicit_invocation: false

@@ -1,58 +1,41 @@
 ---
 name: work
-description: Coordinate non-trivial engineering work with the right level of analysis, planning, delegation, implementation, and validation. Use for multi-step requests, multi-file changes, or work that benefits from explicit execution strategy.
+description: Use when the user explicitly invokes $work or asks for execution strategy for complex engineering work with unclear scope, dependent steps, or separable workstreams.
 metadata:
-  short-description: Coordinate non-trivial work
+  short-description: Route complex work
 ---
 
 # Work
 
-Use this skill for non-trivial engineering tasks. Choose the lightest execution mode that
-preserves quality. Keep this skill focused on routing and execution strategy; rely on broader
-agent instructions for general operating policy.
+Route complex work into the smallest execution shape that preserves evidence, focus, and
+momentum. Do not duplicate narrower skills; let debugging, TDD, review, PR, or platform-specific
+skills own their lanes.
 
-## Use It To
+## First Pass
 
-- classify work as quick, research, structured, parallel, or orchestrated
-- decide when planning or delegation is warranted
-- enforce validation and clear closeout reporting
+- Outcome: name the concrete deliverable.
+- Scope: identify files, systems, and non-goals.
+- Evidence: find the source of truth before editing.
+- Risk: decide what can break and how to check it.
 
-## Modifiers
+## Mode
 
-- `--status`: summarize current work from `AGENTS.md` and relevant git state; do not edit files
-- `--quick`: skip deep analysis and execute directly
-- `--structured`: force plan-first sequential execution
-- `--parallel`: force independent subtasks only; fall back if write scopes overlap
-- `--orchestrate`: allow multi-wave decomposition for large tasks
+- `quick`: one obvious local step. Execute directly.
+- `research`: user needs location, explanation, or confidence. Inspect source and answer.
+- `structured`: dependent steps or multi-file edits. Use `update_plan`, then work sequentially.
+- `parallel`: independent units with disjoint write scopes. Delegate only sidecar tasks when
+  permitted; keep the blocking path local.
+- `orchestrated`: large, staged work. Decompose into waves; wait only when blocked.
+- `unclear`: ambiguity risks the outcome. Ask the smallest question.
 
-## Workflow
+## Noise Filter
 
-1. Parse the task and any modifiers.
-2. If `--status` is present, read `AGENTS.md`, summarize active work if present, add a short git
-   snapshot if useful, and stop.
-3. If no override was provided, classify the task using
-   [references/mode-reference.md](references/mode-reference.md).
-4. For substantial work, report the chosen mode and core reasoning briefly before execution.
-5. Execute by mode:
-   - **Quick**: handle locally with minimal ceremony.
-   - **Research**: prefer local inspection or a read-heavy subagent when it materially speeds up
-     discovery.
-   - **Structured**: call `update_plan`, execute sequentially, and validate after major steps.
-   - **Parallel**: split into 2-3 independent units with disjoint write scopes and delegate only
-     bounded tasks with explicit ownership.
-   - **Orchestrated**: decompose into waves, keep the critical path local, and only wait on
-     delegated work when blocked.
-6. Validate using [references/validation-reference.md](references/validation-reference.md).
-7. Finish with outcome, verification status, and unresolved risks.
+- No plan for a one-step fix.
+- No broad repo tour before the owning file or API is checked.
+- No delegation for trivial or blocking work.
+- No unrelated cleanup, refactor, or commentary.
+- No completion claim without evidence.
 
-## Rules
+## Closeout
 
-- Keep this skill focused on classification, decomposition, delegation, and validation.
-- Do not over-orchestrate simple tasks.
-- Do not delegate blocking work that should be handled locally right now.
-- Keep delegated prompts minimal: objective, context, constraints, success criteria, output.
-- When using subagents, assign disjoint ownership and require summary, files touched, and
-  verification.
-- If delegated work conflicts, fails validation, or overlaps in write scope, fall back to
-  local structured execution.
-- Ask clarifying questions only when ambiguity would materially risk the result.
+Report what changed, what verified it, and any remaining risk or unverified edge.

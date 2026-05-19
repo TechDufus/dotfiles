@@ -5,6 +5,10 @@ omp_manage_install: true
 omp_package: "@oh-my-pi/pi-coding-agent"
 omp_package_version: latest
 omp_bun_bin: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+omp_bun_candidate_bins:
+  - "{{ omp_bun_bin }}"
+  - /opt/homebrew/bin/bun
+  - /usr/local/bin/bun
 omp_real_bin: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/omp"
 
 # Use omp's documented default home. Do not set PI_CONFIG_DIR/PI_CODING_AGENT_DIR

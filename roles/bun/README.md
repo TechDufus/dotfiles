@@ -14,16 +14,17 @@ Ansible role for installing [Bun](https://bun.sh/) - a fast all-in-one JavaScrip
 ## What Gets Installed
 
 - **Bun runtime** - Fast JavaScript/TypeScript runtime, bundler, and package manager
+- **Shared Bun global packages** - JavaScript-distributed LSP servers used by agent/editor roles
 - **Ubuntu**: Installed to `~/.bun/bin/bun` via official script
 - **macOS**: Installed via the official `oven-sh/bun` Homebrew tap
 
 ## Configuration
 
-Optional global packages can be configured in `group_vars/all.yml`:
+Default global packages are managed in `roles/bun/defaults/main.yml`.
+Additional packages can be configured in `group_vars/all.yml`:
 
 ```yaml
-bun_global_packages:
-  - typescript
+bun_extra_packages:
   - prettier
 ```
 

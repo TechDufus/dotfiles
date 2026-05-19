@@ -1,8 +1,22 @@
 ---
-- name: "{{ role_name }} | Check if bun is installed"
+- name: "{{ role_name }} | Check bun candidate binaries"
   ansible.builtin.stat:
-    path: "{{ omp_bun_bin }}"
-  register: omp_bun
+    path: "{{ item }}"
+  loop: "{{ omp_bun_candidate_bins | unique }}"
+  register: omp_bun_candidates
+
+- name: "{{ role_name }} | Select bun binary"
+  ansible.builtin.set_fact:
+    omp_effective_bun_bin: >-
+      {{
+        (
+          omp_bun_candidates.results
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | first
+        )
+        | default('')
+      }}
 
 - name: "{{ role_name }} | Check managed omp binary"
   ansible.builtin.stat:
@@ -12,7 +26,7 @@
 - name: "{{ role_name }} | Install omp via bun"
   ansible.builtin.command:
     argv:
-      - "{{ omp_bun_bin }}"
+      - "{{ omp_effective_bun_bin }}"
       - install
       - -g
       - "{{ omp_package }}{{ ('@' ~ omp_package_version) if (omp_package_version | string) != 'latest' else '' }}"
@@ -20,7 +34,7 @@
   changed_when: omp_install.rc == 0
   when:
     - omp_manage_install | bool
-    - omp_bun.stat.exists
+    - omp_effective_bun_bin | length > 0
     - not omp_binary.stat.exists
 
 - name: "{{ role_name }} | Warn if bun is not installed"
@@ -28,7 +42,7 @@
     msg: "WARNING: bun is not installed. Run the bun role before omp or set omp_manage_install=false and provide omp_real_bin."
   when:
     - omp_manage_install | bool
-    - not omp_bun.stat.exists
+    - omp_effective_bun_bin | length == 0
 
 - name: "{{ role_name }} | Ensure default config directories exist"
   ansible.builtin.file:
@@ -96,4 +110,4 @@
   changed_when: false
   when:
     - not ansible_check_mode
-    - omp_binary.stat.exists or (omp_install is defined and omp_install.rc == 0)
+    - omp_binary.stat.exists or (omp_install.rc | default(1)) == 0

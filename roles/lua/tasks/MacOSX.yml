@@ -7,3 +7,4 @@
     - lua
     - luarocks
     - luajit
+    - lua-language-server

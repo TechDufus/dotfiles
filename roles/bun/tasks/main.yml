@@ -7,3 +7,55 @@
 - name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Select bun binary"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ bun_bin_candidates | unique }}"
+  register: bun_binary_candidates
+
+- name: "{{ role_name }} | Set selected bun binary"
+  ansible.builtin.set_fact:
+    bun_effective_bin: >-
+      {{
+        (
+          bun_binary_candidates.results
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | first
+        )
+        | default('')
+      }}
+
+- name: "{{ role_name }} | Warn if bun is unavailable for global packages"
+  ansible.builtin.debug:
+    msg: "WARNING: bun is not installed. Global Bun packages were skipped."
+  when:
+    - (bun_global_packages + bun_extra_packages) | length > 0
+    - bun_effective_bin | length == 0
+
+- name: "{{ role_name }} | Check Bun global package directories"
+  ansible.builtin.stat:
+    path: "{{ bun_global_node_modules_dir }}/{{ bun_global_package }}"
+  loop: "{{ bun_global_packages + bun_extra_packages }}"
+  loop_control:
+    loop_var: bun_global_package
+    label: "{{ bun_global_package }}"
+  register: bun_global_package_dirs
+  when: bun_effective_bin | length > 0
+
+- name: "{{ role_name }} | Install Bun global packages"
+  ansible.builtin.command:
+    argv:
+      - "{{ bun_effective_bin }}"
+      - install
+      - -g
+      - "{{ bun_global_package_dir.bun_global_package }}"
+  loop: "{{ bun_global_package_dirs.results | default([]) }}"
+  loop_control:
+    loop_var: bun_global_package_dir
+    label: "{{ bun_global_package_dir.bun_global_package }}"
+  changed_when: true
+  when:
+    - bun_effective_bin | length > 0
+    - not bun_global_package_dir.stat.exists

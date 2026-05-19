@@ -5,6 +5,7 @@ theme:
   dark: "dark-catppuccin"
 symbolPreset: "nerd"
 defaultThinkingLevel: "xhigh"
+hideThinkingBlock: true
 serviceTier: "none"
 disabledProviders:
   - "claude"
@@ -67,6 +68,7 @@ inspect_image:
 task:
   maxConcurrency: 12
   maxRecursionDepth: 2
+  eager: true
   isolation:
     mode: "none"
     merge: "patch"

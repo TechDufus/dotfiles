@@ -2,9 +2,31 @@
 # Bun JavaScript runtime defaults
 # https://bun.sh/
 
-# Global packages to install with bun
-# Example:
-# bun_global_packages:
-#   - typescript
+# Shared Bun global packages. Keep JavaScript-distributed language servers here
+# instead of scattering them across agent roles.
+bun_global_packages:
+  - typescript
+  - typescript-language-server
+  - yaml-language-server
+  - bash-language-server
+  - pyright
+  - "@ansible/ansible-language-server"
+  - dockerfile-language-server-nodejs
+  - "@tailwindcss/language-server"
+  - "@astrojs/language-server"
+  - graphql-language-service-cli
+  - svelte-language-server
+
+# Additional packages can be added in group_vars/all.yml like:
+# bun_extra_packages:
 #   - prettier
-bun_global_packages: []
+bun_extra_packages: []
+
+bun_bin_candidates:
+  - "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+  - /opt/homebrew/bin/bun
+  - /usr/local/bin/bun
+  - /usr/bin/bun
+bun_install_root: >-
+  {{ ansible_facts['env']['BUN_INSTALL'] | default(ansible_facts['env']['HOME'] ~ '/.bun', true) }}
+bun_global_node_modules_dir: "{{ bun_install_root }}/install/global/node_modules"

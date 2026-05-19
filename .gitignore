@@ -26,6 +26,7 @@ roles/claude/files/skills/peon-ping-*/
 
 # Ansible cache/runtime directories
 .ansible/
+.omp/
 
 # Logs
 logs

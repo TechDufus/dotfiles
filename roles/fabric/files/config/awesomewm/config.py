@@ -29,9 +29,6 @@ from fabric.utils import get_relative_path
 HOME = Path.home()
 AI_STATUS_PATH = HOME / ".cache" / "ai-usage-monitor" / "status.json"
 AI_PROVIDER_PREF_PATH = HOME / ".cache" / "ai-usage-monitor" / "provider.txt"
-CODEX_SESSION_DIR = HOME / ".codex" / "sessions"
-CODEX_SESSION_FILE_LIMIT = 12
-CODEX_SESSION_TAIL_BYTES = 512 * 1024
 MAX_TASK_LABELS = 5
 BAR_HEIGHT = 37
 TASK_ACTION_MENU_WIDTH = 286
@@ -61,9 +58,9 @@ AI_PROVIDER_DEFS = {
     "codex": {
         "label": "Codex",
         "metrics": [
-            ("session", "Session"),
-            ("weekly", "Weekly"),
-            ("five_hour", "Session (5h)"),
+            ("session", "5h Window"),
+            ("weekly", "Weekly (7d)"),
+            ("five_hour", "5h Window"),
             ("seven_day", "Weekly (7d)"),
         ],
     },
@@ -421,14 +418,6 @@ def format_reset_text(iso: object, now_epoch: float | None = None) -> str:
     return f"resets in {duration_text(remaining)} ({local_time_text(reset_epoch)})"
 
 
-def metric_percent_value(metric: object) -> object:
-    if not isinstance(metric, dict):
-        return None
-    for key in ("used_percent", "utilization", "percentage", "percent", "usage"):
-        value = metric.get(key)
-        if value is not None:
-            return value
-    return None
 
 
 def network_label_from_interface(interface: str) -> str:
@@ -1356,6 +1345,14 @@ def ai_metric_rows(data: object, provider_key: str, now_epoch: float | None = No
         seen_keys.add(metric_key)
     return rows
 
+def primary_percent_from_rows(rows: list[dict[str, object]]) -> float | None:
+    best = None
+    for row in rows:
+        value = as_number(row.get("percent"))
+        if value is not None and (best is None or value > best):
+            best = value
+    return best
+
 
 def claude_credit_row(data: object) -> dict[str, object] | None:
     if not isinstance(data, dict):
@@ -1401,7 +1398,7 @@ def ai_dashboard_model(data: object, provider: str, now_epoch: float | None = No
     elif not rows:
         status_messages.append(f"{provider_label} usage unavailable")
 
-    primary_percent = rows[0]["percent"] if rows else None
+    primary_percent = primary_percent_from_rows(rows)
     return {
         "active_provider": active_provider,
         "title": f"{provider_label} Usage",
@@ -1415,17 +1412,16 @@ def ai_dashboard_model(data: object, provider: str, now_epoch: float | None = No
     }
 
 
-def ai_compact_usage_from_status(data: object, provider: str, live_codex: str | None = None) -> str:
+def ai_compact_usage_from_status(data: object, provider: str) -> str:
     active_provider = normalize_ai_provider(provider)
-    if active_provider == "codex" and live_codex is not None:
-        return live_codex
+    status = data
 
-    rows = ai_metric_rows(data, active_provider)
+    rows = ai_metric_rows(status, active_provider)
     if not rows:
-        if ai_provider_status_pending(data, active_provider):
+        if ai_provider_status_pending(status, active_provider):
             return "..."
         return "--"
-    return percent_display(rows[0].get("percent"))
+    return percent_display(primary_percent_from_rows(rows))
 
 
 def ai_provider_status_pending(data: object, active_provider: str) -> bool:
@@ -1442,26 +1438,6 @@ def ai_provider_status_pending(data: object, active_provider: str) -> bool:
     return False
 
 
-def percent_number_from_text(text: str | None) -> float | None:
-    if not text:
-        return None
-    match = re.search(r"(\d+(?:\.\d+)?)\s*%", text)
-    return as_number(match.group(1)) if match else None
-
-
-def status_with_live_codex_usage(data: object, live_codex: str | None) -> object:
-    percent = percent_number_from_text(live_codex)
-    if percent is None or not isinstance(data, dict):
-        return data
-    updated = copy.deepcopy(data)
-    codex = updated.setdefault("codex", {})
-    if not isinstance(codex, dict):
-        return data
-    session = codex.setdefault("session", {})
-    if isinstance(session, dict):
-        session["utilization"] = percent
-    codex["available"] = True
-    return updated
 
 
 def ai_status_data() -> object:
@@ -1472,13 +1448,7 @@ def ai_status_data() -> object:
 
 
 def current_ai_summary() -> dict[str, object]:
-    summary = ai_summary_from_status(ai_status_data())
-    provider = load_ai_provider_preference()
-    live_codex = codex_live_usage_text() if provider == "codex" else None
-    if provider == "codex" and live_codex is not None:
-        summary["provider"] = "codex"
-        summary["session"] = live_codex
-    return summary
+    return ai_summary_from_status(ai_status_data())
 
 
 def restart_ai_usage_monitor() -> None:
@@ -1509,94 +1479,16 @@ def open_ai_usage_url(provider: str) -> None:
     run_command(["xdg-open", url])
 
 
-def codex_usage_from_rate_limits(rate_limits: object) -> str | None:
-    if isinstance(rate_limits, list):
-        for item in reversed(rate_limits):
-            usage = codex_usage_from_rate_limits(item)
-            if usage is not None:
-                return usage
-        return None
-
-    if not isinstance(rate_limits, dict):
-        return None
-
-    limit_id = rate_limits.get("limit_id")
-    if limit_id not in (None, "codex"):
-        return None
-
-    for source in (rate_limits.get("primary"), rate_limits.get("session"), rate_limits):
-        value = metric_percent_value(source)
-        if value is not None:
-            return percent_text(value)
-    return None
-
-
-def codex_usage_text_from_lines(lines: list[str]) -> str | None:
-    for line in reversed(lines):
-        if "token_count" not in line or "rate_limit" not in line:
-            continue
-        try:
-            event = json.loads(line)
-        except Exception:
-            continue
-        if not isinstance(event, dict) or event.get("type") != "event_msg":
-            continue
-
-        payload = event.get("payload")
-        if not isinstance(payload, dict) or payload.get("type") != "token_count":
-            continue
-
-        info = payload.get("info") if isinstance(payload.get("info"), dict) else {}
-        rate_limits = info.get("rate_limits") or payload.get("rate_limits")
-        usage = codex_usage_from_rate_limits(rate_limits)
-        if usage is not None:
-            return usage
-    return None
-
-
-def recent_codex_session_files(session_dir: Path = CODEX_SESSION_DIR) -> list[Path]:
-    try:
-        files = [path for path in session_dir.rglob("*.jsonl") if path.is_file()]
-    except Exception:
-        return []
-
-    def file_mtime(path: Path) -> float:
-        try:
-            return path.stat().st_mtime
-        except Exception:
-            return 0
-
-    return sorted(files, key=file_mtime, reverse=True)[:CODEX_SESSION_FILE_LIMIT]
-
-
-def tail_lines(path: Path, max_bytes: int = CODEX_SESSION_TAIL_BYTES) -> list[str]:
-    try:
-        with path.open("rb") as handle:
-            handle.seek(0, 2)
-            size = handle.tell()
-            handle.seek(max(0, size - max_bytes))
-            return handle.read().decode("utf-8", errors="replace").splitlines()
-    except Exception:
-        return []
-
-
-def codex_live_usage_text() -> str | None:
-    for path in recent_codex_session_files():
-        usage = codex_usage_text_from_lines(tail_lines(path))
-        if usage is not None:
-            return usage
-    return None
 
 
 def ai_usage_text() -> str:
     provider = load_ai_provider_preference()
-    live_codex = codex_live_usage_text() if provider == "codex" else None
     try:
         data = json.loads(AI_STATUS_PATH.read_text())
     except Exception:
         data = {}
 
-    return ai_compact_usage_from_status(data, provider, live_codex=live_codex)
+    return ai_compact_usage_from_status(data, provider)
 
 
 def run_self_check() -> int:
@@ -2037,8 +1929,7 @@ class AIUsagePopout(MonitorWindow):
 
     def refresh(self) -> None:
         provider = load_ai_provider_preference()
-        live_codex = codex_live_usage_text() if provider == "codex" else None
-        status = status_with_live_codex_usage(ai_status_data(), live_codex)
+        status = ai_status_data()
         model = ai_dashboard_model(status, provider)
         children = [
             self.header(model),

@@ -62,6 +62,25 @@ assert_json "$claude_error" '.claude.error' 'token_expired'
 assert_json "$claude_error" '.codex.error' 'inactive'
 assert_json "$claude_error" '.errors[0]' 'token_expired'
 
+codex_usage_payload='{"plan_type":"pro","rate_limit":{"primary_window":{"used_percent":23,"limit_window_seconds":18000,"reset_at":1779163225},"secondary_window":{"used_percent":15,"limit_window_seconds":604800,"reset_at":1779571181}}}'
+codex_usage_json="$(codex_json_from_usage_response "$codex_usage_payload")"
+assert_json "$codex_usage_json" '.error // "ok"' 'ok'
+assert_json "$codex_usage_json" '.session.utilization' '23'
+assert_json "$codex_usage_json" '.weekly.utilization' '15'
+assert_json "$codex_usage_json" '.session.resets_at' '2026-05-19T04:00:25Z'
+assert_json "$codex_usage_json" '.weekly.resets_at' '2026-05-23T21:19:41Z'
+
+session_dir="$HOME/.codex/sessions/2026/05/16"
+mkdir -p "$session_dir"
+older_session="$session_dir/rollout-2026-05-16T15-47-40-older.jsonl"
+newer_session="$session_dir/rollout-2026-05-16T15-31-40-newer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"token_count","rate_limits":{"limit_id":"codex","primary":{"used_percent":0},"secondary":{"used_percent":0}}}}' > "$older_session"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"token_count","rate_limits":{"limit_id":"codex","primary":{"used_percent":0},"secondary":{"used_percent":10}}}}' > "$newer_session"
+touch -d '2026-05-16 20:54:11 UTC' "$older_session"
+touch -d '2026-05-18 23:08:53 UTC' "$newer_session"
+latest_codex_rate="$(find_codex_rate_limits)"
+assert_json "$latest_codex_rate" '.secondary.used_percent' '10'
+
 stable_status='{"active_provider":"codex","codex":{"available":true,"session":{"utilization":5},"weekly":null,"error":null},"claude":{"available":false,"error":"inactive"},"errors":[]}'
 printf '%s\n' "$stable_status" > "$STATUS_FILE"
 ( cleanup )

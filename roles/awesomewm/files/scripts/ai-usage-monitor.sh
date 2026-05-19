@@ -13,6 +13,8 @@ STATUS_FILE="$CACHE_DIR/status.json"
 PROVIDER_FILE="$CACHE_DIR/provider.txt"
 CREDENTIALS_FILE="$HOME/.claude/.credentials.json"
 API_URL="https://api.anthropic.com/api/oauth/usage"
+CODEX_AUTH_FILE="$HOME/.codex/auth.json"
+CODEX_API_URL="https://chatgpt.com/backend-api/wham/usage"
 
 # ---------------------------------------------------------------------------
 # Logging helper – all output goes to stderr with a timestamp
@@ -71,9 +73,13 @@ find_codex_rate_limits() {
     return 1
   fi
 
-  # Paths are date-structured (YYYY/MM/DD) and filenames contain ISO-ish time,
-  # so reverse lexical sort gives most recent files first.
-  mapfile -t session_files < <(find "$session_dir" -type f -name '*.jsonl' 2>/dev/null | LC_ALL=C sort -r)
+  # Sessions can be resumed, so filename time is not necessarily the newest
+  # usage sample. Sort by mtime and inspect the most recently written files first.
+  mapfile -t session_files < <(
+    find "$session_dir" -type f -name '*.jsonl' -printf '%T@\t%p\n' 2>/dev/null |
+      LC_ALL=C sort -nr |
+      cut -f2-
+  )
   if [[ ${#session_files[@]} -eq 0 ]]; then
     return 1
   fi
@@ -110,9 +116,93 @@ find_codex_rate_limits() {
   return 1
 }
 
+codex_json_from_usage_response() {
+  local body="$1"
+
+  jq -n \
+    --argjson usage "$body" '
+      def reset_epoch($w):
+        if $w.reset_at != null then
+          ($w.reset_at | tonumber)
+        elif $w.reset_after_seconds != null then
+          (now + ($w.reset_after_seconds | tonumber))
+        else
+          null
+        end;
+
+      def fmt_window($w):
+        if ($w | type) != "object" then
+          null
+        else
+          {
+            utilization: ($w.used_percent // null),
+            resets_at: (
+              reset_epoch($w) as $reset
+              | if $reset == null then
+                  null
+                else
+                  ($reset | gmtime | strftime("%Y-%m-%dT%H:%M:%SZ"))
+                end
+            )
+          }
+        end;
+
+      {
+        available: true,
+        session: (fmt_window($usage.rate_limit.primary_window)),
+        weekly: (fmt_window($usage.rate_limit.secondary_window)),
+        plan_type: ($usage.plan_type // null),
+        error: null
+      }
+    '
+}
+
+codex_section_from_api() {
+  local token account response http_code body codex_json
+  local -a headers
+
+  if [[ ! -f "$CODEX_AUTH_FILE" ]]; then
+    return 1
+  fi
+
+  token="$(jq -r '.tokens.access_token // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
+  if [[ -z "$token" ]]; then
+    return 1
+  fi
+
+  account="$(jq -r '.tokens.account_id // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
+  headers=(
+    -H "Authorization: Bearer ${token}"
+    -H "User-Agent: OpenCode-Status-Plugin/1.0"
+  )
+  if [[ -n "$account" ]]; then
+    headers+=(-H "ChatGPT-Account-Id: ${account}")
+  fi
+
+  response="$(curl -s -w "\n%{http_code}" --max-time 15 "${headers[@]}" "$CODEX_API_URL" 2>/dev/null)" || return 1
+  http_code="$(tail -n1 <<< "$response")"
+  body="$(sed '$d' <<< "$response")"
+  if [[ "$http_code" != "200" || -z "$body" ]]; then
+    return 1
+  fi
+
+  codex_json="$(codex_json_from_usage_response "$body" 2>/dev/null || true)"
+  if [[ -z "$codex_json" || "$codex_json" == "null" ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "$codex_json"
+}
+
+
 codex_section() {
   local rate_limits codex_json
 
+  codex_json="$(codex_section_from_api 2>/dev/null || true)"
+  if [[ -n "$codex_json" && "$codex_json" != "null" ]]; then
+    printf '%s\n' "$codex_json"
+    return
+  fi
   rate_limits="$(find_codex_rate_limits 2>/dev/null || true)"
   if [[ -z "$rate_limits" || "$rate_limits" == "null" ]]; then
     cat <<'CODEX'

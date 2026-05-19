@@ -34,7 +34,6 @@ PYTHONDONTWRITEBYTECODE=1 "$python_bin" - "$config_path" "$tmpdir/status.json" "
 from __future__ import annotations
 
 import importlib.util
-import json
 import pathlib
 import re
 import sys
@@ -54,7 +53,6 @@ config_source = config_path.read_text()
 module.AI_STATUS_PATH = status_path
 module.AI_PROVIDER_PREF_PATH = status_path.parent / "provider.txt"
 module.AI_PROVIDER_PREF_PATH.write_text("codex\n")
-module.codex_live_usage_text = lambda: None
 assert module.launcher_command() == ["awesome-client", "awesome.emit_signal('techdufus::launcher_root')"]
 assert module.settings_command() == ["awesome-client", "awesome.emit_signal('techdufus::launcher_settings')"]
 assert module.ai_usage_text() == "13%"
@@ -133,31 +131,6 @@ module.StatusBar.set_fullscreen_visibility(dummy_bar, "visible")
 assert dummy_bar.hidden_for_fullscreen is False
 assert dummy_bar.show_count == 1
 
-codex_rate_limits = {
-    "limit_id": "codex",
-    "primary": {
-        "used_percent": 42.0,
-        "resets_at": 1778679000,
-    },
-    "secondary": {
-        "used_percent": 3.0,
-        "resets_at": 1779283800,
-    },
-}
-token_count_line = json.dumps(
-    {
-        "type": "event_msg",
-        "payload": {
-            "type": "token_count",
-            "info": {
-                "rate_limits": codex_rate_limits,
-            },
-        },
-    }
-)
-assert module.codex_usage_from_rate_limits(codex_rate_limits) == "42%"
-assert module.codex_usage_text_from_lines(["{}", token_count_line]) == "42%"
-assert module.codex_usage_from_rate_limits({"limit_id": "codex", "primary": {"used_percent": 0.0}}) == "0%"
 
 ai_summary = module.ai_summary_from_status(
     {
@@ -234,7 +207,7 @@ codex_model = module.ai_dashboard_model(dashboard_status, "codex", now_epoch=177
 assert codex_model["active_provider"] == "codex"
 assert codex_model["title"] == "Codex Usage"
 assert codex_model["status_messages"] == []
-assert [row["label"] for row in codex_model["rows"]] == ["Session", "Weekly"]
+assert [row["label"] for row in codex_model["rows"]] == ["5h Window", "Weekly (7d)"]
 assert codex_model["rows"][0]["percent_text"] == "13%"
 assert codex_model["rows"][0]["severity"] == "cool"
 assert codex_model["rows"][0]["reset_text"].startswith("resets in 1h 01m")
@@ -258,14 +231,30 @@ stale_claude_status = {
 codex_pending_model = module.ai_dashboard_model(stale_claude_status, "codex", now_epoch=1778691912)
 assert codex_pending_model["rows"] == []
 assert codex_pending_model["status_messages"] == ["Refreshing Codex usage..."]
-assert module.ai_compact_usage_from_status(stale_claude_status, "codex", live_codex=None) == "..."
+assert module.ai_compact_usage_from_status(stale_claude_status, "codex") == "..."
 
-assert module.ai_compact_usage_from_status(dashboard_status, "codex", live_codex="42%") == "42%"
-assert module.ai_compact_usage_from_status(dashboard_status, "codex", live_codex=None) == "13%"
-assert module.ai_compact_usage_from_status(dashboard_status, "claude", live_codex="42%") == "--"
-live_model = module.ai_dashboard_model(module.status_with_live_codex_usage(dashboard_status, "42%"), "codex", now_epoch=1778691912)
-assert live_model["rows"][0]["percent_text"] == "42%"
-assert live_model["primary_percent_text"] == "42%"
+assert module.ai_compact_usage_from_status(dashboard_status, "codex") == "13%"
+assert module.ai_compact_usage_from_status(dashboard_status, "claude") == "--"
+api_codex_status = {
+    "timestamp": "2026-05-13T16:53:06Z",
+    "claude": {
+        "available": False,
+        "five_hour": None,
+        "error": "inactive",
+    },
+    "codex": {
+        "available": True,
+        "session": {"utilization": 0.0, "resets_at": "2026-05-13T18:06:12Z"},
+        "weekly": {"utilization": 10.0, "resets_at": "2026-05-19T01:20:52Z"},
+        "error": None,
+    },
+    "errors": [],
+}
+api_status_model = module.ai_dashboard_model(api_codex_status, "codex", now_epoch=1778691912)
+assert api_status_model["rows"][0]["percent_text"] == "0%"
+assert api_status_model["rows"][1]["percent_text"] == "10%"
+assert api_status_model["primary_percent_text"] == "10%"
+assert module.ai_compact_usage_from_status(api_codex_status, "codex") == "10%"
 
 scheduled_refreshes = []
 refresh_calls = []
@@ -282,21 +271,10 @@ assert scheduled_refreshes == list(module.AI_PROVIDER_SWITCH_REFRESH_DELAYS_MS)
 assert refresh_calls == [False, False]
 
 module.AI_PROVIDER_PREF_PATH.write_text("claude\n")
-live_scan_calls = {"count": 0}
-
-
-def fail_if_live_codex_scans():
-    live_scan_calls["count"] += 1
-    raise AssertionError("Codex live scanner should not run while Claude is active")
-
-
-module.codex_live_usage_text = fail_if_live_codex_scans
 assert module.ai_usage_text() == "--"
-assert live_scan_calls["count"] == 0
 
 module.AI_PROVIDER_PREF_PATH.write_text("codex\n")
-module.codex_live_usage_text = lambda: "42%"
-assert module.ai_usage_text() == "42%"
+assert module.ai_usage_text() == "13%"
 
 awesome_stdout = '''   string "fabric\tConfig.py\tfalse\t41943040\tfalse
 Family - HomeLab - 1Password\t1Password\tfalse\t41943041\tfalse

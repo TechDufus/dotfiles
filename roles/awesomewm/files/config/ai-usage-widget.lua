@@ -48,9 +48,9 @@ function M.create(colors, fonts, spacing, icons)
             session_keys = { "session", "five_hour" },
             weekly_keys = { "weekly", "seven_day" },
             metrics = {
-                { key = "session", label = "Session" },
-                { key = "five_hour", label = "Session (5h)" },
-                { key = "weekly", label = "Weekly" },
+                { key = "session", label = "5h Window" },
+                { key = "five_hour", label = "5h Window" },
+                { key = "weekly", label = "Weekly (7d)" },
                 { key = "seven_day", label = "Weekly (7d)" },
             },
         },
@@ -284,11 +284,16 @@ function M.create(colors, fonts, spacing, icons)
         local def = provider_defs[provider_key]
         if not provider or not def then return nil end
 
+        local best_pct = nil
         for _, key in ipairs(def.compact_keys) do
             local pct = metric_pct(get_metric(provider, key))
-            if pct ~= nil then
-                return pct
+            if pct ~= nil and (best_pct == nil or pct > best_pct) then
+                best_pct = pct
             end
+        end
+
+        if best_pct ~= nil then
+            return best_pct
         end
 
         return as_number(provider.utilization)

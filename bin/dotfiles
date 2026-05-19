@@ -93,11 +93,11 @@ done
 cleanup() {
   # Kill spinner if running
   if [[ $SPINNER_PID != "" ]]; then
-    kill $SPINNER_PID 2>/dev/null
-    wait $SPINNER_PID 2>/dev/null
+    kill $SPINNER_PID 2>/dev/null || true
+    wait $SPINNER_PID 2>/dev/null || true
   fi
   # Show cursor
-  tput cnorm
+  tput cnorm 2>/dev/null || true
 }
 
 # Set trap to cleanup on exit
@@ -167,16 +167,16 @@ _spinner() {
   local delay=0.08
 
   # Hide cursor
-  tput civis
+  tput civis 2>/dev/null || true
 
   # Save cursor position
-  tput sc
+  tput sc 2>/dev/null || true
 
   while true; do
     for char in "${chars[@]}"; do
       # Restore cursor position and clear line
-      tput rc
-      tput el
+      tput rc 2>/dev/null || true
+      tput el 2>/dev/null || true
       printf "${CAT_OVERLAY1} [${CAT_SAPPHIRE}${char}${CAT_OVERLAY1}]  ${CAT_TEXT}${task_text}" >&2
       sleep $delay
     done
@@ -198,7 +198,7 @@ __task() {
   SPINNER_PID=$!
 
   # Disable job control messages
-  disown $SPINNER_PID 2>/dev/null
+  disown $SPINNER_PID 2>/dev/null || true
 }
 
 # _cmd performs commands with error checking
@@ -216,13 +216,13 @@ _cmd() {
   else
     # Kill spinner if running
     if [[ $SPINNER_PID != "" ]]; then
-      kill $SPINNER_PID 2>/dev/null
-      wait $SPINNER_PID 2>/dev/null
+      kill $SPINNER_PID 2>/dev/null || true
+      wait $SPINNER_PID 2>/dev/null || true
       SPINNER_PID=""
     fi
 
     # Show cursor again
-    tput cnorm
+    tput cnorm 2>/dev/null || true
 
     # Clear the line and show error
     printf "\r\033[K${CAT_RED} [✗]  ${CAT_TEXT}${TASK}${NC}\n"
@@ -248,13 +248,13 @@ _clear_task() {
 _task_done() {
   # Kill spinner if running
   if [[ $SPINNER_PID != "" ]]; then
-    kill $SPINNER_PID 2>/dev/null
-    wait $SPINNER_PID 2>/dev/null
+    kill $SPINNER_PID 2>/dev/null || true
+    wait $SPINNER_PID 2>/dev/null || true
     SPINNER_PID=""
   fi
 
   # Show cursor again
-  tput cnorm
+  tput cnorm 2>/dev/null || true
 
   # Clear line and show success
   printf "\r\033[K${CAT_GREEN} [✓]  ${CAT_TEXT}${TASK}\n"

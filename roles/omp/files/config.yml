@@ -5,6 +5,15 @@ theme:
   dark: "dark-catppuccin"
 symbolPreset: "nerd"
 defaultThinkingLevel: "xhigh"
+
+contextPromotion:
+  enabled: false
+
+compaction:
+  enabled: true
+  strategy: "context-full"
+  thresholdPercent: 50
+
 hideThinkingBlock: true
 serviceTier: "none"
 disabledProviders:

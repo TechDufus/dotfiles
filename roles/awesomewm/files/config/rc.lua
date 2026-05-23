@@ -256,6 +256,114 @@ local function decrease_brightness()
   end
 end
 
+local fullscreen_pointer_lock_active = false
+local fullscreen_pointer_lock_timer
+
+local function should_lock_fullscreen_pointer(c)
+  return c
+    and c.valid
+    and c.fullscreen
+    and not c.minimized
+    and not c.hidden
+    and c.type == "normal"
+    and c:isvisible()
+end
+
+local function confine_pointer_to_screen(s)
+  if not s then return end
+
+  local g = s.geometry
+  local coords = mouse.coords()
+  local x = coords.x
+  local y = coords.y
+  local max_x = g.x + g.width - 1
+  local max_y = g.y + g.height - 1
+
+  if x < g.x then
+    x = g.x
+  elseif x > max_x then
+    x = max_x
+  end
+
+  if y < g.y then
+    y = g.y
+  elseif y > max_y then
+    y = max_y
+  end
+
+  if x ~= coords.x or y ~= coords.y then
+    mouse.coords({ x = x, y = y })
+  end
+end
+
+local function update_fullscreen_pointer_lock()
+  local c = client.focus
+
+  if should_lock_fullscreen_pointer(c) then
+    confine_pointer_to_screen(c.screen)
+
+    if not fullscreen_pointer_lock_active then
+      fullscreen_pointer_lock_active = true
+      fullscreen_pointer_lock_timer:start()
+    end
+  elseif fullscreen_pointer_lock_active then
+    fullscreen_pointer_lock_active = false
+    fullscreen_pointer_lock_timer:stop()
+  end
+end
+
+fullscreen_pointer_lock_timer = gears.timer({
+  timeout = 0.02,
+  callback = function()
+    local c = client.focus
+
+    if should_lock_fullscreen_pointer(c) then
+      confine_pointer_to_screen(c.screen)
+    else
+      fullscreen_pointer_lock_active = false
+      fullscreen_pointer_lock_timer:stop()
+    end
+  end,
+})
+
+-- Some X11 fullscreen clients (notably Minecraft/LWJGL) minimize themselves
+-- after XF86 media keys even when Awesome handles the global keybinding.
+-- Restore the originally focused fullscreen client after system-key handlers run.
+local function restore_fullscreen_client(c)
+  if not c or not c.valid then return end
+
+  if c.minimized then
+    c.minimized = false
+  end
+
+  if not c.fullscreen then
+    c.fullscreen = true
+  end
+
+  c:emit_signal("request::activate", "fullscreen-system-key", { raise = true })
+  c:raise()
+  update_fullscreen_pointer_lock()
+end
+
+local function run_preserving_fullscreen(action)
+  local focused = client.focus
+  local should_restore = focused and focused.valid and focused.fullscreen
+
+  action()
+
+  if not should_restore then return end
+
+  local function restore()
+    restore_fullscreen_client(focused)
+    return false
+  end
+
+  gears.timer.delayed_call(restore)
+  gears.timer.start_new(0.15, restore)
+  gears.timer.start_new(0.60, restore)
+end
+
+
 -- {{{ Wibar
 local tasklist_buttons = gears.table.join(
   awful.button({}, 1, function(c)
@@ -417,49 +525,71 @@ globalkeys = gears.table.join(
 
   -- Volume control keys routed through the active wibar controller
   awful.key({}, "XF86AudioRaiseVolume", function()
-    increase_volume(5)
+    run_preserving_fullscreen(function()
+      increase_volume(5)
+    end)
   end, { description = "increase volume", group = "media" }),
 
   awful.key({}, "XF86AudioLowerVolume", function()
-    decrease_volume(5)
+    run_preserving_fullscreen(function()
+      decrease_volume(5)
+    end)
   end, { description = "decrease volume", group = "media" }),
 
   awful.key({}, "XF86AudioMute", function()
-    toggle_volume()
+    run_preserving_fullscreen(function()
+      toggle_volume()
+    end)
   end, { description = "toggle mute", group = "media" }),
 
   awful.key({}, "XF86AudioMicMute", function()
-    awful.spawn("pactl set-source-mute @DEFAULT_SOURCE@ toggle")
+    run_preserving_fullscreen(function()
+      awful.spawn("pactl set-source-mute @DEFAULT_SOURCE@ toggle")
+    end)
   end, { description = "toggle mic mute", group = "media" }),
 
   -- Brightness control keys routed through the active wibar controller
   awful.key({}, "XF86MonBrightnessUp", function()
-    increase_brightness()
+    run_preserving_fullscreen(function()
+      increase_brightness()
+    end)
   end, { description = "increase brightness", group = "media" }),
 
   awful.key({}, "XF86MonBrightnessDown", function()
-    decrease_brightness()
+    run_preserving_fullscreen(function()
+      decrease_brightness()
+    end)
   end, { description = "decrease brightness", group = "media" }),
 
   -- Media control keys
   awful.key({}, "XF86AudioPlay", function()
-    awful.spawn("playerctl play-pause")
+    run_preserving_fullscreen(function()
+      awful.spawn("playerctl play-pause")
+    end)
   end, { description = "play/pause", group = "media" }),
 
   awful.key({}, "XF86AudioPause", function()
-    awful.spawn("playerctl pause")
+    run_preserving_fullscreen(function()
+      awful.spawn("playerctl pause")
+    end)
   end, { description = "pause", group = "media" }),
 
   awful.key({}, "XF86AudioNext", function()
-    awful.spawn("playerctl next")
+    run_preserving_fullscreen(function()
+      awful.spawn("playerctl next")
+    end)
   end, { description = "next track", group = "media" }),
 
   awful.key({}, "XF86AudioPrev", function()
-    awful.spawn("playerctl previous")
+    run_preserving_fullscreen(function()
+      awful.spawn("playerctl previous")
+    end)
   end, { description = "previous track", group = "media" }),
 
   awful.key({}, "XF86AudioStop", function()
-    awful.spawn("playerctl stop")
+    run_preserving_fullscreen(function()
+      awful.spawn("playerctl stop")
+    end)
   end, { description = "stop", group = "media" }),
 
   -- Screenshot keys
@@ -802,4 +932,11 @@ end)
 
 client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
 client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
+client.connect_signal("focus", update_fullscreen_pointer_lock)
+client.connect_signal("unfocus", update_fullscreen_pointer_lock)
+client.connect_signal("unmanage", update_fullscreen_pointer_lock)
+client.connect_signal("property::fullscreen", update_fullscreen_pointer_lock)
+client.connect_signal("property::hidden", update_fullscreen_pointer_lock)
+client.connect_signal("property::minimized", update_fullscreen_pointer_lock)
+screen.connect_signal("property::geometry", update_fullscreen_pointer_lock)
 -- }}}

@@ -18,6 +18,42 @@
     state: directory
     mode: "0755"
 
+- name: "{{ role_name }} | Ubuntu | Ensure systemd user directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/systemd/user"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ubuntu | Deploy AI usage monitor script"
+  ansible.builtin.copy:
+    src: "{{ role_path | dirname }}/awesomewm/files/scripts/ai-usage-monitor.sh"
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/ai-usage-monitor.sh"
+    mode: "0755"
+  register: fabric_ai_monitor_script
+
+- name: "{{ role_name }} | Ubuntu | Deploy AI usage monitor service"
+  ansible.builtin.copy:
+    src: "{{ role_path | dirname }}/awesomewm/files/systemd/ai-usage-monitor.service"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/ai-usage-monitor.service"
+    mode: "0644"
+  register: fabric_ai_monitor_service
+
+- name: "{{ role_name }} | Ubuntu | Enable and start AI usage monitor service"
+  ansible.builtin.systemd:
+    name: ai-usage-monitor.service
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: "{{ role_name }} | Ubuntu | Restart AI usage monitor after updates"
+  ansible.builtin.systemd:
+    name: ai-usage-monitor.service
+    scope: user
+    state: restarted
+    daemon_reload: true
+  when: fabric_ai_monitor_script.changed or fabric_ai_monitor_service.changed
+
 - name: "{{ role_name }} | Ubuntu | Install uv"
   ansible.builtin.command:
     argv:

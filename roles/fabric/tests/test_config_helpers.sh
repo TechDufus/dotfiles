@@ -5,6 +5,10 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 python_bin="${FABRIC_TEST_PYTHON:-$HOME/.local/share/fabric-awesomewm/venv/bin/python}"
 config_path="$repo_root/roles/fabric/files/config/awesomewm/config.py"
 css_path="$repo_root/roles/fabric/files/config/awesomewm/style.css"
+tasks_path="$repo_root/roles/fabric/tasks/Ubuntu.yml"
+defaults_path="$repo_root/roles/fabric/defaults/main.yml"
+monitor_script_path="$repo_root/roles/awesomewm/files/scripts/ai-usage-monitor.sh"
+monitor_service_path="$repo_root/roles/awesomewm/files/systemd/ai-usage-monitor.service"
 
 if [ ! -x "$python_bin" ]; then
   echo "missing test Python: $python_bin" >&2
@@ -637,3 +641,10 @@ PY
 bash -n "$repo_root/roles/fabric/files/bin/fabric-awesomewm"
 grep -q -- "--replace" "$repo_root/roles/fabric/files/bin/fabric-awesomewm"
 grep -q "pkill -u" "$repo_root/roles/fabric/files/bin/fabric-awesomewm"
+grep -q "awesomewm/files/scripts/ai-usage-monitor.sh" "$tasks_path"
+grep -q "awesomewm/files/systemd/ai-usage-monitor.service" "$tasks_path"
+grep -q "name: ai-usage-monitor.service" "$tasks_path"
+grep -q "  - curl" "$defaults_path"
+grep -q "  - jq" "$defaults_path"
+bash -n "$monitor_script_path"
+grep -q "ExecStart=%h/.local/bin/ai-usage-monitor.sh" "$monitor_service_path"

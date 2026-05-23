@@ -25,6 +25,7 @@ On Ubuntu this role:
 - installs Fabric from `Fabric-Development/fabric` into that venv
 - deploys `~/.config/fabric/awesomewm`
 - deploys `~/.local/bin/fabric-awesomewm`
+- deploys and starts `ai-usage-monitor.service` for the AI usage status pill
 - writes `~/.config/awesome/fabric-ui-enabled` after the launcher, Fabric import,
   and config self-check pass
 

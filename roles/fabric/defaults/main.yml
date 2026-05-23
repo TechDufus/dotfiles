@@ -10,7 +10,9 @@ fabric_enable_awesomewm_ui: true
 
 fabric_ubuntu_packages:
   - build-essential
+  - curl
   - git
+  - jq
   - pipx
   - pkg-config
   - python3

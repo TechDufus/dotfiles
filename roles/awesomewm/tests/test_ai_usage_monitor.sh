@@ -81,6 +81,43 @@ touch -d '2026-05-18 23:08:53 UTC' "$newer_session"
 latest_codex_rate="$(find_codex_rate_limits)"
 assert_json "$latest_codex_rate" '.secondary.used_percent' '10'
 
+printf '{"tokens":{"access_token":"expired-token","account_id":"test-account"}}\n' > "$CODEX_AUTH_FILE"
+mock_bin="$tmpdir/bin"
+mkdir -p "$mock_bin"
+cat > "$mock_bin/curl" <<'SH'
+#!/usr/bin/env bash
+printf '{"error":{"code":"token_expired"}}\n401'
+SH
+chmod +x "$mock_bin/curl"
+codex_api_error="$(PATH="$mock_bin:$PATH" codex_section)"
+assert_json "$codex_api_error" '.available' 'false'
+assert_json "$codex_api_error" '.error' 'codex_token_expired'
+
+printf '{"tokens":{"access_token":"expired-token","refresh_token":"refresh-token","account_id":"test-account"}}\n' > "$CODEX_AUTH_FILE"
+mock_refresh_bin="$tmpdir/bin-refresh"
+mock_state_dir="$tmpdir/mock-state"
+mkdir -p "$mock_refresh_bin" "$mock_state_dir"
+cat > "$mock_refresh_bin/curl" <<'SH'
+#!/usr/bin/env bash
+last_arg="${*: -1}"
+if [[ "$last_arg" == *"/oauth/token" ]]; then
+  printf '{"access_token":"fresh-token","refresh_token":"fresh-refresh"}\n200'
+elif [[ -f "$MOCK_STATE_DIR/usage-retried" ]]; then
+  printf '{"plan_type":"pro","rate_limit":{"primary_window":{"used_percent":31,"reset_after_seconds":60},"secondary_window":{"used_percent":9,"reset_after_seconds":120}}}\n200'
+else
+  touch "$MOCK_STATE_DIR/usage-retried"
+  printf '{"error":{"code":"token_expired"}}\n401'
+fi
+SH
+chmod +x "$mock_refresh_bin/curl"
+codex_refreshed="$(MOCK_STATE_DIR="$mock_state_dir" PATH="$mock_refresh_bin:$PATH" codex_section)"
+assert_json "$codex_refreshed" '.available' 'true'
+assert_json "$codex_refreshed" '.session.utilization' '31'
+assert_json "$codex_refreshed" '.weekly.utilization' '9'
+auth_after_refresh="$(jq -c . "$CODEX_AUTH_FILE")"
+assert_json "$auth_after_refresh" '.tokens.access_token' 'fresh-token'
+assert_json "$auth_after_refresh" '.tokens.refresh_token' 'fresh-refresh'
+
 stable_status='{"active_provider":"codex","codex":{"available":true,"session":{"utilization":5},"weekly":null,"error":null},"claude":{"available":false,"error":"inactive"},"errors":[]}'
 printf '%s\n' "$stable_status" > "$STATUS_FILE"
 ( cleanup )

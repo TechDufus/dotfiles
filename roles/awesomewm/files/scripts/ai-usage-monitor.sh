@@ -15,6 +15,8 @@ CREDENTIALS_FILE="$HOME/.claude/.credentials.json"
 API_URL="https://api.anthropic.com/api/oauth/usage"
 CODEX_AUTH_FILE="$HOME/.codex/auth.json"
 CODEX_API_URL="https://chatgpt.com/backend-api/wham/usage"
+CODEX_REFRESH_URL="https://auth.openai.com/oauth/token"
+CODEX_CLIENT_ID="app_EMoamEEZ73f0CkXaXp7hrann"
 
 # ---------------------------------------------------------------------------
 # Logging helper – all output goes to stderr with a timestamp
@@ -157,32 +159,116 @@ codex_json_from_usage_response() {
     '
 }
 
+codex_api_error_name() {
+  local http_code="$1"
+  local body="${2:-}"
+  local api_code
+
+  api_code="$(jq -r '.error.code // .code // empty' <<< "$body" 2>/dev/null || true)"
+  case "$api_code" in
+    token_expired)
+      printf 'codex_token_expired\n'
+      ;;
+    invalid_api_key|unauthorized|forbidden)
+      printf 'codex_%s\n' "$api_code"
+      ;;
+    *)
+      printf 'codex_api_%s\n' "$http_code"
+      ;;
+  esac
+}
+
+refresh_codex_token() {
+  local refresh_token request response http_code body access_token new_refresh_token id_token tmp last_refresh
+
+  refresh_token="$(jq -r '.tokens.refresh_token // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
+  if [[ -z "$refresh_token" ]]; then
+    return 1
+  fi
+
+  request="$(jq -n \
+    --arg client_id "$CODEX_CLIENT_ID" \
+    --arg refresh_token "$refresh_token" \
+    '{client_id:$client_id,grant_type:"refresh_token",refresh_token:$refresh_token}')"
+  response="$(printf '%s' "$request" | curl -s -w "\n%{http_code}" --max-time 15 \
+    -H "Content-Type: application/json" \
+    --data @- \
+    "$CODEX_REFRESH_URL" 2>/dev/null)" || return 1
+  http_code="$(tail -n1 <<< "$response")"
+  body="$(sed '$d' <<< "$response")"
+  if [[ "$http_code" != "200" || -z "$body" ]]; then
+    return 1
+  fi
+
+  access_token="$(jq -r '.access_token // empty' <<< "$body" 2>/dev/null || true)"
+  if [[ -z "$access_token" ]]; then
+    return 1
+  fi
+  new_refresh_token="$(jq -r '.refresh_token // empty' <<< "$body" 2>/dev/null || true)"
+  id_token="$(jq -r '.id_token // empty' <<< "$body" 2>/dev/null || true)"
+  last_refresh="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  tmp="$(mktemp "${CODEX_AUTH_FILE}.XXXXXX")" || return 1
+
+  if jq \
+    --arg access_token "$access_token" \
+    --arg refresh_token "$new_refresh_token" \
+    --arg id_token "$id_token" \
+    --arg last_refresh "$last_refresh" \
+    '
+      .tokens.access_token = $access_token
+      | if $refresh_token != "" then .tokens.refresh_token = $refresh_token else . end
+      | if $id_token != "" then .tokens.id_token = $id_token else . end
+      | .last_refresh = $last_refresh
+    ' "$CODEX_AUTH_FILE" > "$tmp"; then
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$CODEX_AUTH_FILE"
+    return 0
+  fi
+
+  rm -f "$tmp"
+  return 1
+}
+
 codex_section_from_api() {
-  local token account response http_code body codex_json
+  local token account response http_code body codex_json attempt
   local -a headers
 
   if [[ ! -f "$CODEX_AUTH_FILE" ]]; then
     return 1
   fi
 
-  token="$(jq -r '.tokens.access_token // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
-  if [[ -z "$token" ]]; then
-    return 1
-  fi
+  for attempt in 0 1; do
+    token="$(jq -r '.tokens.access_token // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
+    if [[ -z "$token" ]]; then
+      return 1
+    fi
 
-  account="$(jq -r '.tokens.account_id // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
-  headers=(
-    -H "Authorization: Bearer ${token}"
-    -H "User-Agent: OpenCode-Status-Plugin/1.0"
-  )
-  if [[ -n "$account" ]]; then
-    headers+=(-H "ChatGPT-Account-Id: ${account}")
-  fi
+    account="$(jq -r '.tokens.account_id // empty' "$CODEX_AUTH_FILE" 2>/dev/null || true)"
+    headers=(
+      -H "Authorization: Bearer ${token}"
+      -H "User-Agent: OpenCode-Status-Plugin/1.0"
+    )
+    if [[ -n "$account" ]]; then
+      headers+=(-H "ChatGPT-Account-Id: ${account}")
+    fi
 
-  response="$(curl -s -w "\n%{http_code}" --max-time 15 "${headers[@]}" "$CODEX_API_URL" 2>/dev/null)" || return 1
-  http_code="$(tail -n1 <<< "$response")"
-  body="$(sed '$d' <<< "$response")"
-  if [[ "$http_code" != "200" || -z "$body" ]]; then
+    response="$(curl -s -w "\n%{http_code}" --max-time 15 "${headers[@]}" "$CODEX_API_URL" 2>/dev/null)" || return 1
+    http_code="$(tail -n1 <<< "$response")"
+    body="$(sed '$d' <<< "$response")"
+
+    if [[ "$http_code" == "200" ]]; then
+      break
+    fi
+
+    if [[ "$http_code" == "401" && "$attempt" -eq 0 ]] && refresh_codex_token; then
+      continue
+    fi
+
+    codex_error_section "$(codex_api_error_name "$http_code" "$body")"
+    return 0
+  done
+
+  if [[ -z "$body" ]]; then
     return 1
   fi
 
@@ -259,10 +345,13 @@ inactive_claude_section() {
   claude_error_section "inactive"
 }
 
+codex_error_section() {
+  local err="$1"
+  printf '{"available":false,"session":null,"weekly":null,"error":"%s"}' "$err"
+}
+
 inactive_codex_section() {
-  cat <<'CODEX'
-{"available":false,"session":null,"weekly":null,"error":"inactive"}
-CODEX
+  codex_error_section "inactive"
 }
 
 # ---------------------------------------------------------------------------
@@ -300,7 +389,7 @@ build_error_output_for_provider() {
   if [[ "$provider" == "claude" ]]; then
     active_json="$(claude_error_section "$err")"
   else
-    active_json="$(printf '{"available":false,"session":null,"weekly":null,"error":"%s"}' "$err")"
+    active_json="$(codex_error_section "$err")"
   fi
   build_output_for_provider "$provider" "$active_json" "[\"$err\"]"
 }

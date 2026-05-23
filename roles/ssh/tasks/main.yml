@@ -14,10 +14,25 @@
     state: directory
     mode: "0700"
 
+- name: "SSH | Build configured GitHub SSH key list"
+  ansible.builtin.set_fact:
+    ssh_github_key_items: >-
+      {{
+        (((op | default({})).ssh | default({})).github | default({}))
+        | dict2items
+        | map(attribute='value')
+        | flatten
+      }}
+  no_log: true
+
 - name: "SSH | Deploy SSH keys from 1Password"
   ansible.builtin.include_tasks: ssh_keys.yml
-  with_items: "{{ op.ssh.github.techdufus }}"
-  when: op_authenticated | default(false)
+  loop: "{{ ssh_github_key_items }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - op_authenticated | default(false)
+    - ssh_github_key_items | length > 0
 
 - name: "SSH | Warning - 1Password not installed"
   ansible.builtin.debug:

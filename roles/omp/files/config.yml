@@ -48,7 +48,8 @@ lsp:
 
 
 startup:
-  checkUpdate: false
+  checkUpdate: true
+collapseChangelog: true
 
 memory:
   backend: "local"

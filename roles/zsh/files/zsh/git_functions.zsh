@@ -13,10 +13,11 @@ ghelp() {
   echo ""
   
   echo -e "${BOLD}${GREEN}Worktree Commands:${NC}"
-  echo -e "  ${YELLOW}gwl${NC}         - List all worktrees with detailed information"
-  echo -e "  ${YELLOW}gwn${NC} <branch> - Create new worktree in <repo>/worktrees/<branch>"
-  echo -e "  ${YELLOW}gwd${NC}         - Interactive worktree deletion"
-  echo -e "  ${YELLOW}gws${NC}         - Interactive worktree switcher"
+  echo -e "  ${YELLOW}wt${NC}          - Worktrunk worktree manager"
+  echo -e "  ${YELLOW}wto${NC} [branch] - Switch/pick worktree and run omp -c"
+  echo -e "  ${YELLOW}wton${NC} <branch>- Create worktree and run omp -c"
+  echo -e "  ${YELLOW}wt.help${NC}     - Show Worktrunk helper usage"
+  echo -e "  ${YELLOW}gw${NC}          - Raw git worktree escape hatch"
   echo ""
 
   echo -e "${BOLD}${GREEN}Git Bisect Commands:${NC}"
@@ -84,10 +85,6 @@ unalias gss 2>/dev/null || true
 unalias gco 2>/dev/null || true
 unalias glog 2>/dev/null || true
 unalias gstash 2>/dev/null || true
-unalias gwl 2>/dev/null || true
-unalias gwn 2>/dev/null || true
-unalias gwd 2>/dev/null || true
-unalias gws 2>/dev/null || true
 
 gss() {
   # Enhanced git status with comprehensive repository information
@@ -367,201 +364,3 @@ gstash() {
     )+abort'
   )
 }
-
-gwl() {
-  # List git worktrees with detailed information
-  
-  # Check if we're in a git repository
-  if ! git rev-parse --git-dir >/dev/null 2>&1; then
-    echo "Error: Not in a git repository"
-    return 1
-  fi
-  
-  
-  echo -e "${BOLD}${BLUE}━━━ Git Worktrees ━━━${NC}\n"
-  
-  # Get current worktree
-  local current_worktree=$(git rev-parse --show-toplevel 2>/dev/null)
-  
-  git worktree list --porcelain | awk -v current="$current_worktree" -v green="$GREEN" -v yellow="$YELLOW" -v cyan="$CYAN" -v magenta="$MAGENTA" -v nc="$NC" -v bold="$BOLD" '
-    /^worktree / { 
-      path = $2
-      is_current = (path == current) ? " (current)" : ""
-    }
-    /^HEAD / { 
-      commit = $2
-    }
-    /^branch / { 
-      branch = $2
-      gsub(/^refs\/heads\//, "", branch)
-    }
-    /^detached/ {
-      branch = "detached HEAD"
-    }
-    /^$/ {
-      if (path) {
-        # Get last commit info
-        cmd = "git -C \"" path "\" log -1 --format=\"%h - %s (%cr) <%an>\" 2>/dev/null"
-        cmd | getline commit_info
-        close(cmd)
-        
-        printf "%s%s%s%s\n", cyan, path, nc, is_current
-        printf "  %sBranch:%s %s%s%s\n", bold, nc, green, branch, nc
-        printf "  %sCommit:%s %s%s%s\n", bold, nc, yellow, commit_info, nc
-        print ""
-      }
-      path = ""; branch = ""; commit = ""
-    }
-  '
-}
-
-gwn() {
-  # Create new git worktree in unified worktrees directory
-  
-  # Check if we're in a git repository
-  if ! git rev-parse --git-dir >/dev/null 2>&1; then
-    echo "Error: Not in a git repository"
-    return 1
-  fi
-  
-  if [ -z "$1" ]; then
-    echo "Usage: gwn <branch-name>"
-    echo "Creates a new worktree in <repo-root>/worktrees/<branch-name>"
-    return 1
-  fi
-  
-  local branch="$1"
-  local repo_root=$(git rev-parse --show-toplevel)
-  local worktrees_dir="${repo_root}/worktrees"
-  local path="${worktrees_dir}/${branch}"
-  
-  # Create worktrees directory if it doesn't exist
-  if [ ! -d "$worktrees_dir" ]; then
-    echo "Creating worktrees directory at: $worktrees_dir"
-    mkdir -p "$worktrees_dir"
-  fi
-  
-  # Check if branch exists
-  if git show-ref --verify --quiet "refs/heads/$branch"; then
-    echo "Creating worktree for existing branch '$branch' at '$path'"
-    git worktree add "$path" "$branch"
-  else
-    echo "Creating worktree with new branch '$branch' at '$path'"
-    git worktree add -b "$branch" "$path"
-  fi
-  
-  if [ $? -eq 0 ]; then
-    echo -e "\nWorktree created successfully!"
-    echo "To switch to it: cd $path"
-    # Add worktrees to .gitignore if not already there
-    if ! grep -q "^/worktrees$" "${repo_root}/.gitignore" 2>/dev/null; then
-      echo -e "\nAdding /worktrees to .gitignore"
-      echo "/worktrees" >> "${repo_root}/.gitignore"
-    fi
-  fi
-}
-
-gwd() {
-  # Interactive git worktree deletion
-  
-  # Check if we're in a git repository
-  if ! git rev-parse --git-dir >/dev/null 2>&1; then
-    echo "Error: Not in a git repository"
-    return 1
-  fi
-  
-  # Get current worktree to exclude it
-  local current_worktree=$(git rev-parse --show-toplevel 2>/dev/null)
-  
-  # Get worktrees (excluding main/current)
-  local worktree=$(git worktree list --porcelain | \
-    awk -v current="$current_worktree" '
-      /^worktree / { 
-        path = $2
-        if (path != current) paths[path] = 1
-      }
-      /^branch / { 
-        if (path in paths) {
-          branch = $2
-          gsub(/^refs\/heads\//, "", branch)
-          branches[path] = branch
-        }
-      }
-      END {
-        for (p in paths) {
-          print p " [" branches[p] "]"
-        }
-      }
-    ' | \
-    fzf --preview='
-      path=$(echo {} | cut -d" " -f1)
-      echo -e "\033[1;34m━━━ WORKTREE: $path ━━━\033[0m\n"
-      git -C "$path" log -5 --oneline --graph --color=always 2>/dev/null
-    ' \
-    --preview-window=right:50% \
-    --header="Select worktree to delete (Enter to confirm)")
-  
-  if [ -n "$worktree" ]; then
-    local path=$(echo "$worktree" | cut -d' ' -f1)
-    echo -n "Delete worktree at '$path'? [y/N] "
-    read -r confirm
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-      git worktree remove "$path"
-      if [ $? -eq 0 ]; then
-        echo "Worktree deleted successfully"
-      fi
-    else
-      echo "Deletion cancelled"
-    fi
-  fi
-}
-
-gws() {
-  # Switch between git worktrees interactively
-  
-  # Check if we're in a git repository
-  if ! git rev-parse --git-dir >/dev/null 2>&1; then
-    echo "Error: Not in a git repository"
-    return 1
-  fi
-  
-  local current_worktree=$(git rev-parse --show-toplevel 2>/dev/null)
-  
-  local selected=$(git worktree list --porcelain | \
-    awk -v current="$current_worktree" '
-      /^worktree / { 
-        path = $2
-        is_current = (path == current) ? " (current)" : ""
-        paths[path] = is_current
-      }
-      /^branch / { 
-        branch = $2
-        gsub(/^refs\/heads\//, "", branch)
-        branches[path] = branch
-      }
-      /^detached/ {
-        branches[path] = "detached HEAD"
-      }
-      END {
-        for (p in paths) {
-          print p " [" branches[p] "]" paths[p]
-        }
-      }
-    ' | \
-    fzf --preview='
-      path=$(echo {} | cut -d" " -f1)
-      echo -e "\033[1;34m━━━ WORKTREE: $path ━━━\033[0m\n"
-      echo -e "\033[1;33mBranch:\033[0m $(echo {} | sed "s/.*\[\(.*\)\].*/\1/")"
-      echo -e "\033[1;32mLast 10 commits:\033[0m"
-      git -C "$path" log -10 --oneline --graph --color=always 2>/dev/null
-    ' \
-    --preview-window=right:60% \
-    --header="Select worktree to switch to")
-  
-  if [ -n "$selected" ]; then
-    local path=$(echo "$selected" | cut -d' ' -f1)
-    cd "$path"
-    echo "Switched to worktree: $path"
-  fi
-}
-

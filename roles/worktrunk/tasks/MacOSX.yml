@@ -1,0 +1,5 @@
+---
+- name: "Worktrunk | MacOSX | Install worktrunk"
+  community.general.homebrew:
+    name: worktrunk
+    state: present

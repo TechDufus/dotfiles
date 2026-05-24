@@ -20,6 +20,7 @@ default_roles:
   - gh
   - ghostty
   - git
+  - worktrunk
   - go
   - hammerspoon
   - helm

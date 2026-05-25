@@ -1,6 +1,13 @@
 # Managed by dotfiles: roles/omp/files/config.yml
 modelRoles:
   default: "openai-codex/gpt-5.5:xhigh"
+  smol: "openai-codex/gpt-5.4-mini"
+  task: "openai-codex/gpt-5.5:high"
+  slow: "openai-codex/gpt-5.5:xhigh"
+  plan: "openai-codex/gpt-5.5:xhigh"
+  designer: "openai-codex/gpt-5.5:high"
+  vision: "openai-codex/gpt-5.5:high"
+  commit: "openai-codex/gpt-5.4-mini"
 theme:
   dark: "dark-catppuccin"
 symbolPreset: "nerd"
@@ -38,6 +45,7 @@ disabledProviders:
   - "windsurf"
   - "vscode"
   - "github"
+  - "amazon-bedrock"
 
 marketplace:
   autoUpdate: "auto"
@@ -87,4 +95,4 @@ commands:
 mcp:
   enableProjectConfig: false
 
-lastChangelogVersion: "15.1.7"
+lastChangelogVersion: "15.3.2"

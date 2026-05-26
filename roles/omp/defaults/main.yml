@@ -17,6 +17,18 @@ omp_config_root: "{{ ansible_facts['env']['HOME'] }}/.omp"
 omp_agent_dir: "{{ omp_config_root }}/agent"
 omp_config_path: "{{ omp_agent_dir }}/config.yml"
 omp_mcp_config_path: "{{ omp_agent_dir }}/mcp.json"
+omp_skills_source: "{{ role_path }}/files/skills"
+omp_skills_dest: "{{ omp_agent_dir }}/skills"
+omp_extensions_source: "{{ role_path }}/files/extensions"
+omp_extensions_dest: "{{ omp_agent_dir }}/extensions"
+
+# Keep the Worktrunk skill updated from upstream instead of vendoring a stale copy.
+omp_worktrunk_skill_enabled: true
+omp_worktrunk_skill_repo: "https://github.com/max-sixty/worktrunk.git"
+omp_worktrunk_skill_version: "main"
+omp_worktrunk_skill_checkout_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/dotfiles/worktrunk"
+omp_worktrunk_skill_source: "{{ omp_worktrunk_skill_checkout_dir }}/skills/worktrunk"
+omp_worktrunk_skill_dest: "{{ omp_skills_dest }}/worktrunk"
 omp_mcp_schema_url: "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json"
 omp_managed_mcp_servers:
   playwright:

@@ -165,10 +165,64 @@
     dest: "{{ omp_agent_dir }}/AGENTS.md"
     mode: "0644"
 
-- name: "{{ role_name }} | Deploy global OMP skills"
+- name: "{{ role_name }} | Skills | Ensure global OMP skills directory exists"
+  ansible.builtin.file:
+    path: "{{ omp_skills_dest }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Skills | Find repo-managed OMP skills"
+  ansible.builtin.find:
+    paths: "{{ omp_skills_source }}"
+    file_type: directory
+    recurse: false
+  register: omp_skill_source_directories
+
+- name: "{{ role_name }} | Skills | Check repo-managed OMP skill destinations"
+  ansible.builtin.stat:
+    path: "{{ omp_skills_dest }}/{{ omp_skill_source_directory.path | basename }}"
+    follow: false
+  loop: "{{ omp_skill_source_directories.files | default([]) }}"
+  loop_control:
+    loop_var: omp_skill_source_directory
+    label: "{{ omp_skill_source_directory.path | basename }}"
+  register: omp_skill_destinations
+
+- name: "{{ role_name }} | Skills | Remove copied OMP skill destinations before symlinking"
+  ansible.builtin.file:
+    path: "{{ omp_skills_dest }}/{{ item.omp_skill_source_directory.path | basename }}"
+    state: absent
+  loop: "{{ omp_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_skill_source_directory.path | basename }}"
+  when:
+    - item.stat.exists
+    - not (item.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Skills | Symlink repo-managed OMP skills"
+  ansible.builtin.file:
+    src: "{{ item.omp_skill_source_directory.path }}"
+    dest: "{{ omp_skills_dest }}/{{ item.omp_skill_source_directory.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ omp_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_skill_source_directory.path | basename }}"
+  when: >-
+    not (
+      ansible_check_mode
+      and item.stat.exists
+      and not (item.stat.islnk | default(false))
+    )
+
+- name: "{{ role_name }} | Skills | Install Worktrunk skill"
+  ansible.builtin.include_tasks: skill_worktrunk.yml
+  when: omp_worktrunk_skill_enabled | bool
+
+- name: "{{ role_name }} | Deploy global OMP extensions"
   ansible.builtin.copy:
-    src: skills/
-    dest: "{{ omp_agent_dir }}/skills/"
+    src: "{{ omp_extensions_source }}/"
+    dest: "{{ omp_extensions_dest }}/"
     mode: "0644"
     directory_mode: "0755"
 

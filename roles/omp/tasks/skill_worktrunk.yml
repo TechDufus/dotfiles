@@ -1,0 +1,63 @@
+---
+- name: "{{ role_name }} | Skills | Ensure Worktrunk skill checkout parent exists"
+  ansible.builtin.file:
+    path: "{{ omp_worktrunk_skill_checkout_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Skills | Update Worktrunk skill checkout"
+  block:
+    - name: "{{ role_name }} | Skills | Clone or update Worktrunk skill checkout"
+      ansible.builtin.git:
+        repo: "{{ omp_worktrunk_skill_repo }}"
+        dest: "{{ omp_worktrunk_skill_checkout_dir }}"
+        version: "{{ omp_worktrunk_skill_version }}"
+        update: true
+        depth: 1
+        single_branch: true
+  rescue:
+    - name: "{{ role_name }} | Skills | Mark Worktrunk skill checkout unavailable"
+      ansible.builtin.set_fact:
+        omp_worktrunk_skill_update_failed: true
+
+- name: "{{ role_name }} | Skills | Check Worktrunk skill source"
+  ansible.builtin.stat:
+    path: "{{ omp_worktrunk_skill_source }}/SKILL.md"
+    follow: false
+  register: omp_worktrunk_skill_source_file
+
+- name: "{{ role_name }} | Skills | Warn when Worktrunk skill is unavailable"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Worktrunk skill checkout could not be updated from
+      {{ omp_worktrunk_skill_repo }}. Existing OMP skills were still deployed.
+  when:
+    - not ansible_check_mode
+    - >-
+      (omp_worktrunk_skill_update_failed | default(false))
+      or not (omp_worktrunk_skill_source_file.stat.exists | default(false))
+
+- name: "{{ role_name }} | Skills | Check Worktrunk skill destination"
+  ansible.builtin.stat:
+    path: "{{ omp_worktrunk_skill_dest }}"
+    follow: false
+  register: omp_worktrunk_skill_destination
+  when: omp_worktrunk_skill_source_file.stat.exists | default(false)
+
+- name: "{{ role_name }} | Skills | Fail when Worktrunk skill destination is unmanaged"
+  ansible.builtin.fail:
+    msg: >-
+      OMP Worktrunk skill destination {{ omp_worktrunk_skill_dest }} exists and
+      is not a symlink. Move or remove it, then rerun `dotfiles -t omp`.
+  when:
+    - omp_worktrunk_skill_source_file.stat.exists | default(false)
+    - omp_worktrunk_skill_destination.stat.exists
+    - not (omp_worktrunk_skill_destination.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Skills | Symlink Worktrunk skill"
+  ansible.builtin.file:
+    src: "{{ omp_worktrunk_skill_source }}"
+    dest: "{{ omp_worktrunk_skill_dest }}"
+    state: link
+    force: true
+  when: omp_worktrunk_skill_source_file.stat.exists | default(false)

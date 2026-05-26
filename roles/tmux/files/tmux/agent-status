@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -u
+
+pane_id="${1:-}"
+[ -n "$pane_id" ] || exit 0
+pane_num="${pane_id#%}"
+[ -n "$pane_num" ] || exit 0
+
+cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+
+read_pid_status() {
+  local file="$1"
+  [ -r "$file" ] || return 1
+
+  local status pid _rest
+  read -r status pid _rest <"$file" || return 1
+
+  case "$status" in
+    working|idle) ;;
+    *) return 1 ;;
+  esac
+
+  if [ -n "${pid:-}" ]; then
+    case "$pid" in
+      *[!0-9]*|'') return 1 ;;
+    esac
+    kill -0 "$pid" 2>/dev/null || return 1
+  fi
+
+  printf '%s\n' "$status"
+}
+
+read_legacy_status() {
+  local file="$1"
+  [ -r "$file" ] || return 1
+
+  local status
+  read -r status <"$file" || return 1
+
+  case "$status" in
+    working|idle)
+      printf '%s\n' "$status"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+read_pid_status "$cache_home/omp-status/pane_${pane_num}.status" && exit 0
+read_legacy_status "$HOME/.cache/claude-status/pane_${pane_num}.status" && exit 0
+
+exit 0

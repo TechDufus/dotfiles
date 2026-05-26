@@ -64,6 +64,9 @@ collapseChangelog: true
 memory:
   backend: "local"
 
+memories:
+  enabled: true
+
 github:
   enabled: true
 
@@ -80,6 +83,12 @@ task:
   eager: true
   isolation:
     mode: "auto"
+
+async:
+  enabled: true
+
+irc:
+  enabled: true
 
 skills:
   enableCodexUser: false

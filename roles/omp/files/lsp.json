@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "ansible-language-server": {
+      "command": "ansible-language-server",
+      "args": ["--stdio"],
+      "fileTypes": [".yml", ".yaml"],
+      "rootMarkers": ["ansible.cfg"]
+    }
+  }
+}

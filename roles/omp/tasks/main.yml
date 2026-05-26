@@ -85,6 +85,38 @@
     state: link
     force: true
 
+- name: "{{ role_name }} | Check repo omp lsp config"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/lsp.json"
+    checksum_algorithm: sha256
+  register: omp_repo_lsp_config
+  failed_when: not omp_repo_lsp_config.stat.exists
+
+- name: "{{ role_name }} | Check installed omp lsp config"
+  ansible.builtin.stat:
+    path: "{{ omp_lsp_config_path }}"
+    follow: false
+    checksum_algorithm: sha256
+  register: omp_installed_lsp_config
+
+- name: "{{ role_name }} | Refuse to overwrite unmanaged omp lsp config"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_lsp_config_path }} is a regular file and differs from
+      {{ role_path }}/files/lsp.json. Copy the live changes into the repo file
+      before re-running the role, or remove the file to allow the managed symlink.
+  when:
+    - omp_installed_lsp_config.stat.exists
+    - omp_installed_lsp_config.stat.isreg | default(false)
+    - omp_installed_lsp_config.stat.checksum != omp_repo_lsp_config.stat.checksum
+
+- name: "{{ role_name }} | Link global omp lsp config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/lsp.json"
+    dest: "{{ omp_lsp_config_path }}"
+    state: link
+    force: true
+
 - name: "{{ role_name }} | Check installed omp mcp config"
   ansible.builtin.stat:
     path: "{{ omp_mcp_config_path }}"

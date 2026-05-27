@@ -104,4 +104,4 @@ commands:
 mcp:
   enableProjectConfig: false
 
-lastChangelogVersion: "15.3.2"
+lastChangelogVersion: "15.5.7"

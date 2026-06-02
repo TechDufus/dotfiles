@@ -1,107 +1,78 @@
-# Managed by dotfiles: roles/omp/files/config.yml
 modelRoles:
-  default: "openai-codex/gpt-5.5:xhigh"
-  smol: "openai-codex/gpt-5.4-mini"
-  task: "openai-codex/gpt-5.5:high"
-  slow: "openai-codex/gpt-5.5:xhigh"
-  plan: "openai-codex/gpt-5.5:xhigh"
-  designer: "openai-codex/gpt-5.5:high"
-  vision: "openai-codex/gpt-5.5:high"
-  commit: "openai-codex/gpt-5.4-mini"
+  default: openai-codex/gpt-5.5:xhigh
+  smol: openai-codex/gpt-5.4-mini
+  task: openai-codex/gpt-5.5:high
+  slow: openai-codex/gpt-5.5:xhigh
+  plan: openai-codex/gpt-5.5:xhigh
+  designer: openai-codex/gpt-5.5:high
+  vision: openai-codex/gpt-5.5:high
+  commit: openai-codex/gpt-5.4-mini
 theme:
-  dark: "dark-catppuccin"
-symbolPreset: "nerd"
+  dark: dark-catppuccin
+symbolPreset: nerd
 display:
-  shimmer: "kitt"
-defaultThinkingLevel: "xhigh"
-
+  shimmer: kitt
+defaultThinkingLevel: xhigh
 contextPromotion:
   enabled: false
-
 compaction:
-  # Context policy notes:
-  # - Prefer compacting on GPT-5.5 instead of promoting to GPT-5.4:
-  #   https://github.com/can1357/oh-my-pi/issues/849
-  # - Keep threshold early. Long goal sessions can reach ~270K/272K tokens
-  #   before context_length_exceeded; upstream reports large/multi-tool turns
-  #   can skip threshold compaction and fall into brittle overflow recovery:
-  #   https://github.com/can1357/oh-my-pi/issues/44
-  #   https://github.com/badlogic/pi-mono/issues/1796
-  # - Native OpenAI remote compaction has failed/aborted locally; keep disabled
-  #   until OMP lands comparable resilience:
-  #   https://github.com/can1357/oh-my-pi/pull/606
   thresholdPercent: 50
   remoteEnabled: false
-
 hideThinkingBlock: true
 disabledProviders:
-  - "claude"
-  - "claude-plugins"
-  - "codex"
-  - "opencode"
-  - "cursor"
-  - "cline"
-  - "gemini"
-  - "windsurf"
-  - "vscode"
-  - "github"
-  - "amazon-bedrock"
-
+  - claude
+  - claude-plugins
+  - codex
+  - opencode
+  - cursor
+  - cline
+  - gemini
+  - windsurf
+  - vscode
+  - github
+  - amazon-bedrock
 marketplace:
-  autoUpdate: "auto"
-
+  autoUpdate: auto
 bashInterceptor:
   enabled: true
-
 edit:
   streamingAbort: true
-
 lsp:
   diagnosticsOnEdit: true
-
 collapseChangelog: true
-
 memory:
-  backend: "local"
-
+  backend: local
 memories:
   enabled: true
-
 github:
   enabled: true
-
 renderMermaid:
   enabled: true
-
 calc:
   enabled: true
-
 inspect_image:
   enabled: true
-
 task:
   eager: true
   isolation:
-    mode: "auto"
-
+    mode: auto
 async:
   enabled: true
-
 irc:
   enabled: true
-
 skills:
   enableCodexUser: false
   enableClaudeUser: false
   enableClaudeProject: false
-
 commands:
   enableClaudeUser: false
   enableClaudeProject: false
   enableOpencodeUser: false
   enableOpencodeProject: false
-
 mcp:
   enableProjectConfig: false
-
-lastChangelogVersion: "15.5.7"
+lastChangelogVersion: 15.8.0
+dev:
+  autoqa:
+    consent: denied
+setupVersion: 1

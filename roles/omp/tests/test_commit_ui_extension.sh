@@ -32,6 +32,10 @@ mod.default(api);
 const command = calls.find(call => call[0] === "command" && call[1] === "commit")?.[2];
 if (!command) throw new Error("commit command was not registered");
 if (typeof command.handler !== "function") throw new Error("commit command missing handler");
+const inputHandler = calls.find(call => call[0] === "event" && call[1] === "input")?.[2];
+if (!inputHandler) throw new Error("natural language commit input handler was not registered");
+const turnEndHandler = calls.find(call => call[0] === "event" && call[1] === "turn_end")?.[2];
+if (!turnEndHandler) throw new Error("turn_end restore handler was not registered");
 
 const promptHome = await mkdtemp(join(tmpdir(), "omp-commit-ui-home-"));
 const originalHome = process.env.HOME;
@@ -39,11 +43,52 @@ try {
   await mkdir(join(promptHome, ".omp", "agent", "skills", "commit"), { recursive: true });
   await writeFile(join(promptHome, ".omp", "agent", "skills", "commit", "SKILL.md"), "HOME_SKILL_SENTINEL: deployed skill text\n");
   process.env.HOME = promptHome;
-  await command.handler("--dry-run --push --accept-risk --model test-model quoted context", {
+  const idleCtx = {
     isIdle: () => true,
     waitForIdle: async () => {},
     ui: { notify: (...args) => actions.push(["notify", ...args]) },
-  });
+  };
+
+  await command.handler("--dry-run --push --accept-risk --model test-model quoted context", idleCtx);
+  const setActiveTools = actions.find(action => action[0] === "setActiveTools");
+  if (!setActiveTools || setActiveTools[1][0] !== "omp_commit") {
+    throw new Error(`commit command did not isolate active tools: ${JSON.stringify(actions)}`);
+  }
+  const sentMessage = actions.find(action => action[0] === "sendMessage");
+  if (!sentMessage) throw new Error("commit command did not send a hidden tool prompt");
+  if (sentMessage[1].display !== false) throw new Error("commit command prompt should be hidden");
+  if (sentMessage[2].deliverAs !== "nextTurn") throw new Error("commit command should deliver hidden prompt as next turn");
+  for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL"]) {
+    if (!sentMessage[1].content.includes(expected)) throw new Error(`commit prompt missing ${expected}`);
+  }
+
+  await turnEndHandler();
+  actions.length = 0;
+
+  const naturalResult = await inputHandler(
+    { type: "input", text: "let's go ahead and commit these changes and push", source: "interactive" },
+    idleCtx,
+  );
+  if (!naturalResult?.handled) throw new Error(`natural language commit request was not handled: ${JSON.stringify(naturalResult)}`);
+  const naturalSetActiveTools = actions.find(action => action[0] === "setActiveTools");
+  if (!naturalSetActiveTools || naturalSetActiveTools[1][0] !== "omp_commit") {
+    throw new Error(`natural language commit request did not isolate active tools: ${JSON.stringify(actions)}`);
+  }
+  const naturalMessage = actions.find(action => action[0] === "sendMessage");
+  if (!naturalMessage) throw new Error("natural language commit request did not send a hidden tool prompt");
+  if (!naturalMessage[1].content.includes("natural language")) throw new Error("natural language prompt did not identify its trigger source");
+  if (naturalMessage[1].details.push !== true) throw new Error(`natural language commit request did not infer push: ${JSON.stringify(naturalMessage[1].details)}`);
+  if (!naturalMessage[1].details.context.includes("go ahead and commit")) throw new Error(`natural language commit request lost context: ${JSON.stringify(naturalMessage[1].details)}`);
+
+  await turnEndHandler();
+  actions.length = 0;
+
+  const messageOnlyResult = await inputHandler(
+    { type: "input", text: "draft a commit message for this change", source: "interactive" },
+    idleCtx,
+  );
+  if (messageOnlyResult?.handled) throw new Error("commit-message-only request should not trigger commit workflow");
+  if (actions.length !== 0) throw new Error(`commit-message-only request unexpectedly mutated extension state: ${JSON.stringify(actions)}`);
 } finally {
   if (originalHome === undefined) {
     delete process.env.HOME;
@@ -51,17 +96,6 @@ try {
     process.env.HOME = originalHome;
   }
   await rm(promptHome, { recursive: true, force: true });
-}
-const setActiveTools = actions.find(action => action[0] === "setActiveTools");
-if (!setActiveTools || setActiveTools[1][0] !== "omp_commit") {
-  throw new Error(`commit command did not isolate active tools: ${JSON.stringify(actions)}`);
-}
-const sentMessage = actions.find(action => action[0] === "sendMessage");
-if (!sentMessage) throw new Error("commit command did not send a hidden tool prompt");
-if (sentMessage[1].display !== false) throw new Error("commit command prompt should be hidden");
-if (sentMessage[2].deliverAs !== "nextTurn") throw new Error("commit command should deliver hidden prompt as next turn");
-for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL"]) {
-  if (!sentMessage[1].content.includes(expected)) throw new Error(`commit prompt missing ${expected}`);
 }
 
 const tool = calls.find(call => call[0] === "tool" && call[1]?.name === "omp_commit")?.[1];

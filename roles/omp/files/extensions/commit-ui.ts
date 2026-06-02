@@ -11,6 +11,21 @@ const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 const CONVENTIONAL_COMMIT_RE = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?: .+/;
 const MUTATING_GIT_VERBS = new Set(["add", "am", "apply", "checkout", "cherry-pick", "clean", "commit", "merge", "mv", "pull", "push", "rebase", "reset", "restore", "revert", "rm", "stash", "switch"]);
 
+const COMMIT_MESSAGE_ONLY_RE = /\b(?:commit message|message for (?:this )?commit|draft (?:a )?commit|suggest (?:a )?commit|write (?:a )?commit message)\b/i;
+const COMMIT_NEGATION_RE = /\b(?:do\s+not|don't|dont)\s+commit\b|\bwithout\s+committing\b|\bnot\s+commit(?:ting)?\b/i;
+const SHOULD_COMMIT_RE = /\bshould\s+i\s+commit\b/i;
+const NATURAL_COMMIT_PATTERNS = [
+	/^\s*(?:(?:please|go ahead and|let(?:'s| us)(?: go ahead and)?)\s+)?commit(?:\b|[\s:])/i,
+	/\b(?:can|could|would|will)\s+you\s+commit\b/i,
+	/\b(?:make|create|cut)\s+(?:a\s+|the\s+|another\s+)?commit\b/i,
+	/\b(?:wrap|finish)\b.{0,80}\bwith\s+(?:a\s+)?commit\b/i,
+	/\b(?:run|use)\s+\/commit\b/i,
+];
+const NATURAL_PUSH_RE = /--push\b|\bcommit\b.{0,40}\band\s+push\b|\band\s+push\b|\bpush\s+(?:it|this|the\s+branch|after(?:wards)?|too|as\s+well)\b/i;
+const NATURAL_NO_PUSH_RE = /--no-push\b|\b(?:do\s+not|don't|dont|no)\s+push\b|\bwithout\s+pushing\b/i;
+const NATURAL_DRY_RUN_RE = /--dry-run\b|\bdry[-\s]?run\b|\bpreview\b/i;
+const NATURAL_ACCEPT_RISK_RE = /--accept-risk\b|\baccept(?:ing)?\s+risk\b/i;
+
 const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
 	{ name: "private key", pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/ },
 	{ name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
@@ -65,6 +80,7 @@ interface ParsedArgs {
 	context: string;
 	model?: string;
 }
+type CommitRequestSource = "slash-command" | "natural-language";
 
 interface GitStatusEntry {
 	code: string;
@@ -173,6 +189,37 @@ export default function commitUi(pi: ExtensionAPI): void {
 		},
 	});
 
+	const startCommitWorkflow = async (parsed: ParsedArgs, source: CommitRequestSource) => {
+		restoreActiveTools = pi.getActiveTools();
+		await pi.setActiveTools([TOOL_NAME]);
+		pi.sendMessage(
+			{
+				customType: "commit-request",
+				content: await buildToolInvocationPrompt(parsed, source),
+				display: false,
+				details: parsed,
+				attribution: "user",
+			},
+			{ triggerTurn: true, deliverAs: "nextTurn" },
+		);
+	};
+
+	pi.on("input", async (event, ctx) => {
+		const parsed = parseNaturalCommitRequest(event.text, event.images, event.source);
+		if (!parsed) return undefined;
+		if (restoreActiveTools) {
+			ctx.ui.notify("A commit workflow is already running.", "warning");
+			return { handled: true };
+		}
+		if (!ctx.isIdle()) {
+			ctx.ui.notify("Commit requests are auto-routed only while idle; run /commit after the current turn finishes.", "warning");
+			return { handled: true };
+		}
+
+		await startCommitWorkflow(parsed, "natural-language");
+		return { handled: true };
+	});
+
 	pi.registerCommand("commit", {
 		description: "Plan from current context, then commit behind one live progress card",
 		handler: async (args, ctx) => {
@@ -187,18 +234,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 				await ctx.waitForIdle();
 			}
 
-			restoreActiveTools = pi.getActiveTools();
-			await pi.setActiveTools([TOOL_NAME]);
-			pi.sendMessage(
-				{
-					customType: "commit-request",
-					content: await buildToolInvocationPrompt(parsed),
-					display: false,
-					details: parsed,
-					attribution: "user",
-				},
-				{ triggerTurn: true, deliverAs: "nextTurn" },
-			);
+			await startCommitWorkflow(parsed, "slash-command");
 		},
 	});
 
@@ -558,7 +594,7 @@ async function loadCommitSkillText(): Promise<string> {
 	].join("\n");
 }
 
-async function buildToolInvocationPrompt(parsed: ParsedArgs): Promise<string> {
+async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitRequestSource): Promise<string> {
 	const skillText = await loadCommitSkillText();
 	const flags = {
 		dryRun: parsed.dryRun,
@@ -566,8 +602,11 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs): Promise<string> {
 		acceptRisk: parsed.acceptRisk,
 		context: parsed.context || undefined,
 	};
+	const triggerDescription = source === "natural-language"
+		? "The user asked to commit in natural language. Use the existing conversation context to plan the commit; do not answer conversationally, start a new session, or start a nested omp process."
+		: "The user invoked /commit. Use the existing conversation context to plan the commit; do not start a new session or a nested omp process.";
 	return [
-		"The user invoked /commit. Use the existing conversation context to plan the commit; do not start a new session or a nested omp process.",
+		triggerDescription,
 		"Call the omp_commit tool exactly once. Do not call git, bash, read, search, or any other tool; omp_commit owns hidden git operations and live UI.",
 		"Commit skill guidance:",
 		skillText.trim(),
@@ -593,8 +632,27 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs): Promise<string> {
 		"- Preserve unrelated user changes. Do not include files just because they are modified.",
 		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, and residual risk.",
 		parsed.model ? `Note: --model ${parsed.model} was provided but /commit now runs in the current session model; do not pass model to the tool.` : "",
-		`Slash-command flags: ${JSON.stringify(flags)}`,
+		`Commit-request flags: ${JSON.stringify(flags)}`,
 	].filter(Boolean).join("\n\n");
+}
+
+function parseNaturalCommitRequest(text: string, images: unknown[] | undefined, source: string): ParsedArgs | undefined {
+	const trimmed = text.trim();
+	if (!trimmed || trimmed.startsWith("/") || source === "extension" || (images?.length ?? 0) > 0) {
+		return undefined;
+	}
+	if (COMMIT_MESSAGE_ONLY_RE.test(trimmed) || COMMIT_NEGATION_RE.test(trimmed) || SHOULD_COMMIT_RE.test(trimmed)) {
+		return undefined;
+	}
+	if (!NATURAL_COMMIT_PATTERNS.some(pattern => pattern.test(trimmed))) {
+		return undefined;
+	}
+
+	const parsed = parseCommitArgs(trimmed);
+	if (NATURAL_DRY_RUN_RE.test(trimmed)) parsed.dryRun = true;
+	if (NATURAL_ACCEPT_RISK_RE.test(trimmed)) parsed.acceptRisk = true;
+	if (!NATURAL_NO_PUSH_RE.test(trimmed) && NATURAL_PUSH_RE.test(trimmed)) parsed.push = true;
+	return parsed;
 }
 
 function parseCommitArgs(input: string): ParsedArgs {

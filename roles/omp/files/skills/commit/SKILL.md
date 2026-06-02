@@ -21,6 +21,12 @@ Only use this skill when the user explicitly requests a commit or commit message
 - Prefer `fix`, `feat`, `refactor`, `docs`, `test`, `chore`, or `ci`.
 - Summary should describe user-visible or maintainer-visible effect, not implementation trivia.
 
+## PR follow-ups
+
+- For follow-up work on an open PR, prefer creating a new commit and pushing normally so review history remains chronological.
+- Do not amend, rebase, squash, or force-push an existing PR branch unless the user explicitly asks to rewrite history.
+- If history rewriting is explicitly requested, use `--force-with-lease`, explain why it is needed, and never use plain `--force`.
+
 ## Hard stops
 - Do not commit secrets.
 - Do not commit unrelated changes without explicit user approval.

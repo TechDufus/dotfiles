@@ -23,6 +23,37 @@ if [[ -f "/opt/homebrew/bin/brew" ]] then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+# tmux can preserve an exported FPATH from an older Homebrew zsh install.
+# Repair fpath before zinit/plugins autoload standard functions.
+typeset +x FPATH
+typeset -gU fpath
+_dotfiles_zsh_function_dirs=(
+  $HOME/.local/share/zsh/site-functions(N-/)
+  $HOME/.local/share/zsh/$ZSH_VERSION/functions(N-/)
+  $HOME/.local/share/zsh/functions(N-/)
+  $HOME/.local/share/zsh/functions/*(N-/)
+  $HOME/.local/share/zsh/functions/*/*(N-/)
+  /usr/local/share/zsh/site-functions(N-/)
+  /opt/homebrew/share/zsh/site-functions(N-/)
+  /usr/share/zsh/site-functions(N-/)
+  /usr/share/zsh/vendor-functions(N-/)
+  /usr/share/zsh/vendor-completions(N-/)
+  /opt/homebrew/opt/zsh/share/zsh/functions(N-/)
+  /usr/local/opt/zsh/share/zsh/functions(N-/)
+  /usr/share/zsh/$ZSH_VERSION/functions(N-/)
+  /usr/share/zsh/functions(N-/)
+  /usr/share/zsh/functions/*(N-/)
+  /usr/share/zsh/functions/*/*(N-/)
+  /usr/local/share/zsh/functions(N-/)
+  /usr/local/share/zsh/functions/*(N-/)
+  /usr/local/share/zsh/functions/*/*(N-/)
+)
+if (( ${#_dotfiles_zsh_function_dirs} )); then
+  fpath=($_dotfiles_zsh_function_dirs $fpath)
+fi
+unset _dotfiles_zsh_function_dirs
+
+
 # Set the directory we want to store zinit and plugins
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
@@ -122,3 +153,6 @@ fi
 # zi is defined by zinit as alias zi='zinit'. Unalias it to use with zoxide
 unalias zi
 eval "$(zoxide init zsh)"
+
+# Keep fpath shell-local so tmux panes never inherit stale zsh function paths.
+typeset +x FPATH

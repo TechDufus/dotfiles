@@ -1,4 +1,4 @@
-modelRoles:
+modelRoles: 
   default: openai-codex/gpt-5.5:xhigh
   smol: openai-codex/gpt-5.4-mini
   task: openai-codex/gpt-5.5:high
@@ -7,19 +7,20 @@ modelRoles:
   designer: openai-codex/gpt-5.5:high
   vision: openai-codex/gpt-5.5:high
   commit: openai-codex/gpt-5.4-mini
-theme:
+theme: 
   dark: dark-catppuccin
 symbolPreset: nerd
-display:
+display: 
   shimmer: kitt
+  showTokenUsage: true
 defaultThinkingLevel: xhigh
-contextPromotion:
+contextPromotion: 
   enabled: false
-compaction:
+compaction: 
   thresholdPercent: 50
   remoteEnabled: false
 hideThinkingBlock: true
-disabledProviders:
+disabledProviders: 
   - claude
   - claude-plugins
   - codex
@@ -31,48 +32,44 @@ disabledProviders:
   - vscode
   - github
   - amazon-bedrock
-marketplace:
+marketplace: 
   autoUpdate: auto
-bashInterceptor:
+bashInterceptor: 
   enabled: true
-edit:
+edit: 
   streamingAbort: true
-lsp:
+lsp: 
   diagnosticsOnEdit: true
 collapseChangelog: true
-memory:
+memory: 
   backend: local
-memories:
+github: 
   enabled: true
-github:
+renderMermaid: 
   enabled: true
-renderMermaid:
+inspect_image: 
   enabled: true
-calc:
-  enabled: true
-inspect_image:
-  enabled: true
-task:
+task: 
   eager: true
-  isolation:
+  showResolvedModelBadge: true
+  isolation: 
     mode: auto
-async:
+async: 
   enabled: true
-irc:
+irc: 
   enabled: true
-skills:
+skills: 
   enableCodexUser: false
   enableClaudeUser: false
   enableClaudeProject: false
-commands:
+commands: 
   enableClaudeUser: false
   enableClaudeProject: false
   enableOpencodeUser: false
   enableOpencodeProject: false
-mcp:
+mcp: 
   enableProjectConfig: false
-lastChangelogVersion: 15.8.0
-dev:
-  autoqa:
-    consent: denied
+lastChangelogVersion: 15.8.3
+dev: 
+  autoqa: false
 setupVersion: 1

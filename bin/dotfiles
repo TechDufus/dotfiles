@@ -77,7 +77,7 @@ if ! command -v tput &> /dev/null; then
   exit 1
 fi
 
-# Early check for help/version flags (before setup)
+# Early check for help/version/debug flags (before setup)
 for arg in "$@"; do
   case $arg in
     -h|--help)
@@ -85,6 +85,9 @@ for arg in "$@"; do
       ;;
     --version)
       SHOW_VERSION=true
+      ;;
+    --detect-os)
+      SHOW_DETECTED_OS=true
       ;;
   esac
 done
@@ -124,6 +127,7 @@ show_help() {
   echo -e "${CAT_BLUE}OPTIONS:${NC}"
   echo -e "    ${CAT_GREEN}-h, --help${NC}              Show this help message"
   echo -e "    ${CAT_GREEN}--version${NC}               Show version information"
+  echo -e "    ${CAT_GREEN}--detect-os${NC}             Print normalized OS identifier and exit"
   echo -e "    ${CAT_GREEN}--uninstall <role>${NC}      Uninstall a role (cleanup only)"
   echo -e "    ${CAT_GREEN}--delete <role>${NC}         Uninstall and delete a role from dotfiles"
   echo -e "    ${CAT_GREEN}-v, -vv, -vvv${NC}           Verbose mode (passed to ansible-playbook)"
@@ -295,33 +299,41 @@ ubuntu_setup() {
 }
 
 arch_setup() {
-  if ! [ -x "$(command -v ansible)" ]; then
-    __task "Installing Ansible (This may take a few minutes)"
-    _cmd "sudo pacman -Sy --noconfirm"
-    _cmd "sudo pacman -S --noconfirm ansible"
-    _cmd "sudo pacman -S --noconfirm python-argcomplete"
-    # _cmd "sudo activate-global-python-argcomplete3"
-  fi
-  if ! pacman -Q python3 >/dev/null 2>&1; then
-    __task "Installing Python3"
-    _cmd "sudo pacman -S --noconfirm python3"
-  fi
-  if ! pacman -Q python-pip >/dev/null 2>&1; then
-    __task "Installing Python3 Pip"
-    _cmd "sudo pacman -S --noconfirm python-pip"
-  fi
-  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-    __task "Installing Python3 Watchdog"
-    _cmd "sudo pacman -S --noconfirm python-watchdog"
+  local packages=()
+
+  if ! command -v ansible >/dev/null 2>&1; then
+    packages+=(ansible python-argcomplete)
   fi
 
-  if ! pacman -Q openssh >/dev/null 2>&1; then
-    __task "Installing OpenSSH"
-    _cmd "sudo pacman -S --noconfirm openssh"
+  if ! command -v python3 >/dev/null 2>&1; then
+    packages+=(python)
   fi
 
-  __task "Setting Locale"
-  _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+  if ! command -v pip3 >/dev/null 2>&1; then
+    packages+=(python-pip)
+  fi
+
+  if ! python3 -c "import watchdog" >/dev/null 2>&1; then
+    packages+=(python-watchdog)
+  fi
+
+  if ! command -v ssh >/dev/null 2>&1; then
+    packages+=(openssh)
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    packages+=(git)
+  fi
+
+  if (( ${#packages[@]} > 0 )); then
+    __task "Installing Arch bootstrap packages"
+    _cmd "sudo pacman -Syu --needed --noconfirm ${packages[*]}"
+  fi
+
+  if command -v localectl >/dev/null 2>&1; then
+    __task "Setting Locale"
+    _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
+  fi
 }
 
 fedora_setup() {
@@ -390,11 +402,47 @@ confirmVaultAccess() {
 }
 
 detect_os() {
-  if [ -f /etc/os-release ]; then
-    source /etc/os-release
-    echo $ID
+  local os_release_file="${DOTFILES_OS_RELEASE:-/etc/os-release}"
+
+  if [ -f "$os_release_file" ]; then
+    local ID=""
+    local ID_LIKE=""
+    local id_lower=""
+    local id_like_lower=""
+    # shellcheck source=/dev/null
+    source "$os_release_file"
+
+    id_lower=$(printf '%s' "$ID" | tr '[:upper:]' '[:lower:]')
+    id_like_lower=$(printf '%s' "$ID_LIKE" | tr '[:upper:]' '[:lower:]')
+
+    case "$id_lower" in
+      ubuntu|fedora)
+        echo "$id_lower"
+        return
+        ;;
+      arch|archlinux|cachyos)
+        echo "arch"
+        return
+        ;;
+    esac
+
+    case " $id_like_lower " in
+      *" arch "*)
+        echo "arch"
+        return
+        ;;
+    esac
+
+    echo "$id_lower"
   else
-    echo $(uname -s | tr '[:upper:]' '[:lower:]')
+    case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+      darwin)
+        echo "darwin"
+        ;;
+      *)
+        uname -s | tr '[:upper:]' '[:lower:]'
+        ;;
+    esac
   fi
 }
 
@@ -416,7 +464,7 @@ print_banner() {
   echo ""
 }
 
-# Handle early exit for help/version (before banner and setup)
+# Handle early exit for help/version/debug flags (before banner and setup)
 if [[ "${SHOW_HELP:-}" == "true" ]]; then
   show_help
   exit 0
@@ -424,6 +472,11 @@ fi
 
 if [[ "${SHOW_VERSION:-}" == "true" ]]; then
   show_version
+  exit 0
+fi
+
+if [[ "${SHOW_DETECTED_OS:-}" == "true" ]]; then
+  detect_os
   exit 0
 fi
 
@@ -445,8 +498,8 @@ case $dotfiles_os in
     macos_setup
     ;;
   *)
-    __task "Unsupported OS"
-    _cmd "echo 'Unsupported OS'"
+    printf "${CAT_RED} [✗]  ${CAT_TEXT}Unsupported OS: %s${NC}\n" "$dotfiles_os"
+    exit 1
     ;;
 esac
 

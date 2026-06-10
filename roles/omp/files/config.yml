@@ -16,8 +16,8 @@ defaultThinkingLevel: xhigh
 contextPromotion: 
   enabled: false
 compaction: 
-  thresholdPercent: 50
-  remoteEnabled: false
+  thresholdPercent: 60
+  remoteEnabled: true
 hideThinkingBlock: true
 disabledProviders: 
   - claude
@@ -68,7 +68,7 @@ commands:
   enableOpencodeProject: false
 mcp: 
   enableProjectConfig: false
-lastChangelogVersion: 15.8.3
+lastChangelogVersion: 15.9.1
 dev: 
   autoqa: false
 setupVersion: 1

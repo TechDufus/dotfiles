@@ -61,6 +61,27 @@ try {
   for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL"]) {
     if (!sentMessage[1].content.includes(expected)) throw new Error(`commit prompt missing ${expected}`);
   }
+  if (sentMessage[1].details.multiCommit !== false) throw new Error(`plain commit command should not request multiple commits: ${JSON.stringify(sentMessage[1].details)}`);
+
+  await turnEndHandler();
+  actions.length = 0;
+
+  await command.handler("everything and push", idleCtx);
+  const slashPushMessage = actions.find(action => action[0] === "sendMessage");
+  if (!slashPushMessage) throw new Error("slash commit push request did not send a hidden tool prompt");
+  if (slashPushMessage[1].details.push !== true) throw new Error(`slash commit request did not infer push from prose: ${JSON.stringify(slashPushMessage[1].details)}`);
+
+  await turnEndHandler();
+  actions.length = 0;
+
+  await command.handler("atomic commits until everything is committed", idleCtx);
+  const atomicMessage = actions.find(action => action[0] === "sendMessage");
+  if (!atomicMessage) throw new Error("atomic commit request did not send a hidden tool prompt");
+  if (atomicMessage[1].details.multiCommit !== true) throw new Error(`atomic commit request did not enable multi-commit mode: ${JSON.stringify(atomicMessage[1].details)}`);
+  if (!atomicMessage[1].content.includes("commits array")) throw new Error("atomic commit prompt did not require grouped commits array");
+  if (!atomicMessage[1].content.includes("exactly once")) throw new Error("atomic commit prompt should keep one tool call");
+  if (atomicMessage[1].content.includes("once per atomic commit")) throw new Error("atomic commit prompt should not request separate tool calls");
+
 
   await turnEndHandler();
   actions.length = 0;
@@ -89,6 +110,13 @@ try {
   );
   if (messageOnlyResult?.handled) throw new Error("commit-message-only request should not trigger commit workflow");
   if (actions.length !== 0) throw new Error(`commit-message-only request unexpectedly mutated extension state: ${JSON.stringify(actions)}`);
+
+  const discussionResult = await inputHandler(
+    { type: "input", text: "I want to review my omp commit extension because waiting to make a commit was too slow; if I say /commit everything and push the extension doesn't push.", source: "interactive" },
+    idleCtx,
+  );
+  if (discussionResult?.handled) throw new Error("commit workflow discussion should not trigger a commit request");
+  if (actions.length !== 0) throw new Error(`commit workflow discussion unexpectedly mutated extension state: ${JSON.stringify(actions)}`);
 } finally {
   if (originalHome === undefined) {
     delete process.env.HOME;
@@ -124,6 +152,32 @@ for (const expected of ["Commit preview", "1 file", "chore(test): update include
   if (!callRendered.includes(expected)) throw new Error(`call render missing ${expected}: ${callRendered}`);
 }
 
+const atomicCallComponent = tool.renderCall(
+  {
+    multiCommit: true,
+    commits: [
+      {
+        files: ["alpha.txt"],
+        commitMessage: "feat(test): add alpha fixture",
+        rationale: "alpha change",
+        verificationEvidence: [{ description: "alpha reviewed", source: "observed" }],
+      },
+      {
+        files: ["beta.txt"],
+        commitMessage: "fix(test): add beta fixture",
+        rationale: "beta change",
+        verificationEvidence: [{ description: "beta reviewed", source: "observed" }],
+      },
+    ],
+  },
+  {},
+  theme,
+);
+const atomicCallRendered = atomicCallComponent.render(160).join("\n");
+for (const expected of ["2 atomic commits", "2 files", "2 commits: feat(test): add alpha fixture; fix(test): add beta fixture"]) {
+  if (!atomicCallRendered.includes(expected)) throw new Error(`atomic call render missing ${expected}: ${atomicCallRendered}`);
+}
+
 const resultComponent = tool.renderResult(
   {
     content: [{ type: "text", text: "Reviewing selected diff" }],
@@ -154,6 +208,55 @@ for (const expected of ["Commit preview", "Reviewing selected diff", "Internal a
   if (!resultRendered.includes(expected)) throw new Error(`result render missing ${expected}: ${resultRendered}`);
 }
 
+const atomicResultComponent = tool.renderResult(
+  {
+    content: [{ type: "text", text: "2 commits created" }],
+    details: {
+      id: "commit-atomic-render-test",
+      status: "succeeded",
+      phase: "2 commits created",
+      startedAt: Date.now(),
+      finishedAt: Date.now(),
+      steps: [],
+      toolCount: 6,
+      failedToolCount: 0,
+      dryRun: false,
+      push: false,
+      acceptRisk: false,
+      multiCommit: true,
+      selectedFiles: ["alpha.txt", "beta.txt"],
+      ignoredFiles: [],
+      verificationCount: 0,
+      verificationEvidence: ["observed: alpha reviewed", "observed: beta reviewed"],
+      commits: [
+        {
+          commitMessage: "feat(test): add alpha fixture",
+          selectedFiles: ["alpha.txt"],
+          verificationCount: 0,
+          verificationEvidence: ["observed: alpha reviewed"],
+          acceptRisk: false,
+          commitHash: "abc1234",
+        },
+        {
+          commitMessage: "fix(test): add beta fixture",
+          selectedFiles: ["beta.txt"],
+          verificationCount: 0,
+          verificationEvidence: ["observed: beta reviewed"],
+          acceptRisk: false,
+          commitHash: "def5678",
+        },
+      ],
+      warnings: [],
+    },
+  },
+  { expanded: false, isPartial: false, spinnerFrame: 0 },
+  theme,
+);
+const atomicResultRendered = atomicResultComponent.render(160).join("\n");
+for (const expected of ["2 atomic commits", "Commits", "abc1234 feat(test): add alpha fixture", "def5678 fix(test): add beta fixture"]) {
+  if (!atomicResultRendered.includes(expected)) throw new Error(`atomic result render missing ${expected}: ${atomicResultRendered}`);
+}
+
 async function run(cwd, command, args) {
   const child = Bun.spawn({ cmd: [command, ...args], cwd, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
   const [stdout, stderr, exitCode] = await Promise.all([
@@ -167,6 +270,7 @@ async function run(cwd, command, args) {
 const git = (cwd, args) => run(cwd, "git", args);
 
 const tmp = await mkdtemp(join(tmpdir(), "omp-commit-ui-test-"));
+const remote = await mkdtemp(join(tmpdir(), "omp-commit-ui-remote-"));
 try {
   await git(tmp, ["init"]);
   await git(tmp, ["config", "user.email", "commit-ui-test@example.invalid"]);
@@ -174,6 +278,9 @@ try {
   await writeFile(join(tmp, "included.txt"), "old\n");
   await git(tmp, ["add", "included.txt"]);
   await git(tmp, ["commit", "-m", "chore(test): initial fixture"]);
+  await git(remote, ["init", "--bare"]);
+  await git(tmp, ["remote", "add", "origin", remote]);
+  await git(tmp, ["push", "-u", "origin", "HEAD"]);
 
   await writeFile(join(tmp, "included.txt"), "new\n");
   await writeFile(join(tmp, "unrelated.txt"), "leave me alone\n");
@@ -205,6 +312,87 @@ try {
   const status = (await git(tmp, ["status", "--porcelain"])).stdout;
   if (!status.includes("?? unrelated.txt")) throw new Error(`unrelated file was not left untouched: ${status}`);
 
+  await writeFile(join(tmp, "push.txt"), "push me\n");
+  const pushed = await tool.execute(
+    "commit-push-test",
+    {
+      files: ["push.txt"],
+      commitMessage: "chore(test): push fixture",
+      rationale: "Exercise push after creating a commit.",
+      verificationEvidence: [{ description: "push fixture reviewed in test", source: "observed" }],
+      dryRun: false,
+      push: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (pushed.isError) throw new Error(`push execution failed: ${JSON.stringify(pushed)}`);
+  if (!pushed.content[0].text.includes("Pushed to remote.")) throw new Error(`push result missing success text: ${JSON.stringify(pushed)}`);
+  const remoteHead = (await git(remote, ["rev-parse", "--short", "HEAD"])).stdout.trim();
+  if (remoteHead !== pushed.details.commitHash) throw new Error(`push did not update remote HEAD: remote=${remoteHead} local=${pushed.details.commitHash}`);
+
+
+  const evidencePreview = await tool.execute(
+    "commit-evidence-test",
+    {
+      files: ["unrelated.txt"],
+      commitMessage: "chore(test): preview prior verification evidence",
+      rationale: "Exercise prior verification evidence without rerunning a command.",
+      verificationEvidence: [{ description: "diff check passed earlier", command: "git", args: ["diff", "--check", "--", "unrelated.txt"], source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (evidencePreview.isError) throw new Error(`verification evidence preview failed: ${JSON.stringify(evidencePreview)}`);
+  if (!evidencePreview.content[0].text.includes("Verification evidence: 1")) {
+    throw new Error(`verification evidence was not reflected in result text: ${JSON.stringify(evidencePreview)}`);
+  }
+  if (!evidencePreview.details.warnings.some(warning => warning.includes("prior verification evidence"))) {
+    throw new Error(`verification evidence warning was not recorded: ${JSON.stringify(evidencePreview.details)}`);
+  }
+
+  await writeFile(join(tmp, "alpha.txt"), "alpha\n");
+  await writeFile(join(tmp, "beta.txt"), "beta\n");
+  const grouped = await tool.execute(
+    "commit-atomic-execute-test",
+    {
+      multiCommit: true,
+      commits: [
+        {
+          files: ["alpha.txt"],
+          commitMessage: "feat(test): add alpha fixture",
+          rationale: "Alpha fixture belongs in its own commit.",
+          verificationEvidence: [{ description: "alpha fixture reviewed in test", source: "observed" }],
+        },
+        {
+          files: ["beta.txt"],
+          commitMessage: "fix(test): add beta fixture",
+          rationale: "Beta fixture belongs in its own commit.",
+          verificationEvidence: [{ description: "beta fixture reviewed in test", source: "observed" }],
+        },
+      ],
+      dryRun: false,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (grouped.isError) throw new Error(`grouped commit execution failed: ${JSON.stringify(grouped)}`);
+  if (!grouped.content[0].text.includes("Commits created: 2.")) throw new Error(`grouped commit result missing summary: ${JSON.stringify(grouped)}`);
+  if (grouped.details.commits.length !== 2) throw new Error(`grouped commit details did not retain both commits: ${JSON.stringify(grouped.details)}`);
+  if (!grouped.details.commits.every(commit => commit.commitHash)) throw new Error(`grouped commits did not record hashes: ${JSON.stringify(grouped.details)}`);
+  const alphaCommitted = (await git(tmp, ["diff", "--name-only", "HEAD~2", "HEAD^"])).stdout.trim();
+  if (alphaCommitted !== "alpha.txt") throw new Error(`first grouped commit touched unexpected files: ${alphaCommitted}`);
+  const betaCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
+  if (betaCommitted !== "beta.txt") throw new Error(`second grouped commit touched unexpected files: ${betaCommitted}`);
+  const groupedRendered = tool.renderResult(grouped, { expanded: false, isPartial: false, spinnerFrame: 0 }, theme).render(160).join("\n");
+  for (const expected of ["2 atomic commits", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
+    if (!groupedRendered.includes(expected)) throw new Error(`grouped result render missing ${expected}: ${groupedRendered}`);
+  }
   await writeFile(join(tmp, "secret.txt"), "api_key = \"" + "a".repeat(12) + "\"\n");
   const blocked = await tool.execute(
     "commit-secret-test",
@@ -224,5 +412,6 @@ try {
   }
 } finally {
   await rm(tmp, { recursive: true, force: true });
+  await rm(remote, { recursive: true, force: true });
 }
 TS

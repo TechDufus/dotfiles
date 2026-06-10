@@ -16,17 +16,29 @@ const COMMIT_NEGATION_RE = /\b(?:do\s+not|don't|dont)\s+commit\b|\bwithout\s+com
 const SHOULD_COMMIT_RE = /\bshould\s+i\s+commit\b/i;
 const NATURAL_COMMIT_PATTERNS = [
 	/^\s*(?:(?:please|go ahead and|let(?:'s| us)(?: go ahead and)?)\s+)?commit(?:\b|[\s:])/i,
-	/\b(?:can|could|would|will)\s+you\s+commit\b/i,
-	/\b(?:make|create|cut)\s+(?:a\s+|the\s+|another\s+)?commit\b/i,
-	/\b(?:wrap|finish)\b.{0,80}\bwith\s+(?:a\s+)?commit\b/i,
-	/\b(?:run|use)\s+\/commit\b/i,
+	/^\s*(?:(?:please|go ahead and)\s+)?(?:make|create|cut)\s+(?:a\s+|the\s+|another\s+)?commit\b/i,
+	/\b(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:commit|(?:make|create|cut)\s+(?:a\s+)?commit)\b/i,
+	/^\s*(?:please\s+)?(?:wrap|finish)\b.{0,80}\bwith\s+(?:a\s+)?commit\b/i,
+	/^\s*(?:please\s+)?(?:run|use)\s+\/commit\b/i,
 ];
 const NATURAL_PUSH_RE = /--push\b|\bcommit\b.{0,40}\band\s+push\b|\band\s+push\b|\bpush\s+(?:it|this|the\s+branch|after(?:wards)?|too|as\s+well)\b/i;
 const NATURAL_NO_PUSH_RE = /--no-push\b|\b(?:do\s+not|don't|dont|no)\s+push\b|\bwithout\s+pushing\b/i;
 const NATURAL_DRY_RUN_RE = /--dry-run\b|\bdry[-\s]?run\b|\bpreview\b/i;
 const NATURAL_ACCEPT_RISK_RE = /--accept-risk\b|\baccept(?:ing)?\s+risk\b/i;
+const NATURAL_ATOMIC_RE = /--atomic\b|\batomic\s+commits?\b|\bmultiple\s+commits?\b|\bsplit\b.{0,40}\bcommits?\b|\bseparate\s+commits?\b/i;
 
-const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
+interface SecretPattern {
+	name: string;
+	pattern: RegExp;
+}
+
+interface SecretScanEntry {
+	file: string;
+	line: number;
+	text: string;
+}
+
+const SECRET_PATTERNS: SecretPattern[] = [
 	{ name: "private key", pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/ },
 	{ name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
 	{ name: "GitHub token", pattern: /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/ },
@@ -51,32 +63,53 @@ interface VerificationPlan {
 	required?: boolean;
 }
 
-interface CommitToolParams {
+interface VerificationEvidence {
+	description: string;
+	command?: string;
+	args?: string[];
+	source?: string;
+}
+
+interface CommitToolCommitParams {
 	files?: string[];
 	commitMessage?: string;
 	rationale?: string;
 	verification?: VerificationPlan[];
-	context?: string;
-	dryRun?: boolean;
-	push?: boolean;
+	verificationEvidence?: VerificationEvidence[];
 	acceptRisk?: boolean;
 }
 
-interface CommitPlan {
+interface CommitToolParams extends CommitToolCommitParams {
+	commits?: CommitToolCommitParams[];
+	context?: string;
+	dryRun?: boolean;
+	push?: boolean;
+	multiCommit?: boolean;
+}
+
+interface CommitSpec {
 	files: string[];
 	commitMessage: string;
 	rationale: string;
 	verification: VerificationPlan[];
+	verificationEvidence: VerificationEvidence[];
+	acceptRisk: boolean;
+}
+
+interface CommitPlan {
+	commits: CommitSpec[];
 	context: string;
 	dryRun: boolean;
 	push: boolean;
 	acceptRisk: boolean;
+	multiCommit: boolean;
 }
 
 interface ParsedArgs {
 	dryRun: boolean;
 	push: boolean;
 	acceptRisk: boolean;
+	multiCommit: boolean;
 	context: string;
 	model?: string;
 }
@@ -93,6 +126,16 @@ interface CommandResult {
 	exitCode: number;
 }
 
+interface CommitResultDetails {
+	commitMessage?: string;
+	rationale?: string;
+	selectedFiles: string[];
+	verificationCount: number;
+	verificationEvidence: string[];
+	acceptRisk: boolean;
+	commitHash?: string;
+}
+
 interface CommitRunDetails {
 	id: string;
 	status: RunStatus;
@@ -105,13 +148,16 @@ interface CommitRunDetails {
 	dryRun: boolean;
 	push: boolean;
 	acceptRisk: boolean;
+	multiCommit: boolean;
 	context?: string;
 	rationale?: string;
 	commitMessage?: string;
 	selectedFiles: string[];
 	ignoredFiles: string[];
 	verificationCount: number;
+	verificationEvidence: string[];
 	commitHash?: string;
+	commits: CommitResultDetails[];
 	finalText?: string;
 	errorText?: string;
 	warnings: string[];
@@ -132,6 +178,27 @@ export default function commitUi(pi: ExtensionAPI): void {
 	let restoreActiveTools: string[] | undefined;
 
 	pi.setLabel?.("commit UI");
+	const verificationParam = z.object({
+		command: z.string().describe("Verification executable, without shell wrapping."),
+		args: z.array(z.string()).optional().describe("Executable arguments."),
+		description: z.string().optional().describe("Short human label for the verification."),
+		required: z.boolean().optional().describe("Reserved for display; failing verification still blocks."),
+	});
+	const verificationEvidenceParam = z.object({
+		description: z.string().describe("Concrete verification already observed in the conversation or explicitly reported by the user."),
+		command: z.string().optional().describe("Executable that produced the evidence, when known."),
+		args: z.array(z.string()).optional().describe("Arguments for the evidence command, when known."),
+		source: z.string().optional().describe("Either observed or user-reported."),
+	});
+	const commitParam = z.object({
+		files: z.array(z.string()).optional().describe("Repo-relative files or directories to include for this commit."),
+		commitMessage: z.string().optional().describe("Conventional commit message for this commit."),
+		rationale: z.string().optional().describe("Why these files and this message belong together."),
+		verification: z.array(verificationParam).optional().describe("Narrow verification commands for this commit."),
+		verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence for this commit."),
+		acceptRisk: z.boolean().optional().describe("Allow this commit without verification only when the user explicitly accepted the risk."),
+	});
+
 
 	pi.registerTool({
 		name: TOOL_NAME,
@@ -142,16 +209,14 @@ export default function commitUi(pi: ExtensionAPI): void {
 			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. Leave empty only to block safely when the current context is insufficient."),
 			commitMessage: z.string().optional().describe("Conventional commit message to use. The first line must be conventional-commit formatted."),
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
-			verification: z.array(z.object({
-				command: z.string().describe("Verification executable, without shell wrapping."),
-				args: z.array(z.string()).optional().describe("Executable arguments."),
-				description: z.string().optional().describe("Short human label for the verification."),
-				required: z.boolean().optional().describe("Reserved for display; failing verification still blocks."),
-			})).optional().describe("Narrow verification commands to run before staging/committing."),
+			verification: z.array(verificationParam).optional().describe("Narrow verification commands to run before staging/committing."),
+			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
+			commits: z.array(commitParam).optional().describe("Atomic commit plans to execute inside this single tool call. Use for multi-commit requests."),
 			context: z.string().optional().describe("Additional slash-command context."),
 			dryRun: z.boolean().optional().describe("Validate and preview without staging, committing, or pushing."),
-			push: z.boolean().optional().describe("Push after a successful commit."),
-			acceptRisk: z.boolean().optional().describe("Allow committing without verification only when the user explicitly passed --accept-risk."),
+			push: z.boolean().optional().describe("Push after all requested commits succeed."),
+			multiCommit: z.boolean().optional().describe("Render and execute this request as an atomic multi-commit group."),
+			acceptRisk: z.boolean().optional().describe("Allow committing without verification only when the user explicitly accepted the risk."),
 		}),
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const plan = normalizeCommitPlan(params);
@@ -258,19 +323,25 @@ class CommitCallComponent implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
+		const commitCount = this.plan.commits.length;
+		const fileCount = new Set(this.plan.commits.flatMap(commit => commit.files)).size;
 		const title = this.plan.dryRun ? "Commit preview" : "Commit";
 		const lines = [`${this.theme.fg("accent", "●")} ${this.theme.fg("accent", this.theme.bold(title))}`];
 		const flags = [
 			this.plan.push ? "push" : undefined,
+			this.plan.multiCommit || commitCount > 1 ? `${commitCount} atomic commit${commitCount === 1 ? "" : "s"}` : undefined,
 			this.plan.acceptRisk ? "risk accepted" : undefined,
-			this.plan.files.length > 0 ? `${this.plan.files.length} file${this.plan.files.length === 1 ? "" : "s"}` : "no files selected",
+			fileCount > 0 ? `${fileCount} file${fileCount === 1 ? "" : "s"}` : "no files selected",
 		].filter(Boolean);
 		lines.push(` ${this.theme.fg("dim", this.theme.tree.branch)} ${this.theme.fg("dim", flags.join(" · "))}`);
-		if (this.plan.commitMessage) {
-			lines.push(` ${this.theme.fg("dim", this.theme.tree.branch)} ${this.theme.fg("muted", this.plan.commitMessage.split("\n", 1)[0])}`);
+		const subjects = this.plan.commits.map(commit => commit.commitMessage.split("\n", 1)[0]).filter(Boolean);
+		if (subjects.length > 0) {
+			const message = commitCount > 1 ? `${commitCount} commits: ${subjects.slice(0, 3).join("; ")}${subjects.length > 3 ? "; …" : ""}` : subjects[0];
+			lines.push(` ${this.theme.fg("dim", this.theme.tree.branch)} ${this.theme.fg("muted", message)}`);
 		}
-		if (this.plan.rationale || this.plan.context) {
-			lines.push(` ${this.theme.fg("dim", this.theme.tree.last)} ${this.theme.fg("muted", this.plan.rationale || this.plan.context)}`);
+		const rationale = this.plan.context || this.plan.commits.find(commit => commit.rationale)?.rationale;
+		if (rationale) {
+			lines.push(` ${this.theme.fg("dim", this.theme.tree.last)} ${this.theme.fg("muted", rationale)}`);
 		}
 		return lines.map(line => truncateVisible(line, Math.max(20, width)));
 	}
@@ -320,30 +391,43 @@ async function executeCommitPlan(
 		const status = parseStatusZ((await runGit(cwd, ["status", "--porcelain=v1", "-z", "--untracked-files=all"], signal, details)).stdout);
 		if (status.length === 0) throw new WorkflowError("No working tree changes to commit.");
 
-		const { selected, unmatched } = resolveSelectedFiles(plan.files, status);
-		if (plan.files.length === 0) {
-			throw new WorkflowError(`No files were selected from the current conversation context. Changed files: ${status.map(entry => entry.path).join(", ")}`);
-		}
-		if (unmatched.length > 0) {
-			throw new WorkflowError(`Requested files are not changed: ${unmatched.join(", ")}`);
-		}
-		if (selected.length === 0) {
-			throw new WorkflowError("Selected files do not match any working tree changes.");
+		const statusPaths = status.map(entry => entry.path);
+		const selectedByFile = new Map<string, number>();
+		for (const [index, commit] of plan.commits.entries()) {
+			const label = formatCommitLabel(index, plan.commits.length);
+			const { selected, unmatched } = resolveSelectedFiles(commit.files, status);
+			if (commit.files.length === 0) {
+				throw new WorkflowError(`${label}: no files were selected from the current conversation context. Changed files: ${statusPaths.join(", ")}`);
+			}
+			if (unmatched.length > 0) {
+				throw new WorkflowError(`${label}: requested files are not changed: ${unmatched.join(", ")}`);
+			}
+			if (selected.length === 0) {
+				throw new WorkflowError(`${label}: selected files do not match any working tree changes.`);
+			}
+			details.commits[index].selectedFiles = selected;
+			for (const file of selected) {
+				const previousIndex = selectedByFile.get(file);
+				if (previousIndex !== undefined) {
+					throw new WorkflowError(`${file} is selected by multiple commits: ${formatCommitLabel(previousIndex, plan.commits.length)} and ${label}.`);
+				}
+				selectedByFile.set(file, index);
+			}
 		}
 
-		details.selectedFiles = selected;
-		details.ignoredFiles = status.map(entry => entry.path).filter(path => !selected.includes(path));
+		details.selectedFiles = details.commits.flatMap(commit => commit.selectedFiles);
+		details.ignoredFiles = statusPaths.filter(path => !selectedByFile.has(path));
 
 		const staged = parseZPaths((await runGit(cwd, ["diff", "--cached", "--name-only", "-z"], signal, details)).stdout);
-		const unrelatedStaged = staged.filter(path => !selected.includes(path));
+		const unrelatedStaged = staged.filter(path => !selectedByFile.has(path));
 		if (unrelatedStaged.length > 0) {
 			throw new WorkflowError(`Unrelated staged changes would be at risk: ${unrelatedStaged.join(", ")}. Unstage or include them explicitly.`);
 		}
 		return root;
 	});
 
-	const scanText = await withStep(details, "Reviewing selected diff", onUpdate, () => collectSecretScanText(cwd, repoRoot, details.selectedFiles, signal, details));
-	await withStep(details, "Checking for secrets", onUpdate, async () => scanForSecrets(scanText));
+	const scanEntries = await withStep(details, "Reviewing selected diff", onUpdate, () => collectSecretScanEntries(cwd, repoRoot, details.selectedFiles, signal, details));
+	await withStep(details, "Checking for secrets", onUpdate, async () => scanForSecrets(scanEntries));
 	await withStep(details, "Running verification", onUpdate, async () => runVerification(plan, cwd, signal, details));
 
 	if (plan.dryRun) {
@@ -355,17 +439,24 @@ async function executeCommitPlan(
 		return;
 	}
 
-	await withStep(details, "Staging selected changes", onUpdate, () => runGit(cwd, ["add", "--", ...details.selectedFiles], signal, details));
-	await withStep(details, "Creating commit", onUpdate, () => runGit(cwd, ["commit", "--only", "-m", plan.commitMessage, "--", ...details.selectedFiles], signal, details));
-	const commitHash = (await withStep(details, "Checking commit result", onUpdate, () => runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details))).stdout.trim();
-	details.commitHash = commitHash;
+	for (const [index, commit] of plan.commits.entries()) {
+		const label = formatCommitLabel(index, plan.commits.length);
+		const result = details.commits[index];
+		await withStep(details, `${label}: staging selected changes`, onUpdate, () => runGit(cwd, ["add", "--", ...result.selectedFiles], signal, details));
+		await withStep(details, `${label}: creating commit`, onUpdate, () => runGit(cwd, ["commit", "--only", "-m", commit.commitMessage, "--", ...result.selectedFiles], signal, details));
+		const commitHash = (await withStep(details, `${label}: checking commit result`, onUpdate, () => runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details))).stdout.trim();
+		result.commitHash = commitHash;
+		details.commitHash = commitHash;
+		onUpdate();
+	}
 
 	if (plan.push) {
 		await withStep(details, "Pushing branch", onUpdate, () => runGit(cwd, ["push"], signal, details));
 	}
 
 	details.status = "succeeded";
-	details.phase = plan.push ? "Commit created and pushed" : "Commit created";
+	const commitNoun = plan.commits.length === 1 ? "Commit" : `${plan.commits.length} commits`;
+	details.phase = plan.push ? `${commitNoun} created and pushed` : `${commitNoun} created`;
 	details.finalText = buildSuccessText(details);
 	details.finishedAt = Date.now();
 	onUpdate();
@@ -388,6 +479,20 @@ async function withStep<T>(details: CommitRunDetails, label: string, onUpdate: (
 }
 
 function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
+	const sourceCommits = Array.isArray(params.commits) ? params.commits : [params];
+	const inheritedAcceptRisk = Boolean(params.acceptRisk);
+	const commits = sourceCommits.map(commit => normalizeCommitSpec(commit, inheritedAcceptRisk));
+	return {
+		commits,
+		context: params.context?.trim() ?? "",
+		dryRun: Boolean(params.dryRun),
+		push: Boolean(params.push),
+		acceptRisk: commits.some(commit => commit.acceptRisk),
+		multiCommit: Boolean(params.multiCommit) || commits.length > 1,
+	};
+}
+
+function normalizeCommitSpec(params: CommitToolCommitParams, inheritedAcceptRisk: boolean): CommitSpec {
 	return {
 		files: dedupe((params.files ?? []).map(file => file.trim()).filter(Boolean)),
 		commitMessage: params.commitMessage?.trim() ?? "",
@@ -398,14 +503,25 @@ function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
 			description: item.description?.trim() || undefined,
 			required: item.required,
 		})),
-		context: params.context?.trim() ?? "",
-		dryRun: Boolean(params.dryRun),
-		push: Boolean(params.push),
-		acceptRisk: Boolean(params.acceptRisk),
+		verificationEvidence: (params.verificationEvidence ?? []).map(item => ({
+			description: item.description?.trim() ?? "",
+			command: item.command?.trim() || undefined,
+			args: Array.isArray(item.args) ? item.args.map(arg => String(arg)) : [],
+			source: item.source?.trim() || undefined,
+		})),
+		acceptRisk: params.acceptRisk === undefined ? inheritedAcceptRisk : Boolean(params.acceptRisk),
 	};
 }
 
 function createRunDetails(plan: CommitPlan): CommitRunDetails {
+	const commits = plan.commits.map(commit => ({
+		commitMessage: commit.commitMessage || undefined,
+		rationale: commit.rationale || undefined,
+		selectedFiles: [],
+		verificationCount: commit.verification.length,
+		verificationEvidence: commit.verificationEvidence.map(formatVerificationEvidence),
+		acceptRisk: commit.acceptRisk,
+	}));
 	return {
 		id: `commit-${Date.now().toString(36)}`,
 		status: "running",
@@ -417,28 +533,45 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 		dryRun: plan.dryRun,
 		push: plan.push,
 		acceptRisk: plan.acceptRisk,
+		multiCommit: plan.multiCommit,
 		context: plan.context || undefined,
-		rationale: plan.rationale || undefined,
-		commitMessage: plan.commitMessage || undefined,
+		rationale: plan.commits.length === 1 ? plan.commits[0]?.rationale || undefined : undefined,
+		commitMessage: plan.commits.length === 1 ? plan.commits[0]?.commitMessage || undefined : undefined,
 		selectedFiles: [],
 		ignoredFiles: [],
-		verificationCount: plan.verification.length,
+		verificationCount: commits.reduce((count, commit) => count + commit.verificationCount, 0),
+		verificationEvidence: commits.flatMap(commit => commit.verificationEvidence),
+		commitHash: undefined,
+		commits,
 		warnings: [],
 	};
 }
 
 function validateCommitPlan(plan: CommitPlan): void {
-	if (!plan.commitMessage) throw new WorkflowError("Commit message is required.");
-	if (plan.commitMessage.includes("\0")) throw new WorkflowError("Commit message contains a NUL byte.");
-	const subject = plan.commitMessage.split("\n", 1)[0];
+	if (plan.commits.length === 0) throw new WorkflowError("At least one commit plan is required.");
+	for (const [index, commit] of plan.commits.entries()) {
+		validateCommitSpec(commit, formatCommitLabel(index, plan.commits.length));
+	}
+}
+
+function validateCommitSpec(commit: CommitSpec, label: string): void {
+	const prefix = label === "Commit" ? "" : `${label}: `;
+	if (!commit.commitMessage) throw new WorkflowError(`${prefix}commit message is required.`);
+	if (commit.commitMessage.includes("\0")) throw new WorkflowError(`${prefix}commit message contains a NUL byte.`);
+	const subject = commit.commitMessage.split("\n", 1)[0];
 	if (!CONVENTIONAL_COMMIT_RE.test(subject)) {
-		throw new WorkflowError(`Commit message must be conventional-commit formatted. Received: ${subject}`);
+		throw new WorkflowError(`${prefix}commit message must be conventional-commit formatted. Received: ${subject}`);
 	}
-	for (const file of plan.files) validateRepoPath(file);
-	if (plan.verification.length === 0 && !plan.acceptRisk) {
-		throw new WorkflowError("No verification command was provided. Pass verification commands or rerun /commit --accept-risk only if the user accepts that risk.");
+	for (const file of commit.files) validateRepoPath(file);
+	if (commit.verification.length === 0 && commit.verificationEvidence.length === 0 && !commit.acceptRisk) {
+		throw new WorkflowError(`${prefix}no verification command or prior verification evidence was provided. Pass narrow verification, concrete evidence, or rerun /commit --accept-risk only if the user accepts that risk.`);
 	}
-	for (const verification of plan.verification) validateVerification(verification);
+	for (const verification of commit.verification) validateVerification(verification);
+	for (const evidence of commit.verificationEvidence) validateVerificationEvidence(evidence);
+}
+
+function formatCommitLabel(index: number, total: number): string {
+	return total === 1 ? "Commit" : `Commit ${index + 1}/${total}`;
 }
 
 function validateRepoPath(path: string): void {
@@ -462,42 +595,113 @@ function validateVerification(verification: VerificationPlan): void {
 	}
 }
 
-async function runVerification(plan: CommitPlan, cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<void> {
-	if (plan.verification.length === 0) {
-		details.warnings.push("No verification was run because --accept-risk was set.");
-		return;
+function validateVerificationEvidence(evidence: VerificationEvidence): void {
+	if (!evidence.description) throw new WorkflowError("Verification evidence description is required.");
+	if (evidence.description.includes("\0")) throw new WorkflowError("Verification evidence contains a NUL byte.");
+	if (evidence.command) {
+		if (evidence.command.includes("/") || evidence.command.includes("\0")) {
+			throw new WorkflowError(`Verification evidence command must be an executable name, not a path: ${evidence.command}`);
+		}
 	}
-	for (const verification of plan.verification) {
-		const label = verification.description || [verification.command, ...(verification.args ?? [])].join(" ");
-		details.phase = `Running verification: ${label}`;
-		const result = await runCommand(cwd, verification.command, verification.args ?? [], signal, details);
-		if (result.exitCode !== 0) {
-			throw new WorkflowError(`Verification failed: ${label}\n${trimOutput(result.stderr || result.stdout)}`);
+	if (evidence.source && evidence.source !== "observed" && evidence.source !== "user-reported") {
+		throw new WorkflowError(`Verification evidence source must be observed or user-reported: ${evidence.source}`);
+	}
+	for (const arg of evidence.args ?? []) {
+		if (arg.includes("\0")) throw new WorkflowError("Verification evidence argument contains a NUL byte.");
+	}
+}
+
+async function runVerification(plan: CommitPlan, cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<void> {
+	for (const [index, commit] of plan.commits.entries()) {
+		const commitLabel = formatCommitLabel(index, plan.commits.length);
+		if (commit.verification.length === 0) {
+			if (commit.verificationEvidence.length > 0) {
+				details.warnings.push(`${commitLabel}: used prior verification evidence instead of rerunning commands: ${commit.verificationEvidence.length}.`);
+				continue;
+			}
+			details.warnings.push(`${commitLabel}: no verification was run because risk was accepted.`);
+			continue;
+		}
+		for (const verification of commit.verification) {
+			const label = verification.description || [verification.command, ...(verification.args ?? [])].join(" ");
+			const displayLabel = plan.commits.length === 1 ? label : `${commitLabel}: ${label}`;
+			details.phase = `Running verification: ${displayLabel}`;
+			const result = await runCommand(cwd, verification.command, verification.args ?? [], signal, details);
+			if (result.exitCode !== 0) {
+				throw new WorkflowError(`Verification failed: ${displayLabel}\n${trimOutput(result.stderr || result.stdout)}`);
+			}
 		}
 	}
 }
 
-async function collectSecretScanText(cwd: string, repoRoot: string, selectedFiles: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string> {
-	const diff = await runGit(cwd, ["diff", "--no-ext-diff", "HEAD", "--", ...selectedFiles], signal, details);
-	let text = diff.stdout;
-	if (text.length > MAX_SECRET_SCAN_CHARS) {
+async function collectSecretScanEntries(cwd: string, repoRoot: string, selectedFiles: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<SecretScanEntry[]> {
+	const diff = await runGit(cwd, ["diff", "--no-ext-diff", "--unified=0", "HEAD", "--", ...selectedFiles], signal, details);
+	if (diff.stdout.length > MAX_SECRET_SCAN_CHARS) {
 		throw new WorkflowError("Selected diff is too large to secret-scan safely.");
 	}
+	const entries = parseAddedDiffLines(diff.stdout);
+	let scannedChars = diff.stdout.length;
 	const untracked = parseZPaths((await runGit(cwd, ["ls-files", "--others", "--exclude-standard", "-z", "--", ...selectedFiles], signal, details)).stdout);
 	for (const file of untracked) {
 		validateRepoPath(file);
 		const blob = Bun.file(`${repoRoot}/${file}`);
 		if (blob.size > MAX_SECRET_SCAN_CHARS) throw new WorkflowError(`Untracked file is too large to secret-scan safely: ${file}`);
-		text += `\n--- untracked file: ${file} ---\n${await blob.text()}`;
-		if (text.length > MAX_SECRET_SCAN_CHARS) throw new WorkflowError("Selected files are too large to secret-scan safely.");
+		const content = await blob.text();
+		scannedChars += content.length;
+		if (scannedChars > MAX_SECRET_SCAN_CHARS) throw new WorkflowError("Selected files are too large to secret-scan safely.");
+		for (const [index, line] of content.split(/\r?\n/).entries()) {
+			entries.push({ file, line: index + 1, text: line });
+		}
 	}
-	return text;
+	return entries;
 }
 
-function scanForSecrets(text: string): void {
-	for (const { name, pattern } of SECRET_PATTERNS) {
-		if (pattern.test(text)) throw new WorkflowError(`Potential ${name} found in selected changes; commit blocked.`);
+function parseAddedDiffLines(diff: string): SecretScanEntry[] {
+	const entries: SecretScanEntry[] = [];
+	let file = "";
+	let nextLine = 0;
+	for (const line of diff.split(/\r?\n/)) {
+		if (line.startsWith("+++ ")) {
+			file = parseDiffNewPath(line);
+			continue;
+		}
+		const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+		if (hunk) {
+			nextLine = Number(hunk[1]);
+			continue;
+		}
+		if (!file) continue;
+		if (line.startsWith("+") && !line.startsWith("+++")) {
+			entries.push({ file, line: nextLine, text: line.slice(1) });
+			nextLine += 1;
+			continue;
+		}
+		if (line.startsWith("-") && !line.startsWith("---")) continue;
+		if (line.startsWith(" ") || line === "") nextLine += 1;
 	}
+	return entries;
+}
+
+function parseDiffNewPath(line: string): string {
+	const raw = line.startsWith("+++ b/") ? line.slice(6) : line.slice(4);
+	const path = raw.split("\t", 1)[0];
+	return path === "/dev/null" ? "" : path;
+}
+
+function scanForSecrets(entries: SecretScanEntry[]): void {
+	for (const entry of entries) {
+		for (const { name, pattern } of SECRET_PATTERNS) {
+			if (pattern.test(entry.text)) {
+				throw new WorkflowError(`Potential ${name} found in selected changes at ${entry.file}:${entry.line}: ${redactSecretExcerpt(entry.text)}`);
+			}
+		}
+	}
+}
+
+function redactSecretExcerpt(text: string): string {
+	const compact = text.trim().replace(/\s+/g, " ");
+	const clipped = compact.length > 180 ? `${compact.slice(0, 177)}...` : compact;
+	return clipped.replace(/[A-Za-z0-9_./+=-]{12,}/g, "<redacted>");
 }
 
 async function runGit(cwd: string, args: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<CommandResult> {
@@ -588,7 +792,7 @@ async function loadCommitSkillText(): Promise<string> {
 		"- Inspect git status and diffs before staging.",
 		"- Stage only files explicitly selected for this commit.",
 		"- Check selected changes for secrets.",
-		"- Run narrow meaningful verification before committing.",
+		"- Run narrow meaningful verification or record concrete prior verification evidence before committing.",
 		"- Use a concise conventional commit message.",
 		"- Preserve unrelated user changes.",
 	].join("\n");
@@ -600,25 +804,38 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		dryRun: parsed.dryRun,
 		push: parsed.push,
 		acceptRisk: parsed.acceptRisk,
+		multiCommit: parsed.multiCommit,
 		context: parsed.context || undefined,
 	};
 	const triggerDescription = source === "natural-language"
 		? "The user asked to commit in natural language. Use the existing conversation context to plan the commit; do not answer conversationally, start a new session, or start a nested omp process."
 		: "The user invoked /commit. Use the existing conversation context to plan the commit; do not start a new session or a nested omp process.";
+	const toolCallRule = parsed.multiCommit
+		? "Call the omp_commit tool exactly once with a commits array containing every planned atomic commit. Do not make separate omp_commit calls, and do not call git, bash, read, search, or any other tool; the tool owns grouped execution and one live UI card."
+		: "Call the omp_commit tool exactly once. Do not call git, bash, read, search, or any other tool; omp_commit owns hidden git operations and live UI.";
 	return [
 		triggerDescription,
-		"Call the omp_commit tool exactly once. Do not call git, bash, read, search, or any other tool; omp_commit owns hidden git operations and live UI.",
+		toolCallRule,
 		"Commit skill guidance:",
 		skillText.trim(),
 		"Tool argument contract:",
 		JSON.stringify(
 			{
-				files: ["repo-relative file or directory to include"],
+				files: ["repo-relative file or directory to include for a single-commit request"],
 				commitMessage: "type(scope): concise subject",
 				rationale: "why this file set and message match the current conversation",
 				verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
+				verificationEvidence: [{ description: "observed or user-reported verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
+				commits: [{
+					files: ["repo-relative file or directory for this atomic commit"],
+					commitMessage: "type(scope): concise subject",
+					rationale: "why this atomic commit is separate",
+					verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
+					verificationEvidence: [{ description: "observed or user-reported verification for this atomic commit", command: "executable", args: ["arg"], source: "observed" }],
+				}],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
+				multiCommit: parsed.multiCommit || undefined,
 				acceptRisk: parsed.acceptRisk || undefined,
 				context: parsed.context || undefined,
 			},
@@ -626,10 +843,15 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 			2,
 		),
 		"Rules:",
-		"- files MUST be only the files intentionally belonging to this commit, inferred from the current conversation context.",
-		"- If the current context is insufficient to select files confidently, pass files: [] and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
-		"- Provide narrow verification commands that should run before staging. If none are meaningful, only set acceptRisk when the user passed --accept-risk.",
+		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields.",
+		"- For atomic/multiple commit mode, pass one commits array containing every logical commit. Each commits[] entry MUST include only the files for that atomic commit; do not make multiple omp_commit tool calls.",
+		"- files MUST be only the files intentionally belonging to the commit, inferred from the current conversation context.",
+		"- If the current context is insufficient to select files confidently, pass files: [] for a single commit or a commits entry with files: [] for atomic mode and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
+		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",
+		"- If verification already appears in the conversation, pass verificationEvidence instead of rerunning it. Use source=observed for tool output seen in-session and source=user-reported only for explicit user-reported checks; never invent evidence.",
+		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk.",
 		"- Preserve unrelated user changes. Do not include files just because they are modified.",
+		parsed.multiCommit ? "- Atomic/multiple commit mode is requested: make separate commits for separate logical changes inside this one tool call, and let the single tool UI report all created commits." : "",
 		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, and residual risk.",
 		parsed.model ? `Note: --model ${parsed.model} was provided but /commit now runs in the current session model; do not pass model to the tool.` : "",
 		`Commit-request flags: ${JSON.stringify(flags)}`,
@@ -651,7 +873,9 @@ function parseNaturalCommitRequest(text: string, images: unknown[] | undefined, 
 	const parsed = parseCommitArgs(trimmed);
 	if (NATURAL_DRY_RUN_RE.test(trimmed)) parsed.dryRun = true;
 	if (NATURAL_ACCEPT_RISK_RE.test(trimmed)) parsed.acceptRisk = true;
-	if (!NATURAL_NO_PUSH_RE.test(trimmed) && NATURAL_PUSH_RE.test(trimmed)) parsed.push = true;
+	if (NATURAL_ATOMIC_RE.test(trimmed)) parsed.multiCommit = true;
+	if (NATURAL_NO_PUSH_RE.test(trimmed)) parsed.push = false;
+	else if (NATURAL_PUSH_RE.test(trimmed)) parsed.push = true;
 	return parsed;
 }
 
@@ -661,6 +885,7 @@ function parseCommitArgs(input: string): ParsedArgs {
 	let dryRun = false;
 	let push = false;
 	let acceptRisk = false;
+	let multiCommit = false;
 	let model: string | undefined;
 	let passthrough = false;
 	for (let i = 0; i < tokens.length; i += 1) {
@@ -675,6 +900,10 @@ function parseCommitArgs(input: string): ParsedArgs {
 			dryRun = true;
 		} else if (token === "--push") {
 			push = true;
+		} else if (token === "--no-push") {
+			push = false;
+		} else if (token === "--atomic" || token === "--multiple") {
+			multiCommit = true;
 		} else if (token === "--accept-risk") {
 			acceptRisk = true;
 		} else if ((token === "--model" || token === "-m") && tokens[i + 1]) {
@@ -685,7 +914,12 @@ function parseCommitArgs(input: string): ParsedArgs {
 			context.push(token);
 		}
 	}
-	return { dryRun, push, acceptRisk, context: context.join(" ").trim(), model };
+	if (NATURAL_DRY_RUN_RE.test(input)) dryRun = true;
+	if (NATURAL_ACCEPT_RISK_RE.test(input)) acceptRisk = true;
+	if (NATURAL_ATOMIC_RE.test(input)) multiCommit = true;
+	if (NATURAL_NO_PUSH_RE.test(input)) push = false;
+	else if (NATURAL_PUSH_RE.test(input)) push = true;
+	return { dryRun, push, acceptRisk, multiCommit, context: context.join(" ").trim(), model };
 }
 
 function tokenize(input: string): string[] {
@@ -723,40 +957,114 @@ function buildToolResultText(details: CommitRunDetails): string {
 }
 
 function buildDryRunText(details: CommitRunDetails): string {
+	const commits = getCommitRunCommits(details);
+	if (commits.length === 1) {
+		const commit = commits[0];
+		return [
+			"Commit preview complete.",
+			`Message: ${commit.commitMessage}`,
+			`Files: ${commit.selectedFiles.join(", ")}`,
+			formatVerificationSummary(commit, false),
+			details.ignoredFiles.length > 0 ? `Ignored modified files: ${details.ignoredFiles.join(", ")}` : "No ignored modified files.",
+		].join("\n");
+	}
 	return [
 		"Commit preview complete.",
-		`Message: ${details.commitMessage}`,
-		`Files: ${details.selectedFiles.join(", ")}`,
-		details.verificationCount > 0 ? `Verification commands: ${details.verificationCount}` : "Verification: accepted risk; no command run",
+		`Commits: ${commits.length}`,
+		...formatCommitSummaryLines(commits, false),
 		details.ignoredFiles.length > 0 ? `Ignored modified files: ${details.ignoredFiles.join(", ")}` : "No ignored modified files.",
 	].join("\n");
 }
 
 function buildSuccessText(details: CommitRunDetails): string {
+	const commits = getCommitRunCommits(details);
+	if (commits.length === 1) {
+		const commit = commits[0];
+		return [
+			`Commit created${commit.commitHash ? `: ${commit.commitHash}` : ""}.`,
+			`Message: ${commit.commitMessage}`,
+			`Files: ${commit.selectedFiles.join(", ")}`,
+			formatVerificationSummary(commit, true),
+			details.ignoredFiles.length > 0 ? `Ignored modified files left untouched: ${details.ignoredFiles.join(", ")}` : "No ignored modified files.",
+			details.push ? "Pushed to remote." : "Not pushed.",
+		].join("\n");
+	}
 	return [
-		`Commit created${details.commitHash ? `: ${details.commitHash}` : ""}.`,
-		`Message: ${details.commitMessage}`,
-		`Files: ${details.selectedFiles.join(", ")}`,
-		details.verificationCount > 0 ? `Verification commands passed: ${details.verificationCount}` : "Verification: accepted risk; no command run",
+		`Commits created: ${commits.length}.`,
+		...formatCommitSummaryLines(commits, true),
 		details.ignoredFiles.length > 0 ? `Ignored modified files left untouched: ${details.ignoredFiles.join(", ")}` : "No ignored modified files.",
 		details.push ? "Pushed to remote." : "Not pushed.",
 	].join("\n");
 }
 
+function formatCommitSummaryLines(commits: CommitResultDetails[], completed: boolean): string[] {
+	const lines: string[] = [];
+	for (const [index, commit] of commits.entries()) {
+		const hash = completed && commit.commitHash ? `${commit.commitHash} ` : "";
+		lines.push(`- ${index + 1}. ${hash}${commit.commitMessage}`);
+		lines.push(`  Files: ${commit.selectedFiles.join(", ")}`);
+		lines.push(`  ${formatVerificationSummary(commit, completed)}`);
+	}
+	return lines;
+}
+
+function formatVerificationSummary(details: { verificationCount: number; verificationEvidence?: string[]; acceptRisk: boolean }, completed: boolean): string {
+	const evidenceCount = details.verificationEvidence?.length ?? 0;
+	const parts: string[] = [];
+	if (details.verificationCount > 0) parts.push(`commands ${completed ? "passed" : "planned"}: ${details.verificationCount}`);
+	if (evidenceCount > 0) parts.push(`evidence: ${evidenceCount}`);
+	if (parts.length > 0) return `Verification ${parts.join("; ")}`;
+	return details.acceptRisk ? "Verification: accepted risk; no command run" : "Verification: none";
+}
+
+function getCommitRunCommits(details: CommitRunDetails): CommitResultDetails[] {
+	const commits = (details as { commits?: CommitResultDetails[] }).commits;
+	if (Array.isArray(commits) && commits.length > 0) return commits;
+	return [{
+		commitMessage: details.commitMessage,
+		rationale: details.rationale,
+		selectedFiles: details.selectedFiles ?? [],
+		verificationCount: details.verificationCount ?? 0,
+		verificationEvidence: details.verificationEvidence ?? [],
+		acceptRisk: details.acceptRisk,
+		commitHash: details.commitHash,
+	}];
+}
+
+function formatVerificationEvidence(evidence: VerificationEvidence): string {
+	const command = evidence.command ? ` (${[evidence.command, ...(evidence.args ?? [])].join(" ")})` : "";
+	const source = evidence.source ? `${evidence.source}: ` : "";
+	return `${source}${evidence.description}${command}`;
+}
+
 function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame?: number): string[] {
 	const lines: string[] = [];
+	const commits = getCommitRunCommits(details);
 	const running = details.status === "running";
 	const statusColor = details.status === "failed" ? "error" : details.status === "succeeded" ? "success" : "accent";
 	const icon = running ? spinner(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
 	const title = details.dryRun ? "Commit preview" : "Commit";
-	const badges = [details.push ? "push" : undefined, details.acceptRisk ? "risk accepted" : undefined].filter(Boolean);
+	const badges = [details.push ? "push" : undefined, details.multiCommit || commits.length > 1 ? `${commits.length} atomic commit${commits.length === 1 ? "" : "s"}` : undefined, details.acceptRisk ? "risk accepted" : undefined, (details.verificationEvidence?.length ?? 0) > 0 ? "verification evidence" : undefined].filter(Boolean);
 	const suffix = badges.length > 0 ? ` ${theme.fg("dim", badges.map(badge => `[${badge}]`).join(" "))}` : "";
 	lines.push(`${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}${suffix}`);
 	lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Status")}: ${theme.fg(statusColor, details.phase)}`);
 	lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Internal actions")}: ${theme.fg("muted", `${details.toolCount}`)}${details.failedToolCount > 0 ? theme.fg("error", ` (${details.failedToolCount} failed)`) : ""}`);
-	if (details.commitMessage) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Message")}: ${theme.fg("muted", details.commitMessage.split("\n", 1)[0])}`);
-	if (details.rationale) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Rationale")}: ${theme.fg("muted", details.rationale)}`);
-	if (details.selectedFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Files")}: ${theme.fg("muted", details.selectedFiles.join(", "))}`);
+	if (commits.length > 1) {
+		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Commits")}: ${theme.fg("muted", `${commits.length}`)}`);
+		const visibleCommits = expanded ? commits : commits.slice(0, MAX_VISIBLE_STEPS);
+		for (const [index, commit] of visibleCommits.entries()) {
+			const hash = commit.commitHash ? `${commit.commitHash} ` : "";
+			const files = commit.selectedFiles.length > 0 ? ` — ${commit.selectedFiles.join(", ")}` : "";
+			lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("muted", `${index + 1}. ${hash}${commit.commitMessage}${files}`)}`);
+		}
+		if (visibleCommits.length < commits.length) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "…")}`);
+	} else {
+		const commit = commits[0];
+		if (commit.commitMessage) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Message")}: ${theme.fg("muted", commit.commitMessage.split("\n", 1)[0])}`);
+		if (commit.rationale) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Rationale")}: ${theme.fg("muted", commit.rationale)}`);
+		if (commit.selectedFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Files")}: ${theme.fg("muted", commit.selectedFiles.join(", "))}`);
+		if ((commit.verificationEvidence?.length ?? 0) > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Verification")}: ${theme.fg("muted", commit.verificationEvidence.join("; "))}`);
+	}
 	if (details.ignoredFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Ignored")}: ${theme.fg("muted", details.ignoredFiles.join(", "))}`);
 
 	const visibleSteps = expanded ? details.steps : details.steps.slice(-MAX_VISIBLE_STEPS);

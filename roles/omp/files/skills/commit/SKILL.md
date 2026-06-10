@@ -14,7 +14,7 @@ Only use this skill when the user explicitly requests a commit or commit message
 3. Check staged and unstaged diffs for secrets, credentials, tokens, private keys, and plaintext secret material.
 4. Stage only files relevant to the requested change.
 5. Generate a concise conventional commit message from the staged diff.
-6. Commit only after verification has run or the user explicitly accepts the remaining risk.
+6. Commit only after verification has run, concrete prior verification evidence is recorded honestly, or the user explicitly accepts the remaining risk.
 
 ## Message shape
 - Use conventional commit format: `type(scope): summary`.

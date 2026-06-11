@@ -211,7 +211,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
 			verification: z.array(verificationParam).optional().describe("Narrow verification commands to run before staging/committing."),
 			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
-			commits: z.array(commitParam).optional().describe("Atomic commit plans to execute inside this single tool call. Use for multi-commit requests."),
+			commits: z.array(commitParam).optional().describe("Atomic commit plans. Omit for single commits; never pass an empty array."),
 			context: z.string().optional().describe("Additional slash-command context."),
 			dryRun: z.boolean().optional().describe("Validate and preview without staging, committing, or pushing."),
 			push: z.boolean().optional().describe("Push after all requested commits succeed."),
@@ -479,7 +479,7 @@ async function withStep<T>(details: CommitRunDetails, label: string, onUpdate: (
 }
 
 function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
-	const sourceCommits = Array.isArray(params.commits) ? params.commits : [params];
+	const sourceCommits = Array.isArray(params.commits) && params.commits.length > 0 ? params.commits : [params];
 	const inheritedAcceptRisk = Boolean(params.acceptRisk);
 	const commits = sourceCommits.map(commit => normalizeCommitSpec(commit, inheritedAcceptRisk));
 	return {
@@ -818,14 +818,25 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		toolCallRule,
 		"Commit skill guidance:",
 		skillText.trim(),
-		"Tool argument contract:",
+		"Single-commit tool arguments:",
 		JSON.stringify(
 			{
-				files: ["repo-relative file or directory to include for a single-commit request"],
+				files: ["repo-relative file or directory to include"],
 				commitMessage: "type(scope): concise subject",
 				rationale: "why this file set and message match the current conversation",
 				verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
 				verificationEvidence: [{ description: "observed or user-reported verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
+				dryRun: parsed.dryRun || undefined,
+				push: parsed.push || undefined,
+				acceptRisk: parsed.acceptRisk || undefined,
+				context: parsed.context || undefined,
+			},
+			null,
+			2,
+		),
+		parsed.multiCommit ? "Atomic/multiple commit tool arguments:" : "",
+		parsed.multiCommit ? JSON.stringify(
+			{
 				commits: [{
 					files: ["repo-relative file or directory for this atomic commit"],
 					commitMessage: "type(scope): concise subject",
@@ -835,16 +846,16 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 				}],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
-				multiCommit: parsed.multiCommit || undefined,
+				multiCommit: true,
 				acceptRisk: parsed.acceptRisk || undefined,
 				context: parsed.context || undefined,
 			},
 			null,
 			2,
-		),
+		) : "",
 		"Rules:",
-		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields.",
-		"- For atomic/multiple commit mode, pass one commits array containing every logical commit. Each commits[] entry MUST include only the files for that atomic commit; do not make multiple omp_commit tool calls.",
+		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit commits entirely.",
+		"- For atomic/multiple commit mode, pass one non-empty commits array containing every logical commit. Each commits[] entry MUST include only the files for that atomic commit; do not make multiple omp_commit tool calls.",
 		"- files MUST be only the files intentionally belonging to the commit, inferred from the current conversation context.",
 		"- If the current context is insufficient to select files confidently, pass files: [] for a single commit or a commits entry with files: [] for atomic mode and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
 		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",

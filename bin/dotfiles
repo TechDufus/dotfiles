@@ -377,13 +377,17 @@ macos_setup() {
 
 update_ansible_galaxy() {
   local os=$1
-  local os_requirements=""
-  __task "Installing Ansible dependencies (This may take a few minutes)"
+  local requirements_file
+  local requirement_files=("$DOTFILES_DIR/requirements/common.yml")
+
   if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
-    __task "Installing Ansible dependencies for $os"
-    os_requirements="$DOTFILES_DIR/requirements/$os.yml"
+    requirement_files+=("$DOTFILES_DIR/requirements/$os.yml")
   fi
-  _cmd "ansible-galaxy install -r $DOTFILES_DIR/requirements/common.yml $os_requirements"
+
+  for requirements_file in "${requirement_files[@]}"; do
+    __task "Installing Ansible dependencies from ${requirements_file#$DOTFILES_DIR/}"
+    _cmd "ansible-galaxy collection install -r \"$requirements_file\""
+  done
 }
 
 confirmVaultAccess() {

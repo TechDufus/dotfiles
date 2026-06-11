@@ -188,8 +188,6 @@ op:
       techdufus:
         - name: id_ed25519
           vault_path: "op://Personal/TechDufus SSH"
-        - name: raft-infra
-          vault_path: "op://Raft/Raft-SSH"
 ```
 
 **URL Format:** `op://vault_name/item_name/field_name`

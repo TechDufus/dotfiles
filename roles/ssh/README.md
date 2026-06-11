@@ -97,8 +97,6 @@ op:
       techdufus:
         - name: id_ed25519                    # Key filename in ~/.ssh/
           vault_path: "op://Personal/TechDufus SSH"
-        - name: raft-infra
-          vault_path: "op://Raft/Raft-SSH"
 ```
 
 ### 1Password Vault Structure

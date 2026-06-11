@@ -6,6 +6,17 @@
   become: true
   when: can_install_packages | default(false)
 
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect configured display manager"
+  ansible.builtin.stat:
+    path: /etc/systemd/system/display-manager.service
+    follow: false
+  register: plasma_display_manager_unit
+  become: true
+  check_mode: false
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_sddm | bool
+
 - name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Enable SDDM display manager"
   ansible.builtin.systemd:
     name: sddm.service
@@ -15,6 +26,22 @@
     - can_install_packages | default(false)
     - plasma_enable_sddm | bool
     - not ansible_check_mode
+    - >-
+      (not (plasma_display_manager_unit.stat.exists | default(false))) or
+      ((plasma_display_manager_unit.stat.lnk_target | default('') | basename) == 'sddm.service')
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Keep existing display manager"
+  ansible.builtin.debug:
+    msg: >-
+      SDDM enablement skipped because display-manager.service already points to
+      {{ plasma_display_manager_unit.stat.lnk_target | default('an existing unit') }}.
+      Disable that display manager first if you want SDDM.
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_sddm | bool
+    - not ansible_check_mode
+    - plasma_display_manager_unit.stat.exists | default(false)
+    - (plasma_display_manager_unit.stat.lnk_target | default('') | basename) != 'sddm.service'
 
 - name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Explain SDDM check-mode skip"
   ansible.builtin.debug:

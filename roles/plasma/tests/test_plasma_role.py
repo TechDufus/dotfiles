@@ -60,6 +60,18 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("can_install_packages | default(false)", self.arch_tasks)
         self.assertIn("Enable SDDM display manager", self.arch_tasks)
 
+    def test_sddm_enablement_preserves_existing_display_manager(self) -> None:
+        for required in [
+            "Detect configured display manager",
+            "/etc/systemd/system/display-manager.service",
+            "plasma_display_manager_unit.stat.exists | default(false)",
+            "plasma_display_manager_unit.stat.lnk_target | default('') | basename",
+            "Keep existing display manager",
+            "Disable that display manager first if you want SDDM",
+        ]:
+            self.assertIn(required, self.arch_tasks)
+
+
     def test_role_owns_plasma_summon_runtime_paths(self) -> None:
         for required in [
             "files/bin/plasma-summon-service.py",
@@ -92,7 +104,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
     def test_kwin_script_registers_summon_region_layout_and_monitor_shortcuts(self) -> None:
         for required in [
             'registerShortcut("Summon " + appName',
-            'const triggerPrefixes = ["F13", "CapsLock", "XF86Tools"]',
+            'const triggerPrefixes = ["F13", "CapsLock"]',
             'prefix + "," + key',
             'registerShortcut("Move Active to Region " + regionName',
             '"Meta+U," + key',
@@ -104,12 +116,21 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             '"Meta+Shift+O"',
             'registerShortcut("Cycle Active Screen Layout"',
             '"Meta+Alt+Ctrl+Shift+P"',
-            '"Meta+Alt+Ctrl+Shift+Semicolon"',
-            '"Meta+Alt+Ctrl+Shift+Apostrophe"',
-            'registerShortcut("Reload KWin Configuration"',
-            '"Meta+Ctrl+R"',
+            '"Meta+Alt+Ctrl+Shift+;"',
+            "\"Meta+Alt+Ctrl+Shift+'\"",
+            'registerShortcut("Reload Plasma Summon Configuration Hyper"',
+            '"Meta+Alt+Ctrl+Shift+R"',
         ]:
             self.assertIn(required, self.script)
+        for invalid in [
+            "XF86Tools",
+            "Meta+Alt+Ctrl+Shift+Semicolon",
+            "Meta+Alt+Ctrl+Shift+Apostrophe",
+        ]:
+            self.assertNotIn(invalid, self.script)
+        self.assertNotIn("Tools", self.script)
+
+
 
     def test_kwin_script_uses_native_kwin_window_apis(self) -> None:
         for required in [

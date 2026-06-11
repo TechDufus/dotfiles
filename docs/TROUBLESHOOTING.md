@@ -185,15 +185,17 @@ tail -50 ~/.dotfiles.log
 dotfiles --check
 ```
 
-### "Role not found" errors
+### "Collection not found" or "couldn't resolve module/action" errors
 
-**Problem**: Ansible can't find required roles.
+**Problem**: Ansible can't find required Galaxy collections, for example
+`community.general.pacman` or `kewlfft.aur.aur`.
 
 **Solution**:
 ```bash
-# Update Ansible Galaxy requirements
+# Update Ansible Galaxy collection requirements
 cd ~/.dotfiles
-ansible-galaxy install -r requirements/common.yml --force
+ansible-galaxy collection install -r requirements/common.yml --force
+ansible-galaxy collection install -r requirements/arch.yml --force  # Arch/CachyOS AUR roles
 ```
 
 

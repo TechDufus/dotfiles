@@ -719,7 +719,7 @@ function moveActiveToOutput(direction) {
 
 function registerAppShortcuts() {
     const names = objectKeys(apps);
-    const triggerPrefixes = ["F13", "CapsLock", "XF86Tools"];
+    const triggerPrefixes = ["F13", "CapsLock"];
     for (let i = 0; i < names.length; i += 1) {
         const appName = names[i];
         const app = apps[appName];
@@ -772,9 +772,9 @@ function registerWorkflowShortcuts() {
         moveActiveToOutput("previous");
     });
     registerShortcut("Cycle Active Screen Layout", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+P", cycleLayout);
-    registerShortcut("Cycle Active Screen Layout Alternate", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+Semicolon", cycleLayout);
-    registerShortcut("Reset Active Screen Layout", "Reset active screen layout", "Meta+Alt+Ctrl+Shift+Apostrophe", resetLayout);
-    registerShortcut("Reload KWin Configuration", "Reload KWin configuration", "Meta+Ctrl+R", function () {
+    registerShortcut("Cycle Active Screen Layout Semicolon", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+;", cycleLayout);
+    registerShortcut("Reset Active Screen Layout Apostrophe", "Reset active screen layout", "Meta+Alt+Ctrl+Shift+'", resetLayout);
+    registerShortcut("Reload Plasma Summon Configuration Hyper", "Reload KWin configuration", "Meta+Alt+Ctrl+Shift+R", function () {
         loadRemoteConfig();
         callDBus("org.kde.KWin", "/KWin", "org.kde.KWin", "reconfigure", function () {});
     });

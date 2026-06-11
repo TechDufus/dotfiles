@@ -16,8 +16,18 @@ const extensionPath = process.argv[2];
 const mod = await import(pathToFileURL(extensionPath).href);
 const calls = [];
 const actions = [];
+const schema = () => ({
+  optional() { return this; },
+  describe() { return this; },
+});
+const zod = {
+  string: schema,
+  boolean: schema,
+  object: schema,
+  array: schema,
+};
 const api = {
-  zod: await import("zod/v4"),
+  zod,
   setLabel: (...args) => calls.push(["label", ...args]),
   registerTool: (...args) => calls.push(["tool", ...args]),
   registerCommand: (...args) => calls.push(["command", ...args]),
@@ -62,6 +72,8 @@ try {
     if (!sentMessage[1].content.includes(expected)) throw new Error(`commit prompt missing ${expected}`);
   }
   if (sentMessage[1].details.multiCommit !== false) throw new Error(`plain commit command should not request multiple commits: ${JSON.stringify(sentMessage[1].details)}`);
+
+  if (sentMessage[1].content.includes('"commits"')) throw new Error("plain commit prompt should not show commits array schema");
 
   await turnEndHandler();
   actions.length = 0;
@@ -311,6 +323,26 @@ try {
   if (committed !== "included.txt") throw new Error(`unexpected committed files: ${committed}`);
   const status = (await git(tmp, ["status", "--porcelain"])).stdout;
   if (!status.includes("?? unrelated.txt")) throw new Error(`unrelated file was not left untouched: ${status}`);
+
+  await writeFile(join(tmp, "empty-commits.txt"), "single commit compatibility\n");
+  const emptyCommitsArray = await tool.execute(
+    "commit-empty-commits-array-test",
+    {
+      files: ["empty-commits.txt"],
+      commitMessage: "chore(test): preview empty commits array fallback",
+      rationale: "Single-commit tool calls may include an empty commits array from generated schemas.",
+      verificationEvidence: [{ description: "empty commits array fixture reviewed in test", source: "observed" }],
+      commits: [],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (emptyCommitsArray.isError) throw new Error(`empty commits array fallback failed: ${JSON.stringify(emptyCommitsArray)}`);
+  if (!emptyCommitsArray.content[0].text.includes("Commit preview complete")) {
+    throw new Error(`empty commits array fallback did not produce a preview: ${JSON.stringify(emptyCommitsArray)}`);
+  }
 
   await writeFile(join(tmp, "push.txt"), "push me\n");
   const pushed = await tool.execute(

@@ -4,3 +4,9 @@
     name: wireguard-tools
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Wireguard | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: wireguard-tools"
+  when: not (can_install_packages | default(false))

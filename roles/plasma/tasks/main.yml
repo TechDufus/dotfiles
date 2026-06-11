@@ -1,0 +1,158 @@
+---
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Ensure local bin exists"
+  ansible.builtin.file:
+    path: "{{ plasma_local_bin_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure summon config directory exists"
+  ansible.builtin.file:
+    path: "{{ plasma_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure systemd user directory exists"
+  ansible.builtin.file:
+    path: "{{ plasma_systemd_user_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure KWin script directory exists"
+  ansible.builtin.file:
+    path: "{{ plasma_kwin_scripts_dir }}"
+    state: directory
+    mode: "0755"
+  when: plasma_enable_kwin_summon | bool
+
+- name: "{{ role_name }} | Symlink Plasma summon helper"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/bin/plasma-summon-service.py"
+    dest: "{{ plasma_local_bin_dir }}/plasma-summon-service"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Ensure Plasma summon helper is executable"
+  ansible.builtin.file:
+    path: "{{ role_path }}/files/bin/plasma-summon-service.py"
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink Plasma summon app registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/apps.toml"
+    dest: "{{ plasma_config_dir }}/apps.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Plasma summon region registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/regions.toml"
+    dest: "{{ plasma_config_dir }}/regions.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Plasma summon layout registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/layouts.toml"
+    dest: "{{ plasma_config_dir }}/layouts.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Plasma summon systemd service"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/systemd/plasma-summon.service"
+    dest: "{{ plasma_systemd_user_dir }}/plasma-summon.service"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink KWin summon script package"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/kwin/{{ plasma_summon_script_id }}"
+    dest: "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}"
+    state: link
+    force: true
+  when: plasma_enable_kwin_summon | bool
+
+- name: "{{ role_name }} | Detect kwriteconfig6"
+  ansible.builtin.stat:
+    path: /usr/bin/kwriteconfig6
+  register: plasma_kwriteconfig6
+  check_mode: false
+
+- name: "{{ role_name }} | Enable KWin summon script"
+  ansible.builtin.command:
+    argv:
+      - kwriteconfig6
+      - --file
+      - kwinrc
+      - --group
+      - Plugins
+      - --key
+      - "{{ plasma_summon_script_id }}Enabled"
+      - "true"
+  changed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Explain missing kwriteconfig6"
+  ansible.builtin.debug:
+    msg: "KWin summon script was deployed but not enabled because kwriteconfig6 is not installed yet."
+  when:
+    - plasma_enable_kwin_summon | bool
+    - not plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Detect qdbus6"
+  ansible.builtin.stat:
+    path: /usr/bin/qdbus6
+  register: plasma_qdbus6
+  check_mode: false
+
+- name: "{{ role_name }} | Ask running KWin to reload scripts"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /KWin
+      - reconfigure
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Enable and start Plasma summon service"
+  ansible.builtin.systemd:
+    name: plasma-summon.service
+    scope: user
+    state: started
+    enabled: true
+    daemon_reload: true
+  register: plasma_summon_systemd
+  failed_when: false
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Explain summon service check-mode skip"
+  ansible.builtin.debug:
+    msg: "Plasma summon service start skipped in check mode; rerun without --check to activate the D-Bus launcher helper."
+  when:
+    - plasma_start_summon_service | bool
+    - ansible_check_mode
+
+- name: "{{ role_name }} | Explain summon service activation failure"
+  ansible.builtin.debug:
+    msg: "Plasma summon service was deployed but could not be started in this session; it will start after the next graphical login or can be started with systemctl --user start plasma-summon.service."
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+    - plasma_summon_systemd is failed

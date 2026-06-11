@@ -4,3 +4,9 @@
     name: tmate
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Tmate | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: tmate"
+  when: not (can_install_packages | default(false))

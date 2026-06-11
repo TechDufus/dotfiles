@@ -5,3 +5,9 @@
     name: rustup
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Rust | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: rustup"
+  when: not (can_install_packages | default(false))

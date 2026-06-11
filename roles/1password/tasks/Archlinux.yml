@@ -1,0 +1,22 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install AUR build dependencies"
+  community.general.pacman:
+    name:
+      - base-devel
+      - git
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install 1Password packages"
+  kewlfft.aur.aur:
+    name:
+      - 1password
+      - 1password-cli
+    state: present
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: base-devel, git, 1password, 1password-cli"
+  when: not (can_install_packages | default(false))

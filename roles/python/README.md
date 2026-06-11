@@ -13,14 +13,13 @@ This role manages Python installation and pip package configuration across suppo
 | Ubuntu   | ✅        | Handles pip installation differences for Ubuntu ≤22 and >22 |
 | macOS    | ❌        | Python typically pre-installed or managed via Homebrew |
 | Fedora   | ❌        | Not yet implemented |
-| Arch     | ❌        | Not yet implemented |
+| Arch     | ✅        | Installs Python, pip, and virtualenv via pacman |
 
 ## What Gets Installed
 
-### System Packages (Ubuntu)
-- `python3` - Python 3 interpreter
-- `python3-pip` - Package installer for Python
-- `python3-venv` - Virtual environment support
+### System Packages
+- **Ubuntu**: `python3`, `python3-pip`, `python3-venv`
+- **Archlinux/CachyOS**: `python`, `python-pip`, `python-virtualenv`
 
 ### Pip Packages (Ubuntu ≤22 only)
 - `shell-gpt==0.9.0` - OpenAI-powered shell assistant
@@ -37,17 +36,20 @@ This is a minimal installation role focused on getting Python and pip working co
 graph TD
     A[Start] --> B{OS Detection}
     B -->|Ubuntu| C[Install python3, pip, venv]
-    B -->|Other OS| D[Skip - No config found]
-    C --> E{Ubuntu Version Check}
-    E -->|≤22| F[Install pip packages<br/>shell-gpt==0.9.0]
-    E -->|>22| G[Skip pip install<br/>Use venv/pipx instead]
-    F --> H[Complete]
-    G --> H
-    D --> H
+    B -->|Archlinux/CachyOS| D[Install python, pip, virtualenv]
+    B -->|Other OS| E[Skip - No config found]
+    C --> F{Ubuntu Version Check}
+    F -->|≤22| G[Install pip packages<br/>shell-gpt==0.9.0]
+    F -->|>22| H[Skip pip install<br/>Use venv/pipx instead]
+    D --> I[Complete]
+    E --> I
+    G --> I
+    H --> I
 
-    style F fill:#a6e3a1
-    style G fill:#f9e2af
-    style D fill:#f38ba8
+    style D fill:#a6e3a1
+    style G fill:#a6e3a1
+    style H fill:#f9e2af
+    style E fill:#f38ba8
 ```
 
 ## Key Features

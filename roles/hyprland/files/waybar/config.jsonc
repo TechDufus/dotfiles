@@ -1,0 +1,93 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 34,
+  "spacing": 6,
+  "exclusive": true,
+  "passthrough": false,
+  "gtk-layer-shell": true,
+
+  "modules-left": [
+    "hyprland/workspaces"
+  ],
+  "modules-center": [
+    "hyprland/window"
+  ],
+  "modules-right": [
+    "tray",
+    "idle_inhibitor",
+    "pulseaudio",
+    "network",
+    "clock",
+    "custom/lock"
+  ],
+
+  "hyprland/workspaces": {
+    "format": "{id}",
+    "sort-by-number": true,
+    "on-click": "activate",
+    "on-scroll-up": "hyprctl dispatch workspace e+1",
+    "on-scroll-down": "hyprctl dispatch workspace e-1"
+  },
+
+  "hyprland/window": {
+    "format": "{}",
+    "max-length": 80,
+    "separate-outputs": true,
+    "rewrite": {
+      "": "Desktop"
+    }
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8
+  },
+
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "",
+      "deactivated": ""
+    },
+    "tooltip": "Idle inhibitor"
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰝟 muted",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "󰋎",
+      "headset": "󰋎",
+      "phone": "",
+      "portable": "",
+      "car": "",
+      "default": ["", "", ""]
+    },
+    "scroll-step": 2,
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "tooltip-format": "{desc}: {volume}%"
+  },
+
+  "network": {
+    "format-wifi": " {essid}",
+    "format-ethernet": "󰈀 wired",
+    "format-linked": "󰈀 linked",
+    "format-disconnected": "󰤭 offline",
+    "tooltip-format": "{ifname} via {gwaddr}",
+    "format-alt": "{ifname}: {ipaddr}/{cidr}"
+  },
+
+  "clock": {
+    "format": "{:%a %d %b  %H:%M}",
+    "format-alt": "{:%Y-%m-%d  %H:%M:%S}",
+    "tooltip-format": "<big>{:%B %Y}</big>\n<tt><small>{calendar}</small></tt>"
+  },
+
+  "custom/lock": {
+    "format": "",
+    "tooltip": "Lock session",
+    "on-click": "hyprlock"
+  }
+}

@@ -6,12 +6,14 @@
         name: "{{ ansible_facts['env']['HOME'] }}/.task"
         state: directory
         mode: "0755"
+      check_mode: false
 
     - name: TASKFILE | Ensure .task/completions dir exists
       ansible.builtin.file:
         name: "{{ ansible_facts['env']['HOME'] }}/.task/completions"
         state: directory
         mode: "0755"
+      check_mode: false
 
     - name: TASKFILE | Pull latest task bash completion
       ansible.builtin.get_url:
@@ -56,6 +58,10 @@
         force: true
       when:
         - taskfile_os_src | length > 0
+    - name: "TASKFILE | Check copied user Taskfile"
+      ansible.builtin.stat:
+        path: "{{ ansible_facts['user_dir'] }}/Taskfile.yml"
+      register: taskfile_user_taskfile
 
     - name: "TASKFILE | Mark Ansible-managed file."
       ansible.builtin.blockinfile:
@@ -68,3 +74,4 @@
           # Original file: {{ taskfile_os_src | basename }}
       when:
         - taskfile_os_src | length > 0
+        - (not ansible_check_mode) or (taskfile_user_taskfile.stat.exists | default(false))

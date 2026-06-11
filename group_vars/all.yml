@@ -1,3 +1,7 @@
+arch_pacman_extra_args: "--disable-download-timeout"
+arch_pacman_update_cache_extra_args: "--disable-download-timeout"
+arch_pacman_upgrade_extra_args: "--disable-download-timeout"
+
 default_roles:
   - system
   - 1password
@@ -9,6 +13,7 @@ default_roles:
   - bat
   - borders
   - btop
+  - brave
   - bun
   - claude
   - codex
@@ -18,7 +23,9 @@ default_roles:
   - fonts
   - fzf
   - gh
+  - discord
   - ghostty
+  - plasma
   - git
   - worktrunk
   - go
@@ -64,6 +71,22 @@ default_roles:
   - sesh
   - zoxide
   - zsh
+
+exclude_roles_by_distribution:
+  Archlinux:
+    - asciiquarium
+    - bash
+    - aldente
+    - awesomewm
+    - borders
+    - hammerspoon
+    - nala
+    - raycast
+    - slides
+    - superwhisper
+    - vicinae
+    - flatpak
+    - starship
 
 git_user_name: "TechDufus"
 

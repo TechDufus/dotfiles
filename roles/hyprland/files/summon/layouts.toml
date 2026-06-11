@@ -1,0 +1,46 @@
+[layouts.fourk]
+label = "4K Workspace"
+min_width = 2560
+cells = ["main", "side", "top_right", "center_left", "center", "right_small"]
+
+[layouts.fourk.apps]
+terminal = 1
+browser = 2
+discord = 3
+signal = 3
+spotify = 4
+onepassword = 4
+files = 5
+obsidian = 6
+
+[layouts.hd]
+label = "HD Workspace"
+min_width = 0
+max_width = 2559
+cells = ["main", "side", "center"]
+
+[layouts.hd.apps]
+terminal = 1
+browser = 2
+discord = 3
+signal = 3
+spotify = 3
+onepassword = 3
+files = 3
+obsidian = 3
+
+[layouts.full]
+label = "Fullscreen"
+min_width = 0
+cells = ["full"]
+
+[layouts.full.apps]
+terminal = 1
+browser = 1
+discord = 1
+signal = 1
+spotify = 1
+onepassword = 1
+files = 1
+obsidian = 1
+steam = 1

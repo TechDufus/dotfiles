@@ -327,7 +327,7 @@ arch_setup() {
 
   if (( ${#packages[@]} > 0 )); then
     __task "Installing Arch bootstrap packages"
-    _cmd "sudo pacman -Syu --needed --noconfirm ${packages[*]}"
+    _cmd "sudo pacman -Syu --needed --noconfirm --disable-download-timeout ${packages[*]}"
   fi
 
   if command -v localectl >/dev/null 2>&1; then

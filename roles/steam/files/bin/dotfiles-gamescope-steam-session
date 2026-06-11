@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Fallback display-manager session for Arch-family hosts that do not ship
+# CachyOS' systemd-managed gamescope session package. SDDM starts this script as
+# the user; gamescope then owns the DRM session and launches Steam Big Picture.
+export DESKTOP_SESSION=gamescope-steam
+export XDG_CURRENT_DESKTOP=gamescope
+export XDG_SESSION_DESKTOP=gamescope-steam
+export SDL_VIDEODRIVER=wayland
+export STEAM_FORCE_DESKTOPUI_SCALING="${STEAM_FORCE_DESKTOPUI_SCALING:-1}"
+
+exec gamescope --steam -- steam -gamepadui

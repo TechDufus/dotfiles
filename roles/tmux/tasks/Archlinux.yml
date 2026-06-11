@@ -4,3 +4,9 @@
     name: tmux
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Tmux | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: tmux"
+  when: not (can_install_packages | default(false))

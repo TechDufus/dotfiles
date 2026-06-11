@@ -1,0 +1,46 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Check pacman Brave package"
+  ansible.builtin.command:
+    argv:
+      - pacman
+      - -Si
+      - brave-bin
+  register: brave_pacman_package
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Brave from pacman"
+  community.general.pacman:
+    name:
+      - brave-bin
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - brave_pacman_package.rc == 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install AUR build dependencies"
+  community.general.pacman:
+    name:
+      - base-devel
+      - git
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - brave_pacman_package.rc != 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Brave from AUR"
+  kewlfft.aur.aur:
+    name:
+      - brave-bin
+    state: present
+  when:
+    - can_install_packages | default(false)
+    - brave_pacman_package.rc != 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: brave-bin"
+  when: not (can_install_packages | default(false))

@@ -92,7 +92,7 @@
     scope: global
     value: "{{ git_user_email }}"
   no_log: true
-  when: git_user_email is defined
+  when: git_user_email | default('') | length > 0
 
 - name: "Git | Set user.name"
   community.general.git_config:

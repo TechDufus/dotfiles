@@ -69,14 +69,20 @@
 
 - name: "Bash | Calculate os config src"
   ansible.builtin.set_fact:
-    bash_os_config: "{{ bash_os_distribution_config if bash_os_distribution_config.stat.exists else bash_os_family_config }}"
+    bash_os_config_src: >-
+      {{
+        (role_path ~ '/files/os/' ~ ansible_facts['distribution'])
+        if bash_os_distribution_config.stat.exists
+        else
+        (role_path ~ '/files/os/' ~ ansible_facts['os_family'])
+      }}
+    bash_os_config_exists: "{{ bash_os_distribution_config.stat.exists or (bash_os_family_config.stat.exists | default(false)) }}"
 
-- name: "Bash | Copy custom bash config for os: {{ bash_os_config.stat.path | basename }}"
+- name: "Bash | Copy custom bash config for os: {{ bash_os_config_src | basename }}"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/bash/"
-    src: "{{ bash_os_config.stat.path }}/"
+    src: "{{ bash_os_config_src }}/"
     mode: "0644"
     force: true
   when:
-    - bash_os_config is defined
-    - bash_os_config.stat.exists
+    - bash_os_config_exists

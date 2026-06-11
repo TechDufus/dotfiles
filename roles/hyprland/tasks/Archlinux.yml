@@ -1,0 +1,47 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Wayland desktop packages"
+  community.general.pacman:
+    name:
+      - hyprland
+      - hyprpolkitagent
+      - uwsm
+      - xdg-desktop-portal-hyprland
+      - xdg-desktop-portal-gtk
+      - xorg-xwayland
+      - wayland-protocols
+      - egl-wayland
+      - qt5-wayland
+      - qt6-wayland
+      - mako
+      - waybar
+      # Public glyph coverage for the managed Waybar theme. Private Berkeley Mono
+      # remains optional in the fonts role and cannot be required for first boot.
+      - ttf-jetbrains-mono-nerd
+      - ttf-nerd-fonts-symbols
+      - otf-font-awesome
+      - fuzzel
+      - wl-clipboard
+      - cliphist
+      - grim
+      - slurp
+      - swappy
+      - hyprlock
+      - hyprpaper
+      - hypridle
+      - playerctl
+      - brightnessctl
+      - wireplumber
+      - network-manager-applet
+      - thunar
+      - ghostty
+      - python
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "Hyprland package installation skipped because package installation is unavailable."
+      - "Managed config symlinks still run; install packages manually or rerun with sudo-capable privileges."
+  when: not (can_install_packages | default(false))

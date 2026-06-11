@@ -20,6 +20,8 @@
     executable: /bin/bash
   register: clawpatch_npm_check
   changed_when: false
+  failed_when: false
+  check_mode: false
 
 - name: "{{ role_name }} | Install | Check Node.js version"
   ansible.builtin.shell: |
@@ -33,6 +35,8 @@
     executable: /bin/bash
   register: clawpatch_node_version
   changed_when: false
+  failed_when: false
+  check_mode: false
 
 - name: "{{ role_name }} | Install | Fail if Node.js is too old"
   ansible.builtin.fail:
@@ -40,7 +44,9 @@
       Clawpatch requires Node.js >= {{ clawpatch_min_node_major }}.
       Current Node.js version is {{ clawpatch_node_version.stdout }}.
       Run the nvm/npm roles first or upgrade Node.js.
-  when: (clawpatch_node_version.stdout.split('.')[0] | int) < clawpatch_min_node_major
+  when:
+    - not ansible_check_mode
+    - clawpatch_node_version.rc != 0 or (clawpatch_node_version.stdout.split('.')[0] | int) < clawpatch_min_node_major
 
 - name: "{{ role_name }} | Install | Resolve latest Clawpatch version"
   ansible.builtin.shell: |
@@ -54,12 +60,14 @@
     executable: /bin/bash
   register: clawpatch_latest_version
   changed_when: false
-  when: clawpatch_version == "latest"
+  when:
+    - clawpatch_version == "latest"
+    - clawpatch_npm_check.rc == 0
 
 - name: "{{ role_name }} | Install | Set desired Clawpatch version"
   ansible.builtin.set_fact:
     clawpatch_resolved_version: >-
-      {{ clawpatch_latest_version.stdout
+      {{ clawpatch_latest_version.stdout | default('latest', true)
          if clawpatch_version == "latest"
          else clawpatch_version }}
 
@@ -76,6 +84,7 @@
   register: clawpatch_current_version
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: "{{ role_name }} | Install | Install or update Clawpatch"
   ansible.builtin.shell: |
@@ -89,9 +98,12 @@
     executable: /bin/bash
   register: clawpatch_install_result
   changed_when: true
-  when: >-
-    clawpatch_current_version.rc != 0 or
-    clawpatch_current_version.stdout != clawpatch_resolved_version
+  when:
+    - not ansible_check_mode
+    - clawpatch_npm_check.rc == 0
+    - >-
+      clawpatch_current_version.rc != 0 or
+      clawpatch_current_version.stdout != clawpatch_resolved_version
 
 - name: "{{ role_name }} | Install | Verify Clawpatch"
   ansible.builtin.shell: |
@@ -105,7 +117,9 @@
     executable: /bin/bash
   register: clawpatch_verify
   changed_when: false
+  when: not ansible_check_mode
 
 - name: "{{ role_name }} | Install | Report status"
   ansible.builtin.debug:
     msg: "Clawpatch {{ clawpatch_verify.stdout }} installed via npm package {{ clawpatch_npm_package }}"
+  when: clawpatch_verify.stdout | default('') | length > 0

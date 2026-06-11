@@ -1,0 +1,32 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Plasma desktop packages"
+  community.general.pacman:
+    name: "{{ plasma_arch_packages }}"
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Enable SDDM display manager"
+  ansible.builtin.systemd:
+    name: sddm.service
+    enabled: true
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_sddm | bool
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Explain SDDM check-mode skip"
+  ansible.builtin.debug:
+    msg: "SDDM enablement skipped in check mode; rerun without --check to enable the Plasma login session."
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_sddm | bool
+    - ansible_check_mode
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "Plasma package installation skipped because package installation is unavailable."
+      - "Managed KWin script, summon config, and user service symlinks still run."
+  when: not (can_install_packages | default(false))

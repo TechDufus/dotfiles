@@ -7,3 +7,10 @@
 - name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Clone SecondBrain vault"
+  ansible.builtin.git:
+    repo: "git@github.com:techdufus/SecondBrain.git"
+    dest: "{{ ansible_facts['user_dir'] }}/SecondBrain"
+    update: false
+  failed_when: false

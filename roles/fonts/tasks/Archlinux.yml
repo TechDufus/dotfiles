@@ -1,0 +1,14 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install font tooling"
+  community.general.pacman:
+    name:
+      - fontconfig
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "Fonts | {{ ansible_facts['distribution'] }} | Install BerkeleyMono Nerd Font"
+  ansible.builtin.include_tasks: private_berkeley_mono.yml
+  vars:
+    berkeley_mono_install_dir: "{{ ansible_facts['user_dir'] }}/.local/share/fonts"
+    berkeley_mono_refresh_cache: true

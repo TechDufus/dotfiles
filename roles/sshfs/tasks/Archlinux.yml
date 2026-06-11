@@ -4,3 +4,9 @@
     name: sshfs
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "SSHFS | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: sshfs"
+  when: not (can_install_packages | default(false))

@@ -4,3 +4,9 @@
     name: zoxide
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Zoxide | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: zoxide"
+  when: not (can_install_packages | default(false))

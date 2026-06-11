@@ -1,0 +1,136 @@
+---
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Ensure Hyprland config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/hypr"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure Hyprland wallpaper directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/wallpapers"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure Waybar config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/waybar"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure local bin exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure Hyprland summon config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/summon"
+    state: directory
+    mode: "0755"
+
+
+- name: "{{ role_name }} | Symlink Hyprland config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/hypr/hyprland.lua"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/hyprland.lua"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Hyprlock config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/hypr/hyprlock.conf"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/hyprlock.conf"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Hypridle config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/hypr/hypridle.conf"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/hypridle.conf"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Hyprpaper config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/hypr/hyprpaper.conf"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/hyprpaper.conf"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Hyprland summon helper"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/bin/hypr-summon.py"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/hypr-summon"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Ensure Hyprland summon helper is executable"
+  ansible.builtin.file:
+    path: "{{ role_path }}/files/bin/hypr-summon.py"
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink Hyprland summon app registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/apps.toml"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/summon/apps.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Hyprland summon region registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/regions.toml"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/summon/regions.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Hyprland summon layout registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/layouts.toml"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/summon/layouts.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Waybar config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/waybar/config.jsonc"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/waybar/config.jsonc"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Waybar default config path"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/waybar/config.jsonc"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/waybar/config"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Waybar style"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/waybar/style.css"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/waybar/style.css"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Waybar Catppuccin palette"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/waybar/mocha.css"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/waybar/mocha.css"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Catppuccin wallpaper"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/wallpapers/catppuccin-mocha.png"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/hypr/wallpapers/catppuccin-mocha.png"
+    state: link
+    force: true

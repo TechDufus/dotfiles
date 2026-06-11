@@ -17,6 +17,71 @@
   become: true
   when: can_install_packages | default(false)
 
+- name: "System | {{ ansible_facts['distribution'] }} | Derive keyboard settings"
+  ansible.builtin.set_fact:
+    arch_console_keymap: "{{ keyboard.console_keymap | default('dvorak' if (keyboard.variant | default('')) == 'dvorak' else (keyboard.layout | default('us')) ) }}"
+    arch_x11_layout: "{{ keyboard.layout | default('us') }}"
+    arch_x11_model: "{{ keyboard.model | default('pc105') }}"
+    arch_x11_variant: "{{ keyboard.variant | default('') }}"
+    arch_x11_options: "{{ keyboard.options if (keyboard.options | default([])) is string else (keyboard.options | default([]) | join(',')) }}"
+  when: keyboard is defined
+
+- name: "System | {{ ansible_facts['distribution'] }} | Read keyboard state"
+  ansible.builtin.command: localectl status
+  register: arch_localectl_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: keyboard is defined
+
+- name: "System | {{ ansible_facts['distribution'] }} | Configure console keymap"
+  ansible.builtin.command:
+    argv:
+      - localectl
+      - set-keymap
+      - "{{ arch_console_keymap }}"
+  become: true
+  when:
+    - keyboard is defined
+    - can_install_packages | default(false)
+    - arch_localectl_status.rc | default(1) == 0
+    - "'VC Keymap: ' ~ arch_console_keymap not in arch_localectl_status.stdout"
+
+- name: "System | {{ ansible_facts['distribution'] }} | Configure X11 keymap"
+  ansible.builtin.command:
+    argv:
+      - localectl
+      - set-x11-keymap
+      - "{{ arch_x11_layout }}"
+      - "{{ arch_x11_model }}"
+      - "{{ arch_x11_variant }}"
+      - "{{ arch_x11_options }}"
+  become: true
+  when:
+    - keyboard is defined
+    - can_install_packages | default(false)
+    - arch_localectl_status.rc | default(1) == 0
+    - >
+      ('X11 Layout: ' ~ arch_x11_layout) not in arch_localectl_status.stdout or
+      (arch_x11_variant | length > 0 and ('X11 Variant: ' ~ arch_x11_variant) not in arch_localectl_status.stdout) or
+      (arch_x11_options | length > 0 and ('X11 Options: ' ~ arch_x11_options) not in arch_localectl_status.stdout)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Keyboard skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Keyboard configuration skipped due to missing sudo privileges"
+      - "Would set console={{ arch_console_keymap }}, X11={{ arch_x11_layout }} {{ arch_x11_variant }} {{ arch_x11_options }}"
+  when:
+    - keyboard is defined
+    - not (can_install_packages | default(false))
+
+- name: "System | {{ ansible_facts['distribution'] }} | Keyboard skipped (localectl unavailable)"
+  ansible.builtin.debug:
+    msg: "Keyboard configuration skipped because localectl is unavailable on this host."
+  when:
+    - keyboard is defined
+    - arch_localectl_status.rc | default(1) != 0
+
 - name: "System | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
   ansible.builtin.debug:
     msg:

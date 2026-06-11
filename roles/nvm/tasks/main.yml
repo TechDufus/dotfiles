@@ -45,32 +45,44 @@
   changed_when: false
   check_mode: false
 
+- name: "NVM | Ensure nvm directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.nvm"
+    state: directory
+    mode: "0755"
+  when:
+    - nvm_latest_release is defined
+    - current_nvm_version.stdout == "not-installed" or current_nvm_version.stdout != nvm_latest_release
+
 - name: "NVM | Install or update nvm"
-  ansible.builtin.shell: >
-    set -o pipefail && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/{{ nvm_latest_release }}/install.sh | bash
+  ansible.builtin.shell: |
+    set -o pipefail
+    export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
+    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/{{ nvm_latest_release }}/install.sh" | bash
   args:
-    creates: "{{ ansible_facts['env']['HOME'] }}/.nvm/nvm.sh"
     executable: /bin/bash
   when: 
     - nvm_latest_release is defined
     - current_nvm_version.stdout == "not-installed" or current_nvm_version.stdout != nvm_latest_release
   register: nvm_install_result
 
-- name: "NVM | Get normalized Node.js version"
+- name: "NVM | Resolve installed Node.js version"
   ansible.builtin.shell: |
     export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-    # Convert lts/* to actual version number
-    if [ "{{ nvm_node_version }}" = "lts/*" ]; then
-      nvm ls-remote --lts | tail -1 | awk '{print $1}'
+    resolved_version="$(nvm version "{{ nvm_node_version }}" 2>/dev/null || true)"
+    if [ -n "$resolved_version" ] && [ "$resolved_version" != "N/A" ]; then
+      printf '%s\n' "$resolved_version"
     else
-      echo "{{ nvm_node_version }}"
+      echo "not-installed"
     fi
   args:
     executable: /bin/bash
   register: node_version_normalized
   changed_when: false
-  when: nvm_install_result is not changed or nvm_install_result is skipped
+  when:
+    - nvm_latest_release is defined
+    - current_nvm_version.stdout != "not-installed" or nvm_install_result is changed
 
 - name: "NVM | Check if Node.js version is already installed"
   ansible.builtin.stat:
@@ -85,17 +97,21 @@
     nvm install {{ nvm_node_version }}
   args:
     executable: /bin/bash
-    creates: "{{ ansible_facts['env']['HOME'] }}/.nvm/versions/node/{{ node_version_normalized.stdout }}"
   when: 
     - node_version_normalized is not skipped
     - not (node_version_installed.stat.exists | default(false))
   register: node_install_result
+  changed_when: "'is already installed' not in node_install_result.stdout"
 
 - name: "NVM | Check current default Node.js version"
   ansible.builtin.shell: |
     export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-    nvm alias default 2>/dev/null | grep -oE 'default -> (.+)' | sed 's/default -> //' || echo "none"
+    if [ -r "$NVM_DIR/alias/default" ]; then
+      IFS= read -r default_alias < "$NVM_DIR/alias/default"
+      printf '%s\n' "$default_alias"
+    else
+      echo "none"
+    fi
   args:
     executable: /bin/bash
   register: current_default_node

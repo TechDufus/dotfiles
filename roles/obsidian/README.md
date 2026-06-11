@@ -8,15 +8,16 @@ This role automates the installation of [Obsidian](https://obsidian.md/) across 
 
 ## Supported Platforms
 
-| Platform | Installation Method | Desktop Required |
-|----------|---------------------|------------------|
-| macOS    | Homebrew Cask       | No               |
-| Ubuntu   | Flatpak             | Yes              |
+| Platform          | Installation Method | Desktop Required |
+|-------------------|---------------------|------------------|
+| macOS             | Homebrew Cask       | No               |
+| Archlinux/CachyOS | pacman              | No               |
+| Ubuntu            | Flatpak             | Yes              |
 
 **Notes:**
-- Ubuntu installation only runs when a desktop environment is detected (checks `XDG_CURRENT_DESKTOP`)
-- Ubuntu installation is skipped on WSL environments
-- Flatpak must be available on Linux systems (handled by the `flatpak` role)
+- CachyOS is normalized to Archlinux before role selection and uses the Archlinux task file
+- Archlinux/CachyOS installs the native `obsidian` pacman package when package installation is available
+- Ubuntu installation only runs when a desktop environment is detected and is skipped on WSL
 
 ## What Gets Installed
 
@@ -25,7 +26,12 @@ This role automates the installation of [Obsidian](https://obsidian.md/) across 
   - Package: `obsidian`
   - Latest stable version from Homebrew
 
-### Ubuntu/Linux
+### Archlinux/CachyOS
+- **Obsidian** via pacman
+  - Package: `obsidian`
+  - Native repository package; no Flatpak dependency
+
+### Ubuntu
 - **Obsidian** via Flatpak
   - Package: `md.obsidian.Obsidian`
   - Sandboxed application from Flathub
@@ -60,25 +66,28 @@ The role includes commented-out cron job configuration for automatic git synchro
 graph TD
     A[Start: obsidian role] --> B{OS Detection}
     B -->|macOS| C[Install via Homebrew Cask]
-    B -->|Ubuntu| D{Desktop Environment?}
-    D -->|Yes| E{WSL?}
-    D -->|No| F[Skip Installation]
-    E -->|No| G[Install via Flatpak]
-    E -->|Yes| F
-    C --> H[Clone SecondBrain Vault]
-    G --> H
-    H --> I[End]
-    F --> I
+    B -->|Archlinux/CachyOS| D[Install via pacman]
+    B -->|Ubuntu| E{Desktop Environment?}
+    E -->|Yes| F{WSL?}
+    E -->|No| G[Skip Ubuntu Install]
+    F -->|No| H[Install via Flatpak]
+    F -->|Yes| G
+    C --> I[Clone SecondBrain Vault]
+    D --> I
+    H --> I
+    I --> J[End]
+    G --> J
 ```
 
 ## Dependencies
 
 ### Required Roles
-- **flatpak** (Ubuntu only) - Must be run before this role on Linux systems
+- **flatpak** (Ubuntu only) - Must be run before this role when using the Ubuntu Flatpak install path
 
 ### System Requirements
 - **macOS:** Homebrew must be installed
-- **Ubuntu/Linux:**
+- **Archlinux/CachyOS:** pacman package installation available
+- **Ubuntu:**
   - Flatpak installed and configured
   - Desktop environment (GUI)
   - Not running in WSL
@@ -133,7 +142,7 @@ Edit `roles/obsidian/tasks/Ubuntu.yml` and uncomment lines 20-25:
 
 ### Change Vault Repository
 
-Modify the repository URL in both `MacOSX.yml` and `Ubuntu.yml`:
+Modify the repository URL in `tasks/main.yml`:
 
 ```yaml
 - name: "Obsidian | Clone Obsidian Git Repo"
@@ -145,9 +154,9 @@ Modify the repository URL in both `MacOSX.yml` and `Ubuntu.yml`:
 ## Known Issues
 
 - **Ubuntu:** Requires desktop environment detection - may not work on all DE configurations
-- **WSL:** Installation is intentionally skipped (no GUI support)
+- **WSL:** Ubuntu Flatpak installation is intentionally skipped
+- **Archlinux/CachyOS:** Package installation is skipped when sudo/package privileges are unavailable
 - **Git Clone:** Always shows as "ok" rather than "changed" due to `failed_when: false`
-- **Flatpak Dependency:** Must have flatpak role run first on Linux systems
 
 ## Official Documentation
 
@@ -158,7 +167,7 @@ Modify the repository URL in both `MacOSX.yml` and `Ubuntu.yml`:
 
 ## Related Roles
 
-- `flatpak` - Required for Linux installation
+- `flatpak` - Required for Ubuntu Flatpak installation
 - `git` - Required for vault cloning and SSH key management
 
 ---

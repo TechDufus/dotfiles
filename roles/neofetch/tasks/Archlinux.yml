@@ -1,6 +1,12 @@
 ---
 - name: "Neofetch | Arch | Install neofetch"
-  ansible.builtin.pacman:
+  community.general.pacman:
     name: neofetch
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Neofetch | Arch | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: neofetch"
+  when: not (can_install_packages | default(false))

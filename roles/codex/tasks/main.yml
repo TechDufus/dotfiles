@@ -13,18 +13,21 @@
     path: "{{ ansible_facts['env']['HOME'] }}/.codex"
     state: directory
     mode: "0755"
+  check_mode: false
 
 - name: "{{ role_name }} | Agents | Ensure ~/.codex/agents directory exists"
   ansible.builtin.file:
     path: "{{ codex_custom_agents_dest }}"
     state: directory
     mode: "0755"
+  check_mode: false
 
 - name: "{{ role_name }} | Skills | Ensure ~/.codex/skills directory exists"
   ansible.builtin.file:
     path: "{{ codex_skills_dest }}"
     state: directory
     mode: "0755"
+  check_mode: false
 
 - name: "{{ role_name }} | Agents | Check custom agents source directory"
   ansible.builtin.stat:

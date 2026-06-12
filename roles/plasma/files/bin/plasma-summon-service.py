@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import shutil
 import json
 import os
 import shlex
@@ -16,6 +17,21 @@ from typing import Any
 BUS_NAME = "io.techdufus.PlasmaSummon"
 BUS_PATH = "/io/techdufus/PlasmaSummon"
 BUS_INTERFACE = "io.techdufus.PlasmaSummon"
+QT_META = 0x10000000
+QT_HYPER = 0x1E000000
+
+
+def summon_shortcuts() -> list[tuple[list[str], list[int]]]:
+    return [
+        (
+            ["kwin", "Pick Active Window Region", "KWin", "Pick region/cell for active window"],
+            [QT_META + ord("U")],
+        ),
+        (
+            ["kwin", "Pick Active Screen Layout", "KWin", "Pick active screen layout"],
+            [QT_HYPER + ord("P")],
+        ),
+    ]
 
 
 def config_home() -> Path:
@@ -67,6 +83,88 @@ def launch_app(config_dir: Path, app_name: str, *, dry_run: bool = False) -> str
     subprocess.Popen(argv, start_new_session=True)
     return f"launched:{app_name}"
 
+def parse_picker_options(options_json: str) -> list[dict[str, str]]:
+    raw = json.loads(options_json)
+    if not isinstance(raw, list):
+        raise ValueError("Picker options must be a list")
+
+    options: list[dict[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("Picker option must be an object")
+        option_id = str(item.get("id", "")).strip()
+        label = str(item.get("label", "")).strip()
+        if not option_id or not label:
+            raise ValueError("Picker options require id and label")
+        options.append({"id": option_id, "label": label})
+
+    if not options:
+        raise ValueError("Picker options cannot be empty")
+    return options
+
+
+def build_kdialog_argv(prompt: str, options: list[dict[str, str]]) -> list[str]:
+    argv = ["kdialog", "--title", "Plasma Summon", "--menu", prompt]
+    for option in options:
+        argv.extend([option["id"], option["label"]])
+    return argv
+
+
+def pick_option(prompt: str, options_json: str) -> str:
+    options = parse_picker_options(options_json)
+    kdialog = shutil.which("kdialog")
+    if kdialog:
+        argv = build_kdialog_argv(prompt, options)
+        argv[0] = kdialog
+        result = subprocess.run(argv, check=False, stdout=subprocess.PIPE, text=True)
+        return result.stdout.strip() if result.returncode == 0 else ""
+
+    rofi = shutil.which("rofi")
+    if rofi:
+        labels = [option["label"] for option in options]
+        result = subprocess.run(
+            [rofi, "-dmenu", "-i", "-p", prompt, "-format", "i"],
+            check=False,
+            input="\n".join(labels) + "\n",
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            return ""
+        try:
+            index = int(result.stdout.strip())
+        except ValueError:
+            return ""
+        return options[index]["id"] if 0 <= index < len(options) else ""
+
+    return "error:no picker found; install kdialog or rofi"
+
+async def configure_shortcuts() -> list[str]:
+    try:
+        from dbus_next import Message
+        from dbus_next.aio import MessageBus
+    except ImportError as exc:
+        raise SystemExit("python-dbus-next is required for shortcut configuration") from exc
+
+    bus = await MessageBus().connect()
+    configured = []
+    for action_id, keys in summon_shortcuts():
+        reply = await bus.call(
+            Message(
+                destination="org.kde.kglobalaccel",
+                path="/kglobalaccel",
+                interface="org.kde.KGlobalAccel",
+                member="setForeignShortcut",
+                signature="asai",
+                body=[action_id, keys],
+            )
+        )
+        if reply.message_type.name == "ERROR":
+            raise RuntimeError(f"{action_id[1]}: {reply.body}")
+        configured.append(action_id[1])
+    return configured
+
+
 
 async def serve(config_dir: Path) -> None:
     try:
@@ -90,6 +188,13 @@ async def serve(config_dir: Path) -> None:
             except (OSError, ValueError) as exc:
                 return f"error:{exc}"
 
+        @method()
+        def PickOption(self, prompt: "s", options_json: "s") -> "s":
+            try:
+                return pick_option(prompt, options_json)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                return f"error:{exc}"
+
     bus = await MessageBus().connect()
     bus.export(BUS_PATH, PlasmaSummon())
     await bus.request_name(BUS_NAME)
@@ -106,6 +211,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--print-config", action="store_true", help="print config JSON and exit")
     parser.add_argument("--launch", metavar="APP", help="launch an app from the registry and exit")
     parser.add_argument("--dry-run", action="store_true", help="print launch command instead of executing it")
+    parser.add_argument(
+        "--configure-shortcuts",
+        action="store_true",
+        help="apply live KGlobalAccel shortcuts for Plasma summon pickers",
+    )
     return parser
 
 
@@ -121,6 +231,15 @@ def main(argv: list[str] | None = None) -> int:
         try:
             print(launch_app(config_dir, args.launch, dry_run=args.dry_run))
         except (OSError, ValueError) as exc:
+            print(f"error:{exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.configure_shortcuts:
+        try:
+            for name in asyncio.run(configure_shortcuts()):
+                print(f"shortcut:{name}")
+        except (OSError, RuntimeError) as exc:
             print(f"error:{exc}", file=sys.stderr)
             return 1
         return 0

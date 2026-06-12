@@ -126,9 +126,9 @@ with `kwriteconfig6`, and starts the user D-Bus helper.
 Window-management carry-over:
 
 - `F13`/`CapsLock`, then a letter: summon/focus an app; existing windows are not moved.
-- `Super+U`, then a region key or `1`-`6`: move the focused window to a region/cell.
+- `Super+U`: open the active layout's cell picker and move the focused window.
 - `Super+O` / `Shift+Super+O`: move the focused window to the next/previous monitor and snap managed apps into that monitor's active layout.
-- `Hyper+P` or `Hyper+;`: cycle the active monitor's layout profile.
+- `Hyper+P`: open the active monitor's layout picker; `Hyper+;` cycles layouts.
 
 After `dotfiles -t steam`, verify the non-interactive pieces:
 

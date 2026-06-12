@@ -242,6 +242,34 @@ function lower(value) {
     return String(value || "").toLowerCase();
 }
 
+function displayName(name) {
+    return String(name || "").replace(/_/g, " ");
+}
+
+function requestPicker(prompt, options, callback) {
+    if (!options || options.length === 0) {
+        return;
+    }
+    callDBus(
+        SUMMON_SERVICE,
+        SUMMON_PATH,
+        SUMMON_INTERFACE,
+        "PickOption",
+        prompt,
+        JSON.stringify(options),
+        function (selection) {
+            const value = String(selection || "");
+            if (value.slice(0, 6) === "error:") {
+                log(value);
+                return;
+            }
+            if (value) {
+                callback(value);
+            }
+        }
+    );
+}
+
 function windowId(window) {
     return window ? String(window.internalId || window.pid || window.caption || "") : "";
 }
@@ -615,10 +643,6 @@ function placeWindowInRegion(window, regionName, output) {
     return true;
 }
 
-function moveActiveToRegion(regionName) {
-    placeWindowInRegion(workspace.activeWindow, regionName, null);
-}
-
 function layoutNames() {
     return objectKeys(layouts);
 }
@@ -705,6 +729,59 @@ function moveActiveToCell(cellIndex) {
     placeWindowInCell(workspace.activeWindow, cellIndex, null);
 }
 
+function appNamesForCell(layout, cellIndex) {
+    const appMap = layout.apps || {};
+    const names = objectKeys(appMap);
+    const matches = [];
+    for (let i = 0; i < names.length; i += 1) {
+        const name = names[i];
+        if (Number(appMap[name]) === Number(cellIndex)) {
+            matches.push(name);
+        }
+    }
+    return matches;
+}
+
+function showCellPicker() {
+    const window = workspace.activeWindow;
+    if (!normalWindow(window)) {
+        log("no active window to move");
+        return;
+    }
+    if (window.fullScreen) {
+        log("refusing to move fullscreen window");
+        return;
+    }
+
+    const output = window.output || workspace.activeScreen;
+    const pair = layoutForOutput(output);
+    const layoutName = pair[0];
+    const layout = pair[1];
+    const cells = layout.cells || [];
+    const options = [];
+    for (let i = 0; i < cells.length; i += 1) {
+        const cellIndex = i + 1;
+        const regionName = cellRegion(layout, cellIndex);
+        const appNames = appNamesForCell(layout, cellIndex);
+        let label = String(cellIndex) + "  " + displayName(regionName);
+        if (appNames.length > 0) {
+            label += "  (" + appNames.join(", ") + ")";
+        }
+        options.push({ id: "cell:" + cellIndex, label: label });
+    }
+
+    const appName = appForWindow(window) || window.resourceClass || "window";
+    requestPicker("Move " + appName + " on " + outputKey(output) + " (" + displayName(layoutName) + ") to cell", options, function (selection) {
+        if (selection.slice(0, 5) !== "cell:") {
+            return;
+        }
+        const cellIndex = parseInt(selection.slice(5), 10);
+        if (cellIndex && placeWindowInCell(window, cellIndex, output)) {
+            focusWindow(window);
+        }
+    });
+}
+
 function reapplyLayout(output) {
     const pair = layoutForOutput(output);
     const layoutName = pair[0];
@@ -731,15 +808,44 @@ function activeOutput() {
     return workspace.activeScreen;
 }
 
+function selectLayout(output, layoutName) {
+    if (!layouts[layoutName]) {
+        log("unknown layout " + layoutName);
+        return;
+    }
+    setLayoutForOutput(output, layoutName);
+    reapplyLayout(output);
+    log("layout " + outputKey(output) + " -> " + layoutName);
+}
+
 function cycleLayout() {
     const output = activeOutput();
     const names = layoutNames();
     const current = layoutForOutput(output)[0];
     const index = names.indexOf(current);
     const next = names[(index + 1) % names.length];
-    setLayoutForOutput(output, next);
-    reapplyLayout(output);
-    log("layout " + outputKey(output) + " -> " + next);
+    selectLayout(output, next);
+}
+
+function showLayoutPicker() {
+    const output = activeOutput();
+    const current = layoutForOutput(output)[0];
+    const names = layoutNames();
+    const options = [];
+    for (let i = 0; i < names.length; i += 1) {
+        const name = names[i];
+        const layout = layouts[name];
+        const marker = name === current ? "* " : "  ";
+        const label = marker + String(i + 1) + ". " + String(layout.label || displayName(name));
+        options.push({ id: "layout:" + name, label: label });
+    }
+
+    requestPicker("Layout for " + outputKey(output), options, function (selection) {
+        if (selection.slice(0, 7) !== "layout:") {
+            return;
+        }
+        selectLayout(output, selection.slice(7));
+    });
 }
 
 function resetLayout() {
@@ -855,31 +961,7 @@ function registerAppShortcuts() {
 }
 
 function registerRegionShortcuts() {
-    const regionBindings = {
-        M: "main",
-        W: "wide",
-        S: "side",
-        C: "chat",
-        E: "center",
-        L: "left",
-        R: "right",
-        T: "top_right",
-        B: "bottom_right",
-        F: "full",
-    };
-    const keys = objectKeys(regionBindings);
-    for (let i = 0; i < keys.length; i += 1) {
-        const key = keys[i];
-        const regionName = regionBindings[key];
-        registerShortcut("Move Active to Region " + regionName, "Move active window to " + regionName, "Meta+U," + key, function () {
-            moveActiveToRegion(regionName);
-        });
-    }
-    for (let cell = 1; cell <= 6; cell += 1) {
-        registerShortcut("Move Active to Cell " + cell, "Move active window to layout cell " + cell, "Meta+U," + cell, function () {
-            moveActiveToCell(cell);
-        });
-    }
+    registerShortcut("Pick Active Window Region", "Pick region/cell for active window", "Meta+U", showCellPicker);
 }
 
 function registerWorkflowShortcuts() {
@@ -889,7 +971,7 @@ function registerWorkflowShortcuts() {
     registerShortcut("Move Active Window to Previous Screen", "Move active window to previous screen", "Meta+Shift+O", function () {
         moveActiveToOutput("previous");
     });
-    registerShortcut("Cycle Active Screen Layout", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+P", cycleLayout);
+    registerShortcut("Pick Active Screen Layout", "Pick active screen layout", "Meta+Alt+Ctrl+Shift+P", showLayoutPicker);
     registerShortcut("Cycle Active Screen Layout Semicolon", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+;", cycleLayout);
     registerShortcut("Reset Active Screen Layout Apostrophe", "Reset active screen layout", "Meta+Alt+Ctrl+Shift+'", resetLayout);
     registerShortcut("Reload Plasma Summon Configuration Hyper", "Reload KWin configuration", "Meta+Alt+Ctrl+Shift+R", function () {

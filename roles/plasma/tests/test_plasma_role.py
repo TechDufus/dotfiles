@@ -92,6 +92,14 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "systemsettings.desktop",
             "_launch",
             "none,Tools\\tMeta+I,System Settings",
+            "Configure Plasma summon KWin shortcuts",
+            "Move Active to Cell 1",
+            "Move Active to Region main",
+            "Cycle Active Screen Layout",
+            "Pick Active Window Region",
+            "Meta+U,none,Pick region/cell for active window",
+            "Pick Active Screen Layout",
+            "Meta+Ctrl+Alt+Shift+P,none,Pick active screen layout",
             "Ask KGlobalAccel to release System Settings Tools shortcut",
             "/component/systemsettings_desktop",
             "Load Plasma summon into running KWin",
@@ -99,6 +107,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}/contents/code/main.js",
             "Start pending KWin scripts",
             "org.kde.kwin.Scripting.start",
+            "Configure running Plasma summon shortcuts",
+            "--configure-shortcuts",
             "kwriteconfig6",
             "qdbus6",
         ]:
@@ -118,16 +128,16 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             'registerShortcut("Summon " + appName',
             'const triggerPrefixes = ["F13", "CapsLock", "Tools"]',
             'prefix + "," + key',
-            'registerShortcut("Move Active to Region " + regionName',
-            '"Meta+U," + key',
-            'registerShortcut("Move Active to Cell " + cell',
-            '"Meta+U," + cell',
+            'registerShortcut("Pick Active Window Region"',
+            '"Meta+U", showCellPicker',
+            'requestPicker("Move " + appName',
+            '"PickOption"',
             'registerShortcut("Move Active Window to Next Screen"',
             '"Meta+O"',
             'registerShortcut("Move Active Window to Previous Screen"',
             '"Meta+Shift+O"',
-            'registerShortcut("Cycle Active Screen Layout"',
-            '"Meta+Alt+Ctrl+Shift+P"',
+            'registerShortcut("Pick Active Screen Layout"',
+            '"Meta+Alt+Ctrl+Shift+P", showLayoutPicker',
             '"Meta+Alt+Ctrl+Shift+;"',
             "\"Meta+Alt+Ctrl+Shift+'\"",
             'registerShortcut("Reload Plasma Summon Configuration Hyper"',
@@ -138,6 +148,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "XF86Tools",
             "Meta+Alt+Ctrl+Shift+Semicolon",
             "Meta+Alt+Ctrl+Shift+Apostrophe",
+            'registerShortcut("Move Active to Region " + regionName',
+            '"Meta+U," + key',
+            'registerShortcut("Move Active to Cell " + cell',
+            '"Meta+U," + cell',
         ]:
             self.assertNotIn(invalid, self.script)
 
@@ -194,6 +208,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             'const SUMMON_INTERFACE = "io.techdufus.PlasmaSummon"',
             'callDBus(SUMMON_SERVICE, SUMMON_PATH, SUMMON_INTERFACE, "ConfigJson"',
             'callDBus(SUMMON_SERVICE, SUMMON_PATH, SUMMON_INTERFACE, "LaunchApp", appName',
+            '"PickOption"',
         ]:
             self.assertIn(required, self.script)
 
@@ -266,6 +281,45 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         self.assertEqual(
             plasma_summon_service.launch_app(SUMMON_DIR, "terminal", dry_run=True),
             "ghostty",
+        )
+
+    def test_helper_builds_safe_picker_arguments(self) -> None:
+        options = plasma_summon_service.parse_picker_options(
+            '[{"id":"cell:1","label":"1  main (terminal)"},{"id":"cell:2","label":"2  side (browser)"}]'
+        )
+        self.assertEqual(options[0]["id"], "cell:1")
+        self.assertEqual(
+            plasma_summon_service.build_kdialog_argv("Move window", options),
+            [
+                "kdialog",
+                "--title",
+                "Plasma Summon",
+                "--menu",
+                "Move window",
+                "cell:1",
+                "1  main (terminal)",
+                "cell:2",
+                "2  side (browser)",
+            ],
+        )
+
+        with self.assertRaises(ValueError):
+            plasma_summon_service.parse_picker_options("[]")
+
+    def test_helper_defines_runtime_picker_shortcuts(self) -> None:
+        shortcuts = plasma_summon_service.summon_shortcuts()
+        self.assertEqual(
+            shortcuts,
+            [
+                (
+                    ["kwin", "Pick Active Window Region", "KWin", "Pick region/cell for active window"],
+                    [0x10000000 + ord("U")],
+                ),
+                (
+                    ["kwin", "Pick Active Screen Layout", "KWin", "Pick active screen layout"],
+                    [0x1E000000 + ord("P")],
+                ),
+            ],
         )
 
 

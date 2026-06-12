@@ -119,6 +119,61 @@
     - plasma_enable_kwin_summon | bool
     - plasma_kwriteconfig6.stat.exists
 
+- name: "{{ role_name }} | Configure Plasma summon KWin shortcuts"
+  ansible.builtin.command:
+    argv:
+      - kwriteconfig6
+      - --file
+      - kglobalshortcutsrc
+      - --group
+      - kwin
+      - --key
+      - "{{ item.key }}"
+      - "{{ item.value }}"
+  loop:
+    - key: Move Active to Cell 1
+      value: "none,none,Move active window to layout cell 1"
+    - key: Move Active to Cell 2
+      value: "none,none,Move active window to layout cell 2"
+    - key: Move Active to Cell 3
+      value: "none,none,Move active window to layout cell 3"
+    - key: Move Active to Cell 4
+      value: "none,none,Move active window to layout cell 4"
+    - key: Move Active to Cell 5
+      value: "none,none,Move active window to layout cell 5"
+    - key: Move Active to Cell 6
+      value: "none,none,Move active window to layout cell 6"
+    - key: Move Active to Region bottom_right
+      value: "none,none,Move active window to bottom_right"
+    - key: Move Active to Region center
+      value: "none,none,Move active window to center"
+    - key: Move Active to Region chat
+      value: "none,none,Move active window to chat"
+    - key: Move Active to Region full
+      value: "none,none,Move active window to full"
+    - key: Move Active to Region left
+      value: "none,none,Move active window to left"
+    - key: Move Active to Region main
+      value: "none,none,Move active window to main"
+    - key: Move Active to Region right
+      value: "none,none,Move active window to right"
+    - key: Move Active to Region side
+      value: "none,none,Move active window to side"
+    - key: Move Active to Region top_right
+      value: "none,none,Move active window to top_right"
+    - key: Move Active to Region wide
+      value: "none,none,Move active window to wide"
+    - key: Cycle Active Screen Layout
+      value: "none,none,Cycle active screen layout"
+    - key: Pick Active Window Region
+      value: "Meta+U,none,Pick region/cell for active window"
+    - key: Pick Active Screen Layout
+      value: "Meta+Ctrl+Alt+Shift+P,none,Pick active screen layout"
+  changed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_kwriteconfig6.stat.exists
+
 - name: "{{ role_name }} | Explain missing kwriteconfig6"
   ansible.builtin.debug:
     msg: "KWin summon script was deployed but not enabled because kwriteconfig6 is not installed yet."
@@ -172,6 +227,18 @@
   when:
     - plasma_enable_kwin_summon | bool
     - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Configure running Plasma summon shortcuts"
+  ansible.builtin.command:
+    argv:
+      - "{{ plasma_local_bin_dir }}/plasma-summon-service"
+      - --configure-shortcuts
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+    - not ansible_check_mode
 
 - name: "{{ role_name }} | Ask running KWin to reload scripts"
   ansible.builtin.command:

@@ -201,6 +201,7 @@ const state = {
     lastCellByWindow: {},
     layoutByOutput: {},
     appCellOverrides: {},
+    pendingLaunches: {},
 };
 
 function log(message) {
@@ -381,6 +382,16 @@ function bestWindow(appName) {
     return best;
 }
 
+function activateWindowDesktop(window) {
+    if (!window || !window.desktops || window.desktops.length === 0) {
+        return;
+    }
+    const desktop = window.desktops[0];
+    if (desktop) {
+        workspace.currentDesktop = desktop;
+    }
+}
+
 function focusWindow(window) {
     if (!window) {
         return;
@@ -388,6 +399,7 @@ function focusWindow(window) {
     if (window.minimized) {
         window.minimized = false;
     }
+    activateWindowDesktop(window);
     workspace.activeWindow = window;
     workspace.raiseWindow(window);
 }
@@ -415,13 +427,115 @@ function moveWindowToAppDesktop(window, appConfig) {
     }
 }
 
-function launchApp(appName) {
+function outputByName(name) {
+    if (!name) {
+        return null;
+    }
+    const wanted = lower(name);
+    const screens = workspace.screens || [];
+    for (let i = 0; i < screens.length; i += 1) {
+        const output = screens[i];
+        const values = [
+            output.name,
+            output.serialNumber,
+            output.model,
+            outputKey(output),
+        ];
+        for (let j = 0; j < values.length; j += 1) {
+            if (lower(values[j]) === wanted) {
+                return output;
+            }
+        }
+    }
+    return null;
+}
+
+function targetOutputForApp(appConfig, fallback) {
+    if (appConfig && appConfig.monitor) {
+        const output = outputByName(appConfig.monitor);
+        if (output) {
+            return output;
+        }
+        log("unknown app monitor " + appConfig.monitor);
+    }
+    return fallback || workspace.activeScreen;
+}
+
+function moveWindowToOutput(window, output) {
+    if (!normalWindow(window) || !output) {
+        return false;
+    }
+    if (window.output !== output) {
+        workspace.sendClientToScreen(window, output);
+    }
+    return true;
+}
+
+function prepareWindowForGeometry(window, region) {
+    if (region && region.float === false) {
+        return;
+    }
+    if (window.setMaximize) {
+        window.setMaximize(false, false);
+    }
+    if ("maximized" in window) {
+        window.maximized = false;
+    }
+    if ("maximizedHorizontally" in window) {
+        window.maximizedHorizontally = false;
+    }
+    if ("maximizedVertically" in window) {
+        window.maximizedVertically = false;
+    }
+    if ("quickTileMode" in window) {
+        window.quickTileMode = 0;
+    }
+}
+
+function placeAppWindow(appName, window) {
+    const appConfig = apps[appName];
+    if (!appConfig || !normalWindow(window)) {
+        return false;
+    }
+    if (window.fullScreen) {
+        log("refusing to move fullscreen window");
+        return false;
+    }
+
+    moveWindowToAppDesktop(window, appConfig);
+    const targetOutput = targetOutputForApp(appConfig, window.output || workspace.activeScreen);
+    moveWindowToOutput(window, targetOutput);
+    focusWindow(window);
+
+    const pair = layoutForOutput(targetOutput);
+    if (pair && pair[1]) {
+        const cell = configuredAppCell(targetOutput, pair[0], pair[1], appName);
+        if (cell && placeWindowInLayoutCell(window, cell, targetOutput, false)) {
+            return true;
+        }
+    }
+
+    if (appConfig.region) {
+        return placeWindowInRegion(window, appConfig.region, targetOutput);
+    }
+    return true;
+}
+
+function rememberPendingLaunch(appName, place) {
+    state.pendingLaunches[appName] = {
+        expiresAt: Date.now() + 10000,
+        place: place,
+    };
+}
+
+function launchApp(appName, place) {
     const appConfig = apps[appName];
     if (!appConfig) {
         log("unknown app " + appName);
         return;
     }
     activateAppDesktop(appConfig);
+    rememberPendingLaunch(appName, Boolean(place || appConfig.region || appConfig.monitor));
     callDBus(SUMMON_SERVICE, SUMMON_PATH, SUMMON_INTERFACE, "LaunchApp", appName, function (reply) {
         log(String(reply || "launch requested: " + appName));
     });
@@ -436,17 +550,15 @@ function summonApp(appName, place) {
 
     const window = bestWindow(appName);
     if (!window) {
-        launchApp(appName);
+        launchApp(appName, true);
         return;
     }
 
     state.lastByApp[appName] = windowId(window);
-    focusWindow(window);
     if (place) {
-        moveWindowToAppDesktop(window, appConfig);
-        if (appConfig.region) {
-            placeWindowInRegion(window, appConfig.region, window.output);
-        }
+        placeAppWindow(appName, window);
+    } else {
+        focusWindow(window);
     }
 }
 
@@ -459,7 +571,7 @@ function outputArea(output) {
         output = workspace.activeScreen;
     }
     const desktop = currentDesktopForOutput(output);
-    return workspace.clientArea(KWin.WorkArea, output, desktop);
+    return workspace.clientArea(KWin.PlacementArea, output, desktop);
 }
 
 function percentOrPixels(value, total) {
@@ -495,6 +607,7 @@ function placeWindowInRegion(window, regionName, output) {
         log("unknown region " + regionName);
         return false;
     }
+    prepareWindowForGeometry(window, region);
     const target = regionGeometry(region, output || window.output || workspace.activeScreen);
     window.frameGeometry = target;
     state.lastRegionByWindow[windowId(window)] = regionName;
@@ -560,7 +673,7 @@ function cellRegion(layout, cellIndex) {
     return regionName || null;
 }
 
-function placeWindowInCell(window, cellIndex, output) {
+function placeWindowInLayoutCell(window, cellIndex, output, rememberOverride) {
     if (!normalWindow(window)) {
         return false;
     }
@@ -576,12 +689,16 @@ function placeWindowInCell(window, cellIndex, output) {
     const ok = placeWindowInRegion(window, regionName, targetOutput);
     if (ok) {
         const appName = appForWindow(window);
-        if (appName) {
+        if (rememberOverride && appName) {
             state.appCellOverrides[appCellOverrideKey(targetOutput, layoutName, appName)] = cellIndex;
         }
         state.lastCellByWindow[windowId(window)] = cellIndex;
     }
     return ok;
+}
+
+function placeWindowInCell(window, cellIndex, output) {
+    return placeWindowInLayoutCell(window, cellIndex, output, true);
 }
 
 function moveActiveToCell(cellIndex) {
@@ -674,6 +791,7 @@ function relativeGeometry(window, sourceArea) {
 
 function applyRelativeGeometry(window, output, relative) {
     const area = outputArea(output);
+    prepareWindowForGeometry(window, null);
     window.frameGeometry = {
         x: Math.round(area.x + relative.x * area.width),
         y: Math.round(area.y + relative.y * area.height),
@@ -719,7 +837,7 @@ function moveActiveToOutput(direction) {
 
 function registerAppShortcuts() {
     const names = objectKeys(apps);
-    const triggerPrefixes = ["F13", "CapsLock"];
+    const triggerPrefixes = ["F13", "CapsLock", "Tools"];
     for (let i = 0; i < names.length; i += 1) {
         const appName = names[i];
         const app = apps[appName];
@@ -780,12 +898,53 @@ function registerWorkflowShortcuts() {
     });
 }
 
+function cleanupPendingLaunches(now) {
+    const names = objectKeys(state.pendingLaunches);
+    for (let i = 0; i < names.length; i += 1) {
+        const appName = names[i];
+        const pending = state.pendingLaunches[appName];
+        if (!pending || pending.expiresAt < now) {
+            delete state.pendingLaunches[appName];
+        }
+    }
+}
+
+function handleWindowAdded(window) {
+    if (!normalWindow(window)) {
+        return;
+    }
+    const now = Date.now();
+    cleanupPendingLaunches(now);
+    const appName = appForWindow(window);
+    if (!appName) {
+        return;
+    }
+    const pending = state.pendingLaunches[appName];
+    if (!pending) {
+        return;
+    }
+    delete state.pendingLaunches[appName];
+    state.lastByApp[appName] = windowId(window);
+    if (pending.place) {
+        placeAppWindow(appName, window);
+    } else {
+        focusWindow(window);
+    }
+}
+
 workspace.windowActivated.connect(function (window) {
     if (state.activeWindow && state.activeWindow !== window) {
         state.previousWindow = state.activeWindow;
     }
     state.activeWindow = window;
+    handleWindowAdded(window);
 });
+
+if (workspace.windowAdded) {
+    workspace.windowAdded.connect(handleWindowAdded);
+} else if (workspace.clientAdded) {
+    workspace.clientAdded.connect(handleWindowAdded);
+}
 
 registerAppShortcuts();
 registerRegionShortcuts();

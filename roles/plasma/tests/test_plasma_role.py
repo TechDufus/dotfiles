@@ -16,7 +16,8 @@ HELPER = ROLE / "files" / "bin" / "plasma-summon-service.py"
 KWIN_SCRIPT = ROLE / "files" / "kwin" / "plasma-summon" / "contents" / "code" / "main.js"
 KWIN_METADATA = ROLE / "files" / "kwin" / "plasma-summon" / "metadata.json"
 SUMMON_DIR = ROLE / "files" / "summon"
-HYPR_SUMMON_DIR = REPO_ROOT / "roles" / "hyprland" / "files" / "summon"
+AWESOME_POSITIONS = REPO_ROOT / "roles" / "awesomewm" / "files" / "config" / "cell-management" / "positions.lua"
+HAMMERSPOON_POSITIONS = REPO_ROOT / "roles" / "hammerspoon" / "files" / "config" / "positions.lua"
 
 loader = importlib.machinery.SourceFileLoader("plasma_summon_service", str(HELPER))
 spec = importlib.util.spec_from_loader(loader.name, loader)
@@ -87,6 +88,17 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "files/kwin/{{ plasma_summon_script_id }}",
             "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}",
             "{{ plasma_summon_script_id }}Enabled",
+            "Reserve Tools key for Plasma summon",
+            "systemsettings.desktop",
+            "_launch",
+            "none,Tools\\tMeta+I,System Settings",
+            "Ask KGlobalAccel to release System Settings Tools shortcut",
+            "/component/systemsettings_desktop",
+            "Load Plasma summon into running KWin",
+            "org.kde.kwin.Scripting.loadScript",
+            "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}/contents/code/main.js",
+            "Start pending KWin scripts",
+            "org.kde.kwin.Scripting.start",
             "kwriteconfig6",
             "qdbus6",
         ]:
@@ -104,7 +116,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
     def test_kwin_script_registers_summon_region_layout_and_monitor_shortcuts(self) -> None:
         for required in [
             'registerShortcut("Summon " + appName',
-            'const triggerPrefixes = ["F13", "CapsLock"]',
+            'const triggerPrefixes = ["F13", "CapsLock", "Tools"]',
             'prefix + "," + key',
             'registerShortcut("Move Active to Region " + regionName',
             '"Meta+U," + key',
@@ -128,7 +140,28 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "Meta+Alt+Ctrl+Shift+Apostrophe",
         ]:
             self.assertNotIn(invalid, self.script)
-        self.assertNotIn("Tools", self.script)
+
+    def test_kwin_script_places_newly_launched_apps_with_current_layout_cells(self) -> None:
+        for required in [
+            "pendingLaunches",
+            "function outputByName(name)",
+            "function targetOutputForApp(appConfig, fallback)",
+            "function placeAppWindow(appName, window)",
+            "configuredAppCell(targetOutput, pair[0], pair[1], appName)",
+            "placeWindowInLayoutCell(window, cell, targetOutput, false)",
+            "function placeWindowInLayoutCell(window, cellIndex, output, rememberOverride)",
+            "placeWindowInLayoutCell(window, cellIndex, output, true)",
+            "rememberPendingLaunch(appName, Boolean(place || appConfig.region || appConfig.monitor))",
+            "launchApp(appName, true)",
+            "summonApp(appName, false)",
+            "workspace.windowAdded.connect(handleWindowAdded)",
+            "workspace.clientAdded.connect(handleWindowAdded)",
+            "prepareWindowForGeometry(window, region)",
+            "window.setMaximize(false, false)",
+            "window.quickTileMode = 0",
+        ]:
+            self.assertIn(required, self.script)
+        self.assertNotIn("summonApp(appName, true)", self.script)
 
 
 
@@ -136,8 +169,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         for required in [
             "workspace.stackingOrder",
             "workspace.activeWindow",
+            "function activateWindowDesktop(window)",
+            "workspace.currentDesktop = desktop",
             "workspace.raiseWindow(window)",
-            "workspace.clientArea(KWin.WorkArea, output, desktop)",
+            "workspace.clientArea(KWin.PlacementArea, output, desktop)",
             "window.frameGeometry = target",
             "workspace.sendClientToScreen(window, targetOutput)",
             "window.fullScreen",
@@ -147,6 +182,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "window.caption",
         ]:
             self.assertIn(required, self.script)
+
+    def test_kwin_script_does_not_use_virtual_work_area_for_regions(self) -> None:
+        self.assertNotIn("workspace.clientArea(KWin.WorkArea", self.script)
+
 
     def test_kwin_script_uses_dbus_helper_for_config_and_launching(self) -> None:
         for required in [
@@ -158,25 +197,43 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.script)
 
-    def test_plasma_registries_preserve_hyprland_workflow_model(self) -> None:
-        hypr_apps = load_toml(HYPR_SUMMON_DIR / "apps.toml")["apps"]
-        hypr_regions = load_toml(HYPR_SUMMON_DIR / "regions.toml")["regions"]
-        hypr_layouts = load_toml(HYPR_SUMMON_DIR / "layouts.toml")["layouts"]
+    def test_plasma_regions_follow_awesomewm_and_hammerspoon_grid_model(self) -> None:
+        awesome_positions = AWESOME_POSITIONS.read_text(encoding="utf-8")
+        hammerspoon_positions = HAMMERSPOON_POSITIONS.read_text(encoding="utf-8")
+        for marker in [
+            "'0,0 52x40'",
+            "'52,0 28x40'",
+            "'50,2 28x20'",
+            "'6,5 44x30'",
+            "'10,5 60x30'",
+            "'48,8 30x24'",
+            "'0,0 48x40'",
+            "'10,4 60x32'",
+        ]:
+            self.assertIn(marker, awesome_positions)
+            self.assertIn(marker, hammerspoon_positions)
 
-        self.assertEqual(set(hypr_apps), set(self.apps))
+        self.assertNotIn("region", self.apps["terminal"])
+        self.assertEqual(self.regions["main"]["w"], "65%")
+        self.assertEqual(self.regions["side"]["x"], "65%")
+        self.assertEqual(self.regions["top_right"]["y"], "5%")
+        self.assertEqual(self.regions["center_left"]["x"], "7.5%")
+        self.assertEqual(self.regions["center"]["w"], "75%")
+        self.assertEqual(self.regions["right_small"]["w"], "37.5%")
+        self.assertEqual(self.regions["hd_left_main"]["w"], "60%")
+        self.assertEqual(self.regions["hd_float_center"]["h"], "80%")
         self.assertEqual(
-            {name: config["key"] for name, config in hypr_apps.items()},
-            {name: config["key"] for name, config in self.apps.items()},
-        )
-        self.assertEqual(hypr_regions, self.regions)
-        self.assertEqual(
-            {name: config["cells"] for name, config in hypr_layouts.items()},
-            {name: config["cells"] for name, config in self.layouts.items()},
+            self.layouts["fourk"]["cells"],
+            ["main", "side", "top_right", "center_left", "center", "right_small"],
         )
         self.assertEqual(
-            {name: config["apps"] for name, config in hypr_layouts.items()},
-            {name: config["apps"] for name, config in self.layouts.items()},
+            self.layouts["hd"]["cells"],
+            ["hd_left_main", "hd_right_side", "hd_float_center"],
         )
+        self.assertEqual(self.layouts["fourk"]["apps"]["terminal"], 1)
+        self.assertEqual(self.layouts["fourk"]["apps"]["browser"], 2)
+        self.assertEqual(self.layouts["fourk"]["apps"]["onepassword"], 4)
+        self.assertEqual(self.layouts["hd"]["apps"]["onepassword"], 3)
 
     def test_role_is_available_from_default_roles_without_distribution_exclusion(self) -> None:
         all_yml = (REPO_ROOT / "group_vars" / "all.yml").read_text(encoding="utf-8")
@@ -192,7 +249,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_loads_config_and_serializes_json_for_kwin(self) -> None:
         config = plasma_summon_service.load_config(SUMMON_DIR)
         self.assertEqual(config["apps"]["terminal"]["key"], "t")
-        self.assertEqual(config["regions"]["main"]["w"], "60%")
+        self.assertEqual(config["regions"]["main"]["w"], "65%")
         self.assertEqual(config["layouts"]["fourk"]["apps"]["browser"], 2)
 
         payload = json.loads(plasma_summon_service.config_json(SUMMON_DIR))

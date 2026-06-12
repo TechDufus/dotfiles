@@ -125,6 +125,7 @@ with `kwriteconfig6`, and starts the user D-Bus helper.
 
 Window-management carry-over:
 
+- Double-tap `CapsLock` (or press `F13` twice), then `a`/`s`/`e`: cycle same-app windows, screenshot a region to clipboard, or open the emoji picker.
 - `F13`/`CapsLock`, then a letter, or hold `CapsLock` with a letter: summon/focus an app; existing windows are not moved.
 - `Super+U`: open the styled fuzzy picker, type part of a cell/region name, press `Enter`, and move the focused window.
 - `Super+O` / `Shift+Super+O`: move the focused window to the next/previous monitor and snap managed apps into that monitor's active layout.

@@ -150,9 +150,11 @@ if [[ -f ~/.fzf.zsh ]]; then
   source ~/.fzf.zsh
   eval "$(fzf --zsh)"
 fi
-# zi is defined by zinit as alias zi='zinit'. Unalias it to use with zoxide
-unalias zi
-eval "$(zoxide init zsh)"
+# zi is defined by zinit as alias zi='zinit'. Unalias it to use with zoxide.
+unalias zi 2>/dev/null || true
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
 
 # Keep fpath shell-local so tmux panes never inherit stale zsh function paths.
 typeset +x FPATH

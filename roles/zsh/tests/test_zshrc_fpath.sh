@@ -8,11 +8,13 @@ if ! command -v "$zsh_bin" >/dev/null; then
   echo "zsh is required for this test" >&2
   exit 1
 fi
+zsh_bin="$(command -v "$zsh_bin")"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
 home_dir="$tmp_dir/home"
+no_zoxide_bin="$tmp_dir/no-zoxide-bin"
 data_dir="$tmp_dir/data"
 bin_dir="$tmp_dir/bin"
 stale_fpath="$tmp_dir/stale-zsh-functions"
@@ -22,6 +24,7 @@ mkdir -p \
   "$data_dir/zinit/zinit.git" \
   "$data_dir/zinit/completions" \
   "$bin_dir" \
+  "$no_zoxide_bin" \
   "$stale_fpath"
 
 printf ': noop\n' > "$home_dir/.config/zsh/noop.zsh"
@@ -49,6 +52,7 @@ if [ "${1:-}" = "init" ] && [ "${2:-}" = "zsh" ]; then
   printf '%s\n' 'zoxide() { :; }'
 fi
 ZOXIDE
+ln -s "$(command -v find)" "$no_zoxide_bin/find"
 chmod +x "$bin_dir/zoxide"
 
 # shellcheck disable=SC2016
@@ -74,3 +78,16 @@ FPATH="$stale_fpath" \
     exit 1
   fi
 '
+
+startup_output="$(
+  HOME="$home_dir" \
+  XDG_DATA_HOME="$data_dir" \
+  ZDOTDIR="$home_dir" \
+  PATH="$no_zoxide_bin" \
+  FPATH="$stale_fpath" \
+  "$zsh_bin" -i -c ':' 2>&1
+)"
+if [[ "$startup_output" == *zoxide* ]]; then
+  printf '%s\n' "$startup_output" >&2
+  exit 1
+fi

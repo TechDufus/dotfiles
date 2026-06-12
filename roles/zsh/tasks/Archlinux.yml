@@ -11,3 +11,26 @@
   ansible.builtin.debug:
     msg: "Package installation skipped: zsh"
   when: not (can_install_packages | default(false))
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Check zsh binary"
+  ansible.builtin.stat:
+    path: /usr/bin/zsh
+  register: zsh_arch_binary
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Set default shell"
+  ansible.builtin.user:
+    name: "{{ host_user | default(ansible_facts['user_id']) }}"
+    shell: /usr/bin/zsh
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - zsh_arch_binary.stat.exists
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Default shell skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "Default shell change skipped because sudo is unavailable."
+      - "After zsh is installed, run: chsh -s /usr/bin/zsh {{ host_user | default(ansible_facts['user_id']) }}"
+  when:
+    - not (can_install_packages | default(false))
+    - zsh_arch_binary.stat.exists

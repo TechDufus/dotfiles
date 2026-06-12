@@ -746,7 +746,6 @@ function showCellPicker() {
 
     const output = window.output || workspace.activeScreen;
     const pair = layoutForOutput(output);
-    const layoutName = pair[0];
     const layout = pair[1];
     const cells = layout.cells || [];
     const options = [];
@@ -761,8 +760,7 @@ function showCellPicker() {
         options.push({ id: "cell:" + cellIndex, label: label });
     }
 
-    const appName = appForWindow(window) || window.resourceClass || "window";
-    requestPicker("Move " + appName + " on " + outputKey(output) + " (" + displayName(layoutName) + ") to cell", options, function (selection) {
+    requestPicker("Move", options, function (selection) {
         if (selection.slice(0, 5) !== "cell:") {
             return;
         }
@@ -831,7 +829,7 @@ function showLayoutPicker() {
         options.push({ id: "layout:" + name, label: label });
     }
 
-    requestPicker("Layout for " + outputKey(output), options, function (selection) {
+    requestPicker("Layout", options, function (selection) {
         if (selection.slice(0, 7) !== "layout:") {
             return;
         }

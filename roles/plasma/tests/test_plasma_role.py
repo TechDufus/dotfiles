@@ -8,7 +8,7 @@ import sys
 import tomllib
 import unittest
 from pathlib import Path
-
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ROLE = REPO_ROOT / "roles" / "plasma"
@@ -56,6 +56,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "kpackage",
             "kconfig",
             "python-dbus-next",
+            "fuzzel",
             "keyd",
         ]:
             self.assertIn(package, self.defaults)
@@ -169,7 +170,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             'prefix + "," + key',
             'registerShortcut("Open Plasma Summon Window Mover"',
             '"Meta+U", showCellPicker',
-            'requestPicker("Move " + appName',
+            'requestPicker("Move", options',
             '"PickOption"',
             'registerShortcut("Move Active Window to Next Screen"',
             '"Meta+O"',
@@ -330,6 +331,93 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         )
         self.assertEqual(options[0]["id"], "cell:1")
         self.assertEqual(
+            plasma_summon_service.build_fuzzel_argv("Move window"),
+            [
+                "fuzzel",
+                "--dmenu",
+                "--index",
+                "--only-match",
+                "--minimal-lines",
+                "--prompt",
+                "Move window",
+                "--placeholder",
+                "Type a cell, region, or app",
+                "--match-mode",
+                "fzf",
+                "--font",
+                "sans:size=13",
+                "--use-bold",
+                "--anchor",
+                "center",
+                "--layer",
+                "overlay",
+                "--width",
+                "64",
+                "--lines",
+                "10",
+                "--horizontal-pad",
+                "28",
+                "--vertical-pad",
+                "16",
+                "--inner-pad",
+                "10",
+                "--line-height",
+                "24",
+                "--background-color",
+                "1e1e2eff",
+                "--text-color",
+                "cdd6f4ff",
+                "--prompt-color",
+                "89b4faff",
+                "--placeholder-color",
+                "6c7086ff",
+                "--input-color",
+                "f5e0dcff",
+                "--match-color",
+                "f38ba8ff",
+                "--selection-color",
+                "313244ff",
+                "--selection-text-color",
+                "cdd6f4ff",
+                "--selection-match-color",
+                "fab387ff",
+                "--counter-color",
+                "6c7086ff",
+                "--border-width",
+                "2",
+                "--border-radius",
+                "18",
+                "--border-color",
+                "89b4faff",
+                "--selection-radius",
+                "10",
+                "--counter",
+            ],
+        )
+        self.assertEqual(
+            plasma_summon_service.build_rofi_argv("Move window"),
+            [
+                "rofi",
+                "-dmenu",
+                "-i",
+                "-matching",
+                "fuzzy",
+                "-no-custom",
+                "-p",
+                "Move window",
+                "-format",
+                "i",
+            ],
+        )
+        self.assertEqual(
+            plasma_summon_service.selected_option_id(options, "1\n"),
+            "cell:2",
+        )
+        self.assertEqual(
+            plasma_summon_service.selected_option_id(options, "missing\n"),
+            "",
+        )
+        self.assertEqual(
             plasma_summon_service.build_kdialog_argv("Move window", options),
             [
                 "kdialog",
@@ -346,6 +434,46 @@ class PlasmaSummonServiceTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             plasma_summon_service.parse_picker_options("[]")
+        self.assertEqual(
+            plasma_summon_service.fuzzel_placeholder("Layout"),
+            "Type a layout name",
+        )
+
+    def test_helper_prefers_fuzzy_picker_backend(self) -> None:
+        options_json = (
+            '[{"id":"cell:1","label":"1  main (terminal)"},'
+            '{"id":"cell:2","label":"2  side (browser)"}]'
+        )
+        completed = plasma_summon_service.subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="1\n",
+        )
+
+        def which(binary: str) -> str | None:
+            return "/usr/bin/fuzzel" if binary == "fuzzel" else None
+
+        with (
+            patch.object(plasma_summon_service.shutil, "which", side_effect=which),
+            patch.object(plasma_summon_service.subprocess, "run", return_value=completed) as run,
+        ):
+            self.assertEqual(
+                plasma_summon_service.pick_option("Move window", options_json),
+                "cell:2",
+            )
+
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[0], "/usr/bin/fuzzel")
+        self.assertIn("--index", argv)
+        self.assertIn("--only-match", argv)
+        self.assertEqual(
+            run.call_args.kwargs["input"],
+            "1  main (terminal)\n2  side (browser)\n",
+        )
+        self.assertIn("--match-mode", argv)
+        self.assertIn("fzf", argv)
+        self.assertIn("--border-radius", argv)
+        self.assertIn("1e1e2eff", argv)
 
     def test_helper_defines_runtime_picker_shortcuts(self) -> None:
         shortcuts = plasma_summon_service.summon_shortcuts()

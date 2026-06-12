@@ -148,6 +148,99 @@ def parse_picker_options(options_json: str) -> list[dict[str, str]]:
     return options
 
 
+FUZZEL_STYLE_ARGS = [
+    "--match-mode",
+    "fzf",
+    "--font",
+    "sans:size=13",
+    "--use-bold",
+    "--anchor",
+    "center",
+    "--layer",
+    "overlay",
+    "--width",
+    "64",
+    "--lines",
+    "10",
+    "--horizontal-pad",
+    "28",
+    "--vertical-pad",
+    "16",
+    "--inner-pad",
+    "10",
+    "--line-height",
+    "24",
+    "--background-color",
+    "1e1e2eff",
+    "--text-color",
+    "cdd6f4ff",
+    "--prompt-color",
+    "89b4faff",
+    "--placeholder-color",
+    "6c7086ff",
+    "--input-color",
+    "f5e0dcff",
+    "--match-color",
+    "f38ba8ff",
+    "--selection-color",
+    "313244ff",
+    "--selection-text-color",
+    "cdd6f4ff",
+    "--selection-match-color",
+    "fab387ff",
+    "--counter-color",
+    "6c7086ff",
+    "--border-width",
+    "2",
+    "--border-radius",
+    "18",
+    "--border-color",
+    "89b4faff",
+    "--selection-radius",
+    "10",
+    "--counter",
+]
+
+
+def fuzzel_placeholder(prompt: str) -> str:
+    normalized = prompt.strip().lower()
+    if normalized.startswith("layout"):
+        return "Type a layout name"
+    if normalized.startswith("move"):
+        return "Type a cell, region, or app"
+    return "Type to filter"
+
+
+def build_fuzzel_argv(prompt: str) -> list[str]:
+    return [
+        "fuzzel",
+        "--dmenu",
+        "--index",
+        "--only-match",
+        "--minimal-lines",
+        "--prompt",
+        prompt,
+        "--placeholder",
+        fuzzel_placeholder(prompt),
+        *FUZZEL_STYLE_ARGS,
+    ]
+
+
+def build_rofi_argv(prompt: str) -> list[str]:
+    return [
+        "rofi",
+        "-dmenu",
+        "-i",
+        "-matching",
+        "fuzzy",
+        "-no-custom",
+        "-p",
+        prompt,
+        "-format",
+        "i",
+    ]
+
+
 def build_kdialog_argv(prompt: str, options: list[dict[str, str]]) -> list[str]:
     argv = ["kdialog", "--title", "Plasma Summon", "--menu", prompt]
     for option in options:
@@ -155,8 +248,39 @@ def build_kdialog_argv(prompt: str, options: list[dict[str, str]]) -> list[str]:
     return argv
 
 
+def selected_option_id(options: list[dict[str, str]], output: str) -> str:
+    try:
+        index = int(output.strip())
+    except ValueError:
+        return ""
+    return options[index]["id"] if 0 <= index < len(options) else ""
+
+
+def run_index_picker(argv: list[str], options: list[dict[str, str]]) -> str:
+    result = subprocess.run(
+        argv,
+        check=False,
+        input="\n".join(option["label"] for option in options) + "\n",
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    return selected_option_id(options, result.stdout) if result.returncode == 0 else ""
+
+
 def pick_option(prompt: str, options_json: str) -> str:
     options = parse_picker_options(options_json)
+    fuzzel = shutil.which("fuzzel")
+    if fuzzel:
+        argv = build_fuzzel_argv(prompt)
+        argv[0] = fuzzel
+        return run_index_picker(argv, options)
+
+    rofi = shutil.which("rofi")
+    if rofi:
+        argv = build_rofi_argv(prompt)
+        argv[0] = rofi
+        return run_index_picker(argv, options)
+
     kdialog = shutil.which("kdialog")
     if kdialog:
         argv = build_kdialog_argv(prompt, options)
@@ -164,25 +288,7 @@ def pick_option(prompt: str, options_json: str) -> str:
         result = subprocess.run(argv, check=False, stdout=subprocess.PIPE, text=True)
         return result.stdout.strip() if result.returncode == 0 else ""
 
-    rofi = shutil.which("rofi")
-    if rofi:
-        labels = [option["label"] for option in options]
-        result = subprocess.run(
-            [rofi, "-dmenu", "-i", "-p", prompt, "-format", "i"],
-            check=False,
-            input="\n".join(labels) + "\n",
-            stdout=subprocess.PIPE,
-            text=True,
-        )
-        if result.returncode != 0:
-            return ""
-        try:
-            index = int(result.stdout.strip())
-        except ValueError:
-            return ""
-        return options[index]["id"] if 0 <= index < len(options) else ""
-
-    return "error:no picker found; install kdialog or rofi"
+    return "error:no picker found; install fuzzel, rofi, or kdialog"
 
 async def configure_shortcuts() -> list[str]:
     try:

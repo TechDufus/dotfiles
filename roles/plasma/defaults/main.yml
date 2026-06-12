@@ -28,6 +28,7 @@ plasma_arch_packages:
   - kate
   - kcalc
   - kdialog
+  - fuzzel
   - kpackage
   - kconfig
   - python

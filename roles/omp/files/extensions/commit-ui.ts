@@ -598,10 +598,8 @@ function validateVerification(verification: VerificationPlan): void {
 function validateVerificationEvidence(evidence: VerificationEvidence): void {
 	if (!evidence.description) throw new WorkflowError("Verification evidence description is required.");
 	if (evidence.description.includes("\0")) throw new WorkflowError("Verification evidence contains a NUL byte.");
-	if (evidence.command) {
-		if (evidence.command.includes("/") || evidence.command.includes("\0")) {
-			throw new WorkflowError(`Verification evidence command must be an executable name, not a path: ${evidence.command}`);
-		}
+	if (evidence.command?.includes("\0")) {
+		throw new WorkflowError("Verification evidence command contains a NUL byte.");
 	}
 	if (evidence.source && evidence.source !== "observed" && evidence.source !== "user-reported") {
 		throw new WorkflowError(`Verification evidence source must be observed or user-reported: ${evidence.source}`);

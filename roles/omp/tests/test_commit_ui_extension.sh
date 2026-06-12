@@ -371,7 +371,7 @@ try {
       files: ["unrelated.txt"],
       commitMessage: "chore(test): preview prior verification evidence",
       rationale: "Exercise prior verification evidence without rerunning a command.",
-      verificationEvidence: [{ description: "diff check passed earlier", command: "git", args: ["diff", "--check", "--", "unrelated.txt"], source: "observed" }],
+      verificationEvidence: [{ description: "script check passed earlier", command: "./scripts/check.sh", args: ["--dry-run"], source: "observed" }],
       dryRun: true,
     },
     undefined,

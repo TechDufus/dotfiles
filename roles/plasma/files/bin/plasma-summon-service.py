@@ -101,7 +101,7 @@ def load_config(config_dir: Path) -> dict[str, Any]:
 
 
 def config_json(config_dir: Path) -> str:
-    return json.dumps(load_config(config_dir), sort_keys=True, separators=(",", ":"))
+    return json.dumps(load_config(config_dir), separators=(",", ":"))
 
 
 def build_launch_argv(apps: dict[str, dict[str, Any]], app_name: str) -> list[str]:
@@ -127,6 +127,29 @@ def launch_app(config_dir: Path, app_name: str, *, dry_run: bool = False) -> str
 
     subprocess.Popen(argv, start_new_session=True)
     return f"launched:{app_name}"
+
+def macro_commands() -> dict[str, list[str]]:
+    return {
+        "screenshot_area": ["spectacle", "--region", "--background", "--copy-image", "--nonotify"],
+        "emoji_picker": ["plasma-emojier", "--replace"],
+    }
+
+
+def build_macro_argv(macro_name: str) -> list[str]:
+    argv = macro_commands().get(macro_name)
+    if not argv:
+        raise ValueError(f"Unknown macro: {macro_name}")
+    return argv
+
+
+def run_macro(macro_name: str, *, dry_run: bool = False) -> str:
+    argv = build_macro_argv(macro_name)
+    if dry_run:
+        return " ".join(shlex.quote(part) for part in argv)
+
+    subprocess.Popen(argv, start_new_session=True)
+    return f"macro:{macro_name}"
+
 
 def parse_picker_options(options_json: str) -> list[dict[str, str]]:
     raw = json.loads(options_json)
@@ -340,6 +363,14 @@ async def serve(config_dir: Path) -> None:
                 return f"error:{exc}"
 
         @method()
+        def RunMacro(self, macro_name: "s") -> "s":
+            try:
+                return run_macro(macro_name)
+            except (OSError, ValueError) as exc:
+                return f"error:{exc}"
+
+
+        @method()
         def PickOption(self, prompt: "s", options_json: "s") -> "s":
             try:
                 return pick_option(prompt, options_json)
@@ -360,6 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="directory containing apps.toml, regions.toml, and layouts.toml",
     )
     parser.add_argument("--print-config", action="store_true", help="print config JSON and exit")
+    parser.add_argument("--macro", metavar="NAME", help="run a whitelisted desktop macro and exit")
     parser.add_argument("--launch", metavar="APP", help="launch an app from the registry and exit")
     parser.add_argument("--dry-run", action="store_true", help="print launch command instead of executing it")
     parser.add_argument(
@@ -385,6 +417,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error:{exc}", file=sys.stderr)
             return 1
         return 0
+
+    if args.macro:
+        try:
+            print(run_macro(args.macro, dry_run=args.dry_run))
+        except (OSError, ValueError) as exc:
+            print(f"error:{exc}", file=sys.stderr)
+            return 1
+        return 0
+
 
     if args.configure_shortcuts:
         try:

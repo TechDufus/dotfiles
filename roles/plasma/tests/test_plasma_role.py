@@ -79,9 +79,12 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.defaults + self.arch_tasks)
         self.assertIn("[ids]\n*", self.keyd_config)
-        self.assertIn("capslock = overload(plasma_summon, f13)", self.keyd_config)
+        self.assertIn("oneshot_timeout = 300", self.keyd_config)
+        self.assertIn("capslock = overload(plasma_summon, oneshotm(plasma_macro, macro(f13)))", self.keyd_config)
         self.assertIn("[plasma_summon]", self.keyd_config)
         self.assertIn("b = macro(f13 b)", self.keyd_config)
+        self.assertIn("[plasma_macro]", self.keyd_config)
+        self.assertIn("capslock = f16", self.keyd_config)
 
     def test_sddm_enablement_preserves_existing_display_manager(self) -> None:
         for required in [
@@ -197,6 +200,24 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertNotIn(invalid, self.script)
 
+    def test_kwin_script_registers_f16_macro_shortcuts(self) -> None:
+        for required in [
+            "function sameAppKey(window)",
+            "function cycleSameAppWindow()",
+            "focusWindow(matches[(activeIndex + 1) % matches.length])",
+            "function runMacro(macroName)",
+            '"RunMacro"',
+            "function registerMacroShortcuts()",
+            '["a", "Cycle windows of the active app", cycleSameAppWindow]',
+            '["s", "Capture a screenshot region to the clipboard", function () { runMacro("screenshot_area"); }]',
+            '["e", "Open the Plasma emoji picker", function () { runMacro("emoji_picker"); }]',
+            'const triggerPrefixes = ["F16", "XF86Launch5", "F13,F13", "CapsLock,CapsLock", "Tools,Tools"]',
+            'prefix + "," + action[0].toUpperCase()',
+            "registerMacroShortcuts();",
+        ]:
+            self.assertIn(required, self.script)
+
+
     def test_kwin_script_places_newly_launched_apps_with_current_layout_cells(self) -> None:
         for required in [
             "pendingLaunches",
@@ -292,6 +313,28 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertEqual(self.layouts["fourk"]["apps"]["onepassword"], 4)
         self.assertEqual(self.layouts["hd"]["apps"]["onepassword"], 3)
 
+    def test_kwin_embedded_regions_match_edge_aligned_toml_fallback(self) -> None:
+        for required in [
+            'full: { x: "0%", y: "0%", w: "100%", h: "100%"',
+            'main: { x: "0%", y: "0%", w: "65%", h: "100%"',
+            'side: { x: "65%", y: "0%", w: "35%", h: "100%"',
+            'hd_left_main: { x: "0%", y: "0%", w: "60%", h: "100%"',
+            'hd_right_side: { x: "60%", y: "0%", w: "40%", h: "100%"',
+            'cells: ["hd_left_main", "hd_right_side", "hd_float_center"]',
+            'standard: {',
+        ]:
+            self.assertIn(required, self.script)
+        for obsolete in [
+            'full: { x: "2%", y: "4%", w: "96%", h: "92%"',
+            'main: { x: "2%", y: "4%", w: "60%", h: "92%"',
+            'side: { x: "64%", y: "4%", w: "34%", h: "92%"',
+            'cells: ["main", "side", "center"]',
+        ]:
+            self.assertNotIn(obsolete, self.script)
+        self.assertIn("reapplyAllLayouts();", self.script)
+        self.assertIn("function reapplyAllLayouts()", self.script)
+
+
     def test_role_is_available_from_default_roles_without_distribution_exclusion(self) -> None:
         all_yml = (REPO_ROOT / "group_vars" / "all.yml").read_text(encoding="utf-8")
         example = (REPO_ROOT / "group_vars" / "all.yml.example").read_text(encoding="utf-8")
@@ -310,6 +353,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         self.assertEqual(config["layouts"]["fourk"]["apps"]["browser"], 2)
 
         payload = json.loads(plasma_summon_service.config_json(SUMMON_DIR))
+        self.assertEqual(list(payload["layouts"]), ["fourk", "hd", "standard", "full"])
         self.assertEqual(payload["apps"]["files"]["exec"], "dolphin")
 
     def test_helper_launch_argv_is_whitelisted_by_app_registry(self) -> None:
@@ -474,6 +518,22 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         self.assertIn("fzf", argv)
         self.assertIn("--border-radius", argv)
         self.assertIn("1e1e2eff", argv)
+
+    def test_helper_runs_whitelisted_desktop_macros(self) -> None:
+        self.assertEqual(
+            plasma_summon_service.build_macro_argv("screenshot_area"),
+            ["spectacle", "--region", "--background", "--copy-image", "--nonotify"],
+        )
+        self.assertEqual(
+            plasma_summon_service.build_macro_argv("emoji_picker"),
+            ["plasma-emojier", "--replace"],
+        )
+        self.assertEqual(
+            plasma_summon_service.run_macro("emoji_picker", dry_run=True),
+            "plasma-emojier --replace",
+        )
+        with self.assertRaises(ValueError):
+            plasma_summon_service.build_macro_argv("missing")
 
     def test_helper_defines_runtime_picker_shortcuts(self) -> None:
         shortcuts = plasma_summon_service.summon_shortcuts()

@@ -129,18 +129,26 @@ let apps = {
 };
 
 let regions = {
-    full: { x: "2%", y: "4%", w: "96%", h: "92%", float: true },
-    main: { x: "2%", y: "4%", w: "60%", h: "92%", float: true },
-    wide: { x: "2%", y: "4%", w: "74%", h: "92%", float: true },
-    side: { x: "64%", y: "4%", w: "34%", h: "92%", float: true },
-    chat: { x: "62%", y: "7%", w: "36%", h: "86%", float: true },
-    center_left: { x: "8%", y: "15%", w: "55%", h: "69%", float: true },
-    center: { x: "23%", y: "15%", w: "54%", h: "66%", float: true },
-    left: { x: "2%", y: "4%", w: "47%", h: "92%", float: true },
-    right: { x: "51%", y: "4%", w: "47%", h: "92%", float: true },
-    top_right: { x: "51%", y: "4%", w: "47%", h: "44%", float: true },
-    right_small: { x: "60%", y: "22%", w: "38%", h: "55%", float: true },
-    bottom_right: { x: "51%", y: "52%", w: "47%", h: "44%", float: true },
+    full: { x: "0%", y: "0%", w: "100%", h: "100%", float: true },
+    main: { x: "0%", y: "0%", w: "65%", h: "100%", float: true },
+    wide: { x: "0%", y: "0%", w: "80%", h: "100%", float: true },
+    side: { x: "65%", y: "0%", w: "35%", h: "100%", float: true },
+    chat: { x: "62.5%", y: "5%", w: "35%", h: "50%", float: true },
+    center_left: { x: "7.5%", y: "12.5%", w: "55%", h: "75%", float: true },
+    center: { x: "12.5%", y: "12.5%", w: "75%", h: "75%", float: true },
+    left: { x: "0%", y: "0%", w: "50%", h: "100%", float: true },
+    right: { x: "50%", y: "0%", w: "50%", h: "100%", float: true },
+    top_right: { x: "62.5%", y: "5%", w: "35%", h: "50%", float: true },
+    right_small: { x: "60%", y: "20%", w: "37.5%", h: "60%", float: true },
+    bottom_right: { x: "62.5%", y: "50%", w: "35%", h: "45%", float: true },
+    hd_left_main: { x: "0%", y: "0%", w: "60%", h: "100%", float: true },
+    hd_right_side: { x: "60%", y: "0%", w: "40%", h: "100%", float: true },
+    hd_float_center: { x: "12.5%", y: "10%", w: "75%", h: "80%", float: true },
+    standard_top_left: { x: "0%", y: "0%", w: "27.5%", h: "52.5%", float: true },
+    standard_bottom_left: { x: "0%", y: "52.5%", w: "27.5%", h: "47.5%", float: true },
+    standard_left_center: { x: "23.75%", y: "0%", w: "10%", h: "100%", float: true },
+    standard_center: { x: "27.5%", y: "0%", w: "45%", h: "100%", float: true },
+    standard_right: { x: "72.5%", y: "0%", w: "27.5%", h: "100%", float: true },
 };
 
 let layouts = {
@@ -163,7 +171,7 @@ let layouts = {
         label: "HD Workspace",
         min_width: 0,
         max_width: 2559,
-        cells: ["main", "side", "center"],
+        cells: ["hd_left_main", "hd_right_side", "hd_float_center"],
         apps: {
             terminal: 1,
             browser: 2,
@@ -173,6 +181,17 @@ let layouts = {
             onepassword: 3,
             files: 3,
             obsidian: 3,
+        },
+    },
+    standard: {
+        label: "Standard Dev",
+        cells: ["standard_top_left", "standard_bottom_left", "standard_center", "standard_right"],
+        apps: {
+            terminal: 3,
+            browser: 4,
+            discord: 1,
+            signal: 1,
+            spotify: 2,
         },
     },
     full: {
@@ -222,6 +241,7 @@ function loadRemoteConfig() {
                 layouts = loaded.layouts;
             }
             log("loaded config from helper");
+            reapplyAllLayouts();
         } catch (error) {
             log("kept embedded config after helper config error: " + error);
         }
@@ -432,6 +452,59 @@ function focusWindow(window) {
     workspace.raiseWindow(window);
 }
 
+function sameAppKey(window) {
+    if (!normalWindow(window)) {
+        return "";
+    }
+
+    const appName = appForWindow(window);
+    if (appName) {
+        return "app:" + appName;
+    }
+
+    const desktopFileName = lower(window.desktopFileName);
+    if (desktopFileName) {
+        return "desktop:" + desktopFileName;
+    }
+
+    const resourceClass = lower(window.resourceClass);
+    if (resourceClass) {
+        return "class:" + resourceClass;
+    }
+
+    const resourceName = lower(window.resourceName);
+    return resourceName ? "name:" + resourceName : "";
+}
+
+function cycleSameAppWindow() {
+    const active = workspace.activeWindow;
+    const key = sameAppKey(active);
+    if (!key) {
+        return;
+    }
+
+    const windows = workspace.stackingOrder || [];
+    const matches = [];
+    let activeIndex = -1;
+    for (let i = 0; i < windows.length; i += 1) {
+        const window = windows[i];
+        if (window.minimized || sameAppKey(window) !== key) {
+            continue;
+        }
+        if (window === active) {
+            activeIndex = matches.length;
+        }
+        matches.push(window);
+    }
+
+    if (matches.length <= 1 || activeIndex < 0) {
+        return;
+    }
+
+    focusWindow(matches[(activeIndex + 1) % matches.length]);
+}
+
+
 function activateAppDesktop(appConfig) {
     const raw = parseInt(String(appConfig.workspace || ""), 10);
     if (!raw || raw < 1 || raw > workspace.desktops.length) {
@@ -567,6 +640,13 @@ function launchApp(appName, place) {
         log(String(reply || "launch requested: " + appName));
     });
 }
+
+function runMacro(macroName) {
+    callDBus(SUMMON_SERVICE, SUMMON_PATH, SUMMON_INTERFACE, "RunMacro", macroName, function (reply) {
+        log(String(reply || "macro requested: " + macroName));
+    });
+}
+
 
 function summonApp(appName, place) {
     const appConfig = apps[appName];
@@ -789,6 +869,13 @@ function reapplyLayout(output) {
     }
 }
 
+function reapplyAllLayouts() {
+    const screens = workspace.screens || [];
+    for (let i = 0; i < screens.length; i += 1) {
+        reapplyLayout(screens[i]);
+    }
+}
+
 function activeOutput() {
     const window = workspace.activeWindow;
     if (window && window.output) {
@@ -949,6 +1036,22 @@ function registerRegionShortcuts() {
     registerShortcut("Open Plasma Summon Window Mover", "Pick region/cell for active window", "Meta+U", showCellPicker);
 }
 
+function registerMacroShortcuts() {
+    const actions = [
+        ["a", "Cycle windows of the active app", cycleSameAppWindow],
+        ["s", "Capture a screenshot region to the clipboard", function () { runMacro("screenshot_area"); }],
+        ["e", "Open the Plasma emoji picker", function () { runMacro("emoji_picker"); }],
+    ];
+    const triggerPrefixes = ["F16", "XF86Launch5", "F13,F13", "CapsLock,CapsLock", "Tools,Tools"];
+    for (let i = 0; i < actions.length; i += 1) {
+        const action = actions[i];
+        for (let j = 0; j < triggerPrefixes.length; j += 1) {
+            const prefix = triggerPrefixes[j];
+            registerShortcut("Macro " + action[0] + " via " + prefix, action[1], prefix + "," + action[0].toUpperCase(), action[2]);
+        }
+    }
+}
+
 function registerWorkflowShortcuts() {
     registerShortcut("Move Active Window to Next Screen", "Move active window to next screen", "Meta+O", function () {
         moveActiveToOutput("next");
@@ -1015,6 +1118,7 @@ if (workspace.windowAdded) {
 
 registerAppShortcuts();
 registerRegionShortcuts();
+registerMacroShortcuts();
 registerWorkflowShortcuts();
 loadRemoteConfig();
 log("loaded");

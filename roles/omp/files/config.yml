@@ -68,7 +68,8 @@ commands:
   enableOpencodeProject: false
 mcp: 
   enableProjectConfig: false
-lastChangelogVersion: 15.9.1
 dev: 
   autoqa: false
 setupVersion: 1
+vault: 
+  enabled: true

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import time
 import asyncio
 import shutil
 import json
@@ -104,6 +105,64 @@ def config_json(config_dir: Path) -> str:
     return json.dumps(load_config(config_dir), separators=(",", ":"))
 
 
+def safe_unit_fragment(value: str) -> str:
+    fragment = "".join(ch.lower() if ch.isalnum() else "-" for ch in value)
+    fragment = "-".join(part for part in fragment.split("-") if part)
+    return fragment[:48] or "process"
+
+
+def transient_unit_name(kind: str, name: str) -> str:
+    return f"plasma-summon-{safe_unit_fragment(kind)}-{safe_unit_fragment(name)}-{os.getpid()}-{time.monotonic_ns()}"
+
+
+def build_systemd_run_argv(
+    systemd_run: str,
+    unit_name: str,
+    description: str,
+    argv: list[str],
+) -> list[str]:
+    return [
+        systemd_run,
+        "--user",
+        "--collect",
+        "--no-block",
+        "--quiet",
+        "--slice=app.slice",
+        "--service-type=exec",
+        f"--unit={unit_name}",
+        f"--description={description}",
+        f"--working-directory={Path.home()}",
+        "--",
+        *argv,
+    ]
+
+
+def launch_detached(argv: list[str], *, kind: str, name: str) -> None:
+    systemd_run = shutil.which("systemd-run")
+    if systemd_run:
+        unit_name = transient_unit_name(kind, name)
+        result = subprocess.run(
+            build_systemd_run_argv(systemd_run, unit_name, f"Plasma summon {kind} {name}", argv),
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout).strip()
+            raise RuntimeError(message or f"systemd-run exited {result.returncode}")
+        return
+
+    subprocess.Popen(
+        argv,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+    )
+
 def build_launch_argv(apps: dict[str, dict[str, Any]], app_name: str) -> list[str]:
     app = apps.get(app_name)
     if not app:
@@ -125,7 +184,7 @@ def launch_app(config_dir: Path, app_name: str, *, dry_run: bool = False) -> str
     if dry_run:
         return " ".join(shlex.quote(part) for part in argv)
 
-    subprocess.Popen(argv, start_new_session=True)
+    launch_detached(argv, kind="app", name=app_name)
     return f"launched:{app_name}"
 
 def macro_commands() -> dict[str, list[str]]:
@@ -147,7 +206,7 @@ def run_macro(macro_name: str, *, dry_run: bool = False) -> str:
     if dry_run:
         return " ".join(shlex.quote(part) for part in argv)
 
-    subprocess.Popen(argv, start_new_session=True)
+    launch_detached(argv, kind="macro", name=macro_name)
     return f"macro:{macro_name}"
 
 
@@ -359,16 +418,15 @@ async def serve(config_dir: Path) -> None:
         def LaunchApp(self, app_name: "s") -> "s":
             try:
                 return launch_app(config_dir, app_name)
-            except (OSError, ValueError) as exc:
+            except (OSError, RuntimeError, ValueError) as exc:
                 return f"error:{exc}"
 
         @method()
         def RunMacro(self, macro_name: "s") -> "s":
             try:
                 return run_macro(macro_name)
-            except (OSError, ValueError) as exc:
+            except (OSError, RuntimeError, ValueError) as exc:
                 return f"error:{exc}"
-
 
         @method()
         def PickOption(self, prompt: "s", options_json: "s") -> "s":
@@ -413,7 +471,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.launch:
         try:
             print(launch_app(config_dir, args.launch, dry_run=args.dry_run))
-        except (OSError, ValueError) as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             print(f"error:{exc}", file=sys.stderr)
             return 1
         return 0
@@ -421,7 +479,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.macro:
         try:
             print(run_macro(args.macro, dry_run=args.dry_run))
-        except (OSError, ValueError) as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             print(f"error:{exc}", file=sys.stderr)
             return 1
         return 0

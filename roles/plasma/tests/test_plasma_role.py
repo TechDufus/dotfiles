@@ -369,6 +369,58 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             "ghostty",
         )
 
+    def test_helper_launches_apps_through_independent_systemd_unit(self) -> None:
+        completed = plasma_summon_service.subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch.object(plasma_summon_service.shutil, "which", return_value="/usr/bin/systemd-run"),
+            patch.object(plasma_summon_service.os, "getpid", return_value=1234),
+            patch.object(plasma_summon_service.time, "monotonic_ns", return_value=5678),
+            patch.object(plasma_summon_service.subprocess, "run", return_value=completed) as run,
+            patch.object(plasma_summon_service.subprocess, "Popen") as popen,
+        ):
+            self.assertEqual(
+                plasma_summon_service.launch_app(SUMMON_DIR, "terminal"),
+                "launched:terminal",
+            )
+
+        popen.assert_not_called()
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[0], "/usr/bin/systemd-run")
+        self.assertIn("--user", argv)
+        self.assertIn("--collect", argv)
+        self.assertIn("--no-block", argv)
+        self.assertIn("--slice=app.slice", argv)
+        self.assertIn("--service-type=exec", argv)
+        self.assertIn("--unit=plasma-summon-app-terminal-1234-5678", argv)
+        self.assertEqual(argv[-2:], ["--", "ghostty"])
+        self.assertIs(run.call_args.kwargs["stdin"], plasma_summon_service.subprocess.DEVNULL)
+        self.assertIs(run.call_args.kwargs["stdout"], plasma_summon_service.subprocess.PIPE)
+        self.assertIs(run.call_args.kwargs["stderr"], plasma_summon_service.subprocess.PIPE)
+
+    def test_helper_fallback_launch_detaches_stdio_from_service(self) -> None:
+        with (
+            patch.object(plasma_summon_service.shutil, "which", return_value=None),
+            patch.object(plasma_summon_service.subprocess, "Popen") as popen,
+        ):
+            self.assertEqual(
+                plasma_summon_service.launch_app(SUMMON_DIR, "terminal"),
+                "launched:terminal",
+            )
+
+        popen.assert_called_once_with(
+            ["ghostty"],
+            stdin=plasma_summon_service.subprocess.DEVNULL,
+            stdout=plasma_summon_service.subprocess.DEVNULL,
+            stderr=plasma_summon_service.subprocess.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
+
     def test_helper_builds_safe_picker_arguments(self) -> None:
         options = plasma_summon_service.parse_picker_options(
             '[{"id":"cell:1","label":"1  main (terminal)"},{"id":"cell:2","label":"2  side (browser)"}]'

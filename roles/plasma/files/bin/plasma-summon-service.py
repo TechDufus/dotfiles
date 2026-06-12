@@ -24,14 +24,59 @@ QT_HYPER = 0x1E000000
 def summon_shortcuts() -> list[tuple[list[str], list[int]]]:
     return [
         (
-            ["kwin", "Pick Active Window Region", "KWin", "Pick region/cell for active window"],
+            ["kwin", "Open Plasma Summon Window Mover", "KWin", "Pick region/cell for active window"],
             [QT_META + ord("U")],
         ),
         (
-            ["kwin", "Pick Active Screen Layout", "KWin", "Pick active screen layout"],
+            ["kwin", "Open Plasma Summon Layout Picker", "KWin", "Pick active screen layout"],
             [QT_HYPER + ord("P")],
         ),
     ]
+
+
+def obsolete_shortcut_names() -> list[str]:
+    names = [
+        "Cycle Active Screen Layout",
+        "Pick Active Window Region",
+        "Pick Active Screen Layout",
+    ]
+    names.extend(f"Move Active to Cell {cell}" for cell in range(1, 7))
+    names.extend(
+        f"Move Active to Region {region}"
+        for region in [
+            "bottom_right",
+            "center",
+            "chat",
+            "full",
+            "left",
+            "main",
+            "right",
+            "side",
+            "top_right",
+            "wide",
+        ]
+    )
+    return names
+
+
+async def unregister_obsolete_shortcuts(bus: Any, message_type: Any) -> list[str]:
+    removed = []
+    for shortcut_name in obsolete_shortcut_names():
+        reply = await bus.call(
+            message_type(
+                destination="org.kde.kglobalaccel",
+                path="/kglobalaccel",
+                interface="org.kde.KGlobalAccel",
+                member="unregister",
+                signature="ss",
+                body=["kwin", shortcut_name],
+            )
+        )
+        if reply.message_type.name == "ERROR":
+            raise RuntimeError(f"{shortcut_name}: {reply.body}")
+        if reply.body and reply.body[0]:
+            removed.append(shortcut_name)
+    return removed
 
 
 def config_home() -> Path:
@@ -147,7 +192,7 @@ async def configure_shortcuts() -> list[str]:
         raise SystemExit("python-dbus-next is required for shortcut configuration") from exc
 
     bus = await MessageBus().connect()
-    configured = []
+    configured = [f"removed:{name}" for name in await unregister_obsolete_shortcuts(bus, Message)]
     for action_id, keys in summon_shortcuts():
         reply = await bus.call(
             Message(

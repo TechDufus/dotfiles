@@ -166,9 +166,13 @@
     - key: Cycle Active Screen Layout
       value: "none,none,Cycle active screen layout"
     - key: Pick Active Window Region
-      value: "Meta+U,none,Pick region/cell for active window"
+      value: "none,none,Pick region/cell for active window"
     - key: Pick Active Screen Layout
-      value: "Meta+Ctrl+Alt+Shift+P,none,Pick active screen layout"
+      value: "none,none,Pick active screen layout"
+    - key: Open Plasma Summon Window Mover
+      value: "Meta+U,none,Pick region/cell for active window"
+    - key: Open Plasma Summon Layout Picker
+      value: "Meta+Alt+Ctrl+Shift+P,none,Pick active screen layout"
   changed_when: false
   when:
     - plasma_enable_kwin_summon | bool
@@ -194,6 +198,20 @@
       - org.kde.kglobalaccel
       - /component/systemsettings_desktop
       - org.kde.kglobalaccel.Component.cleanUp
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Unload existing Plasma summon KWin script"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /Scripting
+      - org.kde.kwin.Scripting.unloadScript
+      - "{{ plasma_summon_script_id }}"
   changed_when: false
   failed_when: false
   when:
@@ -253,11 +271,45 @@
     - plasma_enable_kwin_summon | bool
     - plasma_qdbus6.stat.exists
 
-- name: "{{ role_name }} | Enable and start Plasma summon service"
+- name: "{{ role_name }} | Import Plasma graphical environment into user services"
+  ansible.builtin.command:
+    argv:
+      - dbus-update-activation-environment
+      - --systemd
+      - DISPLAY
+      - WAYLAND_DISPLAY
+      - XAUTHORITY
+      - XDG_CURRENT_DESKTOP
+      - XDG_SESSION_TYPE
+      - XDG_SESSION_DESKTOP
+      - DESKTOP_SESSION
+      - KDE_FULL_SESSION
+      - KDE_SESSION_VERSION
+      - QT_WAYLAND_RECONNECT
+      - XDG_DATA_DIRS
+      - XKB_DEFAULT_LAYOUT
+      - XKB_DEFAULT_VARIANT
+      - XKB_DEFAULT_OPTIONS
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+    - (ansible_facts.env.DISPLAY is defined) or (ansible_facts.env.WAYLAND_DISPLAY is defined)
+
+- name: "{{ role_name }} | Remove legacy default-target summon service enablement"
+  ansible.builtin.file:
+    path: "{{ plasma_systemd_user_dir }}/default.target.wants/plasma-summon.service"
+    state: absent
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Enable and restart Plasma summon service"
   ansible.builtin.systemd:
     name: plasma-summon.service
     scope: user
-    state: started
+    state: restarted
     enabled: true
     daemon_reload: true
   register: plasma_summon_systemd

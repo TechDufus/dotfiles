@@ -39,6 +39,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         cls.script = KWIN_SCRIPT.read_text(encoding="utf-8")
         cls.metadata = json.loads(KWIN_METADATA.read_text(encoding="utf-8"))
         cls.service = (ROLE / "files" / "systemd" / "plasma-summon.service").read_text(encoding="utf-8")
+        cls.keyd_config = (ROLE / "files" / "keyd" / "default.conf").read_text(encoding="utf-8")
         cls.apps = load_toml(SUMMON_DIR / "apps.toml")["apps"]
         cls.regions = load_toml(SUMMON_DIR / "regions.toml")["regions"]
         cls.layouts = load_toml(SUMMON_DIR / "layouts.toml")["layouts"]
@@ -55,11 +56,31 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "kpackage",
             "kconfig",
             "python-dbus-next",
+            "keyd",
         ]:
             self.assertIn(package, self.defaults)
         self.assertIn("community.general.pacman", self.arch_tasks)
         self.assertIn("can_install_packages | default(false)", self.arch_tasks)
         self.assertIn("Enable SDDM display manager", self.arch_tasks)
+
+    def test_arch_role_maps_capslock_to_f13_with_keyd(self) -> None:
+        for required in [
+            "plasma_enable_capslock_f13: true",
+            "plasma_capslock_f13_arch_packages:",
+            "Install CapsLock to F13 remapper packages",
+            "Ensure keyd config directory exists",
+            "/etc/keyd",
+            "Map CapsLock to F13 with keyd",
+            "keyd/default.conf",
+            "/etc/keyd/default.conf",
+            "Enable keyd CapsLock to F13 remap",
+            "keyd.service",
+        ]:
+            self.assertIn(required, self.defaults + self.arch_tasks)
+        self.assertIn("[ids]\n*", self.keyd_config)
+        self.assertIn("capslock = overload(plasma_summon, f13)", self.keyd_config)
+        self.assertIn("[plasma_summon]", self.keyd_config)
+        self.assertIn("b = macro(f13 b)", self.keyd_config)
 
     def test_sddm_enablement_preserves_existing_display_manager(self) -> None:
         for required in [
@@ -97,11 +118,17 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "Move Active to Region main",
             "Cycle Active Screen Layout",
             "Pick Active Window Region",
-            "Meta+U,none,Pick region/cell for active window",
+            "none,none,Pick region/cell for active window",
             "Pick Active Screen Layout",
-            "Meta+Ctrl+Alt+Shift+P,none,Pick active screen layout",
+            "none,none,Pick active screen layout",
+            "Open Plasma Summon Window Mover",
+            "Meta+U,none,Pick region/cell for active window",
+            "Open Plasma Summon Layout Picker",
+            "Meta+Alt+Ctrl+Shift+P,none,Pick active screen layout",
             "Ask KGlobalAccel to release System Settings Tools shortcut",
             "/component/systemsettings_desktop",
+            "Unload existing Plasma summon KWin script",
+            "org.kde.kwin.Scripting.unloadScript",
             "Load Plasma summon into running KWin",
             "org.kde.kwin.Scripting.loadScript",
             "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}/contents/code/main.js",
@@ -115,7 +142,19 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.assertIn(required, self.tasks)
         self.assertIn("plasma_summon_script_id: plasma-summon", self.defaults)
         self.assertIn("ExecStart=%h/.local/bin/plasma-summon-service", self.service)
-        self.assertIn("WantedBy=default.target", self.service)
+        self.assertIn("WantedBy=graphical-session.target", self.service)
+        for required in [
+            "Import Plasma graphical environment into user services",
+            "dbus-update-activation-environment",
+            "WAYLAND_DISPLAY",
+            "XDG_CURRENT_DESKTOP",
+            "Remove legacy default-target summon service enablement",
+            "default.target.wants/plasma-summon.service",
+            "Enable and restart Plasma summon service",
+            "state: restarted",
+        ]:
+            self.assertIn(required, self.tasks)
+
 
     def test_kwin_package_metadata_matches_plasma_6_format(self) -> None:
         self.assertEqual(self.metadata["KPlugin"]["Id"], "plasma-summon")
@@ -128,7 +167,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             'registerShortcut("Summon " + appName',
             'const triggerPrefixes = ["F13", "CapsLock", "Tools"]',
             'prefix + "," + key',
-            'registerShortcut("Pick Active Window Region"',
+            'registerShortcut("Open Plasma Summon Window Mover"',
             '"Meta+U", showCellPicker',
             'requestPicker("Move " + appName',
             '"PickOption"',
@@ -136,7 +175,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             '"Meta+O"',
             'registerShortcut("Move Active Window to Previous Screen"',
             '"Meta+Shift+O"',
-            'registerShortcut("Pick Active Screen Layout"',
+            'registerShortcut("Open Plasma Summon Layout Picker"',
             '"Meta+Alt+Ctrl+Shift+P", showLayoutPicker',
             '"Meta+Alt+Ctrl+Shift+;"',
             "\"Meta+Alt+Ctrl+Shift+'\"",
@@ -145,6 +184,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.script)
         for invalid in [
+            'registerShortcut("Pick Active Window Region"',
+            'registerShortcut("Pick Active Screen Layout"',
             "XF86Tools",
             "Meta+Alt+Ctrl+Shift+Semicolon",
             "Meta+Alt+Ctrl+Shift+Apostrophe",
@@ -176,8 +217,9 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.script)
         self.assertNotIn("summonApp(appName, true)", self.script)
-
-
+        self.assertIn('if ("fullScreen" in window && window.fullScreen)', self.script)
+        self.assertIn("window.fullScreen = false", self.script)
+        self.assertNotIn("refusing to move fullscreen window", self.script)
 
     def test_kwin_script_uses_native_kwin_window_apis(self) -> None:
         for required in [
@@ -189,8 +231,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "workspace.clientArea(KWin.PlacementArea, output, desktop)",
             "window.frameGeometry = target",
             "workspace.sendClientToScreen(window, targetOutput)",
-            "window.fullScreen",
-            "refusing to move fullscreen window",
+            "window.fullScreen = false",
             "window.desktopFileName",
             "window.resourceClass",
             "window.caption",
@@ -312,15 +353,26 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             shortcuts,
             [
                 (
-                    ["kwin", "Pick Active Window Region", "KWin", "Pick region/cell for active window"],
+                    ["kwin", "Open Plasma Summon Window Mover", "KWin", "Pick region/cell for active window"],
                     [0x10000000 + ord("U")],
                 ),
                 (
-                    ["kwin", "Pick Active Screen Layout", "KWin", "Pick active screen layout"],
+                    ["kwin", "Open Plasma Summon Layout Picker", "KWin", "Pick active screen layout"],
                     [0x1E000000 + ord("P")],
                 ),
             ],
         )
+
+    def test_helper_declares_obsolete_picker_conflicts(self) -> None:
+        obsolete = plasma_summon_service.obsolete_shortcut_names()
+        for name in [
+            "Move Active to Cell 1",
+            "Move Active to Region main",
+            "Cycle Active Screen Layout",
+            "Pick Active Window Region",
+            "Pick Active Screen Layout",
+        ]:
+            self.assertIn(name, obsolete)
 
 
 if __name__ == "__main__":

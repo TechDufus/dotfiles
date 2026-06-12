@@ -500,6 +500,9 @@ function moveWindowToOutput(window, output) {
 }
 
 function prepareWindowForGeometry(window, region) {
+    if ("fullScreen" in window && window.fullScreen) {
+        window.fullScreen = false;
+    }
     if (region && region.float === false) {
         return;
     }
@@ -523,10 +526,6 @@ function prepareWindowForGeometry(window, region) {
 function placeAppWindow(appName, window) {
     const appConfig = apps[appName];
     if (!appConfig || !normalWindow(window)) {
-        return false;
-    }
-    if (window.fullScreen) {
-        log("refusing to move fullscreen window");
         return false;
     }
 
@@ -624,10 +623,6 @@ function regionGeometry(region, output) {
 
 function placeWindowInRegion(window, regionName, output) {
     if (!normalWindow(window)) {
-        return false;
-    }
-    if (window.fullScreen) {
-        log("refusing to move fullscreen window");
         return false;
     }
     const region = regions[regionName];
@@ -748,10 +743,6 @@ function showCellPicker() {
         log("no active window to move");
         return;
     }
-    if (window.fullScreen) {
-        log("refusing to move fullscreen window");
-        return;
-    }
 
     const output = window.output || workspace.activeScreen;
     const pair = layoutForOutput(output);
@@ -789,7 +780,7 @@ function reapplyLayout(output) {
     const windows = workspace.stackingOrder || [];
     for (let i = 0; i < windows.length; i += 1) {
         const window = windows[i];
-        if (!normalWindow(window) || window.output !== output || window.fullScreen) {
+        if (!normalWindow(window) || window.output !== output) {
             continue;
         }
         const appName = appForWindow(window);
@@ -911,10 +902,6 @@ function moveActiveToOutput(direction) {
     if (!normalWindow(window)) {
         return;
     }
-    if (window.fullScreen) {
-        log("refusing to move fullscreen window");
-        return;
-    }
 
     const sourceOutput = window.output || workspace.activeScreen;
     const targetOutput = otherOutput(sourceOutput, direction);
@@ -961,7 +948,7 @@ function registerAppShortcuts() {
 }
 
 function registerRegionShortcuts() {
-    registerShortcut("Pick Active Window Region", "Pick region/cell for active window", "Meta+U", showCellPicker);
+    registerShortcut("Open Plasma Summon Window Mover", "Pick region/cell for active window", "Meta+U", showCellPicker);
 }
 
 function registerWorkflowShortcuts() {
@@ -971,7 +958,7 @@ function registerWorkflowShortcuts() {
     registerShortcut("Move Active Window to Previous Screen", "Move active window to previous screen", "Meta+Shift+O", function () {
         moveActiveToOutput("previous");
     });
-    registerShortcut("Pick Active Screen Layout", "Pick active screen layout", "Meta+Alt+Ctrl+Shift+P", showLayoutPicker);
+    registerShortcut("Open Plasma Summon Layout Picker", "Pick active screen layout", "Meta+Alt+Ctrl+Shift+P", showLayoutPicker);
     registerShortcut("Cycle Active Screen Layout Semicolon", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+;", cycleLayout);
     registerShortcut("Reset Active Screen Layout Apostrophe", "Reset active screen layout", "Meta+Alt+Ctrl+Shift+'", resetLayout);
     registerShortcut("Reload Plasma Summon Configuration Hyper", "Reload KWin configuration", "Meta+Alt+Ctrl+Shift+R", function () {

@@ -57,3 +57,44 @@
       - "Plasma package installation skipped because package installation is unavailable."
       - "Managed KWin script, summon config, and user service symlinks still run."
   when: not (can_install_packages | default(false))
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install CapsLock to F13 remapper packages"
+  community.general.pacman:
+    name: "{{ plasma_capslock_f13_arch_packages }}"
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_capslock_f13 | bool
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Ensure keyd config directory exists"
+  ansible.builtin.file:
+    path: /etc/keyd
+    state: directory
+    mode: "0755"
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_capslock_f13 | bool
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Map CapsLock to F13 with keyd"
+  ansible.builtin.copy:
+    src: keyd/default.conf
+    dest: /etc/keyd/default.conf
+    mode: "0644"
+  become: true
+  register: plasma_keyd_config
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_capslock_f13 | bool
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Enable keyd CapsLock to F13 remap"
+  ansible.builtin.systemd:
+    name: keyd.service
+    enabled: true
+    state: "{{ 'restarted' if (plasma_keyd_config.changed | default(false)) else 'started' }}"
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_capslock_f13 | bool
+    - not ansible_check_mode

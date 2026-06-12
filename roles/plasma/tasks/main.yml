@@ -103,6 +103,22 @@
     - plasma_enable_kwin_summon | bool
     - plasma_kwriteconfig6.stat.exists
 
+- name: "{{ role_name }} | Reserve Tools key for Plasma summon"
+  ansible.builtin.command:
+    argv:
+      - kwriteconfig6
+      - --file
+      - kglobalshortcutsrc
+      - --group
+      - systemsettings.desktop
+      - --key
+      - _launch
+      - "none,Tools\tMeta+I,System Settings"
+  changed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_kwriteconfig6.stat.exists
+
 - name: "{{ role_name }} | Explain missing kwriteconfig6"
   ansible.builtin.debug:
     msg: "KWin summon script was deployed but not enabled because kwriteconfig6 is not installed yet."
@@ -115,6 +131,47 @@
     path: /usr/bin/qdbus6
   register: plasma_qdbus6
   check_mode: false
+
+- name: "{{ role_name }} | Ask KGlobalAccel to release System Settings Tools shortcut"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.kglobalaccel
+      - /component/systemsettings_desktop
+      - org.kde.kglobalaccel.Component.cleanUp
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Load Plasma summon into running KWin"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /Scripting
+      - org.kde.kwin.Scripting.loadScript
+      - "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}/contents/code/main.js"
+      - "{{ plasma_summon_script_id }}"
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Start pending KWin scripts"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /Scripting
+      - org.kde.kwin.Scripting.start
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
 
 - name: "{{ role_name }} | Ask running KWin to reload scripts"
   ansible.builtin.command:

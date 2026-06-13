@@ -87,6 +87,41 @@
   register: plasma_kwriteconfig6
   check_mode: false
 
+- name: "{{ role_name }} | Validate role-managed Plasma desktop settings"
+  ansible.builtin.assert:
+    that:
+      - item.file is string
+      - item.file | length > 0
+      - item.group_path is sequence
+      - item.group_path is not string
+      - item.group_path | length > 0
+      - item.key is string
+      - item.key | length > 0
+      - item.value is string
+    quiet: true
+  loop: "{{ plasma_desktop_kconfig_settings }}"
+  loop_control:
+    label: "{{ item.file }}:{{ item.group_path | join('/') }}:{{ item.key }}"
+  when: plasma_manage_desktop_settings | bool
+
+- name: "{{ role_name }} | Configure role-managed Plasma desktop settings"
+  ansible.builtin.command:
+    cmd: >-
+      kwriteconfig6
+      --file {{ item.file | quote }}
+      {% for group in item.group_path %}
+      --group {{ group | quote }}
+      {% endfor %}
+      --key {{ item.key | quote }}
+      {{ item.value | string | quote }}
+  loop: "{{ plasma_desktop_kconfig_settings }}"
+  loop_control:
+    label: "{{ item.file }}:{{ item.group_path | join('/') }}:{{ item.key }}"
+  changed_when: false
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_kwriteconfig6.stat.exists
+
 - name: "{{ role_name }} | Enable KWin summon script"
   ansible.builtin.command:
     argv:

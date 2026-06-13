@@ -121,7 +121,9 @@ Plasma uses `roles/plasma/files/kwin/plasma-summon/` for the KWin script,
 `roles/plasma/files/bin/plasma-summon-service.py` for safe app launching, and
 `roles/plasma/files/summon/` for the same app, region, and layout model. The
 role symlinks the KWin package into `~/.local/share/kwin/scripts/`, enables it
-with `kwriteconfig6`, and starts the user D-Bus helper.
+with `kwriteconfig6`, starts the user D-Bus helper, and writes stable desktop
+preferences such as keyboard repeat, cursor/icons/fonts/default apps,
+notifications, KWin effects/decorations, locale, and AC power timeouts.
 
 Window-management carry-over:
 
@@ -230,7 +232,7 @@ default_roles:
   - git             # Version control
   - zsh             # Modern shell
   - neovim          # Text editor
-  - plasma          # KDE Plasma desktop, KWin summon helper, and regions on Arch/CachyOS
+  - plasma          # KDE Plasma desktop, stable desktop prefs, KWin summon, and regions
 
 # Keep one shared list, but prune irrelevant stacks per OS
 exclude_roles_by_distribution:

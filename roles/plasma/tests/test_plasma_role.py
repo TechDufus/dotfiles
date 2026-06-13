@@ -134,6 +134,66 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.assertIn(required, self.arch_tasks)
 
 
+    def test_role_manages_stable_plasma_desktop_settings(self) -> None:
+        for required in [
+            "plasma_manage_desktop_settings: true",
+            "Sparse KConfig writes for stable desktop preferences.",
+            "plasma_desktop_kconfig_settings:",
+            "group_path: [Keyboard]",
+            "file: kcminputrc",
+            "key: RepeatDelay",
+            "value: \"400\"",
+            "key: RepeatRate",
+            "value: \"30\"",
+            "group_path: [Mouse]",
+            "key: cursorTheme",
+            "value: Sweet-cursors",
+            "file: plasmanotifyrc",
+            "group_path: [Notifications]",
+            "key: PopupTimeout",
+            "value: \"4000\"",
+            "file: kwinrc",
+            "group_path: [Plugins]",
+            "key: blurEnabled",
+            "key: mouseclickEnabled",
+            "key: ElectricBorders",
+            "key: library",
+            "value: org.kde.oxygen",
+            "file: kdeglobals",
+            "key: BrowserApplication",
+            "value: brave-browser.desktop",
+            "key: TerminalApplication",
+            "value: /usr/bin/ghostty --gtk-single-instance=true",
+            "key: Theme",
+            "value: candy-icons",
+            "key: AnimationDurationFactor",
+            "value: \"0.125\"",
+            "file: plasma-localerc",
+            "file: powerdevilrc",
+            "group_path: [AC, Display]",
+            "group_path: [AC, SuspendAndShutdown]",
+            "key: AutoSuspendIdleTimeoutSec",
+            "value: \"5400\"",
+        ]:
+            self.assertIn(required, self.defaults)
+        for required in [
+            "Validate role-managed Plasma desktop settings",
+            "Configure role-managed Plasma desktop settings",
+            "kwriteconfig6",
+            "{{ plasma_desktop_kconfig_settings }}",
+            "plasma_manage_desktop_settings | bool",
+            "item.group_path is sequence",
+            "item.group_path is not string",
+            "item.value is string",
+            "{% for group in item.group_path %}",
+            "--group {{ group | quote }}",
+            "item.group_path | join('/')",
+        ]:
+            self.assertIn(required, self.tasks)
+        self.assertNotIn("plasma_desktop_nested_kconfig_settings", self.defaults)
+        self.assertNotIn("item.groups[0]", self.tasks)
+
+
     def test_role_owns_plasma_summon_runtime_paths(self) -> None:
         for required in [
             "files/bin/plasma-summon-service.py",

@@ -146,16 +146,24 @@ Everything else is configured by editing the actual config files directly:
 | waybar | `roles/hyprland/files/waybar/` |
 | hyprpaper | `roles/hyprland/files/hypr/hyprpaper.conf`, `roles/hyprland/files/wallpapers/` |
 | hyprland summon | `roles/hyprland/files/summon/`, `roles/hyprland/files/bin/hypr-summon.py` |
-| plasma | `roles/plasma/files/kwin/plasma-summon/`, `roles/plasma/files/summon/` |
+| plasma desktop settings | `roles/plasma/defaults/main.yml` (`plasma_desktop_kconfig_settings`) |
+| plasma summon | `roles/plasma/files/kwin/plasma-summon/`, `roles/plasma/files/summon/` |
 | plasma summon service | `roles/plasma/files/bin/plasma-summon-service.py`, `roles/plasma/files/systemd/plasma-summon.service` |
 
 Hyprland owns the normal top Waybar panel, summon app registry, percentage-based
 regions, and active-monitor layout profiles. Edit those files directly in the
 role; the symlinks keep the live desktop aligned with the repository.
 
-Plasma owns a normal KDE session plus a KWin script for the same summon, region,
-monitor, and layout workflow. The helper service reads the TOML registries and
-launches configured apps over D-Bus; KWin keeps direct control of windows.
+Plasma owns a normal KDE session, stable desktop KConfig preferences in
+`plasma_desktop_kconfig_settings`, and a KWin script for the same summon, region,
+monitor, and layout workflow. Each KConfig entry is one scalar key with
+`file`, ordered `group_path`, `key`, and exact string `value`; discover new
+values with `kreadconfig6`, then add one list item. The helper service reads the
+TOML registries and launches configured apps over D-Bus; KWin keeps direct
+control of windows.
+Panel/dock containment IDs, per-screen applet geometry, wallpaper paths, and
+system-tray applet ordering are intentionally not blindly copied because those
+files contain machine-specific IDs.
 
 This is intentional. Config files are readable, portable, and self-contained. You look at the file and know exactly what it does.
 

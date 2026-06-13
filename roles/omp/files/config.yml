@@ -18,6 +18,7 @@ contextPromotion:
 compaction: 
   thresholdPercent: 60
   remoteEnabled: true
+  strategy: snapcompact
 hideThinkingBlock: true
 disabledProviders: 
   - claude

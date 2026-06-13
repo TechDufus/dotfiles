@@ -165,6 +165,7 @@ let layouts = {
             onepassword: 4,
             files: 5,
             obsidian: 6,
+            steam: 5,
         },
     },
     hd: {
@@ -181,6 +182,7 @@ let layouts = {
             onepassword: 3,
             files: 3,
             obsidian: 3,
+            steam: 3,
         },
     },
     standard: {
@@ -192,6 +194,10 @@ let layouts = {
             discord: 1,
             signal: 1,
             spotify: 2,
+            onepassword: 3,
+            files: 3,
+            obsidian: 3,
+            steam: 3,
         },
     },
     full: {
@@ -211,7 +217,6 @@ let layouts = {
         },
     },
 };
-
 const state = {
     activeWindow: workspace.activeWindow,
     previousWindowId: "",
@@ -733,6 +738,10 @@ function summonApp(appName, place) {
 function outputKey(output) {
     return String(output ? output.name || output.serialNumber || output.model || "output" : "output");
 }
+function outputMatches(window, output) {
+    return outputKey(window ? window.output : null) === outputKey(output);
+}
+
 
 function outputArea(output) {
     if (!output) {
@@ -807,6 +816,28 @@ function layoutForOutput(output) {
 function setLayoutForOutput(output, layoutName) {
     state.layoutByOutput[outputKey(output)] = layoutName;
 }
+function setLayoutForAllOutputs(layoutName) {
+    const screens = workspace.screens || [];
+    if (screens.length === 0) {
+        setLayoutForOutput(workspace.activeScreen, layoutName);
+        return;
+    }
+    for (let i = 0; i < screens.length; i += 1) {
+        setLayoutForOutput(screens[i], layoutName);
+    }
+}
+
+function clearLayoutForAllOutputs() {
+    const screens = workspace.screens || [];
+    if (screens.length === 0) {
+        delete state.layoutByOutput[outputKey(workspace.activeScreen)];
+        return;
+    }
+    for (let i = 0; i < screens.length; i += 1) {
+        delete state.layoutByOutput[outputKey(screens[i])];
+    }
+}
+
 
 function appCellOverrideKey(output, layoutName, appName) {
     return outputKey(output) + ":" + layoutName + ":" + appName;
@@ -917,7 +948,7 @@ function reapplyLayout(output) {
     const windows = workspace.stackingOrder || [];
     for (let i = 0; i < windows.length; i += 1) {
         const window = windows[i];
-        if (!normalWindow(window) || window.output !== output) {
+        if (!normalWindow(window) || !outputMatches(window, output)) {
             continue;
         }
         const appName = appForWindow(window);
@@ -930,6 +961,10 @@ function reapplyLayout(output) {
 
 function reapplyAllLayouts() {
     const screens = workspace.screens || [];
+    if (screens.length === 0) {
+        reapplyLayout(workspace.activeScreen);
+        return;
+    }
     for (let i = 0; i < screens.length; i += 1) {
         reapplyLayout(screens[i]);
     }
@@ -943,14 +978,14 @@ function activeOutput() {
     return workspace.activeScreen;
 }
 
-function selectLayout(output, layoutName) {
+function selectLayout(layoutName) {
     if (!layouts[layoutName]) {
         log("unknown layout " + layoutName);
         return;
     }
-    setLayoutForOutput(output, layoutName);
-    reapplyLayout(output);
-    log("layout " + outputKey(output) + " -> " + layoutName);
+    setLayoutForAllOutputs(layoutName);
+    reapplyAllLayouts();
+    log("layout all outputs -> " + layoutName);
 }
 
 function cycleLayout() {
@@ -959,7 +994,7 @@ function cycleLayout() {
     const current = layoutForOutput(output)[0];
     const index = names.indexOf(current);
     const next = names[(index + 1) % names.length];
-    selectLayout(output, next);
+    selectLayout(next);
 }
 
 function showLayoutPicker() {
@@ -979,15 +1014,14 @@ function showLayoutPicker() {
         if (selection.slice(0, 7) !== "layout:") {
             return;
         }
-        selectLayout(output, selection.slice(7));
+        selectLayout(selection.slice(7));
     });
 }
 
 function resetLayout() {
-    const output = activeOutput();
-    delete state.layoutByOutput[outputKey(output)];
-    reapplyLayout(output);
-    log("layout reset for " + outputKey(output));
+    clearLayoutForAllOutputs();
+    reapplyAllLayouts();
+    log("layout reset for all outputs");
 }
 
 function sortedOutputs() {

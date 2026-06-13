@@ -377,6 +377,35 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertNotIn("lastRegionByWindow", self.script)
         self.assertNotIn("lastCellByWindow", self.script)
 
+    def test_layout_selection_reapplies_all_outputs_and_all_managed_apps(self) -> None:
+        expected_apps = set(self.apps)
+        for layout_name, layout in self.layouts.items():
+            with self.subTest(layout=layout_name):
+                self.assertEqual(set(layout["apps"]), expected_apps)
+                cell_count = len(layout["cells"])
+                for app_name, cell in layout["apps"].items():
+                    with self.subTest(layout=layout_name, app=app_name):
+                        self.assertGreaterEqual(cell, 1)
+                        self.assertLessEqual(cell, cell_count)
+
+        for required in [
+            "function setLayoutForAllOutputs(layoutName)",
+            "function clearLayoutForAllOutputs()",
+            "function outputMatches(window, output)",
+            "!outputMatches(window, output)",
+            "setLayoutForAllOutputs(layoutName)",
+            "reapplyAllLayouts();",
+            'log("layout all outputs -> " + layoutName)',
+            'log("layout reset for all outputs")',
+            "selectLayout(next);",
+            "selectLayout(selection.slice(7));",
+            "steam: 5",
+            "steam: 3",
+        ]:
+            self.assertIn(required, self.script)
+        self.assertNotIn("selectLayout(output,", self.script)
+
+
     def test_kwin_script_uses_native_kwin_window_apis(self) -> None:
         for required in [
             "workspace.stackingOrder",

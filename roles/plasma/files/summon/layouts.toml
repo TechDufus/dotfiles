@@ -12,6 +12,7 @@ spotify = 4
 onepassword = 4
 files = 5
 obsidian = 6
+steam = 5
 
 [layouts.hd]
 label = "HD Workspace"
@@ -28,6 +29,7 @@ spotify = 3
 onepassword = 3
 files = 3
 obsidian = 3
+steam = 3
 
 [layouts.standard]
 label = "Standard Dev"
@@ -39,6 +41,10 @@ browser = 4
 discord = 1
 signal = 1
 spotify = 2
+onepassword = 3
+files = 3
+obsidian = 3
+steam = 3
 
 [layouts.full]
 label = "Fullscreen"

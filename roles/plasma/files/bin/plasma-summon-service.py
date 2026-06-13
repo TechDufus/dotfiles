@@ -57,6 +57,11 @@ def obsolete_shortcut_names() -> list[str]:
             "wide",
         ]
     )
+    names.extend(
+        f"Macro {key} via {prefix}"
+        for key in ["a", "s", "e"]
+        for prefix in ["CapsLock,CapsLock", "F13,F13", "Launch (5)"]
+    )
     return names
 
 

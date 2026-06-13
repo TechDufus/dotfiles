@@ -214,7 +214,7 @@ let layouts = {
 
 const state = {
     activeWindow: workspace.activeWindow,
-    previousWindow: null,
+    previousWindowId: "",
     lastByApp: {},
     lastRegionByWindow: {},
     lastCellByWindow: {},
@@ -392,6 +392,42 @@ function findWindowById(id) {
     return null;
 }
 
+function rememberWindowForApp(window) {
+    if (!normalWindow(window)) {
+        return;
+    }
+    const id = windowId(window);
+    if (!id) {
+        return;
+    }
+    const appName = appForWindow(window);
+    if (appName) {
+        state.lastByApp[appName] = id;
+    }
+}
+
+function previousWindowForToggle(appName) {
+    const appConfig = apps[appName];
+    const previous = findWindowById(state.previousWindowId);
+    if (!appConfig || !normalWindow(previous) || previous === workspace.activeWindow) {
+        return null;
+    }
+    if (appMatches(previous, appConfig)) {
+        return null;
+    }
+    return previous;
+}
+
+function rememberPreviousWindow(previous, next) {
+    if (!normalWindow(previous) || previous === next || sameAppKey(previous) === sameAppKey(next)) {
+        return;
+    }
+    const id = windowId(previous);
+    if (id) {
+        state.previousWindowId = id;
+    }
+}
+
 function bestWindow(appName) {
     const appConfig = apps[appName];
     if (!appConfig) {
@@ -444,6 +480,7 @@ function focusWindow(window) {
     if (!window) {
         return;
     }
+    rememberPreviousWindow(workspace.activeWindow, window);
     if (window.minimized) {
         window.minimized = false;
     }
@@ -647,6 +684,23 @@ function runMacro(macroName) {
     });
 }
 
+const macroActions = [
+    { key: "a", description: "Cycle windows of the active app", callback: cycleSameAppWindow },
+    { key: "s", description: "Capture a screenshot region to the clipboard", macro: "screenshot_area" },
+    { key: "e", description: "Open the Plasma emoji picker", macro: "emoji_picker" },
+];
+
+const macroTriggerPrefixes = ["F16", "XF86Launch5", "Tools,Tools"];
+
+function macroActionCallback(action) {
+    if (action.callback) {
+        return action.callback;
+    }
+
+    return function () {
+        runMacro(action.macro);
+    };
+}
 
 function summonApp(appName, place) {
     const appConfig = apps[appName];
@@ -655,13 +709,22 @@ function summonApp(appName, place) {
         return;
     }
 
+    const active = workspace.activeWindow;
+    if (!place && normalWindow(active) && appMatches(active, appConfig)) {
+        const previous = previousWindowForToggle(appName);
+        if (previous) {
+            focusWindow(previous);
+            return;
+        }
+    }
+
     const window = bestWindow(appName);
     if (!window) {
         launchApp(appName, true);
         return;
     }
 
-    state.lastByApp[appName] = windowId(window);
+    rememberWindowForApp(window);
     if (place) {
         placeAppWindow(appName, window);
     } else {
@@ -1037,17 +1100,17 @@ function registerRegionShortcuts() {
 }
 
 function registerMacroShortcuts() {
-    const actions = [
-        ["a", "Cycle windows of the active app", cycleSameAppWindow],
-        ["s", "Capture a screenshot region to the clipboard", function () { runMacro("screenshot_area"); }],
-        ["e", "Open the Plasma emoji picker", function () { runMacro("emoji_picker"); }],
-    ];
-    const triggerPrefixes = ["F16", "XF86Launch5", "F13,F13", "CapsLock,CapsLock", "Tools,Tools"];
-    for (let i = 0; i < actions.length; i += 1) {
-        const action = actions[i];
-        for (let j = 0; j < triggerPrefixes.length; j += 1) {
-            const prefix = triggerPrefixes[j];
-            registerShortcut("Macro " + action[0] + " via " + prefix, action[1], prefix + "," + action[0].toUpperCase(), action[2]);
+    for (let i = 0; i < macroActions.length; i += 1) {
+        const action = macroActions[i];
+        const key = String(action.key || "").toUpperCase();
+        if (!key) {
+            continue;
+        }
+
+        const callback = macroActionCallback(action);
+        for (let j = 0; j < macroTriggerPrefixes.length; j += 1) {
+            const prefix = macroTriggerPrefixes[j];
+            registerShortcut("Macro " + action.key + " via " + prefix, action.description, prefix + "," + key, callback);
         }
     }
 }
@@ -1103,10 +1166,9 @@ function handleWindowAdded(window) {
 }
 
 workspace.windowActivated.connect(function (window) {
-    if (state.activeWindow && state.activeWindow !== window) {
-        state.previousWindow = state.activeWindow;
-    }
+    rememberPreviousWindow(state.activeWindow, window);
     state.activeWindow = window;
+    rememberWindowForApp(window);
     handleWindowAdded(window);
 });
 

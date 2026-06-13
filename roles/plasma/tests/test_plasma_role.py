@@ -43,6 +43,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         cls.apps = load_toml(SUMMON_DIR / "apps.toml")["apps"]
         cls.regions = load_toml(SUMMON_DIR / "regions.toml")["regions"]
         cls.layouts = load_toml(SUMMON_DIR / "layouts.toml")["layouts"]
+        cls.keyd_bridge = (ROLE / "templates" / "bin" / "plasma-summon-keyd.j2").read_text(encoding="utf-8")
 
     def test_arch_role_installs_normal_plasma_wayland_stack(self) -> None:
         for package in [
@@ -70,6 +71,11 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "plasma_capslock_f13_arch_packages:",
             "Install CapsLock to F13 remapper packages",
             "Ensure keyd config directory exists",
+            "Ensure keyd macro bridge directory exists",
+            "Install keyd macro bridge",
+            "ansible.builtin.template",
+            "bin/plasma-summon-keyd.j2",
+            "/usr/local/bin/plasma-summon-keyd",
             "/etc/keyd",
             "Map CapsLock to F13 with keyd",
             "keyd/default.conf",
@@ -79,12 +85,42 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.defaults + self.arch_tasks)
         self.assertIn("[ids]\n*", self.keyd_config)
-        self.assertIn("oneshot_timeout = 300", self.keyd_config)
-        self.assertIn("capslock = overload(plasma_summon, oneshotm(plasma_macro, macro(f13)))", self.keyd_config)
+        self.assertIn("oneshot_timeout = 2000", self.keyd_config)
+        self.assertIn("capslock = overload(plasma_summon, oneshot(plasma_leader))", self.keyd_config)
+        self.assertIn("f13 = overload(plasma_summon, oneshot(plasma_leader))", self.keyd_config)
         self.assertIn("[plasma_summon]", self.keyd_config)
         self.assertIn("b = macro(f13 b)", self.keyd_config)
-        self.assertIn("[plasma_macro]", self.keyd_config)
-        self.assertIn("capslock = f16", self.keyd_config)
+        self.assertIn("[plasma_leader]", self.keyd_config)
+        self.assertIn("[plasma_macro_action]", self.keyd_config)
+
+    def test_keyd_double_tap_route_runs_macros_without_breaking_summon(self) -> None:
+        self.assertIn("[plasma_leader]", self.keyd_config)
+        self.assertIn("t = macro(f13 t)", self.keyd_config)
+        self.assertIn("s = macro(f13 s)", self.keyd_config)
+        self.assertIn("capslock = oneshot(plasma_macro_action)", self.keyd_config)
+        self.assertIn("f13 = oneshot(plasma_macro_action)", self.keyd_config)
+        self.assertIn("[plasma_macro_action]", self.keyd_config)
+        self.assertIn("a = command(/usr/local/bin/plasma-summon-keyd run cycle_same_app)", self.keyd_config)
+        self.assertIn("s = command(/usr/local/bin/plasma-summon-keyd run screenshot_area)", self.keyd_config)
+        self.assertIn("e = command(/usr/local/bin/plasma-summon-keyd run emoji_picker)", self.keyd_config)
+        self.assertIn("esc = clear()", self.keyd_config)
+        self.assertIn("f13 = clear()", self.keyd_config)
+        self.assertIn("capslock = clear()", self.keyd_config)
+        self.assertNotIn("[plasma_hold]", self.keyd_config)
+        self.assertNotIn("oneshotm(plasma_macro, macro(f13))", self.keyd_config)
+        self.assertNotIn("toggle(plasma_macro_action)", self.keyd_config)
+        self.assertNotIn("macro(f16 e)", self.keyd_config)
+        self.assertNotIn("macro(f16 s)", self.keyd_config)
+
+    def test_keyd_macro_bridge_runs_whitelisted_user_session_actions(self) -> None:
+        self.assertIn("PLASMA_SUMMON_USER=\"{{ ansible_facts['user_id'] }}\"", self.keyd_bridge)
+        self.assertIn("PLASMA_SUMMON_SERVICE=\"{{ plasma_local_bin_dir }}/plasma-summon-service\"", self.keyd_bridge)
+        self.assertIn("PLASMA_SUMMON_KEYD_BIN=\"${PLASMA_SUMMON_KEYD_BIN:-/usr/bin/keyd}\"", self.keyd_bridge)
+        self.assertIn("keyd_clear()", self.keyd_bridge)
+        self.assertIn("\"${PLASMA_SUMMON_KEYD_BIN}\" do 'clear()' || true", self.keyd_bridge)
+        self.assertIn("run_user \"${PLASMA_SUMMON_SERVICE}\" --macro \"$1\"", self.keyd_bridge)
+        self.assertIn("org.kde.kglobalaccel.Component.invokeShortcut", self.keyd_bridge)
+        self.assertIn("\"Macro a via F16\"", self.keyd_bridge)
 
     def test_sddm_enablement_preserves_existing_display_manager(self) -> None:
         for required in [
@@ -208,14 +244,31 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "function runMacro(macroName)",
             '"RunMacro"',
             "function registerMacroShortcuts()",
-            '["a", "Cycle windows of the active app", cycleSameAppWindow]',
-            '["s", "Capture a screenshot region to the clipboard", function () { runMacro("screenshot_area"); }]',
-            '["e", "Open the Plasma emoji picker", function () { runMacro("emoji_picker"); }]',
-            'const triggerPrefixes = ["F16", "XF86Launch5", "F13,F13", "CapsLock,CapsLock", "Tools,Tools"]',
-            'prefix + "," + action[0].toUpperCase()',
+            "const macroActions = [",
+            '{ key: "a", description: "Cycle windows of the active app", callback: cycleSameAppWindow }',
+            '{ key: "s", description: "Capture a screenshot region to the clipboard", macro: "screenshot_area" }',
+            '{ key: "e", description: "Open the Plasma emoji picker", macro: "emoji_picker" }',
+            'const macroTriggerPrefixes = ["F16", "XF86Launch5", "Tools,Tools"]',
+            "function macroActionCallback(action)",
+            'prefix + "," + key',
             "registerMacroShortcuts();",
         ]:
             self.assertIn(required, self.script)
+
+    def test_kwin_script_toggles_active_summon_back_to_previous_app(self) -> None:
+        for required in [
+            "previousWindowId",
+            "function rememberWindowForApp(window)",
+            "state.lastByApp[appName] = id",
+            "function previousWindowForToggle(appName)",
+            "function rememberPreviousWindow(previous, next)",
+            "if (!place && normalWindow(active) && appMatches(active, appConfig))",
+            "const previous = previousWindowForToggle(appName)",
+            "focusWindow(previous)",
+            "rememberWindowForApp(window);",
+        ]:
+            self.assertIn(required, self.script)
+
 
 
     def test_kwin_script_places_newly_launched_apps_with_current_layout_cells(self) -> None:
@@ -342,6 +395,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("# - plasma", example)
         arch_excludes = all_yml.split("exclude_roles_by_distribution:", maxsplit=1)[1]
         self.assertNotIn("    - plasma", arch_excludes)
+
 
 
 
@@ -611,6 +665,12 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             "Cycle Active Screen Layout",
             "Pick Active Window Region",
             "Pick Active Screen Layout",
+        ]:
+            self.assertIn(name, obsolete)
+        for name in [
+            "Macro a via F13,F13",
+            "Macro e via CapsLock,CapsLock",
+            "Macro s via Launch (5)",
         ]:
             self.assertIn(name, obsolete)
 

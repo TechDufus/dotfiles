@@ -77,6 +77,27 @@
     - can_install_packages | default(false)
     - plasma_enable_capslock_f13 | bool
 
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Ensure keyd macro bridge directory exists"
+  ansible.builtin.file:
+    path: /usr/local/bin
+    state: directory
+    mode: "0755"
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_capslock_f13 | bool
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install keyd macro bridge"
+  ansible.builtin.template:
+    src: bin/plasma-summon-keyd.j2
+    dest: /usr/local/bin/plasma-summon-keyd
+    mode: "0755"
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - plasma_enable_capslock_f13 | bool
+
 - name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Map CapsLock to F13 with keyd"
   ansible.builtin.copy:
     src: keyd/default.conf

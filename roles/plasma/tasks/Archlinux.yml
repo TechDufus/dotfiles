@@ -99,8 +99,8 @@
     - plasma_enable_capslock_f13 | bool
 
 - name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Map CapsLock to F13 with keyd"
-  ansible.builtin.copy:
-    src: keyd/default.conf
+  ansible.builtin.template:
+    src: keyd/default.conf.j2
     dest: /etc/keyd/default.conf
     mode: "0644"
   become: true

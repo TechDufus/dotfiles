@@ -216,8 +216,6 @@ const state = {
     activeWindow: workspace.activeWindow,
     previousWindowId: "",
     lastByApp: {},
-    lastRegionByWindow: {},
-    lastCellByWindow: {},
     layoutByOutput: {},
     appCellOverrides: {},
     pendingLaunches: {},
@@ -776,7 +774,6 @@ function placeWindowInRegion(window, regionName, output) {
     prepareWindowForGeometry(window, region);
     const target = regionGeometry(region, output || window.output || workspace.activeScreen);
     window.frameGeometry = target;
-    state.lastRegionByWindow[windowId(window)] = regionName;
     workspace.raiseWindow(window);
     return true;
 }
@@ -854,7 +851,6 @@ function placeWindowInLayoutCell(window, cellIndex, output, rememberOverride) {
         if (rememberOverride && appName) {
             state.appCellOverrides[appCellOverrideKey(targetOutput, layoutName, appName)] = cellIndex;
         }
-        state.lastCellByWindow[windowId(window)] = cellIndex;
     }
     return ok;
 }
@@ -927,7 +923,7 @@ function reapplyLayout(output) {
         const appName = appForWindow(window);
         const cell = configuredAppCell(output, layoutName, layout, appName);
         if (cell) {
-            placeWindowInCell(window, cell, output);
+            placeWindowInLayoutCell(window, cell, output, false);
         }
     }
 }

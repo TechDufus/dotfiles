@@ -194,7 +194,7 @@ def launch_app(config_dir: Path, app_name: str, *, dry_run: bool = False) -> str
 
 def macro_commands() -> dict[str, list[str]]:
     return {
-        "screenshot_area": ["spectacle", "--region", "--background", "--copy-image", "--nonotify"],
+        "screenshot_area": ["spectacle", "--region", "--background", "--copy-image", "--nonotify", "--pointer"],
         "emoji_picker": ["plasma-emojier", "--replace"],
     }
 

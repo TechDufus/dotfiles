@@ -127,8 +127,8 @@ notifications, KWin effects/decorations, locale, and AC power timeouts.
 
 Window-management carry-over:
 
-- Tap `CapsLock`/keyboard `F13` once, then press an app letter: summon/focus an app; existing windows are not moved. Repeating a summon while that app is focused toggles back to the previously focused app.
-- Tap `CapsLock`/keyboard `F13` twice, then `a`/`s`/`e`: cycle same-app windows, screenshot a region to clipboard, or open the emoji picker.
+- Tap `CapsLock`/keyboard `F13` once, then press a logical app letter: summon/focus an app; the keyd bridge keeps this layout-safe for the repo's Dvorak default and QWERTY. Existing windows are not moved. Repeating a summon while that app is focused toggles back to the previously focused app.
+- Tap `CapsLock`/keyboard `F13` twice, then logical `a`/`s`/`e`: cycle same-app windows, screenshot a region to clipboard, or open the emoji picker.
 - `Super+U`: open the styled fuzzy picker, type part of a cell/region name, press `Enter`, and move the focused window.
 - `Super+O` / `Shift+Super+O`: move the focused window to the next/previous monitor and snap managed apps into that monitor's active layout.
 - `Hyper+P`: open the styled fuzzy picker for the active monitor's layouts and press `Enter`; `Hyper+;` cycles layouts.

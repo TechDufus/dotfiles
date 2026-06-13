@@ -7,6 +7,7 @@ import json
 import sys
 import tomllib
 import unittest
+import jinja2
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,6 +30,11 @@ loader.exec_module(plasma_summon_service)
 def load_toml(path: Path) -> dict:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
+def render_keyd_template(source: str, variant: str) -> str:
+    return jinja2.Environment(autoescape=False, lstrip_blocks=True, trim_blocks=True).from_string(source).render(
+        keyboard={"variant": variant},
+    )
+
 
 class PlasmaRoleConfigTests(unittest.TestCase):
     @classmethod
@@ -39,7 +45,9 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         cls.script = KWIN_SCRIPT.read_text(encoding="utf-8")
         cls.metadata = json.loads(KWIN_METADATA.read_text(encoding="utf-8"))
         cls.service = (ROLE / "files" / "systemd" / "plasma-summon.service").read_text(encoding="utf-8")
-        cls.keyd_config = (ROLE / "files" / "keyd" / "default.conf").read_text(encoding="utf-8")
+        cls.keyd_template = (ROLE / "templates" / "keyd" / "default.conf.j2").read_text(encoding="utf-8")
+        cls.keyd_config = render_keyd_template(cls.keyd_template, "dvorak")
+        cls.keyd_qwerty_config = render_keyd_template(cls.keyd_template, "")
         cls.apps = load_toml(SUMMON_DIR / "apps.toml")["apps"]
         cls.regions = load_toml(SUMMON_DIR / "regions.toml")["regions"]
         cls.layouts = load_toml(SUMMON_DIR / "layouts.toml")["layouts"]
@@ -78,7 +86,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "/usr/local/bin/plasma-summon-keyd",
             "/etc/keyd",
             "Map CapsLock to F13 with keyd",
-            "keyd/default.conf",
+            "keyd/default.conf.j2",
             "/etc/keyd/default.conf",
             "Enable keyd CapsLock to F13 remap",
             "keyd.service",
@@ -89,7 +97,12 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("capslock = overload(plasma_summon, oneshot(plasma_leader))", self.keyd_config)
         self.assertIn("f13 = overload(plasma_summon, oneshot(plasma_leader))", self.keyd_config)
         self.assertIn("[plasma_summon]", self.keyd_config)
-        self.assertIn("b = macro(f13 b)", self.keyd_config)
+        # Dvorak logical app keys arrive as different physical keyd keys:
+        # logical t -> physical k, b -> n, s -> semicolon.
+        self.assertIn("k = macro(f13 k)", self.keyd_config)
+        self.assertIn("n = macro(f13 n)", self.keyd_config)
+        self.assertIn("semicolon = macro(f13 semicolon)", self.keyd_config)
+        self.assertIn("b = macro(f13 b)", self.keyd_qwerty_config)
         self.assertIn("[plasma_leader]", self.keyd_config)
         self.assertIn("[plasma_macro_action]", self.keyd_config)
 
@@ -101,8 +114,11 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("f13 = oneshot(plasma_macro_action)", self.keyd_config)
         self.assertIn("[plasma_macro_action]", self.keyd_config)
         self.assertIn("a = command(/usr/local/bin/plasma-summon-keyd run cycle_same_app)", self.keyd_config)
-        self.assertIn("s = command(/usr/local/bin/plasma-summon-keyd run screenshot_area)", self.keyd_config)
-        self.assertIn("e = command(/usr/local/bin/plasma-summon-keyd run emoji_picker)", self.keyd_config)
+        self.assertIn("semicolon = command(/usr/local/bin/plasma-summon-keyd run screenshot_area)", self.keyd_config)
+        self.assertIn("d = command(/usr/local/bin/plasma-summon-keyd run emoji_picker)", self.keyd_config)
+        self.assertNotIn("s = command(/usr/local/bin/plasma-summon-keyd run screenshot_area)", self.keyd_config)
+        self.assertIn("s = command(/usr/local/bin/plasma-summon-keyd run screenshot_area)", self.keyd_qwerty_config)
+        self.assertIn("e = command(/usr/local/bin/plasma-summon-keyd run emoji_picker)", self.keyd_qwerty_config)
         self.assertIn("esc = clear()", self.keyd_config)
         self.assertIn("f13 = clear()", self.keyd_config)
         self.assertIn("capslock = clear()", self.keyd_config)
@@ -115,9 +131,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
     def test_keyd_macro_bridge_runs_whitelisted_user_session_actions(self) -> None:
         self.assertIn("PLASMA_SUMMON_USER=\"{{ ansible_facts['user_id'] }}\"", self.keyd_bridge)
         self.assertIn("PLASMA_SUMMON_SERVICE=\"{{ plasma_local_bin_dir }}/plasma-summon-service\"", self.keyd_bridge)
-        self.assertIn("PLASMA_SUMMON_KEYD_BIN=\"${PLASMA_SUMMON_KEYD_BIN:-/usr/bin/keyd}\"", self.keyd_bridge)
-        self.assertIn("keyd_clear()", self.keyd_bridge)
-        self.assertIn("\"${PLASMA_SUMMON_KEYD_BIN}\" do 'clear()' || true", self.keyd_bridge)
+        self.assertIn("PLASMA_SUMMON_KEYD_DRY_RUN", self.keyd_bridge)
+        self.assertIn("Do not run `keyd do clear()`", self.keyd_bridge)
+        self.assertNotIn("keyd_clear()", self.keyd_bridge)
+        self.assertNotIn("do 'clear()'", self.keyd_bridge)
         self.assertIn("run_user \"${PLASMA_SUMMON_SERVICE}\" --macro \"$1\"", self.keyd_bridge)
         self.assertIn("org.kde.kglobalaccel.Component.invokeShortcut", self.keyd_bridge)
         self.assertIn("\"Macro a via F16\"", self.keyd_bridge)
@@ -355,6 +372,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn('if ("fullScreen" in window && window.fullScreen)', self.script)
         self.assertIn("window.fullScreen = false", self.script)
         self.assertNotIn("refusing to move fullscreen window", self.script)
+        self.assertIn("placeWindowInLayoutCell(window, cell, output, false)", self.script)
+        self.assertNotIn("placeWindowInCell(window, cell, output)", self.script)
+        self.assertNotIn("lastRegionByWindow", self.script)
+        self.assertNotIn("lastCellByWindow", self.script)
 
     def test_kwin_script_uses_native_kwin_window_apis(self) -> None:
         for required in [
@@ -404,7 +425,15 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.assertIn(marker, awesome_positions)
             self.assertIn(marker, hammerspoon_positions)
 
-        self.assertNotIn("region", self.apps["terminal"])
+        self.assertEqual(self.apps["terminal"]["region"], "main")
+        self.assertEqual(self.apps["browser"]["region"], "wide")
+        self.assertEqual(self.apps["discord"]["region"], "chat")
+        self.assertEqual(self.apps["signal"]["region"], "chat")
+        self.assertEqual(self.apps["spotify"]["region"], "side")
+        self.assertEqual(self.apps["onepassword"]["region"], "center")
+        self.assertEqual(self.apps["files"]["region"], "center")
+        self.assertEqual(self.apps["obsidian"]["region"], "side")
+        self.assertNotIn("region", self.apps["steam"])
         self.assertEqual(self.regions["main"]["w"], "65%")
         self.assertEqual(self.regions["side"]["x"], "65%")
         self.assertEqual(self.regions["top_right"]["y"], "5%")
@@ -688,7 +717,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_runs_whitelisted_desktop_macros(self) -> None:
         self.assertEqual(
             plasma_summon_service.build_macro_argv("screenshot_area"),
-            ["spectacle", "--region", "--background", "--copy-image", "--nonotify"],
+            ["spectacle", "--region", "--background", "--copy-image", "--nonotify", "--pointer"],
         )
         self.assertEqual(
             plasma_summon_service.build_macro_argv("emoji_picker"),

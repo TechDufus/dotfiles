@@ -10,6 +10,7 @@ match = [
 ]
 workspace = "1"
 monitor = "HDMI-A-1"
+region = "main"
 
 [apps.browser]
 key = "b"
@@ -23,6 +24,7 @@ match = [
 ]
 workspace = "2"
 monitor = "HDMI-A-1"
+region = "wide"
 
 [apps.discord]
 key = "d"
@@ -34,6 +36,7 @@ match = [
 ]
 workspace = "4"
 monitor = "DP-1"
+region = "chat"
 
 [apps.signal]
 key = "c"
@@ -47,6 +50,7 @@ match = [
 ]
 workspace = "4"
 monitor = "DP-1"
+region = "chat"
 
 [apps.spotify]
 key = "s"
@@ -60,6 +64,7 @@ match = [
 ]
 workspace = "5"
 monitor = "DP-1"
+region = "side"
 
 [apps.obsidian]
 key = "n"
@@ -73,6 +78,7 @@ match = [
 ]
 workspace = "3"
 monitor = "HDMI-A-1"
+region = "side"
 
 [apps.onepassword]
 key = "o"
@@ -86,6 +92,7 @@ match = [
 ]
 workspace = "1"
 monitor = "HDMI-A-1"
+region = "center"
 
 [apps.files]
 key = "f"
@@ -99,6 +106,7 @@ match = [
 ]
 workspace = "1"
 monitor = "HDMI-A-1"
+region = "center"
 
 [apps.steam]
 key = "g"

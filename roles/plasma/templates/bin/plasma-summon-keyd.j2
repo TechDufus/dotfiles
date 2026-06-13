@@ -3,19 +3,9 @@ set -eu
 
 PLASMA_SUMMON_USER="{{ ansible_facts['user_id'] }}"
 PLASMA_SUMMON_SERVICE="{{ plasma_local_bin_dir }}/plasma-summon-service"
-PLASMA_SUMMON_KEYD_BIN="${PLASMA_SUMMON_KEYD_BIN:-/usr/bin/keyd}"
 
 dry_run() {
   [ "${PLASMA_SUMMON_KEYD_DRY_RUN:-0}" = "1" ]
-}
-
-keyd_clear() {
-  if dry_run; then
-    printf '%s\n' "${PLASMA_SUMMON_KEYD_BIN} do clear()"
-    return 0
-  fi
-
-  "${PLASMA_SUMMON_KEYD_BIN}" do 'clear()' || true
 }
 
 run_user() {
@@ -39,8 +29,10 @@ run_user() {
 }
 
 run_action() {
-  keyd_clear
-
+  # The keyd command binding is a oneshot-layer keypress, so it consumes and
+  # clears plasma_macro_action by itself. Do not run `keyd do clear()` here:
+  # `do` accepts macro expressions, not actions, and would type literal
+  # "clear()" into the focused application under the active keyboard layout.
   case "${1:-}" in
     emoji_picker|screenshot_area)
       run_user "${PLASMA_SUMMON_SERVICE}" --macro "$1"
@@ -61,7 +53,7 @@ run_action() {
 
 case "${1:-}" in
   cancel)
-    keyd_clear
+    exit 0
     ;;
   run)
     run_action "${2:-}"

@@ -16,6 +16,61 @@
     state: present
   become: true
   when: can_install_packages | default(false)
+- name: "System | {{ ansible_facts['distribution'] }} | Ensure udev rules directory exists"
+  ansible.builtin.file:
+    path: /etc/udev/rules.d
+    state: directory
+    mode: "0755"
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Disable Logitech receiver wakeup"
+  ansible.builtin.copy:
+    src: udev/rules.d/90-disable-logitech-receiver-wakeup.rules
+    dest: /etc/udev/rules.d/90-disable-logitech-receiver-wakeup.rules
+    mode: "0644"
+  become: true
+  register: system_logitech_receiver_wakeup_rule
+  when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Reload udev rules"
+  ansible.builtin.command:
+    argv:
+      - udevadm
+      - control
+      - --reload-rules
+  become: true
+  changed_when: false
+  when:
+    - system_logitech_receiver_wakeup_rule.changed | default(false)
+    - not ansible_check_mode
+
+- name: "System | {{ ansible_facts['distribution'] }} | Reapply Logitech receiver wakeup rule"
+  ansible.builtin.command:
+    argv:
+      - udevadm
+      - trigger
+      - --action=add
+      - --subsystem-match=usb
+      - --attr-match=idVendor=046d
+      - --attr-match=idProduct=c548
+  become: true
+  changed_when: false
+  when:
+    - can_install_packages | default(false)
+    - not ansible_check_mode
+
+- name: "System | {{ ansible_facts['distribution'] }} | Wait for Logitech receiver wakeup rule"
+  ansible.builtin.command:
+    argv:
+      - udevadm
+      - settle
+  become: true
+  changed_when: false
+  when:
+    - can_install_packages | default(false)
+    - not ansible_check_mode
+
 
 - name: "System | {{ ansible_facts['distribution'] }} | Derive keyboard settings"
   ansible.builtin.set_fact:

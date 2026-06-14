@@ -1,0 +1,3 @@
+# Keep the Logitech USB receiver from waking the machine from suspend.
+# Matches the receiver itself, not a hub port path such as /sys/bus/usb/devices/3-1.4.3.3.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="046d", ATTR{idProduct}=="c548", ATTR{power/wakeup}="disabled"

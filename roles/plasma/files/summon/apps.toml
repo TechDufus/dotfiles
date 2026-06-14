@@ -7,6 +7,8 @@ match = [
   "resourceClass:com.mitchellh.ghostty",
   "resourceClass:ghostty",
   "desktopFileName:com.mitchellh.ghostty",
+  "name:ghostty",
+  "desktopFileName:com.mitchellh.ghostty.desktop",
 ]
 workspace = "1"
 monitor = "HDMI-A-1"

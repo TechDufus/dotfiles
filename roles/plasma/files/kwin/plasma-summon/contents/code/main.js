@@ -15,6 +15,8 @@ let apps = {
             "resourceClass:com.mitchellh.ghostty",
             "resourceClass:ghostty",
             "desktopFileName:com.mitchellh.ghostty",
+            "name:ghostty",
+            "desktopFileName:com.mitchellh.ghostty.desktop",
         ],
         workspace: "1",
         monitor: "HDMI-A-1",
@@ -863,6 +865,7 @@ function cellRegion(layout, cellIndex) {
     return regionName || null;
 }
 
+
 function placeWindowInLayoutCell(window, cellIndex, output, rememberOverride) {
     if (!normalWindow(window)) {
         return false;
@@ -955,6 +958,8 @@ function reapplyLayout(output) {
         const cell = configuredAppCell(output, layoutName, layout, appName);
         if (cell) {
             placeWindowInLayoutCell(window, cell, output, false);
+        } else if (appName && apps[appName] && apps[appName].region) {
+            placeWindowInRegion(window, apps[appName].region, output);
         }
     }
 }
@@ -1172,7 +1177,7 @@ function cleanupPendingLaunches(now) {
     }
 }
 
-function handleWindowAdded(window) {
+function handleWindowAvailable(window) {
     if (!normalWindow(window)) {
         return;
     }
@@ -1195,11 +1200,15 @@ function handleWindowAdded(window) {
     }
 }
 
+function handleWindowAdded(window) {
+    handleWindowAvailable(window);
+}
+
 workspace.windowActivated.connect(function (window) {
     rememberPreviousWindow(state.activeWindow, window);
     state.activeWindow = window;
     rememberWindowForApp(window);
-    handleWindowAdded(window);
+    handleWindowAvailable(window);
 });
 
 if (workspace.windowAdded) {

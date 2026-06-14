@@ -15,12 +15,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ROLE = REPO_ROOT / "roles" / "plasma"
 HELPER = ROLE / "files" / "bin" / "plasma-summon-service.py"
 KWIN_SCRIPT = ROLE / "files" / "kwin" / "plasma-summon" / "contents" / "code" / "main.js"
+GROUP_VARS = REPO_ROOT / "group_vars" / "all.yml"
 KWIN_METADATA = ROLE / "files" / "kwin" / "plasma-summon" / "metadata.json"
 SUMMON_DIR = ROLE / "files" / "summon"
 AWESOME_POSITIONS = REPO_ROOT / "roles" / "awesomewm" / "files" / "config" / "cell-management" / "positions.lua"
 HAMMERSPOON_POSITIONS = REPO_ROOT / "roles" / "hammerspoon" / "files" / "config" / "positions.lua"
 
 loader = importlib.machinery.SourceFileLoader("plasma_summon_service", str(HELPER))
+
 spec = importlib.util.spec_from_loader(loader.name, loader)
 plasma_summon_service = importlib.util.module_from_spec(spec)
 sys.modules[loader.name] = plasma_summon_service
@@ -42,6 +44,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         cls.tasks = (ROLE / "tasks" / "main.yml").read_text(encoding="utf-8")
         cls.arch_tasks = (ROLE / "tasks" / "Archlinux.yml").read_text(encoding="utf-8")
         cls.defaults = (ROLE / "defaults" / "main.yml").read_text(encoding="utf-8")
+        cls.group_vars = GROUP_VARS.read_text(encoding="utf-8")
         cls.script = KWIN_SCRIPT.read_text(encoding="utf-8")
         cls.metadata = json.loads(KWIN_METADATA.read_text(encoding="utf-8"))
         cls.service = (ROLE / "files" / "systemd" / "plasma-summon.service").read_text(encoding="utf-8")
@@ -272,6 +275,32 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.tasks)
 
+    def test_role_does_not_manage_login_time_output_wakeup(self) -> None:
+        for obsolete in [
+            "plasma_start_output_wakeup_service",
+            "plasma_output_wakeup_hosts",
+            "plasma_output_wakeup_connectors",
+            "plasma_output_wakeup_delay",
+            "plasma_output_wakeup_settle",
+        ]:
+            self.assertNotIn(obsolete, self.defaults)
+            self.assertNotIn(obsolete, self.group_vars)
+            self.assertNotIn(obsolete, self.tasks)
+        for obsolete in [
+            "files/bin/plasma-output-wakeup",
+            "plasma-output-wakeup.service",
+            "systemd/plasma-output-wakeup.service.j2",
+            "Validate Plasma output wake",
+            "Template Plasma output wake service",
+            "Enable and restart Plasma output wake service",
+            "Disable Plasma output wake service",
+            "Remove Plasma output wake service",
+        ]:
+            self.assertNotIn(obsolete, self.tasks)
+        self.assertFalse((ROLE / "files" / "bin" / "plasma-output-wakeup").exists())
+        self.assertFalse((ROLE / "templates" / "systemd" / "plasma-output-wakeup.service.j2").exists())
+
+
 
     def test_kwin_package_metadata_matches_plasma_6_format(self) -> None:
         self.assertEqual(self.metadata["KPlugin"]["Id"], "plasma-summon")
@@ -377,11 +406,12 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertNotIn("lastRegionByWindow", self.script)
         self.assertNotIn("lastCellByWindow", self.script)
 
-    def test_layout_selection_reapplies_all_outputs_and_all_managed_apps(self) -> None:
+    def test_layout_selection_reapplies_outputs_and_managed_apps(self) -> None:
         expected_apps = set(self.apps)
         for layout_name, layout in self.layouts.items():
             with self.subTest(layout=layout_name):
                 self.assertEqual(set(layout["apps"]), expected_apps)
+                self.assertNotIn("default_region", layout)
                 cell_count = len(layout["cells"])
                 for app_name, cell in layout["apps"].items():
                     with self.subTest(layout=layout_name, app=app_name):
@@ -401,9 +431,16 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "selectLayout(selection.slice(7));",
             "steam: 5",
             "steam: 3",
+            "handleWindowAvailable(window)",
+            "appName && apps[appName] && apps[appName].region",
         ]:
             self.assertIn(required, self.script)
         self.assertNotIn("selectLayout(output,", self.script)
+        self.assertNotIn("defaultPlacedByWindow", self.script)
+        self.assertNotIn("function layoutDefaultRegion(layout)", self.script)
+        self.assertNotIn("function placeWindowInLayoutDefault(window, layout, output)", self.script)
+        self.assertNotIn("placeNewUnmanagedWindow(window)", self.script)
+        self.assertNotIn("default_region", self.script)
 
 
     def test_kwin_script_uses_native_kwin_window_apis(self) -> None:
@@ -455,6 +492,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.assertIn(marker, hammerspoon_positions)
 
         self.assertEqual(self.apps["terminal"]["region"], "main")
+        self.assertIn("name:ghostty", self.apps["terminal"]["match"])
+        self.assertIn("desktopFileName:com.mitchellh.ghostty.desktop", self.apps["terminal"]["match"])
         self.assertEqual(self.apps["browser"]["region"], "wide")
         self.assertEqual(self.apps["discord"]["region"], "chat")
         self.assertEqual(self.apps["signal"]["region"], "chat")
@@ -487,8 +526,6 @@ class PlasmaRoleConfigTests(unittest.TestCase):
     def test_kwin_embedded_regions_match_edge_aligned_toml_fallback(self) -> None:
         for required in [
             'full: { x: "0%", y: "0%", w: "100%", h: "100%"',
-            'main: { x: "0%", y: "0%", w: "65%", h: "100%"',
-            'side: { x: "65%", y: "0%", w: "35%", h: "100%"',
             'hd_left_main: { x: "0%", y: "0%", w: "60%", h: "100%"',
             'hd_right_side: { x: "60%", y: "0%", w: "40%", h: "100%"',
             'cells: ["hd_left_main", "hd_right_side", "hd_float_center"]',
@@ -517,16 +554,20 @@ class PlasmaRoleConfigTests(unittest.TestCase):
 
 
 
+
+
 class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_loads_config_and_serializes_json_for_kwin(self) -> None:
         config = plasma_summon_service.load_config(SUMMON_DIR)
         self.assertEqual(config["apps"]["terminal"]["key"], "t")
         self.assertEqual(config["regions"]["main"]["w"], "65%")
         self.assertEqual(config["layouts"]["fourk"]["apps"]["browser"], 2)
+        self.assertNotIn("default_region", config["layouts"]["fourk"])
 
         payload = json.loads(plasma_summon_service.config_json(SUMMON_DIR))
         self.assertEqual(list(payload["layouts"]), ["fourk", "hd", "standard", "full"])
         self.assertEqual(payload["apps"]["files"]["exec"], "dolphin")
+        self.assertNotIn("default_region", payload["layouts"]["standard"])
 
     def test_helper_launch_argv_is_whitelisted_by_app_registry(self) -> None:
         apps = plasma_summon_service.load_config(SUMMON_DIR)["apps"]

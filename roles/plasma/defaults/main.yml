@@ -6,6 +6,7 @@ plasma_enable_kwin_summon: true
 plasma_start_summon_service: true
 plasma_enable_capslock_f13: true
 
+
 plasma_summon_script_id: plasma-summon
 
 plasma_local_bin_dir: "{{ ansible_facts['user_dir'] }}/.local/bin"

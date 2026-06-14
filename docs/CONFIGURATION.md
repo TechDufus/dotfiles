@@ -155,12 +155,15 @@ regions, and active-monitor layout profiles. Edit those files directly in the
 role; the symlinks keep the live desktop aligned with the repository.
 
 Plasma owns a normal KDE session, stable desktop KConfig preferences in
-`plasma_desktop_kconfig_settings`, and a KWin script for the same summon, region,
-monitor, and layout workflow. Each KConfig entry is one scalar key with
-`file`, ordered `group_path`, `key`, and exact string `value`; discover new
-values with `kreadconfig6`, then add one list item. The helper service reads the
-TOML registries and launches configured apps over D-Bus; KWin keeps direct
-control of windows.
+`plasma_desktop_kconfig_settings`, and a KWin script for the same summon,
+region, monitor, and layout workflow. Each KConfig entry is one scalar key with
+`file`, ordered
+`group_path`, `key`, and exact string `value`; discover new values with
+`kreadconfig6`, then add one list item. The summon helper service reads the TOML
+registries and launches configured apps over D-Bus; KWin keeps direct control of
+windows, including managed app cells for configured layouts. Monitor wake
+workarounds are intentionally local-machine state, not dotfiles-managed Plasma
+role state.
 Panel/dock containment IDs, per-screen applet geometry, wallpaper paths, and
 system-tray applet ordering are intentionally not blindly copied because those
 files contain machine-specific IDs.

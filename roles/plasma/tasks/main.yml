@@ -45,6 +45,7 @@
     path: "{{ role_path }}/files/bin/plasma-summon-service.py"
     mode: "0755"
 
+
 - name: "{{ role_name }} | Symlink Plasma summon app registry"
   ansible.builtin.file:
     src: "{{ role_path }}/files/summon/apps.toml"
@@ -72,6 +73,8 @@
     dest: "{{ plasma_systemd_user_dir }}/plasma-summon.service"
     state: link
     force: true
+
+
 
 - name: "{{ role_name }} | Symlink KWin summon script package"
   ansible.builtin.file:
@@ -367,3 +370,4 @@
     - plasma_start_summon_service | bool
     - not ansible_check_mode
     - plasma_summon_systemd is failed
+

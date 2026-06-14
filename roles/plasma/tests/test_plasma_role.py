@@ -383,8 +383,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "function outputByName(name)",
             "function targetOutputForApp(appConfig, fallback)",
             "function placeAppWindow(appName, window)",
-            "configuredAppCell(targetOutput, pair[0], pair[1], appName)",
-            "placeWindowInLayoutCell(window, cell, targetOutput, false)",
+            "placeManagedAppWindowOnOutput(appName, window, targetOutput, false)",
+            "configuredAppCell(output, pair[0], pair[1], appName)",
             "function placeWindowInLayoutCell(window, cellIndex, output, rememberOverride)",
             "placeWindowInLayoutCell(window, cellIndex, output, true)",
             "rememberPendingLaunch(appName, Boolean(place || appConfig.region || appConfig.monitor))",
@@ -401,12 +401,12 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn('if ("fullScreen" in window && window.fullScreen)', self.script)
         self.assertIn("window.fullScreen = false", self.script)
         self.assertNotIn("refusing to move fullscreen window", self.script)
-        self.assertIn("placeWindowInLayoutCell(window, cell, output, false)", self.script)
+        self.assertIn("placeManagedWindowOnOutput(window, output, false)", self.script)
         self.assertNotIn("placeWindowInCell(window, cell, output)", self.script)
         self.assertNotIn("lastRegionByWindow", self.script)
         self.assertNotIn("lastCellByWindow", self.script)
 
-    def test_layout_selection_reapplies_outputs_and_managed_apps(self) -> None:
+    def test_layout_selection_reapplies_active_output_and_managed_apps(self) -> None:
         expected_apps = set(self.apps)
         for layout_name, layout in self.layouts.items():
             with self.subTest(layout=layout_name):
@@ -419,23 +419,32 @@ class PlasmaRoleConfigTests(unittest.TestCase):
                         self.assertLessEqual(cell, cell_count)
 
         for required in [
-            "function setLayoutForAllOutputs(layoutName)",
-            "function clearLayoutForAllOutputs()",
+            "let outputLayouts = {}",
+            "if (loaded.output_layouts)",
+            "function configuredLayoutNameForOutput(output)",
+            "function setLayoutForOutput(output, layoutName)",
+            "function clearLayoutForOutput(output)",
             "function outputMatches(window, output)",
+            "function outputMatchesName(output, name)",
             "!outputMatches(window, output)",
-            "setLayoutForAllOutputs(layoutName)",
-            "reapplyAllLayouts();",
-            'log("layout all outputs -> " + layoutName)',
-            'log("layout reset for all outputs")',
-            "selectLayout(next);",
-            "selectLayout(selection.slice(7));",
+            "const configured = configuredLayoutNameForOutput(output)",
+            "selectLayoutForOutput(output, next);",
+            "selectLayoutForOutput(output, selection.slice(7));",
+            "reapplyLayout(output);",
+            'log("layout " + outputKey(output) + " -> " + layoutName)',
+            'log("layout reset for " + outputKey(output))',
+            "function handleWindowOutputChanged(window)",
+            "window.outputChanged.connect(function ()",
+            "placeManagedAppWindowOnOutput(appName, window, targetOutput, false)",
             "steam: 5",
             "steam: 3",
             "handleWindowAvailable(window)",
-            "appName && apps[appName] && apps[appName].region",
+            "apps[appName] && apps[appName].region",
         ]:
             self.assertIn(required, self.script)
-        self.assertNotIn("selectLayout(output,", self.script)
+        self.assertNotIn("setLayoutForAllOutputs", self.script)
+        self.assertNotIn("clearLayoutForAllOutputs", self.script)
+        self.assertNotIn("layout all outputs", self.script)
         self.assertNotIn("defaultPlacedByWindow", self.script)
         self.assertNotIn("function layoutDefaultRegion(layout)", self.script)
         self.assertNotIn("function placeWindowInLayoutDefault(window, layout, output)", self.script)
@@ -563,10 +572,12 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         self.assertEqual(config["regions"]["main"]["w"], "65%")
         self.assertEqual(config["layouts"]["fourk"]["apps"]["browser"], 2)
         self.assertNotIn("default_region", config["layouts"]["fourk"])
+        self.assertEqual(config["output_layouts"], {})
 
         payload = json.loads(plasma_summon_service.config_json(SUMMON_DIR))
         self.assertEqual(list(payload["layouts"]), ["fourk", "hd", "standard", "full"])
         self.assertEqual(payload["apps"]["files"]["exec"], "dolphin")
+        self.assertEqual(payload["output_layouts"], {})
         self.assertNotIn("default_region", payload["layouts"]["standard"])
 
     def test_helper_launch_argv_is_whitelisted_by_app_registry(self) -> None:

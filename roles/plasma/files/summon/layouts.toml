@@ -61,3 +61,9 @@ onepassword = 1
 files = 1
 obsidian = 1
 steam = 1
+
+[output_layouts]
+# Add per-screen defaults by connector name, serial, model, or KWin output key.
+# Example:
+# "HDMI-A-1" = "fourk"
+# "DP-1" = "full"

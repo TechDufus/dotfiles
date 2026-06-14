@@ -99,10 +99,12 @@ def load_toml(path: Path) -> dict[str, Any]:
 
 
 def load_config(config_dir: Path) -> dict[str, Any]:
+    layout_config = load_toml(config_dir / "layouts.toml")
     return {
         "apps": load_toml(config_dir / "apps.toml").get("apps", {}),
         "regions": load_toml(config_dir / "regions.toml").get("regions", {}),
-        "layouts": load_toml(config_dir / "layouts.toml").get("layouts", {}),
+        "layouts": layout_config.get("layouts", {}),
+        "output_layouts": layout_config.get("output_layouts", {}),
     }
 
 

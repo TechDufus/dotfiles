@@ -219,6 +219,8 @@ let layouts = {
         },
     },
 };
+let outputLayouts = {};
+
 const state = {
     activeWindow: workspace.activeWindow,
     previousWindowId: "",
@@ -226,6 +228,7 @@ const state = {
     layoutByOutput: {},
     appCellOverrides: {},
     pendingLaunches: {},
+    outputSignalByWindow: {},
 };
 
 function log(message) {
@@ -244,6 +247,9 @@ function loadRemoteConfig() {
             }
             if (loaded.layouts) {
                 layouts = loaded.layouts;
+            }
+            if (loaded.output_layouts) {
+                outputLayouts = loaded.output_layouts;
             }
             log("loaded config from helper");
             reapplyAllLayouts();
@@ -570,24 +576,25 @@ function moveWindowToAppDesktop(window, appConfig) {
     }
 }
 
-function outputByName(name) {
-    if (!name) {
-        return null;
+function outputMatchesName(output, name) {
+    if (!output || !name) {
+        return false;
     }
     const wanted = lower(name);
+    return (
+        lower(output.name) === wanted ||
+        lower(output.serialNumber) === wanted ||
+        lower(output.model) === wanted ||
+        lower(outputKey(output)) === wanted
+    );
+}
+
+function outputByName(name) {
     const screens = workspace.screens || [];
     for (let i = 0; i < screens.length; i += 1) {
         const output = screens[i];
-        const values = [
-            output.name,
-            output.serialNumber,
-            output.model,
-            outputKey(output),
-        ];
-        for (let j = 0; j < values.length; j += 1) {
-            if (lower(values[j]) === wanted) {
-                return output;
-            }
+        if (outputMatchesName(output, name)) {
+            return output;
         }
     }
     return null;
@@ -649,16 +656,8 @@ function placeAppWindow(appName, window) {
     moveWindowToOutput(window, targetOutput);
     focusWindow(window);
 
-    const pair = layoutForOutput(targetOutput);
-    if (pair && pair[1]) {
-        const cell = configuredAppCell(targetOutput, pair[0], pair[1], appName);
-        if (cell && placeWindowInLayoutCell(window, cell, targetOutput, false)) {
-            return true;
-        }
-    }
-
-    if (appConfig.region) {
-        return placeWindowInRegion(window, appConfig.region, targetOutput);
+    if (placeManagedAppWindowOnOutput(appName, window, targetOutput, false)) {
+        return true;
     }
     return true;
 }
@@ -793,11 +792,33 @@ function layoutNames() {
     return objectKeys(layouts);
 }
 
+function configuredLayoutNameForOutput(output) {
+    const names = objectKeys(outputLayouts);
+    for (let i = 0; i < names.length; i += 1) {
+        const outputName = names[i];
+        if (!outputMatchesName(output, outputName)) {
+            continue;
+        }
+        const value = outputLayouts[outputName];
+        const layoutName = String(value && value.layout ? value.layout : value || "");
+        if (layouts[layoutName]) {
+            return layoutName;
+        }
+        log("unknown layout " + layoutName + " for output " + outputName);
+    }
+    return null;
+}
+
 function layoutForOutput(output) {
     const key = outputKey(output);
     const selected = state.layoutByOutput[key];
     if (selected && layouts[selected]) {
         return [selected, layouts[selected]];
+    }
+
+    const configured = configuredLayoutNameForOutput(output);
+    if (configured) {
+        return [configured, layouts[configured]];
     }
 
     const area = outputArea(output);
@@ -818,26 +839,9 @@ function layoutForOutput(output) {
 function setLayoutForOutput(output, layoutName) {
     state.layoutByOutput[outputKey(output)] = layoutName;
 }
-function setLayoutForAllOutputs(layoutName) {
-    const screens = workspace.screens || [];
-    if (screens.length === 0) {
-        setLayoutForOutput(workspace.activeScreen, layoutName);
-        return;
-    }
-    for (let i = 0; i < screens.length; i += 1) {
-        setLayoutForOutput(screens[i], layoutName);
-    }
-}
 
-function clearLayoutForAllOutputs() {
-    const screens = workspace.screens || [];
-    if (screens.length === 0) {
-        delete state.layoutByOutput[outputKey(workspace.activeScreen)];
-        return;
-    }
-    for (let i = 0; i < screens.length; i += 1) {
-        delete state.layoutByOutput[outputKey(screens[i])];
-    }
+function clearLayoutForOutput(output) {
+    delete state.layoutByOutput[outputKey(output)];
 }
 
 
@@ -944,23 +948,36 @@ function showCellPicker() {
     });
 }
 
-function reapplyLayout(output) {
+function placeManagedAppWindowOnOutput(appName, window, output, rememberOverride) {
+    if (!normalWindow(window) || !appName) {
+        return false;
+    }
     const pair = layoutForOutput(output);
-    const layoutName = pair[0];
-    const layout = pair[1];
+    if (pair && pair[1]) {
+        const cell = configuredAppCell(output, pair[0], pair[1], appName);
+        if (cell && placeWindowInLayoutCell(window, cell, output, rememberOverride)) {
+            return true;
+        }
+    }
+
+    if (apps[appName] && apps[appName].region) {
+        return placeWindowInRegion(window, apps[appName].region, output);
+    }
+    return false;
+}
+
+function placeManagedWindowOnOutput(window, output, rememberOverride) {
+    return placeManagedAppWindowOnOutput(appForWindow(window), window, output, rememberOverride);
+}
+
+function reapplyLayout(output) {
     const windows = workspace.stackingOrder || [];
     for (let i = 0; i < windows.length; i += 1) {
         const window = windows[i];
         if (!normalWindow(window) || !outputMatches(window, output)) {
             continue;
         }
-        const appName = appForWindow(window);
-        const cell = configuredAppCell(output, layoutName, layout, appName);
-        if (cell) {
-            placeWindowInLayoutCell(window, cell, output, false);
-        } else if (appName && apps[appName] && apps[appName].region) {
-            placeWindowInRegion(window, apps[appName].region, output);
-        }
+        placeManagedWindowOnOutput(window, output, false);
     }
 }
 
@@ -983,14 +1000,14 @@ function activeOutput() {
     return workspace.activeScreen;
 }
 
-function selectLayout(layoutName) {
+function selectLayoutForOutput(output, layoutName) {
     if (!layouts[layoutName]) {
         log("unknown layout " + layoutName);
         return;
     }
-    setLayoutForAllOutputs(layoutName);
-    reapplyAllLayouts();
-    log("layout all outputs -> " + layoutName);
+    setLayoutForOutput(output, layoutName);
+    reapplyLayout(output);
+    log("layout " + outputKey(output) + " -> " + layoutName);
 }
 
 function cycleLayout() {
@@ -999,7 +1016,7 @@ function cycleLayout() {
     const current = layoutForOutput(output)[0];
     const index = names.indexOf(current);
     const next = names[(index + 1) % names.length];
-    selectLayout(next);
+    selectLayoutForOutput(output, next);
 }
 
 function showLayoutPicker() {
@@ -1019,14 +1036,15 @@ function showLayoutPicker() {
         if (selection.slice(0, 7) !== "layout:") {
             return;
         }
-        selectLayout(selection.slice(7));
+        selectLayoutForOutput(output, selection.slice(7));
     });
 }
 
 function resetLayout() {
-    clearLayoutForAllOutputs();
-    reapplyAllLayouts();
-    log("layout reset for all outputs");
+    const output = activeOutput();
+    clearLayoutForOutput(output);
+    reapplyLayout(output);
+    log("layout reset for " + outputKey(output));
 }
 
 function sortedOutputs() {
@@ -1098,15 +1116,7 @@ function moveActiveToOutput(direction) {
     workspace.sendClientToScreen(window, targetOutput);
     focusWindow(window);
 
-    const pair = layoutForOutput(targetOutput);
-    const layoutName = pair[0];
-    const layout = pair[1];
-    const cell = configuredAppCell(targetOutput, layoutName, layout, appName);
-    if (cell) {
-        placeWindowInCell(window, cell, targetOutput);
-    } else if (appName && apps[appName] && apps[appName].region) {
-        placeWindowInRegion(window, apps[appName].region, targetOutput);
-    } else {
+    if (!placeManagedAppWindowOnOutput(appName, window, targetOutput, false)) {
         applyRelativeGeometry(window, targetOutput, relative);
     }
 }
@@ -1177,10 +1187,37 @@ function cleanupPendingLaunches(now) {
     }
 }
 
+function handleWindowOutputChanged(window) {
+    const output = window.output || workspace.activeScreen;
+    placeManagedWindowOnOutput(window, output, false);
+}
+
+function connectWindowOutputSignal(window) {
+    if (!normalWindow(window) || !window.outputChanged || !window.outputChanged.connect) {
+        return;
+    }
+    const id = windowId(window);
+    if (!id || state.outputSignalByWindow[id]) {
+        return;
+    }
+    state.outputSignalByWindow[id] = true;
+    window.outputChanged.connect(function () {
+        handleWindowOutputChanged(window);
+    });
+}
+
+function connectExistingWindowSignals() {
+    const windows = workspace.stackingOrder || [];
+    for (let i = 0; i < windows.length; i += 1) {
+        connectWindowOutputSignal(windows[i]);
+    }
+}
+
 function handleWindowAvailable(window) {
     if (!normalWindow(window)) {
         return;
     }
+    connectWindowOutputSignal(window);
     const now = Date.now();
     cleanupPendingLaunches(now);
     const appName = appForWindow(window);
@@ -1201,6 +1238,7 @@ function handleWindowAvailable(window) {
 }
 
 function handleWindowAdded(window) {
+    connectWindowOutputSignal(window);
     handleWindowAvailable(window);
 }
 
@@ -1209,6 +1247,7 @@ workspace.windowActivated.connect(function (window) {
     state.activeWindow = window;
     rememberWindowForApp(window);
     handleWindowAvailable(window);
+    connectWindowOutputSignal(window);
 });
 
 if (workspace.windowAdded) {
@@ -1216,6 +1255,8 @@ if (workspace.windowAdded) {
 } else if (workspace.clientAdded) {
     workspace.clientAdded.connect(handleWindowAdded);
 }
+
+connectExistingWindowSignals();
 
 registerAppShortcuts();
 registerRegionShortcuts();

@@ -160,9 +160,11 @@ region, monitor, and layout workflow. Each KConfig entry is one scalar key with
 `file`, ordered
 `group_path`, `key`, and exact string `value`; discover new values with
 `kreadconfig6`, then add one list item. The summon helper service reads the TOML
-registries and launches configured apps over D-Bus; KWin keeps direct control of
-windows, including managed app cells for configured layouts. Monitor wake
-workarounds are intentionally local-machine state, not dotfiles-managed Plasma
+registries and launches configured apps over D-Bus; set per-screen default
+layouts in `roles/plasma/files/summon/layouts.toml` under `[output_layouts]`
+using a connector name, serial, model, or KWin output key. KWin keeps direct
+control of windows, including managed app cells for configured layouts. Monitor
+wake workarounds are intentionally local-machine state, not dotfiles-managed
 role state.
 Panel/dock containment IDs, per-screen applet geometry, wallpaper paths, and
 system-tray applet ordering are intentionally not blindly copied because those

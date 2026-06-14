@@ -451,6 +451,16 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertNotIn("placeNewUnmanagedWindow(window)", self.script)
         self.assertNotIn("default_region", self.script)
 
+    def test_layout_reapply_uses_all_kwin_windows_across_desktops(self) -> None:
+        for required in [
+            "function allWorkspaceWindows()",
+            "appendWindows(windows, workspace.windowList(), seen)",
+            "const windows = allWorkspaceWindows();",
+        ]:
+            self.assertIn(required, self.script)
+
+
+
 
     def test_kwin_script_uses_native_kwin_window_apis(self) -> None:
         for required in [

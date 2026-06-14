@@ -304,6 +304,41 @@ function requestPicker(prompt, options, callback) {
 function windowId(window) {
     return window ? String(window.internalId || window.pid || window.caption || "") : "";
 }
+function appendWindows(target, source, seen) {
+    if (!source) {
+        return;
+    }
+    for (let i = 0; i < source.length; i += 1) {
+        const window = source[i];
+        if (!window) {
+            continue;
+        }
+        const id = windowId(window);
+        if (id) {
+            if (seen[id]) {
+                continue;
+            }
+            seen[id] = true;
+        } else if (target.indexOf(window) >= 0) {
+            continue;
+        }
+        target.push(window);
+    }
+}
+
+function allWorkspaceWindows() {
+    const windows = [];
+    const seen = {};
+    if (typeof workspace.windowList === "function") {
+        appendWindows(windows, workspace.windowList(), seen);
+    } else {
+        appendWindows(windows, workspace.windowList, seen);
+    }
+    appendWindows(windows, workspace.windows, seen);
+    appendWindows(windows, workspace.stackingOrder, seen);
+    return windows;
+}
+
 
 function windowValue(window, field) {
     if (!window) {
@@ -394,7 +429,7 @@ function findWindowById(id) {
     if (!id) {
         return null;
     }
-    const windows = workspace.stackingOrder || [];
+    const windows = allWorkspaceWindows();
     for (let i = 0; i < windows.length; i += 1) {
         if (windowId(windows[i]) === id) {
             return windows[i];
@@ -971,7 +1006,7 @@ function placeManagedWindowOnOutput(window, output, rememberOverride) {
 }
 
 function reapplyLayout(output) {
-    const windows = workspace.stackingOrder || [];
+    const windows = allWorkspaceWindows();
     for (let i = 0; i < windows.length; i += 1) {
         const window = windows[i];
         if (!normalWindow(window) || !outputMatches(window, output)) {
@@ -1207,7 +1242,7 @@ function connectWindowOutputSignal(window) {
 }
 
 function connectExistingWindowSignals() {
-    const windows = workspace.stackingOrder || [];
+    const windows = allWorkspaceWindows();
     for (let i = 0; i < windows.length; i += 1) {
         connectWindowOutputSignal(windows[i]);
     }

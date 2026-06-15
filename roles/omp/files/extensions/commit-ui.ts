@@ -2,6 +2,10 @@ import type { Component } from "@oh-my-pi/pi-tui";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const TOOL_NAME = "omp_commit";
+const MIN_RENDER_WIDTH = 20;
+const MIN_WRAP_CONTENT_WIDTH = 12;
+const MAX_WRAPPED_FIELD_LINES = 3;
+const MAX_EXPANDED_WRAPPED_FIELD_LINES = 8;
 const MAX_VISIBLE_STEPS = 7;
 const MAX_FINAL_LINES = 8;
 const MAX_OUTPUT_CHARS = 2_000;
@@ -323,6 +327,7 @@ class CommitCallComponent implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
+		const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
 		const commitCount = this.plan.commits.length;
 		const fileCount = new Set(this.plan.commits.flatMap(commit => commit.files)).size;
 		const title = this.plan.dryRun ? "Commit preview" : "Commit";
@@ -337,13 +342,13 @@ class CommitCallComponent implements Component {
 		const subjects = this.plan.commits.map(commit => commit.commitMessage.split("\n", 1)[0]).filter(Boolean);
 		if (subjects.length > 0) {
 			const message = commitCount > 1 ? `${commitCount} commits: ${subjects.slice(0, 3).join("; ")}${subjects.length > 3 ? "; …" : ""}` : subjects[0];
-			lines.push(` ${this.theme.fg("dim", this.theme.tree.branch)} ${this.theme.fg("muted", message)}`);
+			appendWrappedText(lines, ` ${this.theme.fg("dim", this.theme.tree.branch)} `, ` ${this.theme.fg("dim", this.theme.tree.vertical)}  `, message, this.theme, "muted", renderWidth, MAX_WRAPPED_FIELD_LINES);
 		}
 		const rationale = this.plan.context || this.plan.commits.find(commit => commit.rationale)?.rationale;
 		if (rationale) {
-			lines.push(` ${this.theme.fg("dim", this.theme.tree.last)} ${this.theme.fg("muted", rationale)}`);
+			appendWrappedField(lines, this.theme, renderWidth, this.theme.tree.last, " ", this.plan.context ? "Context" : "Rationale", rationale, MAX_WRAPPED_FIELD_LINES);
 		}
-		return lines.map(line => truncateVisible(line, Math.max(20, width)));
+		return lines.map(line => truncateVisible(line, renderWidth));
 	}
 }
 
@@ -358,8 +363,9 @@ class CommitRunComponent implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
-		const lines = renderCommitRun(this.details, this.expanded, this.theme, this.spinnerFrame);
-		return lines.map(line => truncateVisible(line, Math.max(20, width)));
+		const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
+		const lines = renderCommitRun(this.details, this.expanded, this.theme, this.spinnerFrame, renderWidth);
+		return lines.map(line => truncateVisible(line, renderWidth));
 	}
 }
 
@@ -479,7 +485,15 @@ async function withStep<T>(details: CommitRunDetails, label: string, onUpdate: (
 }
 
 function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
-	const sourceCommits = Array.isArray(params.commits) && params.commits.length > 0 ? params.commits : [params];
+	const explicitCommits = Array.isArray(params.commits) ? params.commits : [];
+	const explicitNonEmptyCommits = explicitCommits.filter(hasCommitSpecContent);
+	const useExplicitCommits =
+		Boolean(params.multiCommit) ||
+		explicitNonEmptyCommits.length > 0 ||
+		(explicitCommits.length > 0 && !hasCommitSpecContent(params));
+	const sourceCommits = useExplicitCommits
+		? (explicitNonEmptyCommits.length > 0 ? explicitNonEmptyCommits : explicitCommits)
+		: [params];
 	const inheritedAcceptRisk = Boolean(params.acceptRisk);
 	const commits = sourceCommits.map(commit => normalizeCommitSpec(commit, inheritedAcceptRisk));
 	return {
@@ -490,6 +504,16 @@ function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
 		acceptRisk: commits.some(commit => commit.acceptRisk),
 		multiCommit: Boolean(params.multiCommit) || commits.length > 1,
 	};
+}
+
+function hasCommitSpecContent(params: CommitToolCommitParams): boolean {
+	return Boolean(
+		(params.files ?? []).some(file => file.trim()) ||
+			params.commitMessage?.trim() ||
+			params.rationale?.trim() ||
+			(params.verification ?? []).length > 0 ||
+			(params.verificationEvidence ?? []).length > 0,
+	);
 }
 
 function normalizeCommitSpec(params: CommitToolCommitParams, inheritedAcceptRisk: boolean): CommitSpec {
@@ -852,7 +876,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 			2,
 		) : "",
 		"Rules:",
-		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit commits entirely.",
+		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit the commits field entirely; do not include an empty array or blank commit object.",
 		"- For atomic/multiple commit mode, pass one non-empty commits array containing every logical commit. Each commits[] entry MUST include only the files for that atomic commit; do not make multiple omp_commit tool calls.",
 		"- files MUST be only the files intentionally belonging to the commit, inferred from the current conversation context.",
 		"- If the current context is insufficient to select files confidently, pass files: [] for a single commit or a commits entry with files: [] for atomic mode and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
@@ -1046,17 +1070,18 @@ function formatVerificationEvidence(evidence: VerificationEvidence): string {
 	return `${source}${evidence.description}${command}`;
 }
 
-function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame?: number): string[] {
+function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame: number | undefined, width: number): string[] {
 	const lines: string[] = [];
 	const commits = getCommitRunCommits(details);
 	const running = details.status === "running";
 	const statusColor = details.status === "failed" ? "error" : details.status === "succeeded" ? "success" : "accent";
 	const icon = running ? spinner(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
 	const title = details.dryRun ? "Commit preview" : "Commit";
+	const maxFieldLines = expanded ? MAX_EXPANDED_WRAPPED_FIELD_LINES : MAX_WRAPPED_FIELD_LINES;
 	const badges = [details.push ? "push" : undefined, details.multiCommit || commits.length > 1 ? `${commits.length} atomic commit${commits.length === 1 ? "" : "s"}` : undefined, details.acceptRisk ? "risk accepted" : undefined, (details.verificationEvidence?.length ?? 0) > 0 ? "verification evidence" : undefined].filter(Boolean);
 	const suffix = badges.length > 0 ? ` ${theme.fg("dim", badges.map(badge => `[${badge}]`).join(" "))}` : "";
 	lines.push(`${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}${suffix}`);
-	lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Status")}: ${theme.fg(statusColor, details.phase)}`);
+	appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Status", details.phase, MAX_WRAPPED_FIELD_LINES, statusColor);
 	lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Internal actions")}: ${theme.fg("muted", `${details.toolCount}`)}${details.failedToolCount > 0 ? theme.fg("error", ` (${details.failedToolCount} failed)`) : ""}`);
 	if (commits.length > 1) {
 		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Commits")}: ${theme.fg("muted", `${commits.length}`)}`);
@@ -1064,17 +1089,17 @@ function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: an
 		for (const [index, commit] of visibleCommits.entries()) {
 			const hash = commit.commitHash ? `${commit.commitHash} ` : "";
 			const files = commit.selectedFiles.length > 0 ? ` — ${commit.selectedFiles.join(", ")}` : "";
-			lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("muted", `${index + 1}. ${hash}${commit.commitMessage}${files}`)}`);
+			appendWrappedText(lines, ` ${theme.fg("dim", theme.tree.branch)} `, ` ${theme.fg("dim", theme.tree.vertical)}  `, `${index + 1}. ${hash}${commit.commitMessage}${files}`, theme, "muted", width, maxFieldLines);
 		}
 		if (visibleCommits.length < commits.length) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "…")}`);
 	} else {
 		const commit = commits[0];
-		if (commit.commitMessage) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Message")}: ${theme.fg("muted", commit.commitMessage.split("\n", 1)[0])}`);
-		if (commit.rationale) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Rationale")}: ${theme.fg("muted", commit.rationale)}`);
-		if (commit.selectedFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Files")}: ${theme.fg("muted", commit.selectedFiles.join(", "))}`);
-		if ((commit.verificationEvidence?.length ?? 0) > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Verification")}: ${theme.fg("muted", commit.verificationEvidence.join("; "))}`);
+		if (commit.commitMessage) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Message", commit.commitMessage.split("\n", 1)[0], maxFieldLines);
+		if (commit.rationale) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Rationale", commit.rationale, maxFieldLines);
+		if (commit.selectedFiles.length > 0) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Files", commit.selectedFiles.join(", "), maxFieldLines);
+		if ((commit.verificationEvidence?.length ?? 0) > 0) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Verification", commit.verificationEvidence.join("; "), maxFieldLines);
 	}
-	if (details.ignoredFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Ignored")}: ${theme.fg("muted", details.ignoredFiles.join(", "))}`);
+	if (details.ignoredFiles.length > 0) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Ignored", details.ignoredFiles.join(", "), maxFieldLines);
 
 	const visibleSteps = expanded ? details.steps : details.steps.slice(-MAX_VISIBLE_STEPS);
 	if (details.steps.length > visibleSteps.length) {
@@ -1083,15 +1108,16 @@ function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: an
 	for (const [index, step] of visibleSteps.entries()) {
 		const isLast = index === visibleSteps.length - 1 && !details.finalText && !details.errorText;
 		const prefix = isLast ? theme.tree.last : theme.tree.branch;
+		const continuation = isLast ? " " : theme.tree.vertical;
 		const stepIcon = step.status === "failed" ? "✖" : step.status === "done" ? "✔" : spinner(spinnerFrame);
 		const color = step.status === "failed" ? "error" : step.status === "done" ? "success" : "accent";
-		lines.push(` ${theme.fg("dim", prefix)} ${theme.fg(color, stepIcon)} ${theme.fg("muted", step.label)}`);
+		appendWrappedText(lines, ` ${theme.fg("dim", prefix)} ${theme.fg(color, stepIcon)} `, ` ${theme.fg("dim", continuation)}  `, step.label, theme, "muted", width, MAX_WRAPPED_FIELD_LINES);
 	}
 
 	if (details.errorText) {
 		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("error", "Blocked")}`);
 		for (const line of details.errorText.split("\n").slice(0, MAX_FINAL_LINES)) {
-			lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("error", line)}`);
+			appendWrappedText(lines, ` ${theme.fg("dim", theme.tree.vertical)}  `, ` ${theme.fg("dim", theme.tree.vertical)}  `, line, theme, "error", width, maxFieldLines);
 		}
 	}
 
@@ -1099,7 +1125,9 @@ function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: an
 		const finalLines = details.finalText.split("\n").filter(Boolean);
 		const shown = expanded ? finalLines : finalLines.slice(0, MAX_FINAL_LINES);
 		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Result")}`);
-		for (const line of shown) lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("muted", line)}`);
+		for (const line of shown) {
+			appendWrappedText(lines, ` ${theme.fg("dim", theme.tree.vertical)}  `, ` ${theme.fg("dim", theme.tree.vertical)}  `, line, theme, "muted", width, maxFieldLines);
+		}
 		if (shown.length < finalLines.length) lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("dim", "…")}`);
 	}
 
@@ -1160,6 +1188,79 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
 function trimOutput(text: string): string {
 	const trimmed = text.trim();
 	return trimmed.length > MAX_OUTPUT_CHARS ? `${trimmed.slice(0, MAX_OUTPUT_CHARS)}…` : trimmed;
+}
+
+function appendWrappedField(lines: string[], theme: any, width: number, branch: string, continuation: string, label: string, value: string, maxLines: number, color = "muted"): void {
+	appendWrappedText(
+		lines,
+		` ${theme.fg("dim", branch)} ${theme.fg("dim", label)}: `,
+		` ${theme.fg("dim", continuation)}  `,
+		value,
+		theme,
+		color,
+		width,
+		maxLines,
+	);
+}
+
+function appendWrappedText(lines: string[], prefix: string, continuationPrefix: string, value: string, theme: any, color: string, width: number, maxLines: number): void {
+	const safeWidth = Math.max(MIN_RENDER_WIDTH, width) - 1;
+	const firstWidth = Math.max(MIN_WRAP_CONTENT_WIDTH, safeWidth - visibleLength(prefix));
+	const nextWidth = Math.max(MIN_WRAP_CONTENT_WIDTH, safeWidth - visibleLength(continuationPrefix));
+	const chunks = wrapPlainText(value, firstWidth, nextWidth, maxLines);
+	for (const [index, chunk] of chunks.entries()) {
+		lines.push(`${index === 0 ? prefix : continuationPrefix}${theme.fg(color, chunk)}`);
+	}
+}
+
+function wrapPlainText(value: string, firstWidth: number, nextWidth: number, maxLines: number): string[] {
+	let remaining = value.replace(/\s+/g, " ").trim();
+	const lines: string[] = [];
+	while (remaining.length > 0 && lines.length < maxLines) {
+		const width = Math.max(1, lines.length === 0 ? firstWidth : nextWidth);
+		if (remaining.length <= width) {
+			lines.push(remaining);
+			remaining = "";
+			break;
+		}
+		const breakAt = findWrapBreak(remaining, width);
+		lines.push(remaining.slice(0, breakAt).trimEnd());
+		remaining = remaining.slice(breakAt).trimStart();
+	}
+	if (remaining.length > 0 && lines.length > 0) {
+		const width = Math.max(1, lines.length === 1 ? firstWidth : nextWidth);
+		lines[lines.length - 1] = appendEllipsis(lines[lines.length - 1], width);
+	}
+	return lines;
+}
+
+function findWrapBreak(value: string, width: number): number {
+	let lastWhitespace = -1;
+	const limit = Math.min(value.length, width + 1);
+	for (let index = 0; index < limit; index += 1) {
+		if (/\s/.test(value[index])) lastWhitespace = index;
+	}
+	return lastWhitespace > 0 ? lastWhitespace : Math.max(1, width);
+}
+
+function appendEllipsis(value: string, width: number): string {
+	if (width <= 1) return "…";
+	return `${value.slice(0, width - 1).trimEnd()}…`;
+}
+
+function visibleLength(input: string): number {
+	let visible = 0;
+	for (let i = 0; i < input.length; i += 1) {
+		if (input[i] === "\u001b") {
+			const end = input.indexOf("m", i);
+			if (end !== -1) {
+				i = end;
+				continue;
+			}
+		}
+		visible += 1;
+	}
+	return visible;
 }
 
 function dedupe(values: string[]): string[] {

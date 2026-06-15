@@ -216,6 +216,43 @@ const resultComponent = tool.renderResult(
 );
 if (!resultComponent) throw new Error("renderResult returned no component");
 const resultRendered = resultComponent.render(120).join("\n");
+
+const wrappedResultComponent = tool.renderResult(
+  {
+    content: [{ type: "text", text: "Commit preview complete" }],
+    details: {
+      id: "commit-wrap-render-test",
+      status: "succeeded",
+      phase: "Commit preview complete after reviewing selected diff and verification evidence",
+      startedAt: Date.now(),
+      finishedAt: Date.now(),
+      steps: [{ label: "Running verification: commit UI wraps rationale verification and file lists", status: "done", startedAt: Date.now(), finishedAt: Date.now() }],
+      toolCount: 3,
+      failedToolCount: 0,
+      dryRun: true,
+      push: false,
+      acceptRisk: false,
+      commitMessage: "chore(test): wrap commit UI fields in narrow terminals",
+      rationale: "Compact rationale should wrap across narrow terminals without terminal-edge truncation.",
+      selectedFiles: ["roles/omp/files/extensions/commit-ui.ts", "roles/omp/tests/test_commit_ui_extension.sh"],
+      ignoredFiles: ["roles/omp/tests/unrelated-fixture.txt"],
+      verificationCount: 0,
+      verificationEvidence: ["observed: wrap regression reviewed without terminal-edge truncation"],
+      finalText: "Commit preview complete.\nFiles: roles/omp/files/extensions/commit-ui.ts, roles/omp/tests/test_commit_ui_extension.sh",
+      warnings: [],
+    },
+  },
+  { expanded: false, isPartial: false, spinnerFrame: 0 },
+  theme,
+);
+const wrappedResultLines = wrappedResultComponent.render(54);
+if (wrappedResultLines.some(line => line.length > 54)) {
+  throw new Error(`wrapped result exceeded terminal width: ${wrappedResultLines.join("\n")}`);
+}
+const wrappedResultRendered = wrappedResultLines.join("\n");
+for (const expected of ["Rationale", "terminal-edge", "Verification", "Ignored", "Result"]) {
+  if (!wrappedResultRendered.includes(expected)) throw new Error(`wrapped result render missing ${expected}: ${wrappedResultRendered}`);
+}
 for (const expected of ["Commit preview", "Reviewing selected diff", "Internal actions", "included.txt", "unrelated.txt"]) {
   if (!resultRendered.includes(expected)) throw new Error(`result render missing ${expected}: ${resultRendered}`);
 }
@@ -342,6 +379,34 @@ try {
   if (emptyCommitsArray.isError) throw new Error(`empty commits array fallback failed: ${JSON.stringify(emptyCommitsArray)}`);
   if (!emptyCommitsArray.content[0].text.includes("Commit preview complete")) {
     throw new Error(`empty commits array fallback did not produce a preview: ${JSON.stringify(emptyCommitsArray)}`);
+  }
+
+  const blankCommitPlaceholder = await tool.execute(
+    "commit-blank-commit-placeholder-test",
+    {
+      files: ["empty-commits.txt"],
+      commitMessage: "chore(test): preview blank commits placeholder fallback",
+      rationale: "Single-commit tool calls may include a blank generated commits entry.",
+      verificationEvidence: [{ description: "blank commits placeholder fixture reviewed in test", source: "observed" }],
+      commits: [
+        {
+          files: [],
+          commitMessage: "",
+          rationale: "",
+          verification: [],
+          verificationEvidence: [],
+          acceptRisk: false,
+        },
+      ],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (blankCommitPlaceholder.isError) throw new Error(`blank commits placeholder fallback failed: ${JSON.stringify(blankCommitPlaceholder)}`);
+  if (!blankCommitPlaceholder.content[0].text.includes("Commit preview complete")) {
+    throw new Error(`blank commits placeholder fallback did not produce a preview: ${JSON.stringify(blankCommitPlaceholder)}`);
   }
 
   await writeFile(join(tmp, "push.txt"), "push me\n");

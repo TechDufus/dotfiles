@@ -12,7 +12,7 @@ theme:
 symbolPreset: nerd
 display: 
   shimmer: kitt
-defaultThinkingLevel: xhigh
+defaultThinkingLevel: auto
 contextPromotion: 
   enabled: false
 compaction: 
@@ -42,7 +42,9 @@ lsp:
   diagnosticsOnEdit: true
 collapseChangelog: true
 memory: 
-  backend: local
+  backend: mnemopi
+providers: 
+  autoThinkingModel: online
 github: 
   enabled: true
 renderMermaid: 

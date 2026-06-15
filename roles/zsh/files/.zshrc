@@ -2,11 +2,11 @@ is_ssh_session() {
   [[ -n "$SSH_CONNECTION" || -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]
 }
 
-# True only when stdin, stdout, and stderr are all terminal-backed.
-# Hidden automation can invoke `zsh -ic` without terminal I/O; prompt tooling
-# such as Powerlevel10k/gitstatus must stay out of that path.
+# True for interactive shells with a controlling terminal.
+# During zsh startup, stdin can be the sourced file and Powerlevel10k instant
+# prompt can temporarily redirect stdout/stderr, so fd checks are not reliable.
 is_tty() {
-  [[ -t 0 && -t 1 && -t 2 ]]
+  [[ -o interactive && -n "${TTY:-}" && -w "$TTY" ]]
 }
 
 if is_ssh_session; then
@@ -98,6 +98,10 @@ zinit snippet OMZP::ssh
 zinit snippet OMZP::aliases
 zinit snippet OMZP::globalias
 zinit snippet OMZP::archlinux
+# Powerlevel10k already renders AWS. Keep Oh My Zsh's AWS plugin from
+# installing a fallback RPROMPT that leaks as literal $(aws_prompt_info)
+# when prompt tooling is skipped for non-TTY startup paths.
+SHOW_AWS_PROMPT=false
 zinit snippet OMZP::aws
 zinit snippet OMZP::kubectl
 zinit snippet OMZP::kubectx

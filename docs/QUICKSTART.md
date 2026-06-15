@@ -23,7 +23,7 @@ This works on:
 - ✅ **Ubuntu** (20.04+)
 - ✅ **Fedora** (any recent version)
 - ✅ **Arch Linux** (any recent version)
-- ✅ **CachyOS** (Arch-family, Plasma/Hyprland/Steam path)
+- ✅ **CachyOS** (Arch-family, Plasma/Steam path)
 
 ```bash
 # Check your OS version
@@ -87,9 +87,6 @@ role installs Plasma after the fact.
 # Normal KDE Plasma Wayland desktop plus KWin summon workflow
 dotfiles -t plasma,brave,discord,signal,spotify,obsidian
 
-# Hyprland desktop and summon workflow
-dotfiles -t hyprland,brave,discord,signal,spotify,obsidian
-
 # Steam/Proton/NVIDIA/Gamescope support (large, optional stack)
 dotfiles -t steam
 
@@ -105,17 +102,6 @@ task update          # sudo pacman -Syu --disable-download-timeout
 task pacnew          # list .pacnew/.pacsave files for manual review
 task desktop-health  # Plasma summon service + strict Steam runtime checks
 ```
-
-Hyprland config is symlinked from
-`roles/hyprland/files/hypr/hyprland.lua` to
-`~/.config/hypr/hyprland.lua`, so repo edits are picked up by Hyprland reloads.
-Waybar is also role-managed from `roles/hyprland/files/waybar/` and launches as
-a normal full-width top Catppuccin Mocha panel on each display. The Hyprland role also owns the
-Catppuccin wallpaper and `hyprpaper` config, so reboot should visibly change
-the background as well as compositor/window styling. Hyprlock, Hypridle, and
-the Hyprland-specific summon helper/config are managed from the same role
-directory. The app, region, and monitor-layout registries live under
-`roles/hyprland/files/summon`.
 
 Plasma uses `roles/plasma/files/kwin/plasma-summon/` for the KWin script,
 `roles/plasma/files/bin/plasma-summon-service.py` for safe app launching, and

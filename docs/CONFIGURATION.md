@@ -79,10 +79,8 @@ still letting pacman verify signatures and package integrity.
 
 ### Keyboard
 
-These variables are consumed by Linux system/X11 keyboard setup. Hyprland is a
-symlinked Wayland config, so compositor input policy lives in
-`roles/hyprland/files/hypr/hyprland.lua`; keep both aligned when changing
-layouts.
+These variables are consumed by Linux system/X11 keyboard setup. Plasma desktop
+keyboard preferences live in `plasma_desktop_kconfig_settings`.
 
 | Variable | Description |
 |----------|-------------|
@@ -142,17 +140,9 @@ Everything else is configured by editing the actual config files directly:
 | ghostty | `roles/ghostty/files/config` |
 | lfk | `roles/lfk/files/config.yaml` |
 | git | `roles/git/files/gitconfig` |
-| hyprland | `roles/hyprland/files/hypr/` |
-| waybar | `roles/hyprland/files/waybar/` |
-| hyprpaper | `roles/hyprland/files/hypr/hyprpaper.conf`, `roles/hyprland/files/wallpapers/` |
-| hyprland summon | `roles/hyprland/files/summon/`, `roles/hyprland/files/bin/hypr-summon.py` |
 | plasma desktop settings | `roles/plasma/defaults/main.yml` (`plasma_desktop_kconfig_settings`) |
 | plasma summon | `roles/plasma/files/kwin/plasma-summon/`, `roles/plasma/files/summon/` |
 | plasma summon service | `roles/plasma/files/bin/plasma-summon-service.py`, `roles/plasma/files/systemd/plasma-summon.service` |
-
-Hyprland owns the normal top Waybar panel, summon app registry, percentage-based
-regions, and active-monitor layout profiles. Edit those files directly in the
-role; the symlinks keep the live desktop aligned with the repository.
 
 Plasma owns a normal KDE session, stable desktop KConfig preferences in
 `plasma_desktop_kconfig_settings`, and a KWin script for the same summon,

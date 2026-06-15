@@ -39,7 +39,7 @@ local fabric_ui_enabled = file_exists(gears.filesystem.get_configuration_dir() .
 local fabric_bar_height = 37
 
 -- {{{ Startup commands
--- Set keyboard repeat rate to match Hyprland (XXXms delay, XX chars/sec)
+-- Set keyboard repeat rate for the desktop session.
 awful.spawn.once("xset r rate 300 40")
 
 -- Remap Caps Lock to F13 for laptop keyboard support

@@ -188,14 +188,6 @@ tasks:
       - systemctl --user is-active plasma-summon.service
       - steam-health --runtime --strict
 
-  hyprland-health:
-    desc: Validate Hyprland/summon/Steam runtime state
-    platforms: [linux]
-    cmds:
-      - hyprctl configerrors
-      - hypr-summon inspect
-      - steam-health --runtime --strict
-
   dotfiles-check:
     desc: Check Arch/CachyOS desktop roles without applying changes
     platforms: [linux]

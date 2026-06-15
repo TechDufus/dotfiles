@@ -34,9 +34,6 @@ class TaskfileArchTests(unittest.TestCase):
         self.assertIn("plasma-summon-service --print-config", self.arch)
         self.assertIn("systemctl --user is-active plasma-summon.service", self.arch)
         self.assertIn("steam-health --runtime --strict", self.arch)
-        self.assertIn("hyprland-health:", self.arch)
-        self.assertIn("hyprctl configerrors", self.arch)
-        self.assertIn("hypr-summon inspect", self.arch)
         self.assertIn("dotfiles --check -t system,plasma,steam", self.arch)
 
 

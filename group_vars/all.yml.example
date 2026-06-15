@@ -103,7 +103,6 @@ default_roles:
   
   # === Linux Specific ===
   # - awesomewm     # X11 window manager and keyboard-driven desktop
-  # - hyprland      # Wayland compositor, summon helper, and region workflow
   # - plasma        # KDE Plasma Wayland desktop and KWin summon workflow
   # - steam         # Steam/Proton/Gamescope support for Arch/CachyOS
   # - vicinae       # Raycast-style launcher for Linux/AwesomeWM
@@ -184,9 +183,8 @@ exclude_roles_by_distribution:
 # This will be used for git config user.name
 git_user_name: "Your Full Name"
 
-# Optional keyboard layout for Linux system/X11 paths. Hyprland input is managed
-# directly in `roles/hyprland/files/hypr/hyprland.lua` because that config is
-# symlinked for live compositor reloads.
+# Optional keyboard layout for Linux system/X11 paths. Plasma desktop keyboard
+# preferences live in `roles/plasma/defaults/main.yml`.
 #
 # keyboard:
 #   model: pc105

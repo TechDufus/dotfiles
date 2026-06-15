@@ -146,11 +146,9 @@ let regions = {
     hd_left_main: { x: "0%", y: "0%", w: "60%", h: "100%", float: true },
     hd_right_side: { x: "60%", y: "0%", w: "40%", h: "100%", float: true },
     hd_float_center: { x: "12.5%", y: "10%", w: "75%", h: "80%", float: true },
-    standard_top_left: { x: "0%", y: "0%", w: "27.5%", h: "52.5%", float: true },
-    standard_bottom_left: { x: "0%", y: "52.5%", w: "27.5%", h: "47.5%", float: true },
-    standard_left_center: { x: "23.75%", y: "0%", w: "10%", h: "100%", float: true },
-    standard_center: { x: "27.5%", y: "0%", w: "45%", h: "100%", float: true },
-    standard_right: { x: "72.5%", y: "0%", w: "27.5%", h: "100%", float: true },
+    standard_browser_left: { x: "0%", y: "0%", w: "40%", h: "100%", float: true },
+    standard_terminal_right: { x: "40%", y: "0%", w: "60%", h: "100%", float: true },
+    standard_utility_overlay: { x: "12.5%", y: "10%", w: "75%", h: "80%", float: true },
 };
 
 let layouts = {
@@ -189,13 +187,13 @@ let layouts = {
     },
     standard: {
         label: "Standard Dev",
-        cells: ["standard_top_left", "standard_bottom_left", "standard_center", "standard_right"],
+        cells: ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"],
         apps: {
-            terminal: 3,
-            browser: 4,
-            discord: 1,
-            signal: 1,
-            spotify: 2,
+            terminal: 2,
+            browser: 1,
+            discord: 3,
+            signal: 3,
+            spotify: 3,
             onepassword: 3,
             files: 3,
             obsidian: 3,

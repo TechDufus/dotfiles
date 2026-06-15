@@ -103,37 +103,23 @@ w = "75%"
 h = "80%"
 float = true
 
-[regions.standard_top_left]
+[regions.standard_browser_left]
 x = "0%"
 y = "0%"
-w = "27.5%"
-h = "52.5%"
-float = true
-
-[regions.standard_bottom_left]
-x = "0%"
-y = "52.5%"
-w = "27.5%"
-h = "47.5%"
-float = true
-
-[regions.standard_left_center]
-x = "23.75%"
-y = "0%"
-w = "10%"
+w = "40%"
 h = "100%"
 float = true
 
-[regions.standard_center]
-x = "27.5%"
+[regions.standard_terminal_right]
+x = "40%"
 y = "0%"
-w = "45%"
+w = "60%"
 h = "100%"
 float = true
 
-[regions.standard_right]
-x = "72.5%"
-y = "0%"
-w = "27.5%"
-h = "100%"
+[regions.standard_utility_overlay]
+x = "12.5%"
+y = "10%"
+w = "75%"
+h = "80%"
 float = true

@@ -537,10 +537,21 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.layouts["hd"]["cells"],
             ["hd_left_main", "hd_right_side", "hd_float_center"],
         )
+        self.assertEqual(
+            self.layouts["standard"]["cells"],
+            ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"],
+        )
+        self.assertEqual(self.layouts["standard"]["apps"]["browser"], 1)
+        self.assertEqual(self.layouts["standard"]["apps"]["terminal"], 2)
+        self.assertEqual(self.layouts["standard"]["apps"]["onepassword"], 3)
         self.assertEqual(self.layouts["fourk"]["apps"]["terminal"], 1)
         self.assertEqual(self.layouts["fourk"]["apps"]["browser"], 2)
         self.assertEqual(self.layouts["fourk"]["apps"]["onepassword"], 4)
         self.assertEqual(self.layouts["hd"]["apps"]["onepassword"], 3)
+        self.assertEqual(self.regions["standard_browser_left"]["w"], "40%")
+        self.assertEqual(self.regions["standard_terminal_right"]["x"], "40%")
+        self.assertEqual(self.regions["standard_terminal_right"]["w"], "60%")
+        self.assertEqual(self.regions["standard_utility_overlay"]["h"], "80%")
 
     def test_kwin_embedded_regions_match_edge_aligned_toml_fallback(self) -> None:
         for required in [
@@ -548,7 +559,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             'hd_left_main: { x: "0%", y: "0%", w: "60%", h: "100%"',
             'hd_right_side: { x: "60%", y: "0%", w: "40%", h: "100%"',
             'cells: ["hd_left_main", "hd_right_side", "hd_float_center"]',
-            'standard: {',
+            'standard_terminal_right: { x: "40%", y: "0%", w: "60%", h: "100%"',
+            'cells: ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"]',
         ]:
             self.assertIn(required, self.script)
         for obsolete in [
@@ -556,6 +568,11 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             'main: { x: "2%", y: "4%", w: "60%", h: "92%"',
             'side: { x: "64%", y: "4%", w: "34%", h: "92%"',
             'cells: ["main", "side", "center"]',
+            "standard_top_left",
+            "standard_left_center",
+            "standard_bottom_left",
+            "standard_center",
+            "standard_right",
         ]:
             self.assertNotIn(obsolete, self.script)
         self.assertIn("reapplyAllLayouts();", self.script)

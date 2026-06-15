@@ -42,7 +42,12 @@ for fn in is-at-least colors add-zsh-hook bashcompinit compinit _main_complete _
   fi
 done
 
-zinit() { :; }
+zinit() {
+  if [[ "$*" == *romkatv/powerlevel10k* ]]; then
+    print -ru2 "powerlevel10k loaded without a terminal"
+    exit 126
+  fi
+}
 alias zi='zinit'
 ZINIT
 
@@ -89,5 +94,13 @@ startup_output="$(
 )"
 if [[ "$startup_output" == *zoxide* ]]; then
   printf '%s\n' "$startup_output" >&2
+  exit 1
+fi
+
+tasks_output="$(
+  REPO_ROOT="$repo_root" "$zsh_bin" -i -c 'source "$REPO_ROOT/roles/zsh/files/zsh/tasks.zsh"' 2>&1
+)"
+if [[ "$tasks_output" == *"can't change option: monitor"* ]]; then
+  printf '%s\n' "$tasks_output" >&2
   exit 1
 fi

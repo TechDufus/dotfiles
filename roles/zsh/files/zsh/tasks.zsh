@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
-# Disable job control messages for this file
-setopt NO_MONITOR
+# Disable job control messages when job control can be changed.
+[[ -o interactive && -t 0 && -t 1 && -t 2 ]] && setopt NO_MONITOR
 
 # Generate a timestamped log file name
 #   Usage: LOG=$(generate_log)

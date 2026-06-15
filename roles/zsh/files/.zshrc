@@ -2,6 +2,13 @@ is_ssh_session() {
   [[ -n "$SSH_CONNECTION" || -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]
 }
 
+# True only when stdin, stdout, and stderr are all terminal-backed.
+# Hidden automation can invoke `zsh -ic` without terminal I/O; prompt tooling
+# such as Powerlevel10k/gitstatus must stay out of that path.
+is_tty() {
+  [[ -t 0 && -t 1 && -t 2 ]]
+}
+
 if is_ssh_session; then
   # REASON: When sshing via ghostty, the remote terminal borks,
   # so we need to set TERM to xterm-256color
@@ -66,8 +73,11 @@ fi
 # Source/Load zinit
 source "${ZINIT_HOME}/zinit.zsh"
 
-# Add in Powerlevel10k
-zinit ice depth=1; zinit light romkatv/powerlevel10k
+# Powerlevel10k starts gitstatus, which requires a real terminal.
+# Non-TTY interactive shells are used by hidden automation commands.
+if is_tty; then
+  zinit ice depth=1; zinit light romkatv/powerlevel10k
+fi
 
 # Add in zsh plugins
 zinit light zsh-users/zsh-syntax-highlighting
@@ -103,7 +113,9 @@ autoload -Uz compinit && compinit
 zinit cdreplay -q
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+if is_tty; then
+  [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+fi
 
 # Keybindings
 bindkey -e

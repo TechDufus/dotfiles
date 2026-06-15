@@ -1,11 +1,11 @@
 modelRoles: 
-  default: openai-codex/gpt-5.5:xhigh
+  default: openai-codex/gpt-5.5
   smol: openai-codex/gpt-5.4-mini
-  task: openai-codex/gpt-5.5:high
-  slow: openai-codex/gpt-5.5:xhigh
-  plan: openai-codex/gpt-5.5:xhigh
-  designer: openai-codex/gpt-5.5:high
-  vision: openai-codex/gpt-5.5:high
+  task: openai-codex/gpt-5.5
+  slow: openai-codex/gpt-5.5
+  plan: openai-codex/gpt-5.5
+  designer: openai-codex/gpt-5.5
+  vision: openai-codex/gpt-5.5
   commit: openai-codex/gpt-5.4-mini
 theme: 
   dark: dark-catppuccin

@@ -14,6 +14,19 @@
     state: directory
     mode: "0755"
 
+- name: "{{ role_name }} | Ensure user config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink rofimoji config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/rofimoji.rc"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/rofimoji.rc"
+    state: link
+    force: true
+
 - name: "{{ role_name }} | Ensure summon config directory exists"
   ansible.builtin.file:
     path: "{{ plasma_config_dir }}"

@@ -70,6 +70,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "python-dbus-next",
             "fuzzel",
             "keyd",
+            "rofimoji",
+            "rofi",
+            "wl-clipboard",
+            "noto-fonts-emoji",
         ]:
             self.assertIn(package, self.defaults)
         self.assertIn("community.general.pacman", self.arch_tasks)
@@ -258,6 +262,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "--configure-shortcuts",
             "kwriteconfig6",
             "qdbus6",
+            "rofimoji.rc",
+            "{{ ansible_facts['user_dir'] }}/.config/rofimoji.rc",
         ]:
             self.assertIn(required, self.tasks)
         self.assertIn("plasma_summon_script_id: plasma-summon", self.defaults)
@@ -274,6 +280,18 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "state: restarted",
         ]:
             self.assertIn(required, self.tasks)
+
+    def test_role_manages_rofimoji_copy_config(self) -> None:
+        config_sources = [ROLE / "files" / "rofimoji.rc", ROLE / "templates" / "rofimoji.rc.j2"]
+        self.assertTrue(any(path.exists() for path in config_sources))
+        config = next(path for path in config_sources if path.exists()).read_text(encoding="utf-8")
+        for required in [
+            "selector=rofi",
+            "action=copy",
+            "clipboarder=wl-copy",
+            "skin-tone=neutral",
+        ]:
+            self.assertIn(required, config)
 
     def test_role_does_not_manage_login_time_output_wakeup(self) -> None:
         for obsolete in [
@@ -827,13 +845,12 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             plasma_summon_service.build_macro_argv("screenshot_area"),
             ["spectacle", "--region", "--background", "--copy-image", "--nonotify", "--pointer"],
         )
-        self.assertEqual(
-            plasma_summon_service.build_macro_argv("emoji_picker"),
-            ["plasma-emojier", "--replace"],
-        )
+        emoji_argv = plasma_summon_service.build_macro_argv("emoji_picker")
+        self.assertEqual(emoji_argv, ["rofimoji"])
+        self.assertNotIn("plasma-emojier", " ".join(emoji_argv))
         self.assertEqual(
             plasma_summon_service.run_macro("emoji_picker", dry_run=True),
-            "plasma-emojier --replace",
+            "rofimoji",
         )
         with self.assertRaises(ValueError):
             plasma_summon_service.build_macro_argv("missing")

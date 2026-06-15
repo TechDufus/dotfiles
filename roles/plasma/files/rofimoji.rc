@@ -1,0 +1,4 @@
+selector=rofi
+action=copy
+clipboarder=wl-copy
+skin-tone=neutral

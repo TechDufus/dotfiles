@@ -30,6 +30,11 @@ plasma_arch_packages:
   - kcalc
   - kdialog
   - fuzzel
+  # Revisit after Plasma 6.8; upstream emojier quits after copy.
+  - rofimoji
+  - rofi
+  - wl-clipboard
+  - noto-fonts-emoji
   - kpackage
   - kconfig
   - python

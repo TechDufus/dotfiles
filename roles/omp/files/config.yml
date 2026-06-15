@@ -7,6 +7,9 @@ modelRoles:
   designer: openai-codex/gpt-5.5
   vision: openai-codex/gpt-5.5
   commit: openai-codex/gpt-5.4-mini
+cycleOrder:
+  - smol
+  - default
 theme: 
   dark: dark-catppuccin
 symbolPreset: nerd
@@ -17,7 +20,6 @@ contextPromotion:
   enabled: false
 compaction: 
   thresholdPercent: 60
-  remoteEnabled: true
   strategy: snapcompact
 hideThinkingBlock: true
 disabledProviders: 
@@ -43,8 +45,8 @@ lsp:
 collapseChangelog: true
 memory: 
   backend: mnemopi
-providers: 
-  autoThinkingModel: online
+mnemopi:
+  scoping: per-project-tagged
 github: 
   enabled: true
 renderMermaid: 
@@ -54,12 +56,9 @@ inspect_image:
 task: 
   eager: always
   showResolvedModelBadge: true
+  enableLsp: true
   isolation: 
     mode: auto
-async: 
-  enabled: true
-irc: 
-  enabled: true
 skills: 
   enableCodexUser: false
   enableClaudeUser: false
@@ -71,8 +70,6 @@ commands:
   enableOpencodeProject: false
 mcp: 
   enableProjectConfig: false
-dev: 
-  autoqa: false
 setupVersion: 1
 vault: 
   enabled: true

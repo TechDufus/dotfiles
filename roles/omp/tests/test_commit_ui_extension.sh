@@ -468,6 +468,77 @@ try {
   const status = (await git(tmp, ["status", "--porcelain"])).stdout;
   if (!status.includes("?? unrelated.txt")) throw new Error(`unrelated file was not left untouched: ${status}`);
 
+  await writeFile(join(tmp, "paragraph.txt"), "paragraph commit\n");
+  const paragraphMessage = [
+    "feat(test): preserve commit body",
+    "",
+    "First body paragraph explains the fixture.",
+    "",
+    "Second body paragraph confirms spacing survives.",
+  ].join("\n");
+  const paragraphCommit = await tool.execute(
+    "commit-paragraph-test",
+    {
+      files: ["paragraph.txt"],
+      commitMessage: paragraphMessage,
+      rationale: "Exercise multi-paragraph commit messages.",
+      verificationEvidence: [{ description: "paragraph fixture reviewed in test", source: "observed" }],
+      dryRun: false,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (paragraphCommit.isError) throw new Error(`paragraph commit failed: ${JSON.stringify(paragraphCommit)}`);
+  const paragraphLog = (await git(tmp, ["log", "-1", "--pretty=%B"])).stdout.trimEnd();
+  if (paragraphLog !== paragraphMessage) throw new Error(`paragraph commit message was not preserved: ${JSON.stringify(paragraphLog)}`);
+
+  await writeFile(join(tmp, "validation.txt"), "validation fixture\n");
+  const overlongSubject = await tool.execute(
+    "commit-overlong-subject-test",
+    {
+      files: ["validation.txt"],
+      commitMessage: `chore(test): ${"x".repeat(73)}`,
+      rationale: "Exercise subject length validation.",
+      verificationEvidence: [{ description: "validation fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (!overlongSubject.isError) throw new Error(`overlong subject was accepted: ${JSON.stringify(overlongSubject)}`);
+  const bodyWithoutBlank = await tool.execute(
+    "commit-body-without-blank-test",
+    {
+      files: ["validation.txt"],
+      commitMessage: "feat(test): reject unseparated body\nBody starts without a blank second line.",
+      rationale: "Exercise commit body separator validation.",
+      verificationEvidence: [{ description: "validation fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (!bodyWithoutBlank.isError) throw new Error(`body without blank separator was accepted: ${JSON.stringify(bodyWithoutBlank)}`);
+  const overlongBody = await tool.execute(
+    "commit-overlong-body-test",
+    {
+      files: ["validation.txt"],
+      commitMessage: ["feat(test): reject long body line", "", "x".repeat(101)].join("\n"),
+      rationale: "Exercise commit body line length validation.",
+      verificationEvidence: [{ description: "validation fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (!overlongBody.isError) throw new Error(`overlong body line was accepted: ${JSON.stringify(overlongBody)}`);
+
+
   await writeFile(join(tmp, "empty-commits.txt"), "single commit compatibility\n");
   const emptyCommitsArray = await tool.execute(
     "commit-empty-commits-array-test",

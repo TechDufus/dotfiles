@@ -10,6 +10,8 @@ const MAX_VISIBLE_STEPS = 7;
 const MAX_FINAL_LINES = 8;
 const MAX_OUTPUT_CHARS = 2_000;
 const MAX_SECRET_SCAN_CHARS = 2_000_000;
+const MAX_COMMIT_SUBJECT_CHARS = 72;
+const MAX_COMMIT_BODY_LINE_CHARS = 100;
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PULSE_FRAMES = ["●···", "·●··", "··●·", "···●"];
@@ -201,7 +203,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 	});
 	const commitParam = z.object({
 		files: z.array(z.string()).optional().describe("Repo-relative files or directories to include for this commit."),
-		commitMessage: z.string().optional().describe("Conventional commit message for this commit."),
+		commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 		rationale: z.string().optional().describe("Why these files and this message belong together."),
 		verification: z.array(verificationParam).optional().describe("Narrow verification commands for this commit."),
 		verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence for this commit."),
@@ -216,7 +218,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 		defaultInactive: true,
 		parameters: z.object({
 			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. Leave empty only to block safely when the current context is insufficient."),
-			commitMessage: z.string().optional().describe("Conventional commit message to use. The first line must be conventional-commit formatted."),
+			commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
 			verification: z.array(verificationParam).optional().describe("Narrow verification commands to run before staging/committing."),
 			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
@@ -459,7 +461,7 @@ async function executeCommitPlan(
 			await withStep(details, `${label}: staging selected changes`, onUpdate, () => runGit(cwd, ["add", "--", ...result.selectedFiles], signal, details));
 			setCommitState(result, "running", "Creating commit");
 			onUpdate();
-			await withStep(details, `${label}: creating commit`, onUpdate, () => runGit(cwd, ["commit", "--only", "-m", commit.commitMessage, "--", ...result.selectedFiles], signal, details));
+			await withStep(details, `${label}: creating commit`, onUpdate, () => runGit(cwd, ["commit", "--only", ...commitMessageArgs(commit.commitMessage), "--", ...result.selectedFiles], signal, details));
 			setCommitState(result, "running", "Checking commit result");
 			onUpdate();
 			const commitHash = (await withStep(details, `${label}: checking commit result`, onUpdate, () => runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details))).stdout.trim();
@@ -609,9 +611,21 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 	const prefix = label === "Commit" ? "" : `${label}: `;
 	if (!commit.commitMessage) throw new WorkflowError(`${prefix}commit message is required.`);
 	if (commit.commitMessage.includes("\0")) throw new WorkflowError(`${prefix}commit message contains a NUL byte.`);
-	const subject = commit.commitMessage.split("\n", 1)[0];
+	const lines = commit.commitMessage.split("\n");
+	const subject = lines[0] ?? "";
 	if (!CONVENTIONAL_COMMIT_RE.test(subject)) {
-		throw new WorkflowError(`${prefix}commit message must be conventional-commit formatted. Received: ${subject}`);
+		throw new WorkflowError(`${prefix}commit message subject must be conventional-commit formatted. Received: ${subject}`);
+	}
+	if (subject.length > MAX_COMMIT_SUBJECT_CHARS) {
+		throw new WorkflowError(`${prefix}commit message subject must be ${MAX_COMMIT_SUBJECT_CHARS} characters or fewer. Received ${subject.length}.`);
+	}
+	if (lines.length > 1 && lines[1] !== "") {
+		throw new WorkflowError(`${prefix}commit message body must be separated from the subject by one blank line.`);
+	}
+	for (const [lineIndex, line] of lines.slice(2).entries()) {
+		if (line.length > MAX_COMMIT_BODY_LINE_CHARS) {
+			throw new WorkflowError(`${prefix}commit message body line ${lineIndex + 3} must be ${MAX_COMMIT_BODY_LINE_CHARS} characters or fewer. Received ${line.length}.`);
+		}
 	}
 	for (const file of commit.files) validateRepoPath(file);
 	if (commit.verification.length === 0 && commit.verificationEvidence.length === 0 && !commit.acceptRisk) {
@@ -619,6 +633,11 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 	}
 	for (const verification of commit.verification) validateVerification(verification);
 	for (const evidence of commit.verificationEvidence) validateVerificationEvidence(evidence);
+}
+
+function commitMessageArgs(message: string): string[] {
+	const paragraphs = message.split(/\n{2,}/).map(paragraph => paragraph.trim()).filter(Boolean);
+	return paragraphs.flatMap(paragraph => ["-m", paragraph]);
 }
 
 function formatCommitLabel(index: number, total: number): string {
@@ -871,7 +890,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		JSON.stringify(
 			{
 				files: ["repo-relative file or directory to include"],
-				commitMessage: "type(scope): concise subject",
+				commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why, when useful.",
 				rationale: "why this file set and message match the current conversation",
 				verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
 				verificationEvidence: [{ description: "observed or user-reported verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
@@ -888,7 +907,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 			{
 				commits: [{
 					files: ["repo-relative file or directory for this split commit"],
-					commitMessage: "type(scope): concise subject",
+					commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why this split exists.",
 					rationale: "why this split commit is separate",
 					verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
 					verificationEvidence: [{ description: "observed or user-reported verification for this split commit", command: "executable", args: ["arg"], source: "observed" }],
@@ -905,6 +924,9 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		"Rules:",
 		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit the commits field entirely; do not include an empty array or blank commit object.",
 		"- For split/multiple commit mode, pass one non-empty commits array containing every logical commit. Each commits[] entry MUST include only the files for that split commit; do not make multiple omp_commit tool calls.",
+		`- Commit messages MAY be a block: subject line, blank line, then one or more body paragraphs in the same commitMessage string.`,
+		`- Commit subject line MUST be ${MAX_COMMIT_SUBJECT_CHARS} characters or fewer. Body lines MUST be ${MAX_COMMIT_BODY_LINE_CHARS} characters or fewer.`,
+		"- Use a body when the rationale belongs in git history; keep implementation notes in rationale if they are only for this workflow.",
 		"- files MUST be only the files intentionally belonging to the commit, inferred from the current conversation context.",
 		"- If the current context is insufficient to select files confidently, pass files: [] for a single commit or a commits entry with files: [] for split commit mode and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
 		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",

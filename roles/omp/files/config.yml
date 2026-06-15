@@ -52,7 +52,7 @@ renderMermaid:
 inspect_image: 
   enabled: true
 task: 
-  eager: true
+  eager: always
   showResolvedModelBadge: true
   isolation: 
     mode: auto

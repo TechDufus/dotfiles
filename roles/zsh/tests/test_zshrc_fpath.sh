@@ -47,6 +47,12 @@ zinit() {
     print -ru2 "powerlevel10k loaded without a terminal"
     exit 126
   fi
+
+  if [[ "$1" == snippet && "$2" == OMZP::aws ]]; then
+    if [[ "$SHOW_AWS_PROMPT" != false && "$RPROMPT" != *'$(aws_prompt_info)'* ]]; then
+      RPROMPT='$(aws_prompt_info)'"$RPROMPT"
+    fi
+  fi
 }
 alias zi='zinit'
 ZINIT
@@ -80,6 +86,11 @@ FPATH="$stale_fpath" \
 
   if [[ ${(t)FPATH} == *export* ]]; then
     print -ru2 "FPATH is still exported: ${(t)FPATH}"
+    exit 1
+  fi
+
+  if [[ "$RPROMPT" == *"aws_prompt_info"* ]]; then
+    print -ru2 "aws plugin installed fallback RPROMPT in non-TTY startup"
     exit 1
   fi
 '

@@ -186,8 +186,8 @@ const atomicCallComponent = tool.renderCall(
   theme,
 );
 const atomicCallRendered = atomicCallComponent.render(160).join("\n");
-for (const expected of ["2 atomic commits", "2 files", "2 commits: feat(test): add alpha fixture; fix(test): add beta fixture"]) {
-  if (!atomicCallRendered.includes(expected)) throw new Error(`atomic call render missing ${expected}: ${atomicCallRendered}`);
+for (const expected of ["Commit group", "2 split commits", "2 files", "2 commits: feat(test): add alpha fixture; fix(test): add beta fixture"]) {
+  if (!atomicCallRendered.includes(expected)) throw new Error(`grouped call render missing ${expected}: ${atomicCallRendered}`);
 }
 
 const resultComponent = tool.renderResult(
@@ -253,7 +253,7 @@ const wrappedResultRendered = wrappedResultLines.join("\n");
 for (const expected of ["Rationale", "terminal-edge", "Verification", "Ignored", "Result"]) {
   if (!wrappedResultRendered.includes(expected)) throw new Error(`wrapped result render missing ${expected}: ${wrappedResultRendered}`);
 }
-for (const expected of ["Commit preview", "Reviewing selected diff", "Internal actions", "included.txt", "unrelated.txt"]) {
+for (const expected of ["Commit preview", "Reviewing selected diff", "Progress", "⠋ ●···", "Verification", "included.txt", "unrelated.txt"]) {
   if (!resultRendered.includes(expected)) throw new Error(`result render missing ${expected}: ${resultRendered}`);
 }
 
@@ -302,8 +302,114 @@ const atomicResultComponent = tool.renderResult(
   theme,
 );
 const atomicResultRendered = atomicResultComponent.render(160).join("\n");
-for (const expected of ["2 atomic commits", "Commits", "abc1234 feat(test): add alpha fixture", "def5678 fix(test): add beta fixture"]) {
-  if (!atomicResultRendered.includes(expected)) throw new Error(`atomic result render missing ${expected}: ${atomicResultRendered}`);
+for (const expected of ["Commit group", "2 split commits", "Checklist", "Commits", "✔ succeeded 1/2 abc1234 feat(test): add alpha fixture", "✔ succeeded 2/2 def5678 fix(test): add beta fixture", "1 file", "evidence"]) {
+  if (!atomicResultRendered.includes(expected)) throw new Error(`grouped result render missing ${expected}: ${atomicResultRendered}`);
+}
+
+const groupedRunningComponent = tool.renderResult(
+  {
+    content: [{ type: "text", text: "Commit 2/2: creating commit" }],
+    details: {
+      id: "commit-group-running-render-test",
+      status: "running",
+      phase: "Commit 2/2: creating commit",
+      startedAt: Date.now(),
+      steps: [{ label: "Commit 2/2: creating commit", status: "running", startedAt: Date.now() }],
+      toolCount: 5,
+      failedToolCount: 0,
+      dryRun: false,
+      push: false,
+      acceptRisk: false,
+      multiCommit: true,
+      selectedFiles: ["alpha.txt", "beta.txt"],
+      ignoredFiles: [],
+      verificationCount: 0,
+      verificationEvidence: ["observed: alpha reviewed", "observed: beta reviewed"],
+      commits: [
+        {
+          commitMessage: "feat(test): add alpha fixture",
+          selectedFiles: ["alpha.txt"],
+          verificationCount: 0,
+          verificationEvidence: ["observed: alpha reviewed"],
+          acceptRisk: false,
+          commitHash: "abc1234",
+          status: "succeeded",
+        },
+        {
+          commitMessage: "fix(test): add beta fixture",
+          selectedFiles: ["beta.txt"],
+          verificationCount: 0,
+          verificationEvidence: ["observed: beta reviewed"],
+          acceptRisk: false,
+          status: "running",
+          phase: "Creating commit",
+        },
+      ],
+      warnings: [],
+    },
+  },
+  { expanded: false, isPartial: true, spinnerFrame: 1 },
+  theme,
+);
+const groupedRunningRendered = groupedRunningComponent.render(160).join("\n");
+for (const expected of ["⠙ ·●··", "Commit group", "Progress", "Commit 2/2: Creating commit", "● running 2/2 fix(test): add beta fixture"]) {
+  if (!groupedRunningRendered.includes(expected)) throw new Error(`grouped running render missing ${expected}: ${groupedRunningRendered}`);
+}
+
+const groupedFailedComponent = tool.renderResult(
+  {
+    content: [{ type: "text", text: "Commit workflow blocked" }],
+    details: {
+      id: "commit-group-failed-render-test",
+      status: "failed",
+      phase: "Commit workflow blocked",
+      startedAt: Date.now(),
+      finishedAt: Date.now(),
+      steps: [{ label: "Commit 2/2: creating commit", status: "failed", startedAt: Date.now(), finishedAt: Date.now() }],
+      toolCount: 7,
+      failedToolCount: 1,
+      dryRun: false,
+      push: false,
+      acceptRisk: false,
+      multiCommit: true,
+      selectedFiles: ["alpha.txt", "beta.txt"],
+      ignoredFiles: [],
+      verificationCount: 0,
+      verificationEvidence: [],
+      errorText: "git commit failed",
+      commits: [
+        {
+          commitMessage: "feat(test): add alpha fixture",
+          selectedFiles: ["alpha.txt"],
+          verificationCount: 0,
+          verificationEvidence: [],
+          acceptRisk: false,
+          commitHash: "abc1234",
+          status: "succeeded",
+        },
+        {
+          commitMessage: "fix(test): add beta fixture",
+          selectedFiles: ["beta.txt"],
+          verificationCount: 0,
+          verificationEvidence: [],
+          acceptRisk: false,
+          status: "failed",
+          phase: "Creating commit",
+          errorText: "git commit failed",
+        },
+      ],
+      warnings: [],
+    },
+  },
+  { expanded: false, isPartial: false, spinnerFrame: 0 },
+  theme,
+);
+const groupedFailedRendered = groupedFailedComponent.render(160).join("\n");
+for (const expected of ["Blocked", "Already created", "abc1234 feat(test): add alpha fixture", "partially complete"]) {
+  if (!groupedFailedRendered.includes(expected)) throw new Error(`grouped failed render missing ${expected}: ${groupedFailedRendered}`);
+}
+for (const rendered of [callRendered, atomicCallRendered, resultRendered, wrappedResultRendered, atomicResultRendered, groupedRunningRendered, groupedFailedRendered]) {
+  if (/\batomic\b/i.test(rendered)) throw new Error(`rendered UI should not say atomic: ${rendered}`);
 }
 
 async function run(cwd, command, args) {
@@ -355,6 +461,7 @@ try {
   if (!result.content[0].text.includes("Commit created")) throw new Error(`commit result missing success text: ${JSON.stringify(result)}`);
   if (result.details.selectedFiles.join(",") !== "included.txt") throw new Error(`selected files not tracked: ${JSON.stringify(result.details)}`);
   if (!result.details.ignoredFiles.includes("unrelated.txt")) throw new Error(`unrelated file not preserved in details: ${JSON.stringify(result.details)}`);
+  if (result.details.commits[0].status !== "succeeded") throw new Error(`single commit did not finish with succeeded UI state: ${JSON.stringify(result.details)}`);
 
   const committed = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
   if (committed !== "included.txt") throw new Error(`unexpected committed files: ${committed}`);
@@ -482,14 +589,16 @@ try {
   if (!grouped.content[0].text.includes("Commits created: 2.")) throw new Error(`grouped commit result missing summary: ${JSON.stringify(grouped)}`);
   if (grouped.details.commits.length !== 2) throw new Error(`grouped commit details did not retain both commits: ${JSON.stringify(grouped.details)}`);
   if (!grouped.details.commits.every(commit => commit.commitHash)) throw new Error(`grouped commits did not record hashes: ${JSON.stringify(grouped.details)}`);
+  if (!grouped.details.commits.every(commit => commit.status === "succeeded")) throw new Error(`grouped commits did not finish with succeeded UI state: ${JSON.stringify(grouped.details)}`);
   const alphaCommitted = (await git(tmp, ["diff", "--name-only", "HEAD~2", "HEAD^"])).stdout.trim();
   if (alphaCommitted !== "alpha.txt") throw new Error(`first grouped commit touched unexpected files: ${alphaCommitted}`);
   const betaCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
   if (betaCommitted !== "beta.txt") throw new Error(`second grouped commit touched unexpected files: ${betaCommitted}`);
   const groupedRendered = tool.renderResult(grouped, { expanded: false, isPartial: false, spinnerFrame: 0 }, theme).render(160).join("\n");
-  for (const expected of ["2 atomic commits", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
+  for (const expected of ["Commit group", "2 split commits", "Checklist", "✔ succeeded 1/2", "✔ succeeded 2/2", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
     if (!groupedRendered.includes(expected)) throw new Error(`grouped result render missing ${expected}: ${groupedRendered}`);
   }
+  if (/\batomic\b/i.test(groupedRendered)) throw new Error(`grouped execution render should not say atomic: ${groupedRendered}`);
   await writeFile(join(tmp, "secret.txt"), "api_key = \"" + "a".repeat(12) + "\"\n");
   const blocked = await tool.execute(
     "commit-secret-test",

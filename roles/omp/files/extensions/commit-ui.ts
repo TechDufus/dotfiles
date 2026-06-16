@@ -1212,87 +1212,174 @@ function formatVerificationEvidence(evidence: VerificationEvidence): string {
 }
 
 function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame: number | undefined, width: number): string[] {
+	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
 	const lines: string[] = [];
 	const commits = getCommitRunCommits(details);
 	const running = details.status === "running";
-	const statusColor = details.status === "failed" ? "error" : details.status === "succeeded" ? "success" : "accent";
+	const statusColor = runStatusColor(details.status);
 	const icon = running ? runningGlyph(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
 	const title = details.dryRun ? "Commit preview" : commits.length > 1 ? "Commit group" : "Commit";
-	const maxFieldLines = expanded ? MAX_EXPANDED_WRAPPED_FIELD_LINES : MAX_WRAPPED_FIELD_LINES;
-	const badges = [
-		details.push ? "push" : undefined,
-		details.multiCommit || commits.length > 1 ? `${commits.length} split commit${commits.length === 1 ? "" : "s"}` : undefined,
-		details.acceptRisk ? "risk accepted" : undefined,
-		(details.verificationEvidence?.length ?? 0) > 0 ? "verification evidence" : undefined,
-	].filter(Boolean);
-	const suffix = badges.length > 0 ? ` ${theme.fg("dim", badges.map(badge => `[${badge}]`).join(" "))}` : "";
-	lines.push(`${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}${suffix}`);
-	appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Status", details.phase, MAX_WRAPPED_FIELD_LINES, statusColor);
-	appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, running ? "Progress" : "Checklist", running ? latestCommitAction(commits, details) : formatStepSummary(details), MAX_WRAPPED_FIELD_LINES);
+	const titleText = `${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}`;
 
-	if (commits.length > 1) {
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Commits")}: ${theme.fg("muted", `${commits.length}`)}`);
-		const visibleCommits = expanded ? commits : commits.slice(0, MAX_VISIBLE_STEPS);
-		for (const [index, commit] of visibleCommits.entries()) {
-			const state = commitUiStatus(commit);
-			const hash = commit.commitHash ? ` ${commit.commitHash}` : "";
-			const row = `${commitStatusIcon(state)} ${state} ${index + 1}/${commits.length}${hash} ${commitSubject(commit)} — ${formatFileCount(commit.selectedFiles.length)} — ${commitVerificationState(commit, details.status === "succeeded")}`;
-			appendWrappedText(lines, ` ${theme.fg("dim", theme.tree.branch)} `, ` ${theme.fg("dim", theme.tree.vertical)}  `, row, theme, commitStatusColor(state), width, maxFieldLines);
-			if (expanded) {
-				if (commit.rationale) appendWrappedField(lines, theme, width, theme.tree.vertical, theme.tree.vertical, "Rationale", commit.rationale, maxFieldLines);
-				if (commit.selectedFiles.length > 0) appendWrappedField(lines, theme, width, theme.tree.vertical, theme.tree.vertical, "Files", commit.selectedFiles.join(", "), maxFieldLines);
-				if ((commit.verificationEvidence?.length ?? 0) > 0) appendWrappedField(lines, theme, width, theme.tree.vertical, theme.tree.vertical, "Evidence", commit.verificationEvidence.join("; "), maxFieldLines);
-				if (commit.errorText) appendWrappedField(lines, theme, width, theme.tree.vertical, theme.tree.vertical, "Error", commit.errorText, maxFieldLines, "error");
-			}
-		}
-		if (visibleCommits.length < commits.length) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "…")}`);
-	} else {
-		const commit = commits[0];
-		if (commit.commitMessage) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Message", commit.commitMessage.split("\n", 1)[0], maxFieldLines);
-		if (commit.rationale) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Rationale", commit.rationale, maxFieldLines);
-		if (commit.selectedFiles.length > 0) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Files", commit.selectedFiles.join(", "), maxFieldLines);
-		appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Verification", formatSingleCommitVerification(commit, details.status === "succeeded"), maxFieldLines);
-	}
-	if (details.ignoredFiles.length > 0) appendWrappedField(lines, theme, width, theme.tree.branch, theme.tree.vertical, "Ignored", details.ignoredFiles.join(", "), maxFieldLines);
+	lines.push(cardBorder(theme, renderWidth, "┌", "┐", titleText));
+	appendCardField(lines, theme, renderWidth, "Status", details.phase, MAX_WRAPPED_FIELD_LINES, statusColor);
 
 	if (expanded) {
-		const visibleSteps = details.steps;
-		for (const [index, step] of visibleSteps.entries()) {
-			const isLast = index === visibleSteps.length - 1 && !details.finalText && !details.errorText;
-			const prefix = isLast ? theme.tree.last : theme.tree.branch;
-			const continuation = isLast ? " " : theme.tree.vertical;
+		renderExpandedCommitDashboard(lines, details, commits, theme, spinnerFrame, renderWidth);
+	} else {
+		renderCollapsedCommitDashboard(lines, details, commits, theme, renderWidth);
+	}
+
+	const duration = details.finishedAt ? `Completed in ${formatDuration(details.finishedAt - details.startedAt)}` : running ? `Running ${formatDuration(Date.now() - details.startedAt)}` : undefined;
+	lines.push(cardBorder(theme, renderWidth, "└", "┘", duration ? theme.fg("dim", duration) : undefined));
+	return lines;
+}
+
+function renderCollapsedCommitDashboard(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number): void {
+	const running = details.status === "running";
+	const completed = details.status === "succeeded";
+	const maxFieldLines = MAX_WRAPPED_FIELD_LINES;
+
+	if (commits.length > 1) {
+		appendCardField(lines, theme, width, "Commits", `${commits.length}`, maxFieldLines);
+		appendCardField(lines, theme, width, "Meta", formatCommitRunBadges(details, commits), maxFieldLines, "dim");
+		appendCardSeparator(lines, theme, width);
+		const visibleCommits = commits.slice(0, MAX_VISIBLE_STEPS);
+		for (const [index, commit] of visibleCommits.entries()) {
+			const state = commitUiStatus(commit);
+			appendCardWrappedText(lines, theme, width, "", "  ", formatCommitDashboardRow(commit, index, commits.length, completed), commitStatusColor(state), maxFieldLines);
+		}
+		if (visibleCommits.length < commits.length) appendCardLine(lines, theme, width, theme.fg("dim", `… ${commits.length - visibleCommits.length} more`));
+	} else {
+		const commit = commits[0]!;
+		appendCardField(lines, theme, width, "Subject", commitSubject(commit), maxFieldLines);
+		if (commit.rationale) appendCardField(lines, theme, width, "Rationale", commit.rationale, maxFieldLines);
+		if (commit.selectedFiles.length > 0) appendCardField(lines, theme, width, "Files", commit.selectedFiles.join(", "), maxFieldLines);
+		appendCardField(lines, theme, width, "Meta", formatCommitRunBadges(details, commits), maxFieldLines, "dim");
+	}
+
+	appendCardField(lines, theme, width, running ? "Progress" : "Checklist", running ? latestCommitAction(commits, details) : formatStepSummary(details), maxFieldLines, running ? "accent" : "muted");
+	if (details.ignoredFiles.length > 0) appendCardField(lines, theme, width, "Ignored", details.ignoredFiles.join(", "), maxFieldLines);
+	if (details.warnings.length > 0) appendCardField(lines, theme, width, "Warnings", details.warnings.join("; "), maxFieldLines);
+	appendCommitOutcome(lines, details, commits, theme, width, false);
+}
+
+function renderExpandedCommitDashboard(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, spinnerFrame: number | undefined, width: number): void {
+	const maxFieldLines = MAX_EXPANDED_WRAPPED_FIELD_LINES;
+	const completed = details.status === "succeeded";
+
+	appendCardField(lines, theme, width, details.status === "running" ? "Progress" : "Checklist", details.status === "running" ? latestCommitAction(commits, details) : formatStepSummary(details), maxFieldLines, details.status === "running" ? "accent" : "muted");
+	appendCardField(lines, theme, width, "Meta", formatCommitRunBadges(details, commits), maxFieldLines, "dim");
+	if (details.context) appendCardField(lines, theme, width, "Context", details.context, maxFieldLines);
+	if (details.rationale) appendCardField(lines, theme, width, "Rationale", details.rationale, maxFieldLines);
+
+	appendCardSeparator(lines, theme, width, commits.length > 1 ? "Commits" : "Commit");
+	for (const [index, commit] of commits.entries()) {
+		const state = commitUiStatus(commit);
+		appendCardWrappedText(lines, theme, width, "", "  ", formatCommitDashboardRow(commit, index, commits.length, completed), commitStatusColor(state), maxFieldLines);
+		if (commit.commitMessage) appendCardField(lines, theme, width, "Message", commit.commitMessage.split("\n", 1)[0], maxFieldLines);
+		if (commit.rationale) appendCardField(lines, theme, width, "Rationale", commit.rationale, maxFieldLines);
+		if (commit.selectedFiles.length > 0) appendCardField(lines, theme, width, "Files", commit.selectedFiles.join(", "), maxFieldLines);
+		appendCardField(lines, theme, width, "Verification", formatSingleCommitVerification(commit, completed), maxFieldLines);
+		if ((commit.verificationEvidence?.length ?? 0) > 0) appendCardField(lines, theme, width, "Evidence", commit.verificationEvidence.join("; "), maxFieldLines);
+		if (commit.errorText) appendCardField(lines, theme, width, "Error", commit.errorText, maxFieldLines, "error");
+	}
+
+	if (details.ignoredFiles.length > 0) appendCardField(lines, theme, width, "Ignored", details.ignoredFiles.join(", "), maxFieldLines);
+	if (details.warnings.length > 0) appendCardField(lines, theme, width, "Warnings", details.warnings.join("; "), maxFieldLines);
+
+	if (details.steps.length > 0) {
+		appendCardSeparator(lines, theme, width, "Steps");
+		for (const step of details.steps) {
 			const stepIcon = step.status === "failed" ? "✖" : step.status === "done" ? "✔" : runningGlyph(spinnerFrame);
 			const color = step.status === "failed" ? "error" : step.status === "done" ? "success" : "accent";
-			appendWrappedText(lines, ` ${theme.fg("dim", prefix)} ${theme.fg(color, stepIcon)} `, ` ${theme.fg("dim", continuation)}  `, step.label, theme, "muted", width, MAX_WRAPPED_FIELD_LINES);
+			appendCardWrappedText(lines, theme, width, `${theme.fg(color, stepIcon)} `, "  ", step.label, "muted", MAX_WRAPPED_FIELD_LINES);
 		}
 	}
 
+	appendCommitOutcome(lines, details, commits, theme, width, true);
+}
+
+function appendCommitOutcome(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number, expanded: boolean): void {
+	const maxFieldLines = expanded ? MAX_EXPANDED_WRAPPED_FIELD_LINES : MAX_WRAPPED_FIELD_LINES;
 	if (details.errorText) {
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("error", "Blocked")}`);
+		appendCardSeparator(lines, theme, width, "Blocked");
 		for (const line of details.errorText.split("\n").slice(0, MAX_FINAL_LINES)) {
-			appendWrappedText(lines, ` ${theme.fg("dim", theme.tree.vertical)}  `, ` ${theme.fg("dim", theme.tree.vertical)}  `, line, theme, "error", width, maxFieldLines);
+			appendCardWrappedText(lines, theme, width, "", "  ", line, "error", maxFieldLines);
 		}
 		const created = commits.filter(commit => commit.commitHash);
 		if (created.length > 0) {
-			appendWrappedField(lines, theme, width, theme.tree.vertical, theme.tree.vertical, "Already created", `${created.map(commit => `${commit.commitHash} ${commitSubject(commit)}`).join("; ")}. Review git history before retrying; this commit group is only partially complete.`, maxFieldLines, "error");
+			appendCardField(lines, theme, width, "Already created", `${created.map(commit => `${commit.commitHash} ${commitSubject(commit)}`).join("; ")}. Review git history before retrying; this commit group is only partially complete.`, maxFieldLines, "error");
 		}
 	}
 
 	if (details.finalText) {
 		const finalLines = details.finalText.split("\n").filter(Boolean);
 		const shown = expanded ? finalLines : finalLines.slice(0, MAX_FINAL_LINES);
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Result")}`);
+		appendCardSeparator(lines, theme, width, "Result");
 		for (const line of shown) {
-			appendWrappedText(lines, ` ${theme.fg("dim", theme.tree.vertical)}  `, ` ${theme.fg("dim", theme.tree.vertical)}  `, line, theme, "muted", width, maxFieldLines);
+			appendCardWrappedText(lines, theme, width, "", "  ", line, "muted", maxFieldLines);
 		}
-		if (shown.length < finalLines.length) lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("dim", "…")}`);
+		if (shown.length < finalLines.length) appendCardLine(lines, theme, width, theme.fg("dim", "…"));
 	}
-
-	if (details.finishedAt) {
-		lines.push(` ${theme.fg("dim", theme.tree.last)} ${theme.fg("dim", `Completed in ${formatDuration(details.finishedAt - details.startedAt)}`)}`);
-	}
-	return lines;
 }
+
+function formatCommitDashboardRow(commit: CommitResultDetails, index: number, total: number, completed: boolean): string {
+	const state = commitUiStatus(commit);
+	const hash = commit.commitHash ?? "pending";
+	const label = total > 1 ? `${index + 1}. ` : "";
+	return `${commitStatusIcon(state)} ${label}${hash} ${commitSubject(commit)} · ${formatFileCount(commit.selectedFiles.length)} · verify ${compactCommitVerificationState(commit, completed)}`;
+}
+
+function formatCommitRunBadges(details: CommitRunDetails, commits: CommitResultDetails[]): string {
+	const files = new Set(commits.flatMap(commit => commit.selectedFiles)).size;
+	const hashes = commits.filter(commit => commit.commitHash).length;
+	const badges = [
+		details.dryRun ? "dry run" : undefined,
+		commits.length > 1 ? `${commits.length} commits` : undefined,
+		hashes === 1 && commits.length === 1 ? `hash ${commits[0]?.commitHash}` : hashes > 0 ? `hashes ${hashes}/${commits.length}` : undefined,
+		formatFileCount(files),
+		`verify ${compactRunVerificationState(details, commits)}`,
+		`push ${compactPushState(details)}`,
+		details.acceptRisk ? "risk accepted" : undefined,
+	].filter((badge): badge is string => Boolean(badge));
+	return badges.map(badge => `[${badge}]`).join(" ");
+}
+
+function compactRunVerificationState(details: CommitRunDetails, commits: CommitResultDetails[]): string {
+	if (
+		details.status === "failed" &&
+		(commits.some(commit => commit.status === "failed" || commit.errorText) ||
+			details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "verify") ||
+			details.errorText?.toLowerCase().includes("verification"))
+	) return "failed";
+	if (details.status === "succeeded" && commits.some(commit => commit.verificationCount > 0)) return "ok";
+	if (commits.some(commit => (commit.verificationEvidence?.length ?? 0) > 0)) return "evidence";
+	if (commits.some(commit => commit.verificationCount > 0)) return "planned";
+	if (commits.every(commit => commit.acceptRisk)) return "risk";
+	return "none";
+}
+
+function compactCommitVerificationState(commit: CommitResultDetails, completed: boolean): string {
+	if (commit.status === "failed" || commit.errorText) return "failed";
+	if (commit.verificationCount > 0) return completed || Boolean(commit.commitHash) ? "ok" : "planned";
+	if ((commit.verificationEvidence?.length ?? 0) > 0) return "evidence";
+	return commit.acceptRisk ? "risk" : "none";
+}
+
+function compactPushState(details: CommitRunDetails): string {
+	if (!details.push) return "not pushed";
+	if (details.status === "succeeded") return "pushed";
+	if (details.status === "failed" && details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "push")) return "failed";
+	return "pending";
+}
+
+function runStatusColor(status: RunStatus): string {
+	if (status === "failed") return "error";
+	if (status === "succeeded") return "success";
+	return "accent";
+}
+
 
 function latestCommitAction(commits: CommitResultDetails[], details: CommitRunDetails): string {
 	for (const [index, commit] of commits.entries()) {
@@ -1313,7 +1400,10 @@ function formatStepSummary(details: CommitRunDetails): string {
 	for (const step of details.steps) {
 		summary.set(stepSummaryLabel(step.label), step.status);
 	}
-	return [...summary.entries()].map(([label, status]) => `${stepSummaryIcon(status)} ${label}`).join(" · ");
+	const entries = [...summary.entries()];
+	const visible = entries.slice(0, MAX_VISIBLE_STEPS).map(([label, status]) => `${stepSummaryIcon(status)} ${label}`);
+	if (visible.length < entries.length) visible.push("…");
+	return visible.join(" · ");
 }
 
 function stepSummaryLabel(label: string): string {
@@ -1363,11 +1453,6 @@ function formatFileCount(count: number): string {
 	return `${count} file${count === 1 ? "" : "s"}`;
 }
 
-function commitVerificationState(commit: CommitResultDetails, completed: boolean): string {
-	if (commit.verificationCount > 0) return completed ? "verified" : "verification planned";
-	if ((commit.verificationEvidence?.length ?? 0) > 0) return "evidence";
-	return commit.acceptRisk ? "risk accepted" : "no verification";
-}
 
 function formatSingleCommitVerification(commit: CommitResultDetails, completed: boolean): string {
 	const summary = formatVerificationSummary(commit, completed);
@@ -1430,6 +1515,46 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
 function trimOutput(text: string): string {
 	const trimmed = text.trim();
 	return trimmed.length > MAX_OUTPUT_CHARS ? `${trimmed.slice(0, MAX_OUTPUT_CHARS)}…` : trimmed;
+}
+
+function cardContentWidth(width: number): number {
+	return Math.max(1, Math.max(MIN_RENDER_WIDTH, width) - 4);
+}
+
+function cardBorder(theme: any, width: number, left: string, right: string, label?: string): string {
+	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
+	const innerWidth = Math.max(1, renderWidth - 2);
+	if (!label) return theme.fg("dim", `${left}${"─".repeat(innerWidth)}${right}`);
+
+	const clipped = truncateVisible(label, Math.max(1, innerWidth - 3));
+	const head = `${left}─ ${clipped} `;
+	const fill = "─".repeat(Math.max(0, renderWidth - visibleLength(head) - 1));
+	return `${theme.fg("dim", `${left}─ `)}${clipped}${theme.fg("dim", ` ${fill}${right}`)}`;
+}
+
+function appendCardLine(lines: string[], theme: any, width: number, content: string): void {
+	const innerWidth = cardContentWidth(width);
+	const clipped = truncateVisible(content, innerWidth);
+	const padding = " ".repeat(Math.max(0, innerWidth - visibleLength(clipped)));
+	lines.push(`${theme.fg("dim", "│")} ${clipped}${padding} ${theme.fg("dim", "│")}`);
+}
+
+function appendCardSeparator(lines: string[], theme: any, width: number, label?: string): void {
+	lines.push(cardBorder(theme, width, "├", "┤", label ? theme.fg("dim", label) : undefined));
+}
+
+function appendCardField(lines: string[], theme: any, width: number, label: string, value: string, maxLines: number, color = "muted"): void {
+	appendCardWrappedText(lines, theme, width, `${theme.fg("dim", label)}: `, "  ", value, color, maxLines);
+}
+
+function appendCardWrappedText(lines: string[], theme: any, width: number, prefix: string, continuationPrefix: string, value: string, color: string, maxLines: number): void {
+	const innerWidth = cardContentWidth(width);
+	const firstWidth = Math.max(1, innerWidth - visibleLength(prefix));
+	const nextWidth = Math.max(1, innerWidth - visibleLength(continuationPrefix));
+	const chunks = wrapPlainText(value, firstWidth, nextWidth, maxLines);
+	for (const [index, chunk] of chunks.entries()) {
+		appendCardLine(lines, theme, width, `${index === 0 ? prefix : continuationPrefix}${theme.fg(color, chunk)}`);
+	}
 }
 
 function appendWrappedField(lines: string[], theme: any, width: number, branch: string, continuation: string, label: string, value: string, maxLines: number, color = "muted"): void {

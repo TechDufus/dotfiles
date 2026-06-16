@@ -149,6 +149,25 @@ const theme = {
   bold: value => `**${value}**`,
   tree: { branch: "├─", last: "└─", vertical: "│" },
 };
+
+function assertRenderedIncludes(rendered, label, expected) {
+  if (!rendered.includes(expected)) throw new Error(`${label} render missing ${expected}: ${rendered}`);
+}
+
+function assertRenderedMatches(rendered, label, pattern, fact) {
+  if (!pattern.test(rendered)) throw new Error(`${label} render missing ${fact}: ${rendered}`);
+}
+
+function assertBoxedCard(rendered, label) {
+  assertRenderedMatches(rendered, label, /[┌┏╭╔╒╓]/, "top border");
+  assertRenderedMatches(rendered, label, /[└┗╰╚╘╙]/, "bottom border");
+}
+
+function assertNoLineExceeds(lines, width, label) {
+  if (lines.some(line => line.length > width)) {
+    throw new Error(`${label} render exceeded terminal width: ${lines.join("\n")}`);
+  }
+}
 const callComponent = tool.renderCall(
   {
     dryRun: true,
@@ -161,7 +180,7 @@ const callComponent = tool.renderCall(
 );
 const callRendered = callComponent.render(120).join("\n");
 for (const expected of ["Commit preview", "1 file", "chore(test): update included fixture", "test context"]) {
-  if (!callRendered.includes(expected)) throw new Error(`call render missing ${expected}: ${callRendered}`);
+  assertRenderedIncludes(callRendered, "call", expected);
 }
 
 const atomicCallComponent = tool.renderCall(
@@ -186,9 +205,10 @@ const atomicCallComponent = tool.renderCall(
   theme,
 );
 const atomicCallRendered = atomicCallComponent.render(160).join("\n");
-for (const expected of ["Commit group", "2 split commits", "2 files", "2 commits: feat(test): add alpha fixture; fix(test): add beta fixture"]) {
-  if (!atomicCallRendered.includes(expected)) throw new Error(`grouped call render missing ${expected}: ${atomicCallRendered}`);
+for (const expected of ["Commit group", "2 files", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
+  assertRenderedIncludes(atomicCallRendered, "grouped call", expected);
 }
+assertRenderedMatches(atomicCallRendered, "grouped call", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
 
 const resultComponent = tool.renderResult(
   {
@@ -246,16 +266,19 @@ const wrappedResultComponent = tool.renderResult(
   theme,
 );
 const wrappedResultLines = wrappedResultComponent.render(54);
-if (wrappedResultLines.some(line => line.length > 54)) {
-  throw new Error(`wrapped result exceeded terminal width: ${wrappedResultLines.join("\n")}`);
-}
+assertNoLineExceeds(wrappedResultLines, 54, "wrapped result");
 const wrappedResultRendered = wrappedResultLines.join("\n");
-for (const expected of ["Rationale", "terminal-edge", "Verification", "Ignored", "Result"]) {
-  if (!wrappedResultRendered.includes(expected)) throw new Error(`wrapped result render missing ${expected}: ${wrappedResultRendered}`);
+assertBoxedCard(wrappedResultRendered, "wrapped result");
+for (const expected of ["Rationale", "terminal-edge", "Ignored", "Result", "Commit preview complete"]) {
+  assertRenderedIncludes(wrappedResultRendered, "wrapped result", expected);
 }
-for (const expected of ["Commit preview", "Reviewing selected diff", "Progress", "⠋ ●···", "Verification", "included.txt", "unrelated.txt"]) {
-  if (!resultRendered.includes(expected)) throw new Error(`result render missing ${expected}: ${resultRendered}`);
+assertRenderedMatches(wrappedResultRendered, "wrapped result", /verify|verification|evidence/i, "verification state");
+assertBoxedCard(resultRendered, "single result");
+for (const expected of ["Commit preview", "Status", "Reviewing selected diff", "Progress", "included.txt", "unrelated.txt"]) {
+  assertRenderedIncludes(resultRendered, "single result", expected);
 }
+assertRenderedMatches(resultRendered, "single result", /verify|verification|evidence/i, "verification state");
+assertRenderedMatches(resultRendered, "single result", /files?\s+1|1 file/i, "selected file count");
 
 const atomicResultComponent = tool.renderResult(
   {
@@ -302,8 +325,14 @@ const atomicResultComponent = tool.renderResult(
   theme,
 );
 const atomicResultRendered = atomicResultComponent.render(160).join("\n");
-for (const expected of ["Commit group", "2 split commits", "Checklist", "Commits", "✔ succeeded 1/2 abc1234 feat(test): add alpha fixture", "✔ succeeded 2/2 def5678 fix(test): add beta fixture", "1 file", "evidence"]) {
-  if (!atomicResultRendered.includes(expected)) throw new Error(`grouped result render missing ${expected}: ${atomicResultRendered}`);
+assertBoxedCard(atomicResultRendered, "grouped result");
+for (const expected of ["Commit group", "Commits", "abc1234", "def5678", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
+  assertRenderedIncludes(atomicResultRendered, "grouped result", expected);
+}
+assertRenderedMatches(atomicResultRendered, "grouped result", /✔|✓/, "success status icon");
+assertRenderedMatches(atomicResultRendered, "grouped result", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
+for (const pattern of [/files?\s+1|1 file/i, /verify|verification|evidence/i]) {
+  assertRenderedMatches(atomicResultRendered, "grouped result", pattern, pattern.source);
 }
 
 const groupedRunningComponent = tool.renderResult(
@@ -352,8 +381,13 @@ const groupedRunningComponent = tool.renderResult(
   theme,
 );
 const groupedRunningRendered = groupedRunningComponent.render(160).join("\n");
-for (const expected of ["⠙ ·●··", "Commit group", "Progress", "Commit 2/2: Creating commit", "● running 2/2 fix(test): add beta fixture"]) {
-  if (!groupedRunningRendered.includes(expected)) throw new Error(`grouped running render missing ${expected}: ${groupedRunningRendered}`);
+assertBoxedCard(groupedRunningRendered, "grouped running");
+for (const expected of ["Commit group", "Commits", "Progress", "Commit 2/2", "Creating commit", "●", "abc1234", "pending", "fix(test): add beta fixture"]) {
+  assertRenderedIncludes(groupedRunningRendered, "grouped running", expected);
+}
+assertRenderedMatches(groupedRunningRendered, "grouped running", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
+for (const pattern of [/files?\s+1|1 file/i, /verify|verification|evidence/i]) {
+  assertRenderedMatches(groupedRunningRendered, "grouped running", pattern, pattern.source);
 }
 
 const groupedFailedComponent = tool.renderResult(
@@ -405,8 +439,14 @@ const groupedFailedComponent = tool.renderResult(
   theme,
 );
 const groupedFailedRendered = groupedFailedComponent.render(160).join("\n");
-for (const expected of ["Blocked", "Already created", "abc1234 feat(test): add alpha fixture", "partially complete"]) {
-  if (!groupedFailedRendered.includes(expected)) throw new Error(`grouped failed render missing ${expected}: ${groupedFailedRendered}`);
+assertBoxedCard(groupedFailedRendered, "grouped failed");
+for (const expected of ["Commit group", "Commits", "Blocked", "Already created", "abc1234", "feat(test): add alpha fixture", "git commit failed", "partially complete"]) {
+  assertRenderedIncludes(groupedFailedRendered, "grouped failed", expected);
+}
+assertRenderedMatches(groupedFailedRendered, "grouped failed", /✖|✗/, "failed status icon");
+assertRenderedMatches(groupedFailedRendered, "grouped failed", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
+for (const pattern of [/files?\s+1|1 file/i, /verify|verification|evidence/i]) {
+  assertRenderedMatches(groupedFailedRendered, "grouped failed", pattern, pattern.source);
 }
 for (const rendered of [callRendered, atomicCallRendered, resultRendered, wrappedResultRendered, atomicResultRendered, groupedRunningRendered, groupedFailedRendered]) {
   if (/\batomic\b/i.test(rendered)) throw new Error(`rendered UI should not say atomic: ${rendered}`);
@@ -697,8 +737,15 @@ try {
   const betaCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
   if (betaCommitted !== "beta.txt") throw new Error(`second grouped commit touched unexpected files: ${betaCommitted}`);
   const groupedRendered = tool.renderResult(grouped, { expanded: false, isPartial: false, spinnerFrame: 0 }, theme).render(160).join("\n");
-  for (const expected of ["Commit group", "2 split commits", "Checklist", "✔ succeeded 1/2", "✔ succeeded 2/2", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
-    if (!groupedRendered.includes(expected)) throw new Error(`grouped result render missing ${expected}: ${groupedRendered}`);
+  assertBoxedCard(groupedRendered, "grouped execution");
+  for (const expected of ["Commit group", "Checklist", "Commits", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
+    assertRenderedIncludes(groupedRendered, "grouped execution", expected);
+  }
+  for (const commit of grouped.details.commits) {
+    assertRenderedIncludes(groupedRendered, "grouped execution", commit.commitHash);
+  }
+  for (const pattern of [/2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, /files?\s+1|1 file/i, /verify|verification|evidence/i, /✔|✓/]) {
+    assertRenderedMatches(groupedRendered, "grouped execution", pattern, pattern.source);
   }
   if (/\batomic\b/i.test(groupedRendered)) throw new Error(`grouped execution render should not say atomic: ${groupedRendered}`);
   await writeFile(join(tmp, "secret.txt"), "api_key = \"" + "a".repeat(12) + "\"\n");

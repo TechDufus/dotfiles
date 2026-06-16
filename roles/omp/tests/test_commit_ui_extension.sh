@@ -158,6 +158,35 @@ function assertRenderedMatches(rendered, label, pattern, fact) {
   if (!pattern.test(rendered)) throw new Error(`${label} render missing ${fact}: ${rendered}`);
 }
 
+function assertRenderedExcludes(rendered, label, unexpected) {
+  if (rendered.includes(unexpected)) throw new Error(`${label} render should not include ${unexpected}: ${rendered}`);
+}
+
+function assertWorkflowRail(rendered, label, expectedSteps) {
+  assertRenderedMatches(rendered, label, /Progress|Checklist|[✓✔●•✖✗]/i, "workflow rail");
+  for (const step of expectedSteps) {
+    assertRenderedMatches(rendered, label, new RegExp(`\\b${step}\\b`, "i"), `${step} workflow step`);
+  }
+}
+
+function assertStatsChips(rendered, label, expectedStats) {
+  assertRenderedMatches(rendered, label, /Stats/i, "stats section");
+  for (const [fact, pattern] of expectedStats) {
+    assertRenderedMatches(rendered, label, pattern, `${fact} stats chip`);
+  }
+}
+
+function assertCommitOverview(rendered, label, expected) {
+  assertRenderedMatches(rendered, label, /Commits?/i, "commit overview");
+  for (const value of expected) {
+    assertRenderedIncludes(rendered, label, value);
+  }
+}
+
+function step(label, status = "done") {
+  return { label, status, startedAt: Date.now(), finishedAt: status === "running" ? undefined : Date.now() };
+}
+
 function assertBoxedCard(rendered, label) {
   assertRenderedMatches(rendered, label, /[┌┏╭╔╒╓]/, "top border");
   assertRenderedMatches(rendered, label, /[└┗╰╚╘╙]/, "bottom border");
@@ -205,9 +234,10 @@ const atomicCallComponent = tool.renderCall(
   theme,
 );
 const atomicCallRendered = atomicCallComponent.render(160).join("\n");
-for (const expected of ["Commit group", "2 files", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
+for (const expected of ["2 files", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
   assertRenderedIncludes(atomicCallRendered, "grouped call", expected);
 }
+assertRenderedMatches(atomicCallRendered, "grouped call", /Commit group|Commits?/i, "grouped commit label");
 assertRenderedMatches(atomicCallRendered, "grouped call", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
 
 const resultComponent = tool.renderResult(
@@ -218,7 +248,11 @@ const resultComponent = tool.renderResult(
       status: "running",
       phase: "Reviewing selected diff",
       startedAt: Date.now(),
-      steps: [{ label: "Reviewing selected diff", status: "running", startedAt: Date.now() }],
+      steps: [
+        step("Validating commit plan"),
+        step("Inspecting working tree"),
+        step("Reviewing selected diff", "running"),
+      ],
       toolCount: 2,
       failedToolCount: 0,
       dryRun: true,
@@ -246,7 +280,13 @@ const wrappedResultComponent = tool.renderResult(
       phase: "Commit preview complete after reviewing selected diff and verification evidence",
       startedAt: Date.now(),
       finishedAt: Date.now(),
-      steps: [{ label: "Running verification: commit UI wraps rationale verification and file lists", status: "done", startedAt: Date.now(), finishedAt: Date.now() }],
+      steps: [
+        step("Validating commit plan"),
+        step("Inspecting working tree"),
+        step("Reviewing selected diff"),
+        step("Checking for secrets"),
+        step("Running verification: commit UI wraps rationale verification and file lists"),
+      ],
       toolCount: 3,
       failedToolCount: 0,
       dryRun: true,
@@ -259,7 +299,7 @@ const wrappedResultComponent = tool.renderResult(
       verificationCount: 0,
       verificationEvidence: ["observed: wrap regression reviewed without terminal-edge truncation"],
       finalText: "Commit preview complete.\nFiles: roles/omp/files/extensions/commit-ui.ts, roles/omp/tests/test_commit_ui_extension.sh",
-      warnings: [],
+      warnings: ["wrap warning fixture"],
     },
   },
   { expanded: false, isPartial: false, spinnerFrame: 0 },
@@ -269,16 +309,28 @@ const wrappedResultLines = wrappedResultComponent.render(54);
 assertNoLineExceeds(wrappedResultLines, 54, "wrapped result");
 const wrappedResultRendered = wrappedResultLines.join("\n");
 assertBoxedCard(wrappedResultRendered, "wrapped result");
-for (const expected of ["Rationale", "terminal-edge", "Ignored", "Result", "Commit preview complete"]) {
+assertWorkflowRail(wrappedResultRendered, "wrapped result", ["plan", "tree", "diff", "secrets", "verify"]);
+assertStatsChips(wrappedResultRendered, "wrapped result", [
+  ["file count", /files?\D+2|2 files?/i],
+  ["ignored count", /ignored\D+1|1 ignored/i],
+  ["verification", /verify|verification|evidence/i],
+  ["push", /push/i],
+  ["warning count", /warnings?\D+1|1 warnings?/i],
+]);
+for (const expected of ["Ignored", "Outcome", "Commit preview complete", "unrelated-fixture.txt", "wrap warning fixture"]) {
   assertRenderedIncludes(wrappedResultRendered, "wrapped result", expected);
 }
-assertRenderedMatches(wrappedResultRendered, "wrapped result", /verify|verification|evidence/i, "verification state");
+assertRenderedExcludes(wrappedResultRendered, "wrapped result", "Result");
 assertBoxedCard(resultRendered, "single result");
-for (const expected of ["Commit preview", "Status", "Reviewing selected diff", "Progress", "included.txt", "unrelated.txt"]) {
+assertWorkflowRail(resultRendered, "single result", ["plan", "tree", "diff"]);
+assertStatsChips(resultRendered, "single result", [
+  ["file count", /files?\D+1|1 file/i],
+  ["ignored count", /ignored\D+1|1 ignored/i],
+  ["verification", /verify|verification|evidence/i],
+]);
+for (const expected of ["Commit preview", "Reviewing selected diff", "included.txt", "unrelated.txt"]) {
   assertRenderedIncludes(resultRendered, "single result", expected);
 }
-assertRenderedMatches(resultRendered, "single result", /verify|verification|evidence/i, "verification state");
-assertRenderedMatches(resultRendered, "single result", /files?\s+1|1 file/i, "selected file count");
 
 const atomicResultComponent = tool.renderResult(
   {
@@ -289,11 +341,21 @@ const atomicResultComponent = tool.renderResult(
       phase: "2 commits created",
       startedAt: Date.now(),
       finishedAt: Date.now(),
-      steps: [],
+      steps: [
+        step("Validating commit plan"),
+        step("Inspecting working tree"),
+        step("Reviewing selected diff"),
+        step("Checking for secrets"),
+        step("Running verification"),
+        step("Staging selected changes"),
+        step("Creating commit"),
+        step("Checking commit result"),
+        step("Pushing branch"),
+      ],
       toolCount: 6,
       failedToolCount: 0,
       dryRun: false,
-      push: false,
+      push: true,
       acceptRisk: false,
       multiCommit: true,
       selectedFiles: ["alpha.txt", "beta.txt"],
@@ -326,14 +388,23 @@ const atomicResultComponent = tool.renderResult(
 );
 const atomicResultRendered = atomicResultComponent.render(160).join("\n");
 assertBoxedCard(atomicResultRendered, "grouped result");
-for (const expected of ["Commit group", "Commits", "abc1234", "def5678", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
-  assertRenderedIncludes(atomicResultRendered, "grouped result", expected);
-}
+assertWorkflowRail(atomicResultRendered, "grouped result", ["plan", "tree", "diff", "secrets", "verify", "stage", "commit", "hash", "push"]);
+assertStatsChips(atomicResultRendered, "grouped result", [
+  ["commit count", /commits?\D+2|2 commits?/i],
+  ["file count", /files?\D+2|2 files?/i],
+  ["verification", /verify|verification|evidence/i],
+  ["hash", /hash|abc1234|def5678/i],
+  ["push", /push/i],
+]);
+assertCommitOverview(atomicResultRendered, "grouped result", ["abc1234", "def5678", "feat(test): add alpha fixture", "fix(test): add beta fixture"]);
+assertRenderedIncludes(atomicResultRendered, "grouped result", "2 commits created");
+assertRenderedIncludes(atomicResultRendered, "grouped result", "Outcome");
+assertRenderedExcludes(atomicResultRendered, "grouped result", "Result");
 assertRenderedMatches(atomicResultRendered, "grouped result", /✔|✓/, "success status icon");
 assertRenderedMatches(atomicResultRendered, "grouped result", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
-for (const pattern of [/files?\s+1|1 file/i, /verify|verification|evidence/i]) {
-  assertRenderedMatches(atomicResultRendered, "grouped result", pattern, pattern.source);
-}
+assertRenderedMatches(atomicResultRendered, "grouped result", /(^|\n).*1(?:\/2|\b).*feat\(test\): add alpha fixture/i, "first commit row");
+assertRenderedMatches(atomicResultRendered, "grouped result", /(^|\n).*2(?:\/2|\b).*fix\(test\): add beta fixture/i, "second commit row");
+assertRenderedMatches(atomicResultRendered, "grouped result", /files?\s+1|1 file/i, "per-commit file count");
 
 const groupedRunningComponent = tool.renderResult(
   {
@@ -343,7 +414,15 @@ const groupedRunningComponent = tool.renderResult(
       status: "running",
       phase: "Commit 2/2: creating commit",
       startedAt: Date.now(),
-      steps: [{ label: "Commit 2/2: creating commit", status: "running", startedAt: Date.now() }],
+      steps: [
+        step("Validating commit plan"),
+        step("Inspecting working tree"),
+        step("Reviewing selected diff"),
+        step("Checking for secrets"),
+        step("Running verification"),
+        step("Staging selected changes"),
+        step("Commit 2/2: Creating commit", "running"),
+      ],
       toolCount: 5,
       failedToolCount: 0,
       dryRun: false,
@@ -382,13 +461,18 @@ const groupedRunningComponent = tool.renderResult(
 );
 const groupedRunningRendered = groupedRunningComponent.render(160).join("\n");
 assertBoxedCard(groupedRunningRendered, "grouped running");
-for (const expected of ["Commit group", "Commits", "Progress", "Commit 2/2", "Creating commit", "●", "abc1234", "pending", "fix(test): add beta fixture"]) {
-  assertRenderedIncludes(groupedRunningRendered, "grouped running", expected);
-}
+assertWorkflowRail(groupedRunningRendered, "grouped running", ["plan", "tree", "diff", "secrets", "verify", "stage", "commit"]);
+assertStatsChips(groupedRunningRendered, "grouped running", [
+  ["commit count", /commits?\D+2|2 commits?/i],
+  ["file count", /files?\D+2|2 files?/i],
+  ["verification", /verify|verification|evidence/i],
+  ["push", /push/i],
+]);
+assertCommitOverview(groupedRunningRendered, "grouped running", ["Commit 2/2", "Creating commit", "abc1234", "fix(test): add beta fixture"]);
+assertRenderedMatches(groupedRunningRendered, "grouped running", /[●•⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]|running/i, "active spinner");
+assertRenderedMatches(groupedRunningRendered, "grouped running", /pending|running/i, "pending commit state");
 assertRenderedMatches(groupedRunningRendered, "grouped running", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
-for (const pattern of [/files?\s+1|1 file/i, /verify|verification|evidence/i]) {
-  assertRenderedMatches(groupedRunningRendered, "grouped running", pattern, pattern.source);
-}
+assertRenderedMatches(groupedRunningRendered, "grouped running", /files?\s+1|1 file/i, "per-commit file count");
 
 const groupedFailedComponent = tool.renderResult(
   {
@@ -399,7 +483,15 @@ const groupedFailedComponent = tool.renderResult(
       phase: "Commit workflow blocked",
       startedAt: Date.now(),
       finishedAt: Date.now(),
-      steps: [{ label: "Commit 2/2: creating commit", status: "failed", startedAt: Date.now(), finishedAt: Date.now() }],
+      steps: [
+        step("Validating commit plan"),
+        step("Inspecting working tree"),
+        step("Reviewing selected diff"),
+        step("Checking for secrets"),
+        step("Running verification"),
+        step("Staging selected changes"),
+        step("Commit 2/2: Creating commit", "failed"),
+      ],
       toolCount: 7,
       failedToolCount: 1,
       dryRun: false,
@@ -440,14 +532,17 @@ const groupedFailedComponent = tool.renderResult(
 );
 const groupedFailedRendered = groupedFailedComponent.render(160).join("\n");
 assertBoxedCard(groupedFailedRendered, "grouped failed");
-for (const expected of ["Commit group", "Commits", "Blocked", "Already created", "abc1234", "feat(test): add alpha fixture", "git commit failed", "partially complete"]) {
-  assertRenderedIncludes(groupedFailedRendered, "grouped failed", expected);
-}
+assertWorkflowRail(groupedFailedRendered, "grouped failed", ["plan", "tree", "diff", "secrets", "verify", "stage", "commit"]);
+assertStatsChips(groupedFailedRendered, "grouped failed", [
+  ["commit count", /commits?\D+2|2 commits?/i],
+  ["file count", /files?\D+2|2 files?/i],
+  ["verification", /verify|verification|evidence/i],
+  ["push", /push/i],
+]);
+assertCommitOverview(groupedFailedRendered, "grouped failed", ["Blocked", "Already created", "abc1234", "feat(test): add alpha fixture", "git commit failed", "partially complete"]);
 assertRenderedMatches(groupedFailedRendered, "grouped failed", /✖|✗/, "failed status icon");
 assertRenderedMatches(groupedFailedRendered, "grouped failed", /2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, "split commit count");
-for (const pattern of [/files?\s+1|1 file/i, /verify|verification|evidence/i]) {
-  assertRenderedMatches(groupedFailedRendered, "grouped failed", pattern, pattern.source);
-}
+assertRenderedMatches(groupedFailedRendered, "grouped failed", /files?\s+1|1 file/i, "per-commit file count");
 for (const rendered of [callRendered, atomicCallRendered, resultRendered, wrappedResultRendered, atomicResultRendered, groupedRunningRendered, groupedFailedRendered]) {
   if (/\batomic\b/i.test(rendered)) throw new Error(`rendered UI should not say atomic: ${rendered}`);
 }
@@ -738,15 +833,26 @@ try {
   if (betaCommitted !== "beta.txt") throw new Error(`second grouped commit touched unexpected files: ${betaCommitted}`);
   const groupedRendered = tool.renderResult(grouped, { expanded: false, isPartial: false, spinnerFrame: 0 }, theme).render(160).join("\n");
   assertBoxedCard(groupedRendered, "grouped execution");
-  for (const expected of ["Commit group", "Checklist", "Commits", "feat(test): add alpha fixture", "fix(test): add beta fixture"]) {
-    assertRenderedIncludes(groupedRendered, "grouped execution", expected);
-  }
+  assertWorkflowRail(groupedRendered, "grouped execution", ["plan", "tree", "diff", "secrets", "verify", "stage", "commit", "hash"]);
+  assertStatsChips(groupedRendered, "grouped execution", [
+    ["commit count", /commits?\D+2|2 commits?/i],
+    ["file count", /files?\D+2|2 files?/i],
+    ["verification", /verify|verification|evidence/i],
+    ["hash", /hash|[a-f0-9]{7}/i],
+    ["push", /push/i],
+  ]);
+  assertCommitOverview(groupedRendered, "grouped execution", ["feat(test): add alpha fixture", "fix(test): add beta fixture"]);
+  assertRenderedIncludes(groupedRendered, "grouped execution", "Commits created:");
+  assertRenderedIncludes(groupedRendered, "grouped execution", "Outcome");
   for (const commit of grouped.details.commits) {
     assertRenderedIncludes(groupedRendered, "grouped execution", commit.commitHash);
   }
-  for (const pattern of [/2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, /files?\s+1|1 file/i, /verify|verification|evidence/i, /✔|✓/]) {
+  for (const pattern of [/2\s+split commits?|split\s+2|commits?\s+2|2\s+commits?/i, /files?\s+1|1 file/i, /✔|✓/]) {
     assertRenderedMatches(groupedRendered, "grouped execution", pattern, pattern.source);
   }
+  assertRenderedMatches(groupedRendered, "grouped execution", /(^|\n).*1(?:\/2|\b).*feat\(test\): add alpha fixture/i, "first grouped execution row");
+  assertRenderedMatches(groupedRendered, "grouped execution", /(^|\n).*2(?:\/2|\b).*fix\(test\): add beta fixture/i, "second grouped execution row");
+  assertRenderedExcludes(groupedRendered, "grouped execution", "Result");
   if (/\batomic\b/i.test(groupedRendered)) throw new Error(`grouped execution render should not say atomic: ${groupedRendered}`);
   await writeFile(join(tmp, "secret.txt"), "api_key = \"" + "a".repeat(12) + "\"\n");
   const blocked = await tool.execute(

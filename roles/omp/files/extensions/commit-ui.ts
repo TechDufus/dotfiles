@@ -14,7 +14,6 @@ const MAX_COMMIT_SUBJECT_CHARS = 50;
 const MAX_COMMIT_BODY_LINE_CHARS = 72;
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const PULSE_FRAMES = ["●···", "·●··", "··●·", "···●"];
 const CONVENTIONAL_COMMIT_RE = /^[a-z]+(?:\([a-z0-9-]+\))?!?: .+/;
 const MUTATING_GIT_VERBS = new Set(["add", "am", "apply", "checkout", "cherry-pick", "clean", "commit", "merge", "mv", "pull", "push", "rebase", "reset", "restore", "revert", "rm", "stash", "switch"]);
 
@@ -1211,23 +1210,38 @@ function formatVerificationEvidence(evidence: VerificationEvidence): string {
 	return `${source}${evidence.description}${command}`;
 }
 
+type WorkflowSummaryKey = "plan" | "tree" | "diff" | "secrets" | "verify" | "stage" | "commit" | "hash" | "push";
+type DashboardStepStatus = StepStatus | "pending";
+
+const WORKFLOW_RAIL: readonly { key: WorkflowSummaryKey; label: string }[] = [
+	{ key: "plan", label: "plan" },
+	{ key: "tree", label: "tree" },
+	{ key: "diff", label: "diff" },
+	{ key: "secrets", label: "secrets" },
+	{ key: "verify", label: "verify" },
+	{ key: "stage", label: "stage" },
+	{ key: "commit", label: "commit" },
+	{ key: "hash", label: "hash" },
+	{ key: "push", label: "push" },
+];
+
 function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame: number | undefined, width: number): string[] {
 	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
 	const lines: string[] = [];
 	const commits = getCommitRunCommits(details);
 	const running = details.status === "running";
 	const statusColor = runStatusColor(details.status);
-	const icon = running ? runningGlyph(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
+	const icon = running ? compactSpinnerGlyph(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
 	const title = details.dryRun ? "Commit preview" : commits.length > 1 ? "Commit group" : "Commit";
 	const titleText = `${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}`;
 
 	lines.push(cardBorder(theme, renderWidth, "┌", "┐", titleText));
-	appendCardField(lines, theme, renderWidth, "Status", details.phase, MAX_WRAPPED_FIELD_LINES, statusColor);
+	appendCommitStatusHero(lines, details, commits, theme, spinnerFrame, renderWidth);
 
 	if (expanded) {
 		renderExpandedCommitDashboard(lines, details, commits, theme, spinnerFrame, renderWidth);
 	} else {
-		renderCollapsedCommitDashboard(lines, details, commits, theme, renderWidth);
+		renderCollapsedCommitDashboard(lines, details, commits, theme, spinnerFrame, renderWidth);
 	}
 
 	const duration = details.finishedAt ? `Completed in ${formatDuration(details.finishedAt - details.startedAt)}` : running ? `Running ${formatDuration(Date.now() - details.startedAt)}` : undefined;
@@ -1235,32 +1249,16 @@ function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: an
 	return lines;
 }
 
-function renderCollapsedCommitDashboard(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number): void {
-	const running = details.status === "running";
-	const completed = details.status === "succeeded";
+function renderCollapsedCommitDashboard(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, spinnerFrame: number | undefined, width: number): void {
 	const maxFieldLines = MAX_WRAPPED_FIELD_LINES;
 
-	if (commits.length > 1) {
-		appendCardField(lines, theme, width, "Commits", `${commits.length}`, maxFieldLines);
-		appendCardField(lines, theme, width, "Meta", formatCommitRunBadges(details, commits), maxFieldLines, "dim");
-		appendCardSeparator(lines, theme, width);
-		const visibleCommits = commits.slice(0, MAX_VISIBLE_STEPS);
-		for (const [index, commit] of visibleCommits.entries()) {
-			const state = commitUiStatus(commit);
-			appendCardWrappedText(lines, theme, width, "", "  ", formatCommitDashboardRow(commit, index, commits.length, completed), commitStatusColor(state), maxFieldLines);
-		}
-		if (visibleCommits.length < commits.length) appendCardLine(lines, theme, width, theme.fg("dim", `… ${commits.length - visibleCommits.length} more`));
-	} else {
-		const commit = commits[0]!;
-		appendCardField(lines, theme, width, "Subject", commitSubject(commit), maxFieldLines);
-		if (commit.rationale) appendCardField(lines, theme, width, "Rationale", commit.rationale, maxFieldLines);
-		if (commit.selectedFiles.length > 0) appendCardField(lines, theme, width, "Files", commit.selectedFiles.join(", "), maxFieldLines);
-		appendCardField(lines, theme, width, "Meta", formatCommitRunBadges(details, commits), maxFieldLines, "dim");
-	}
+	appendSummaryChips(lines, details, commits, theme, width, maxFieldLines);
+	appendWorkflowRail(lines, details, theme, spinnerFrame, width, maxFieldLines);
+	appendCommitRows(lines, commits, details.status === "succeeded", theme, spinnerFrame, width, maxFieldLines, MAX_VISIBLE_STEPS);
+	if (details.status === "running" && commits.length === 1 && commits[0]!.selectedFiles.length > 0) appendCompactListField(lines, theme, width, "Files", commits[0]!.selectedFiles, maxFieldLines);
 
-	appendCardField(lines, theme, width, running ? "Progress" : "Checklist", running ? latestCommitAction(commits, details) : formatStepSummary(details), maxFieldLines, running ? "accent" : "muted");
-	if (details.ignoredFiles.length > 0) appendCardField(lines, theme, width, "Ignored", details.ignoredFiles.join(", "), maxFieldLines);
-	if (details.warnings.length > 0) appendCardField(lines, theme, width, "Warnings", details.warnings.join("; "), maxFieldLines);
+	if (details.ignoredFiles.length > 0) appendCompactListField(lines, theme, width, "Ignored", details.ignoredFiles, maxFieldLines);
+	if (details.warnings.length > 0) appendCompactListField(lines, theme, width, "Warnings", details.warnings, maxFieldLines, "warning");
 	appendCommitOutcome(lines, details, commits, theme, width, false);
 }
 
@@ -1268,31 +1266,29 @@ function renderExpandedCommitDashboard(lines: string[], details: CommitRunDetail
 	const maxFieldLines = MAX_EXPANDED_WRAPPED_FIELD_LINES;
 	const completed = details.status === "succeeded";
 
-	appendCardField(lines, theme, width, details.status === "running" ? "Progress" : "Checklist", details.status === "running" ? latestCommitAction(commits, details) : formatStepSummary(details), maxFieldLines, details.status === "running" ? "accent" : "muted");
-	appendCardField(lines, theme, width, "Meta", formatCommitRunBadges(details, commits), maxFieldLines, "dim");
+	appendSummaryChips(lines, details, commits, theme, width, maxFieldLines);
+	appendWorkflowRail(lines, details, theme, spinnerFrame, width, maxFieldLines);
 	if (details.context) appendCardField(lines, theme, width, "Context", details.context, maxFieldLines);
 	if (details.rationale) appendCardField(lines, theme, width, "Rationale", details.rationale, maxFieldLines);
 
-	appendCardSeparator(lines, theme, width, commits.length > 1 ? "Commits" : "Commit");
+	appendCommitRows(lines, commits, completed, theme, spinnerFrame, width, maxFieldLines, commits.length);
 	for (const [index, commit] of commits.entries()) {
-		const state = commitUiStatus(commit);
-		appendCardWrappedText(lines, theme, width, "", "  ", formatCommitDashboardRow(commit, index, commits.length, completed), commitStatusColor(state), maxFieldLines);
-		if (commit.commitMessage) appendCardField(lines, theme, width, "Message", commit.commitMessage.split("\n", 1)[0], maxFieldLines);
+		appendCardSeparator(lines, theme, width, commits.length > 1 ? `Commit ${index + 1}` : "Commit details");
+		if (commit.commitMessage) appendCardField(lines, theme, width, "Subject", commitSubject(commit), maxFieldLines);
 		if (commit.rationale) appendCardField(lines, theme, width, "Rationale", commit.rationale, maxFieldLines);
-		if (commit.selectedFiles.length > 0) appendCardField(lines, theme, width, "Files", commit.selectedFiles.join(", "), maxFieldLines);
+		if (commit.selectedFiles.length > 0) appendCompactListField(lines, theme, width, "Files", commit.selectedFiles, maxFieldLines);
 		appendCardField(lines, theme, width, "Verification", formatSingleCommitVerification(commit, completed), maxFieldLines);
-		if ((commit.verificationEvidence?.length ?? 0) > 0) appendCardField(lines, theme, width, "Evidence", commit.verificationEvidence.join("; "), maxFieldLines);
 		if (commit.errorText) appendCardField(lines, theme, width, "Error", commit.errorText, maxFieldLines, "error");
 	}
 
-	if (details.ignoredFiles.length > 0) appendCardField(lines, theme, width, "Ignored", details.ignoredFiles.join(", "), maxFieldLines);
-	if (details.warnings.length > 0) appendCardField(lines, theme, width, "Warnings", details.warnings.join("; "), maxFieldLines);
+	if (details.ignoredFiles.length > 0) appendCompactListField(lines, theme, width, "Ignored", details.ignoredFiles, maxFieldLines);
+	if (details.warnings.length > 0) appendCompactListField(lines, theme, width, "Warnings", details.warnings, maxFieldLines, "warning");
 
 	if (details.steps.length > 0) {
 		appendCardSeparator(lines, theme, width, "Steps");
 		for (const step of details.steps) {
-			const stepIcon = step.status === "failed" ? "✖" : step.status === "done" ? "✔" : runningGlyph(spinnerFrame);
-			const color = step.status === "failed" ? "error" : step.status === "done" ? "success" : "accent";
+			const stepIcon = workflowStatusIcon(step.status, spinnerFrame);
+			const color = dashboardStepStatusColor(step.status);
 			appendCardWrappedText(lines, theme, width, `${theme.fg(color, stepIcon)} `, "  ", step.label, "muted", MAX_WRAPPED_FIELD_LINES);
 		}
 	}
@@ -1300,50 +1296,196 @@ function renderExpandedCommitDashboard(lines: string[], details: CommitRunDetail
 	appendCommitOutcome(lines, details, commits, theme, width, true);
 }
 
+function appendCommitStatusHero(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, spinnerFrame: number | undefined, width: number): void {
+	const color = runStatusColor(details.status);
+	const mode = details.dryRun ? "Preview" : commits.length > 1 ? "Commit group" : "Commit";
+	const status = details.status === "running" ? `${compactSpinnerGlyph(spinnerFrame)} Running` : details.status === "failed" ? "✖ Blocked" : "✔ Complete";
+	appendCardWrappedText(lines, theme, width, `${theme.fg(color, status)} ${theme.fg("dim", "·")} `, "  ", `${mode}: ${details.phase}`, color, MAX_WRAPPED_FIELD_LINES);
+}
+
+function appendSummaryChips(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number, _maxLines: number): void {
+	const prefix = `${theme.fg("dim", "Stats")}: `;
+	const continuationPrefix = "  ";
+	const innerWidth = cardContentWidth(width);
+	const firstWidth = Math.max(1, innerWidth - visibleLength(prefix));
+	const nextWidth = Math.max(1, innerWidth - visibleLength(continuationPrefix));
+	for (const [index, row] of wrapSummaryChips(formatSummaryChips(details, commits), firstWidth, nextWidth).entries()) {
+		appendCardLine(lines, theme, width, `${index === 0 ? prefix : continuationPrefix}${theme.fg("muted", row)}`);
+	}
+}
+
+function formatSummaryChips(details: CommitRunDetails, commits: CommitResultDetails[]): string[] {
+	const hashes = commits.filter(commit => commit.commitHash).length;
+	return [
+		details.dryRun ? "dry run" : undefined,
+		`commits ${commits.length}`,
+		`files ${totalSelectedFiles(commits)}`,
+		`verification ${compactRunVerificationState(details, commits)}`,
+		`push ${compactPushState(details)}`,
+		`ignored ${details.ignoredFiles.length}`,
+		`warnings ${details.warnings.length}`,
+		`hash ${hashes}/${commits.length}`,
+	].filter((chip): chip is string => Boolean(chip)).map(chip => `[${chip}]`);
+}
+
+function wrapSummaryChips(chips: string[], firstWidth: number, nextWidth: number): string[] {
+	const rows: string[] = [];
+	let row = "";
+	for (const chip of chips) {
+		const width = Math.max(1, rows.length === 0 ? firstWidth : nextWidth);
+		const nextRow = row ? `${row} ${chip}` : chip;
+		if (row && visibleLength(nextRow) > width) {
+			rows.push(row);
+			row = chip;
+		} else {
+			row = nextRow;
+		}
+	}
+	if (row) rows.push(row);
+	return rows;
+}
+
+function appendWorkflowRail(lines: string[], details: CommitRunDetails, theme: any, spinnerFrame: number | undefined, width: number, maxLines: number): void {
+	const states = workflowStepStates(details);
+	const label = details.status === "running" ? "Progress" : "Checklist";
+	const items = WORKFLOW_RAIL.map(step => `${workflowStatusIcon(states.get(step.key) ?? "pending", spinnerFrame)} ${step.label}`);
+	appendItemizedCardLine(lines, theme, width, `${theme.fg("dim", label)}: `, "  ", items, "muted", maxLines);
+}
+
+function appendItemizedCardLine(lines: string[], theme: any, width: number, firstPrefix: string, continuationPrefix: string, items: string[], color: string, maxLines: number): void {
+	let prefix = firstPrefix;
+	let row = "";
+	let emitted = 0;
+	for (const item of items) {
+		const available = Math.max(1, cardContentWidth(width) - visibleLength(prefix));
+		const candidate = row ? `${row}  ${item}` : item;
+		if (visibleLength(candidate) > available && row) {
+			appendCardLine(lines, theme, width, `${prefix}${theme.fg(color, row)}`);
+			emitted += 1;
+			prefix = continuationPrefix;
+			row = item;
+			if (emitted >= maxLines) return;
+		} else {
+			row = candidate;
+		}
+	}
+	if (row && emitted < maxLines) appendCardLine(lines, theme, width, `${prefix}${theme.fg(color, row)}`);
+}
+
+function workflowStepStates(details: CommitRunDetails): Map<WorkflowSummaryKey, DashboardStepStatus> {
+	const states = new Map<WorkflowSummaryKey, DashboardStepStatus>();
+	for (const step of WORKFLOW_RAIL) states.set(step.key, "pending");
+	for (const step of details.steps) {
+		const key = workflowSummaryKey(stepSummaryLabel(step.label));
+		if (!key) continue;
+		const previous = states.get(key);
+		if (previous === "failed" || step.status === "failed") {
+			states.set(key, "failed");
+		} else if (previous !== "running" || step.status === "running") {
+			states.set(key, step.status);
+		}
+	}
+	return states;
+}
+
+function workflowSummaryKey(label: string): WorkflowSummaryKey | undefined {
+	return WORKFLOW_RAIL.find(step => step.key === label)?.key;
+}
+
+function workflowStatusIcon(status: DashboardStepStatus, spinnerFrame: number | undefined): string {
+	if (status === "failed") return "✖";
+	if (status === "done") return "✓";
+	if (status === "running") return compactSpinnerGlyph(spinnerFrame);
+	return "○";
+}
+
+function dashboardStepStatusColor(status: DashboardStepStatus): string {
+	if (status === "failed") return "error";
+	if (status === "done") return "success";
+	if (status === "running") return "accent";
+	return "muted";
+}
+
+function appendCommitRows(lines: string[], commits: CommitResultDetails[], completed: boolean, theme: any, spinnerFrame: number | undefined, width: number, maxLines: number, limit: number): void {
+	appendCardSeparator(lines, theme, width, commits.length > 1 ? "Commits" : "Commit");
+	const visibleCommits = commits.slice(0, limit);
+	for (const [index, commit] of visibleCommits.entries()) {
+		const state = commitUiStatus(commit);
+		appendCardWrappedText(lines, theme, width, "", "  ", formatCommitDashboardRow(commit, index, commits.length, completed, spinnerFrame), commitStatusColor(state), maxLines);
+	}
+	if (visibleCommits.length < commits.length) appendCardLine(lines, theme, width, theme.fg("dim", `… ${commits.length - visibleCommits.length} more commits`));
+}
+
+function appendCompactListField(lines: string[], theme: any, width: number, label: string, values: string[], maxLines: number, color = "muted"): void {
+	appendCardField(lines, theme, width, label, values.join(", "), maxLines, color);
+}
+
 function appendCommitOutcome(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number, expanded: boolean): void {
 	const maxFieldLines = expanded ? MAX_EXPANDED_WRAPPED_FIELD_LINES : MAX_WRAPPED_FIELD_LINES;
+	const outcomeLines = buildCommitOutcomeLines(details, commits, expanded);
+	if (outcomeLines.length > 0) {
+		appendCardSeparator(lines, theme, width, details.status === "failed" ? "Blocked" : "Outcome");
+		for (const line of outcomeLines) {
+			appendCardWrappedText(lines, theme, width, "", "  ", line, details.status === "failed" ? "error" : "muted", maxFieldLines);
+		}
+	}
+
+	const created = commits.filter(commit => commit.commitHash);
+	if (details.status === "failed" && created.length > 0) {
+		appendCardField(lines, theme, width, "Already created", `${formatCreatedCommits(created)}. Review git history before retrying; this commit group is only partially complete.`, maxFieldLines, "error");
+	}
+
+}
+
+function buildCommitOutcomeLines(details: CommitRunDetails, commits: CommitResultDetails[], expanded: boolean): string[] {
+	const lines: string[] = [];
+	if (details.status === "running") {
+		lines.push(`Running: ${latestCommitAction(commits, details)}`);
+		return lines;
+	}
 	if (details.errorText) {
-		appendCardSeparator(lines, theme, width, "Blocked");
-		for (const line of details.errorText.split("\n").slice(0, MAX_FINAL_LINES)) {
-			appendCardWrappedText(lines, theme, width, "", "  ", line, "error", maxFieldLines);
-		}
+		lines.push(...details.errorText.split("\n").map(line => line.trim()).filter(Boolean).slice(0, expanded ? MAX_FINAL_LINES : 2));
+		return lines;
+	}
+	if (details.status === "failed") {
+		lines.push(details.phase || "Commit workflow blocked.");
+		return lines;
+	}
+	if (details.dryRun) {
+		lines.push(`Preview ready: ${commits.length} ${commits.length === 1 ? "commit" : "commits"} covering ${formatFileCount(totalSelectedFiles(commits))}; no commit created.`);
+		lines.push(`Messages: ${formatCommitSubjects(commits)}.`);
+	} else {
 		const created = commits.filter(commit => commit.commitHash);
-		if (created.length > 0) {
-			appendCardField(lines, theme, width, "Already created", `${created.map(commit => `${commit.commitHash} ${commitSubject(commit)}`).join("; ")}. Review git history before retrying; this commit group is only partially complete.`, maxFieldLines, "error");
+		if (created.length > 0 && commits.length > 1) {
+			lines.push(`Commits created: ${created.length}. ${formatCreatedCommits(created)}.`);
+		} else {
+			lines.push(created.length > 0 ? `Commit created: ${formatCreatedCommits(created)}.` : "No commit hash recorded.");
 		}
 	}
-
-	if (details.finalText) {
-		const finalLines = details.finalText.split("\n").filter(Boolean);
-		const shown = expanded ? finalLines : finalLines.slice(0, MAX_FINAL_LINES);
-		appendCardSeparator(lines, theme, width, "Result");
-		for (const line of shown) {
-			appendCardWrappedText(lines, theme, width, "", "  ", line, "muted", maxFieldLines);
-		}
-		if (shown.length < finalLines.length) appendCardLine(lines, theme, width, theme.fg("dim", "…"));
-	}
+	lines.push(`Push: ${compactPushState(details)}.`);
+	if (details.ignoredFiles.length > 0) lines.push(`Ignored left untouched: ${formatFileCount(details.ignoredFiles.length)}.`);
+	if (details.warnings.length > 0) lines.push(`Warnings: ${details.warnings.length}.`);
+	return lines;
 }
 
-function formatCommitDashboardRow(commit: CommitResultDetails, index: number, total: number, completed: boolean): string {
+function formatCreatedCommits(commits: CommitResultDetails[]): string {
+	return commits.map(commit => `${commit.commitHash ?? "pending"} ${commitSubject(commit)}`).join("; ");
+}
+
+function formatCommitSubjects(commits: CommitResultDetails[]): string {
+	return commits.map(commit => commitSubject(commit)).join("; ");
+}
+
+function formatCommitDashboardRow(commit: CommitResultDetails, index: number, total: number, completed: boolean, spinnerFrame: number | undefined): string {
 	const state = commitUiStatus(commit);
-	const hash = commit.commitHash ?? "pending";
-	const label = total > 1 ? `${index + 1}. ` : "";
-	return `${commitStatusIcon(state)} ${label}${hash} ${commitSubject(commit)} · ${formatFileCount(commit.selectedFiles.length)} · verify ${compactCommitVerificationState(commit, completed)}`;
+	const icon = state === "running" ? compactSpinnerGlyph(spinnerFrame) : commitStatusIcon(state);
+	const commitIndex = total > 1 ? `#${index + 1}` : "#1";
+	const hash = commit.commitHash ?? (state === "running" ? "running" : "pending");
+	return `${icon} ${commitIndex} │ ${hash} │ ${commitSubject(commit)} │ ${formatFileCount(commit.selectedFiles.length)} │ verification ${compactCommitVerificationState(commit, completed)}`;
 }
 
-function formatCommitRunBadges(details: CommitRunDetails, commits: CommitResultDetails[]): string {
-	const files = new Set(commits.flatMap(commit => commit.selectedFiles)).size;
-	const hashes = commits.filter(commit => commit.commitHash).length;
-	const badges = [
-		details.dryRun ? "dry run" : undefined,
-		commits.length > 1 ? `${commits.length} commits` : undefined,
-		hashes === 1 && commits.length === 1 ? `hash ${commits[0]?.commitHash}` : hashes > 0 ? `hashes ${hashes}/${commits.length}` : undefined,
-		formatFileCount(files),
-		`verify ${compactRunVerificationState(details, commits)}`,
-		`push ${compactPushState(details)}`,
-		details.acceptRisk ? "risk accepted" : undefined,
-	].filter((badge): badge is string => Boolean(badge));
-	return badges.map(badge => `[${badge}]`).join(" ");
+function totalSelectedFiles(commits: CommitResultDetails[]): number {
+	return new Set(commits.flatMap(commit => commit.selectedFiles)).size;
 }
 
 function compactRunVerificationState(details: CommitRunDetails, commits: CommitResultDetails[]): string {
@@ -1391,20 +1533,6 @@ function latestCommitAction(commits: CommitResultDetails[], details: CommitRunDe
 	return details.phase;
 }
 
-function formatStepSummary(details: CommitRunDetails): string {
-	if (details.steps.length === 0) {
-		const count = `${details.toolCount} internal action${details.toolCount === 1 ? "" : "s"}`;
-		return details.failedToolCount > 0 ? `${count} (${details.failedToolCount} failed)` : count;
-	}
-	const summary = new Map<string, StepStatus>();
-	for (const step of details.steps) {
-		summary.set(stepSummaryLabel(step.label), step.status);
-	}
-	const entries = [...summary.entries()];
-	const visible = entries.slice(0, MAX_VISIBLE_STEPS).map(([label, status]) => `${stepSummaryIcon(status)} ${label}`);
-	if (visible.length < entries.length) visible.push("…");
-	return visible.join(" · ");
-}
 
 function stepSummaryLabel(label: string): string {
 	const normalized = label.toLowerCase();
@@ -1418,12 +1546,6 @@ function stepSummaryLabel(label: string): string {
 	if (normalized.includes("checking commit result")) return "hash";
 	if (normalized.includes("pushing branch")) return "push";
 	return label.replace(/^Commit \d+\/\d+: /, "");
-}
-
-function stepSummaryIcon(status: StepStatus): string {
-	if (status === "failed") return "✖";
-	if (status === "done") return "✓";
-	return "•";
 }
 
 function commitUiStatus(commit: CommitResultDetails): CommitUiStatus {
@@ -1459,14 +1581,15 @@ function formatSingleCommitVerification(commit: CommitResultDetails, completed: 
 	return (commit.verificationEvidence?.length ?? 0) > 0 ? `${summary}; ${commit.verificationEvidence.join("; ")}` : summary;
 }
 
+function compactSpinnerGlyph(frame: number | undefined): string {
+	const index = frameIndex(frame);
+	return SPINNER_FRAMES[index % SPINNER_FRAMES.length];
+}
+
 function frameIndex(frame: number | undefined): number {
 	return frame ?? Math.floor(Date.now() / 120);
 }
 
-function runningGlyph(frame: number | undefined): string {
-	const index = frameIndex(frame);
-	return `${SPINNER_FRAMES[index % SPINNER_FRAMES.length]} ${PULSE_FRAMES[index % PULSE_FRAMES.length]}`;
-}
 
 function upsertStep(details: CommitRunDetails, label: string, status: StepStatus): void {
 	const last = details.steps[details.steps.length - 1];

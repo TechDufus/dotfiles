@@ -68,7 +68,7 @@ try {
   if (!sentMessage) throw new Error("commit command did not send a hidden tool prompt");
   if (sentMessage[1].display !== false) throw new Error("commit command prompt should be hidden");
   if (sentMessage[2].deliverAs !== "nextTurn") throw new Error("commit command should deliver hidden prompt as next turn");
-  for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL"]) {
+  for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL", "50 characters", "72 characters"]) {
     if (!sentMessage[1].content.includes(expected)) throw new Error(`commit prompt missing ${expected}`);
   }
   if (sentMessage[1].details.multiCommit !== false) throw new Error(`plain commit command should not request multiple commits: ${JSON.stringify(sentMessage[1].details)}`);
@@ -424,6 +424,14 @@ async function run(cwd, command, args) {
 }
 const git = (cwd, args) => run(cwd, "git", args);
 
+function assertCommitMessageLimits(message, label) {
+  const lines = message.split("\n");
+  if ((lines[0] ?? "").length > 50) throw new Error(`${label} subject is too long: ${JSON.stringify(lines[0])}`);
+  for (const [index, line] of lines.slice(2).entries()) {
+    if (line.length > 72) throw new Error(`${label} body line ${index + 3} is too long: ${JSON.stringify(line)}`);
+  }
+}
+
 const tmp = await mkdtemp(join(tmpdir(), "omp-commit-ui-test-"));
 const remote = await mkdtemp(join(tmpdir(), "omp-commit-ui-remote-"));
 try {
@@ -494,13 +502,43 @@ try {
   const paragraphLog = (await git(tmp, ["log", "-1", "--pretty=%B"])).stdout.trimEnd();
   if (paragraphLog !== paragraphMessage) throw new Error(`paragraph commit message was not preserved: ${JSON.stringify(paragraphLog)}`);
 
+  await writeFile(join(tmp, "long-body.txt"), "long body commit\n");
+  const longBodyMessage = [
+    "fix(test): commit repaired body line",
+    "",
+    "This generated body line is intentionally much longer than seventy-two characters so deterministic wrapping can keep the helper happy.",
+  ].join("\n");
+  const longBodyCommit = await tool.execute(
+    "commit-long-body-test",
+    {
+      files: ["long-body.txt"],
+      commitMessage: longBodyMessage,
+      rationale: "Exercise commit message repair in a real git commit.",
+      verificationEvidence: [{ description: "long body fixture reviewed in test", source: "observed" }],
+      dryRun: false,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (longBodyCommit.isError) throw new Error(`long body commit failed: ${JSON.stringify(longBodyCommit)}`);
+  assertCommitMessageLimits(longBodyCommit.details.commitMessage, "committed repaired message");
+  if (!longBodyCommit.content[0].text.includes(longBodyCommit.details.commitMessage)) throw new Error(`commit result did not show repaired message: ${JSON.stringify(longBodyCommit)}`);
+  const longBodyLog = (await git(tmp, ["log", "-1", "--pretty=%B"])).stdout.trimEnd();
+  if (longBodyLog !== longBodyCommit.details.commitMessage) throw new Error(`git commit did not use repaired message: ${JSON.stringify({ log: longBodyLog, details: longBodyCommit.details.commitMessage })}`);
+
   await writeFile(join(tmp, "validation.txt"), "validation fixture\n");
-  const overlongSubject = await tool.execute(
-    "commit-overlong-subject-test",
+  const repairedPreview = await tool.execute(
+    "commit-repaired-preview-test",
     {
       files: ["validation.txt"],
-      commitMessage: `chore(test): ${"x".repeat(73)}`,
-      rationale: "Exercise subject length validation.",
+      commitMessage: [
+        "feat(test): repair generated subject words that exceed helper limits cleanly",
+        "",
+        "This generated dry run body line is intentionally much longer than seventy-two characters so deterministic wrapping can keep the helper happy.",
+      ].join("\n"),
+      rationale: "Exercise subject and body repair before validation.",
       verificationEvidence: [{ description: "validation fixture reviewed in test", source: "observed" }],
       dryRun: true,
     },
@@ -508,7 +546,14 @@ try {
     () => {},
     { cwd: tmp },
   );
-  if (!overlongSubject.isError) throw new Error(`overlong subject was accepted: ${JSON.stringify(overlongSubject)}`);
+  if (repairedPreview.isError) throw new Error(`repaired preview failed: ${JSON.stringify(repairedPreview)}`);
+  assertCommitMessageLimits(repairedPreview.details.commitMessage, "dry-run repaired message");
+  const repairedPreviewLines = repairedPreview.details.commitMessage.split("\n");
+  if (!repairedPreviewLines[0].startsWith("feat(test): ")) throw new Error(`repaired subject lost conventional prefix: ${JSON.stringify(repairedPreview.details.commitMessage)}`);
+  if (!repairedPreviewLines.slice(2).join(" ").includes("exceed helper limits cleanly")) throw new Error(`subject overflow was not moved into the body: ${JSON.stringify(repairedPreview.details.commitMessage)}`);
+  if (repairedPreview.details.commitMessage !== repairedPreview.details.commits[0].commitMessage) throw new Error(`repaired details diverged: ${JSON.stringify(repairedPreview.details)}`);
+  if (!repairedPreview.content[0].text.includes(repairedPreview.details.commitMessage)) throw new Error(`dry-run result did not show repaired message: ${JSON.stringify(repairedPreview)}`);
+  if (!repairedPreview.details.warnings.some(warning => warning.includes("commit message repaired"))) throw new Error(`repair warning missing: ${JSON.stringify(repairedPreview.details.warnings)}`);
   const bodyWithoutBlank = await tool.execute(
     "commit-body-without-blank-test",
     {
@@ -523,20 +568,6 @@ try {
     { cwd: tmp },
   );
   if (!bodyWithoutBlank.isError) throw new Error(`body without blank separator was accepted: ${JSON.stringify(bodyWithoutBlank)}`);
-  const overlongBody = await tool.execute(
-    "commit-overlong-body-test",
-    {
-      files: ["validation.txt"],
-      commitMessage: ["feat(test): reject long body line", "", "x".repeat(101)].join("\n"),
-      rationale: "Exercise commit body line length validation.",
-      verificationEvidence: [{ description: "validation fixture reviewed in test", source: "observed" }],
-      dryRun: true,
-    },
-    undefined,
-    () => {},
-    { cwd: tmp },
-  );
-  if (!overlongBody.isError) throw new Error(`overlong body line was accepted: ${JSON.stringify(overlongBody)}`);
 
 
   await writeFile(join(tmp, "empty-commits.txt"), "single commit compatibility\n");

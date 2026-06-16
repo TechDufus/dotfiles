@@ -10,12 +10,12 @@ const MAX_VISIBLE_STEPS = 7;
 const MAX_FINAL_LINES = 8;
 const MAX_OUTPUT_CHARS = 2_000;
 const MAX_SECRET_SCAN_CHARS = 2_000_000;
-const MAX_COMMIT_SUBJECT_CHARS = 72;
-const MAX_COMMIT_BODY_LINE_CHARS = 100;
+const MAX_COMMIT_SUBJECT_CHARS = 50;
+const MAX_COMMIT_BODY_LINE_CHARS = 72;
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PULSE_FRAMES = ["●···", "·●··", "··●·", "···●"];
-const CONVENTIONAL_COMMIT_RE = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?: .+/;
+const CONVENTIONAL_COMMIT_RE = /^[a-z]+(?:\([a-z0-9-]+\))?!?: .+/;
 const MUTATING_GIT_VERBS = new Set(["add", "am", "apply", "checkout", "cherry-pick", "clean", "commit", "merge", "mv", "pull", "push", "rebase", "reset", "restore", "revert", "rm", "stash", "switch"]);
 
 const COMMIT_MESSAGE_ONLY_RE = /\b(?:commit message|message for (?:this )?commit|draft (?:a )?commit|suggest (?:a )?commit|write (?:a )?commit message)\b/i;
@@ -397,7 +397,10 @@ async function executeCommitPlan(
 	signal: AbortSignal | undefined,
 ): Promise<void> {
 	throwIfAborted(signal);
-	await withStep(details, "Validating commit plan", onUpdate, async () => validateCommitPlan(plan));
+	await withStep(details, "Validating commit plan", onUpdate, async () => {
+		repairCommitMessages(plan, details);
+		validateCommitPlan(plan);
+	});
 
 	const repoRoot = await withStep(details, "Inspecting working tree", onUpdate, async () => {
 		const root = (await runGit(cwd, ["rev-parse", "--show-toplevel"], signal, details)).stdout.trim();
@@ -633,6 +636,95 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 	}
 	for (const verification of commit.verification) validateVerification(verification);
 	for (const evidence of commit.verificationEvidence) validateVerificationEvidence(evidence);
+}
+
+function repairCommitMessages(plan: CommitPlan, details: CommitRunDetails): void {
+	for (const [index, commit] of plan.commits.entries()) {
+		const repaired = repairCommitMessage(commit.commitMessage);
+		if (repaired === commit.commitMessage) continue;
+		commit.commitMessage = repaired;
+		details.commits[index].commitMessage = repaired;
+		if (plan.commits.length === 1) details.commitMessage = repaired;
+		details.warnings.push(`${formatCommitLabel(index, plan.commits.length)}: commit message repaired to fit ${MAX_COMMIT_SUBJECT_CHARS}/${MAX_COMMIT_BODY_LINE_CHARS} character limits.`);
+	}
+}
+
+function repairCommitMessage(message: string): string {
+	if (!message || message.includes("\0")) return message;
+	const lines = message.split("\n");
+	if (lines.length > 1 && lines[1] !== "") return message;
+
+	const subjectRepair = repairCommitSubject(lines[0] ?? "");
+	if (!subjectRepair && !lines.slice(2).some(line => line.length > MAX_COMMIT_BODY_LINE_CHARS)) return message;
+
+	const subject = subjectRepair?.subject ?? lines[0] ?? "";
+	const bodyLines = lines.slice(2);
+	if (subjectRepair?.overflow) bodyLines.unshift(subjectRepair.overflow, "");
+	const repairedBody = wrapBodyLines(bodyLines);
+	return repairedBody.length > 0 ? [subject, "", ...repairedBody].join("\n") : subject;
+}
+
+function repairCommitSubject(subject: string): { subject: string; overflow: string } | undefined {
+	if (subject.length <= MAX_COMMIT_SUBJECT_CHARS) return undefined;
+	const match = subject.match(/^([a-z]+(?:\([a-z0-9-]+\))?!?: )(.+)$/);
+	if (!match) return undefined;
+
+	const prefix = match[1] ?? "";
+	const words = (match[2] ?? "").trim().split(/\s+/).filter(Boolean);
+	const kept: string[] = [];
+	let next = prefix;
+	for (const word of words) {
+		const candidate = kept.length === 0 ? `${prefix}${word}` : `${next} ${word}`;
+		if (candidate.length > MAX_COMMIT_SUBJECT_CHARS) break;
+		kept.push(word);
+		next = candidate;
+	}
+	if (kept.length === 0) return undefined;
+	if (kept.length === words.length) return next === subject ? undefined : { subject: next, overflow: "" };
+	return { subject: next, overflow: words.slice(kept.length).join(" ") };
+}
+
+function wrapBodyLines(lines: string[]): string[] {
+	const wrapped: string[] = [];
+	let paragraph: string[] = [];
+	const flush = () => {
+		if (paragraph.length === 0) return;
+		wrapped.push(...wrapWords(paragraph.join(" "), MAX_COMMIT_BODY_LINE_CHARS));
+		paragraph = [];
+	};
+	for (const line of lines) {
+		if (line.trim() === "") {
+			flush();
+			if (wrapped.length > 0 && wrapped[wrapped.length - 1] !== "") wrapped.push("");
+			continue;
+		}
+		paragraph.push(line.trim());
+	}
+	flush();
+	while (wrapped[wrapped.length - 1] === "") wrapped.pop();
+	return wrapped;
+}
+
+function wrapWords(text: string, width: number): string[] {
+	const lines: string[] = [];
+	let current = "";
+	for (const word of text.split(/\s+/).filter(Boolean)) {
+		if (word.length > width) {
+			if (current) lines.push(current);
+			for (let index = 0; index < word.length; index += width) lines.push(word.slice(index, index + width));
+			current = "";
+			continue;
+		}
+		const candidate = current ? `${current} ${word}` : word;
+		if (candidate.length > width) {
+			if (current) lines.push(current);
+			current = word;
+		} else {
+			current = candidate;
+		}
+	}
+	if (current) lines.push(current);
+	return lines;
 }
 
 function commitMessageArgs(message: string): string[] {

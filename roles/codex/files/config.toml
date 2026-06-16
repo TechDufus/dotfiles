@@ -87,6 +87,9 @@ enabled = true
 [plugins."cloudflare@openai-curated"]
 enabled = true
 
+[plugins."cloudflare@openai-curated".mcp_servers."cloudflare-api"]
+enabled = false
+
 [plugins."chrome@openai-bundled"]
 enabled = true
 
@@ -102,3 +105,9 @@ source = "/Users/mdegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/op
 
 [memories]
 no_memories_if_mcp_or_web_search = true
+
+[projects."/home/techdufus/.dotfiles"]
+trust_level = "trusted"
+
+[projects."/home/techdufus/dev/redhorse/rh_engineering_harness"]
+trust_level = "trusted"

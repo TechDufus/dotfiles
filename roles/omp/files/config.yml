@@ -74,3 +74,6 @@ mcp:
 setupVersion: 1
 vault: 
   enabled: true
+dev: 
+  autoqa: 
+    consent: granted

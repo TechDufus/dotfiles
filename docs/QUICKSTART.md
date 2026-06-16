@@ -116,6 +116,7 @@ Window-management carry-over:
 - Tap `CapsLock`/keyboard `F13` once, then press a logical app letter: summon/focus an app; the keyd bridge keeps this layout-safe for the repo's Dvorak default and QWERTY. Existing windows are not moved. Repeating a summon while that app is focused toggles back to the previously focused app.
 - Tap `CapsLock`/keyboard `F13` twice, then logical `a`/`s`/`e`: cycle same-app windows, screenshot a region to clipboard, or open the emoji picker.
 - `Super+U`: open the styled fuzzy picker, type part of a cell/region name, press `Enter`, and move the focused window.
+- `Super+H`: hide/minimize the focused window, matching the old AwesomeWM `Mod4+h` habit.
 - `Super+O` / `Shift+Super+O`: move the focused window to the next/previous monitor; managed apps snap into that monitor's active layout, while unmanaged windows keep their relative geometry.
 - `Hyper+P`: open the styled fuzzy picker for layouts and press `Enter`; only the active monitor changes. `Hyper+;` cycles the active monitor layout, and `Hyper+'` resets that monitor to its configured or width-based default.
 

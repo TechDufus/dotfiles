@@ -29,6 +29,10 @@ def summon_shortcuts() -> list[tuple[list[str], list[int]]]:
             [QT_META + ord("U")],
         ),
         (
+            ["kwin", "Hide Active Window", "KWin", "Minimize active window"],
+            [QT_META + ord("H")],
+        ),
+        (
             ["kwin", "Open Plasma Summon Layout Picker", "KWin", "Pick active screen layout"],
             [QT_HYPER + ord("P")],
         ),

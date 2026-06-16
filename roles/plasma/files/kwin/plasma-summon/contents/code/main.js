@@ -1177,6 +1177,14 @@ function registerRegionShortcuts() {
     registerShortcut("Open Plasma Summon Window Mover", "Pick region/cell for active window", "Meta+U", showCellPicker);
 }
 
+function hideActiveWindow() {
+    const window = workspace.activeWindow;
+    if (normalWindow(window)) {
+        window.minimized = true;
+    }
+}
+
+
 function registerMacroShortcuts() {
     for (let i = 0; i < macroActions.length; i += 1) {
         const action = macroActions[i];
@@ -1200,6 +1208,7 @@ function registerWorkflowShortcuts() {
     registerShortcut("Move Active Window to Previous Screen", "Move active window to previous screen", "Meta+Shift+O", function () {
         moveActiveToOutput("previous");
     });
+    registerShortcut("Hide Active Window", "Minimize active window", "Meta+H", hideActiveWindow);
     registerShortcut("Open Plasma Summon Layout Picker", "Pick active screen layout", "Meta+Alt+Ctrl+Shift+P", showLayoutPicker);
     registerShortcut("Cycle Active Screen Layout Semicolon", "Cycle active screen layout", "Meta+Alt+Ctrl+Shift+;", cycleLayout);
     registerShortcut("Reset Active Screen Layout Apostrophe", "Reset active screen layout", "Meta+Alt+Ctrl+Shift+'", resetLayout);

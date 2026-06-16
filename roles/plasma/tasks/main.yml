@@ -222,6 +222,8 @@
       value: "none,none,Pick active screen layout"
     - key: Open Plasma Summon Window Mover
       value: "Meta+U,none,Pick region/cell for active window"
+    - key: Hide Active Window
+      value: "Meta+H,none,Minimize active window"
     - key: Open Plasma Summon Layout Picker
       value: "Meta+Alt+Ctrl+Shift+P,none,Pick active screen layout"
   changed_when: false

@@ -247,6 +247,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "none,none,Pick active screen layout",
             "Open Plasma Summon Window Mover",
             "Meta+U,none,Pick region/cell for active window",
+            "Hide Active Window",
+            "Meta+H,none,Minimize active window",
             "Open Plasma Summon Layout Picker",
             "Meta+Alt+Ctrl+Shift+P,none,Pick active screen layout",
             "Ask KGlobalAccel to release System Settings Tools shortcut",
@@ -339,6 +341,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             '"Meta+O"',
             'registerShortcut("Move Active Window to Previous Screen"',
             '"Meta+Shift+O"',
+            'registerShortcut("Hide Active Window"',
+            '"Meta+H", hideActiveWindow',
             'registerShortcut("Open Plasma Summon Layout Picker"',
             '"Meta+Alt+Ctrl+Shift+P", showLayoutPicker',
             '"Meta+Alt+Ctrl+Shift+;"',
@@ -863,6 +867,10 @@ class PlasmaSummonServiceTests(unittest.TestCase):
                 (
                     ["kwin", "Open Plasma Summon Window Mover", "KWin", "Pick region/cell for active window"],
                     [0x10000000 + ord("U")],
+                ),
+                (
+                    ["kwin", "Hide Active Window", "KWin", "Minimize active window"],
+                    [0x10000000 + ord("H")],
                 ),
                 (
                     ["kwin", "Open Plasma Summon Layout Picker", "KWin", "Pick active screen layout"],

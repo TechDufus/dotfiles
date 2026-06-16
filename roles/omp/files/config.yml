@@ -7,7 +7,7 @@ modelRoles:
   designer: openai-codex/gpt-5.5
   vision: openai-codex/gpt-5.5
   commit: openai-codex/gpt-5.4-mini
-cycleOrder:
+cycleOrder: 
   - smol
   - default
 theme: 
@@ -16,6 +16,7 @@ symbolPreset: nerd
 display: 
   shimmer: kitt
 defaultThinkingLevel: auto
+serviceTier: priority
 contextPromotion: 
   enabled: false
 compaction: 
@@ -45,7 +46,7 @@ lsp:
 collapseChangelog: true
 memory: 
   backend: mnemopi
-mnemopi:
+mnemopi: 
   scoping: per-project-tagged
 github: 
   enabled: true

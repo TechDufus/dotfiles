@@ -1,12 +1,12 @@
 modelRoles: 
-  default: openai-codex/gpt-5.5
-  smol: openai-codex/gpt-5.4-mini
-  task: openai-codex/gpt-5.5
-  slow: openai-codex/gpt-5.5
-  plan: openai-codex/gpt-5.5
-  designer: openai-codex/gpt-5.5
-  vision: openai-codex/gpt-5.5
-  commit: openai-codex/gpt-5.4-mini
+  default: openai-codex/gpt-5.5:xhigh
+  smol: openai-codex/gpt-5.4-mini:xhigh
+  task: openai-codex/gpt-5.5:xhigh
+  slow: openai-codex/gpt-5.5:xhigh
+  plan: openai-codex/gpt-5.5:xhigh
+  designer: openai-codex/gpt-5.5:xhigh
+  vision: openai-codex/gpt-5.5:xhigh
+  commit: openai-codex/gpt-5.4-mini:xhigh
 cycleOrder: 
   - smol
   - default
@@ -15,7 +15,7 @@ theme:
 symbolPreset: nerd
 display: 
   shimmer: kitt
-defaultThinkingLevel: auto
+defaultThinkingLevel: xhigh
 serviceTier: priority
 contextPromotion: 
   enabled: false

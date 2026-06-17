@@ -74,6 +74,16 @@ try {
   if (sentMessage[1].details.multiCommit !== false) throw new Error(`plain commit command should not request multiple commits: ${JSON.stringify(sentMessage[1].details)}`);
 
   if (sentMessage[1].content.includes('"commits"')) throw new Error("plain commit prompt should not show commits array schema");
+  if (!sentMessage[1].content.includes("omit files") || !sentMessage[1].content.includes("files: []") || !sentMessage[1].content.includes("git status")) {
+    throw new Error("plain commit prompt should document status-derived file selection");
+  }
+
+  await command.handler("--dry-run", idleCtx);
+  const duplicateMessages = actions.filter(action => action[0] === "sendMessage");
+  if (duplicateMessages.length !== 1) throw new Error(`duplicate commit command queued another prompt: ${JSON.stringify(actions)}`);
+  if (!actions.some(action => action[0] === "notify" && String(action[1]).includes("already running"))) {
+    throw new Error(`duplicate commit command did not warn while workflow was active: ${JSON.stringify(actions)}`);
+  }
 
   await turnEndHandler();
   actions.length = 0;
@@ -92,6 +102,9 @@ try {
   if (atomicMessage[1].details.multiCommit !== true) throw new Error(`atomic commit request did not enable multi-commit mode: ${JSON.stringify(atomicMessage[1].details)}`);
   if (!atomicMessage[1].content.includes("commits array")) throw new Error("atomic commit prompt did not require grouped commits array");
   if (!atomicMessage[1].content.includes("exactly once")) throw new Error("atomic commit prompt should keep one tool call");
+  if (!atomicMessage[1].content.includes("exact files") || !atomicMessage[1].content.includes("Empty files in a split entry blocks")) {
+    throw new Error("atomic commit prompt should require exact files and block empty split entries");
+  }
   if (atomicMessage[1].content.includes("once per atomic commit")) throw new Error("atomic commit prompt should not request separate tool calls");
 
 
@@ -559,6 +572,27 @@ async function run(cwd, command, args) {
 }
 const git = (cwd, args) => run(cwd, "git", args);
 
+function parseStatusPaths(raw) {
+  const parts = raw.split("\0").filter(Boolean);
+  const paths = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const entry = parts[index];
+    if (entry.length < 4) continue;
+    const code = entry.slice(0, 2);
+    paths.push(entry.slice(3));
+    if ((code.includes("R") || code.includes("C")) && index + 1 < parts.length) index += 1;
+  }
+  return paths;
+}
+
+function assertSamePathSet(actual, expected, label) {
+  const actualSorted = [...actual].sort();
+  const expectedSorted = [...expected].sort();
+  if (actualSorted.length !== expectedSorted.length || actualSorted.some((file, index) => file !== expectedSorted[index])) {
+    throw new Error(`${label} mismatch: ${JSON.stringify({ actual, expected })}`);
+  }
+}
+
 function assertCommitMessageLimits(message, label) {
   const lines = message.split("\n");
   if ((lines[0] ?? "").length > 50) throw new Error(`${label} subject is too long: ${JSON.stringify(lines[0])}`);
@@ -704,6 +738,116 @@ try {
   );
   if (!bodyWithoutBlank.isError) throw new Error(`body without blank separator was accepted: ${JSON.stringify(bodyWithoutBlank)}`);
 
+
+  await writeFile(join(tmp, "status-derived-a.txt"), "status derived a\n");
+  await writeFile(join(tmp, "status-derived-b.txt"), "status derived b\n");
+  const statusBeforeDerivedSelection = parseStatusPaths((await git(tmp, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])).stdout);
+  const statusDerivedPreview = await tool.execute(
+    "commit-status-derived-files-test",
+    {
+      files: [],
+      commitMessage: "chore(test): preview status derived files",
+      rationale: "A single commit may intentionally include every current git status path.",
+      verificationEvidence: [{ description: "status-derived fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (statusDerivedPreview.isError) throw new Error(`status-derived files preview failed: ${JSON.stringify(statusDerivedPreview)}`);
+  assertSamePathSet(statusDerivedPreview.details.selectedFiles, statusBeforeDerivedSelection, "status-derived selected files");
+  if (statusDerivedPreview.details.ignoredFiles.length !== 0) {
+    throw new Error(`status-derived files should not ignore changed files: ${JSON.stringify(statusDerivedPreview.details)}`);
+  }
+  if (!statusDerivedPreview.details.warnings.some(warning => warning.includes("no files were supplied") && warning.includes("git status"))) {
+    throw new Error(`status-derived warning missing: ${JSON.stringify(statusDerivedPreview.details.warnings)}`);
+  }
+
+  const omittedFilesPreview = await tool.execute(
+    "commit-omitted-files-test",
+    {
+      commitMessage: "chore(test): preview omitted file selection",
+      rationale: "Omitted files should behave like files: [] for a single status-derived commit.",
+      verificationEvidence: [{ description: "omitted files fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (omittedFilesPreview.isError) throw new Error(`omitted files preview failed: ${JSON.stringify(omittedFilesPreview)}`);
+  assertSamePathSet(omittedFilesPreview.details.selectedFiles, statusBeforeDerivedSelection, "omitted-files selected files");
+
+  await writeFile(join(tmp, "stale-selection.txt"), "stale selection still changed\n");
+  const staleSelectionPreview = await tool.execute(
+    "commit-stale-selection-test",
+    {
+      files: ["stale-selection.txt", "missing-stale.txt", "included.txt"],
+      commitMessage: "chore(test): preview stale file filtering",
+      rationale: "Generated file lists may retain stale paths from an older model turn.",
+      verificationEvidence: [{ description: "stale selection fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (staleSelectionPreview.isError) throw new Error(`stale selection preview failed: ${JSON.stringify(staleSelectionPreview)}`);
+  if (staleSelectionPreview.details.selectedFiles.join(",") !== "stale-selection.txt") {
+    throw new Error(`stale selection did not keep only changed matches: ${JSON.stringify(staleSelectionPreview.details)}`);
+  }
+  if (!staleSelectionPreview.details.warnings.some(warning => warning.includes("missing-stale.txt") && warning.includes("included.txt"))) {
+    throw new Error(`stale selection warning missing stale paths: ${JSON.stringify(staleSelectionPreview.details.warnings)}`);
+  }
+
+  const allStaleSelection = await tool.execute(
+    "commit-all-stale-selection-test",
+    {
+      files: ["missing-stale.txt", "included.txt"],
+      commitMessage: "chore(test): block all stale file filtering",
+      rationale: "A generated file list with no changed matches must still block.",
+      verificationEvidence: [{ description: "all stale selection fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (!allStaleSelection.isError) throw new Error(`all stale selection was accepted: ${JSON.stringify(allStaleSelection)}`);
+  if (!allStaleSelection.content[0].text.includes("requested files are not changed")) {
+    throw new Error(`all stale selection did not preserve blocking error: ${JSON.stringify(allStaleSelection)}`);
+  }
+
+  await writeFile(join(tmp, "split-empty-block.txt"), "split empty guard\n");
+  const splitEmptySelection = await tool.execute(
+    "commit-split-empty-files-test",
+    {
+      multiCommit: true,
+      commits: [
+        {
+          files: [],
+          commitMessage: "chore(test): block empty split selection",
+          rationale: "Split commits cannot infer membership from the whole status list.",
+          verificationEvidence: [{ description: "empty split fixture reviewed in test", source: "observed" }],
+        },
+        {
+          files: ["split-empty-block.txt"],
+          commitMessage: "chore(test): preview split guard",
+          rationale: "The second split has an explicit changed file.",
+          verificationEvidence: [{ description: "split guard fixture reviewed in test", source: "observed" }],
+        },
+      ],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (!splitEmptySelection.isError) throw new Error(`empty split files were accepted: ${JSON.stringify(splitEmptySelection)}`);
+  if (!splitEmptySelection.content[0].text.includes("no files were selected")) {
+    throw new Error(`empty split files did not preserve blocking error: ${JSON.stringify(splitEmptySelection)}`);
+  }
 
   await writeFile(join(tmp, "empty-commits.txt"), "single commit compatibility\n");
   const emptyCommitsArray = await tool.execute(

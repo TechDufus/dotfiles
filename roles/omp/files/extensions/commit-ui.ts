@@ -96,6 +96,7 @@ interface CommitToolParams extends CommitToolCommitParams {
 
 interface CommitSpec {
 	files: string[];
+	deriveFilesFromStatus: boolean;
 	commitMessage: string;
 	rationale: string;
 	verification: VerificationPlan[];
@@ -201,7 +202,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 		source: z.string().optional().describe("Either observed or user-reported."),
 	});
 	const commitParam = z.object({
-		files: z.array(z.string()).optional().describe("Repo-relative files or directories to include for this commit."),
+		files: z.array(z.string()).optional().describe("Repo-relative files or directories for this split commit. Use exact files for split commits; empty files block when multiple commits need split membership."),
 		commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 		rationale: z.string().optional().describe("Why these files and this message belong together."),
 		verification: z.array(verificationParam).optional().describe("Narrow verification commands for this commit."),
@@ -216,7 +217,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 		description: "Execute a reviewed commit plan in-process with one live progress card and hidden git operations.",
 		defaultInactive: true,
 		parameters: z.object({
-			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. Leave empty only to block safely when the current context is insufficient."),
+			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. For one commit, omit or pass [] to derive all changed files from git status when the whole working tree should be committed."),
 			commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
 			verification: z.array(verificationParam).optional().describe("Narrow verification commands to run before staging/committing."),
@@ -410,15 +411,22 @@ async function executeCommitPlan(
 		const selectedByFile = new Map<string, number>();
 		for (const [index, commit] of plan.commits.entries()) {
 			const label = formatCommitLabel(index, plan.commits.length);
-			const { selected, unmatched } = resolveSelectedFiles(commit.files, status);
+			let selected: string[];
 			if (commit.files.length === 0) {
-				throw new WorkflowError(`${label}: no files were selected from the current conversation context. Changed files: ${statusPaths.join(", ")}`);
-			}
-			if (unmatched.length > 0) {
-				throw new WorkflowError(`${label}: requested files are not changed: ${unmatched.join(", ")}`);
-			}
-			if (selected.length === 0) {
-				throw new WorkflowError(`${label}: selected files do not match any working tree changes.`);
+				if (!commit.deriveFilesFromStatus || plan.commits.length > 1) {
+					throw new WorkflowError(`${label}: no files were selected from the current conversation context. Changed files: ${statusPaths.join(", ")}`);
+				}
+				selected = statusPaths;
+				details.warnings.push(`${label}: no files were supplied; selected all current git status paths.`);
+			} else {
+				const { selected: matched, unmatched } = resolveSelectedFiles(commit.files, status);
+				selected = matched;
+				if (selected.length === 0) {
+					throw new WorkflowError(`${label}: requested files are not changed: ${unmatched.join(", ")}`);
+				}
+				if (unmatched.length > 0) {
+					details.warnings.push(`${label}: ignored requested files that are not changed: ${unmatched.join(", ")}.`);
+				}
 			}
 			details.commits[index].selectedFiles = selected;
 			for (const file of selected) {
@@ -547,8 +555,10 @@ function hasCommitSpecContent(params: CommitToolCommitParams): boolean {
 }
 
 function normalizeCommitSpec(params: CommitToolCommitParams, inheritedAcceptRisk: boolean): CommitSpec {
+	const files = dedupe((params.files ?? []).map(file => file.trim()).filter(Boolean));
 	return {
-		files: dedupe((params.files ?? []).map(file => file.trim()).filter(Boolean)),
+		files,
+		deriveFilesFromStatus: files.length === 0,
 		commitMessage: params.commitMessage?.trim() ?? "",
 		rationale: params.rationale?.trim() ?? "",
 		verification: (params.verification ?? []).map(item => ({
@@ -980,7 +990,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		"Single-commit tool arguments:",
 		JSON.stringify(
 			{
-				files: ["repo-relative file or directory to include"],
+				files: ["repo-relative file or directory to include, or omit/pass [] to derive all current git status paths for one commit"],
 				commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why, when useful.",
 				rationale: "why this file set and message match the current conversation",
 				verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
@@ -997,7 +1007,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		parsed.multiCommit ? JSON.stringify(
 			{
 				commits: [{
-					files: ["repo-relative file or directory for this split commit"],
+					files: ["exact repo-relative file or directory for this split commit"],
 					commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why this split exists.",
 					rationale: "why this split commit is separate",
 					verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
@@ -1013,13 +1023,13 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 			2,
 		) : "",
 		"Rules:",
-		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit the commits field entirely; do not include an empty array or blank commit object.",
+		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit the commits field entirely; do not include an empty commits array or blank commit object.",
 		"- For split/multiple commit mode, pass one non-empty commits array containing every logical commit. Each commits[] entry MUST include only the files for that split commit; do not make multiple omp_commit tool calls.",
 		`- Commit messages MAY be a block: subject line, blank line, then one or more body paragraphs in the same commitMessage string.`,
 		`- Commit subject line MUST be ${MAX_COMMIT_SUBJECT_CHARS} characters or fewer. Body lines MUST be ${MAX_COMMIT_BODY_LINE_CHARS} characters or fewer.`,
 		"- Use a body when the rationale belongs in git history; keep implementation notes in rationale if they are only for this workflow.",
-		"- files MUST be only the files intentionally belonging to the commit, inferred from the current conversation context.",
-		"- If the current context is insufficient to select files confidently, pass files: [] for a single commit or a commits entry with files: [] for split commit mode and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
+		"- For a single commit, use exact files when known; omit files or pass files: [] only when the commit should include every current git status path or context is insufficient and status-derived selection is acceptable.",
+		"- For split/multiple commit mode, each commits[] entry MUST use exact files for that split commit. Empty files in a split entry blocks safely because omp_commit cannot infer split membership.",
 		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",
 		"- If verification already appears in the conversation, pass verificationEvidence instead of rerunning it. Use source=observed for tool output seen in-session and source=user-reported only for explicit user-reported checks; never invent evidence.",
 		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk.",

@@ -14,10 +14,23 @@
     state: directory
     mode: "0755"
 
+- name: "{{ role_name }} | Check legacy gaming health helper"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin/gaming-health"
+    follow: false
+  register: steam_legacy_gaming_health
+
 - name: "{{ role_name }} | Remove legacy gaming health helper"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.local/bin/gaming-health"
     state: absent
+  vars:
+    steam_managed_legacy_health_helper_targets:
+      - "{{ role_path }}/files/bin/gaming-health"
+      - "{{ role_path }}/files/bin/steam-health"
+  when:
+    - steam_legacy_gaming_health.stat.islnk | default(false)
+    - (steam_legacy_gaming_health.stat.lnk_source | default("")) in steam_managed_legacy_health_helper_targets
 
 - name: "{{ role_name }} | Symlink Steam health helper"
   ansible.builtin.file:

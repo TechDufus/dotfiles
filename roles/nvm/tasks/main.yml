@@ -70,11 +70,16 @@
   ansible.builtin.shell: |
     export NVM_DIR="{{ ansible_facts['env']['HOME'] }}/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-    resolved_version="$(nvm version "{{ nvm_node_version }}" 2>/dev/null || true)"
-    if [ -n "$resolved_version" ] && [ "$resolved_version" != "N/A" ]; then
-      printf '%s\n' "$resolved_version"
+    remote_version="$(nvm version-remote "{{ nvm_node_version }}" 2>/dev/null || true)"
+    if [ -n "$remote_version" ] && [ "$remote_version" != "N/A" ]; then
+      printf '%s\n' "$remote_version"
     else
-      echo "not-installed"
+      local_version="$(nvm version "{{ nvm_node_version }}" 2>/dev/null || true)"
+      if [ -n "$local_version" ] && [ "$local_version" != "N/A" ]; then
+        printf '%s\n' "$local_version"
+      else
+        echo "not-installed"
+      fi
     fi
   args:
     executable: /bin/bash

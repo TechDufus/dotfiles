@@ -6,14 +6,12 @@
         name: "{{ ansible_facts['env']['HOME'] }}/.task"
         state: directory
         mode: "0755"
-      check_mode: false
 
     - name: TASKFILE | Ensure .task/completions dir exists
       ansible.builtin.file:
         name: "{{ ansible_facts['env']['HOME'] }}/.task/completions"
         state: directory
         mode: "0755"
-      check_mode: false
 
     - name: TASKFILE | Pull latest task bash completion
       ansible.builtin.get_url:

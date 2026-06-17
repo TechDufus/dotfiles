@@ -38,6 +38,24 @@ class ArchKeyboardConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.tasks)
 
+    def test_x11_keymap_guard_checks_exact_current_lines(self) -> None:
+        for required in [
+            "arch_localectl_status.stdout_lines | default([]) | map('trim') | list",
+            "('X11 Layout: ' ~ arch_x11_layout) not in arch_localectl_status_lines",
+            "('X11 Model: ' ~ arch_x11_model) not in arch_localectl_status_lines",
+            "(arch_x11_variant | length > 0 and ('X11 Variant: ' ~ arch_x11_variant) not in arch_localectl_status_lines)",
+            "(arch_x11_options | length > 0 and ('X11 Options: ' ~ arch_x11_options) not in arch_localectl_status_lines)",
+        ]:
+            self.assertIn(required, self.tasks)
+
+    def test_x11_keymap_guard_clears_stale_empty_fields(self) -> None:
+        for required in [
+            "(arch_x11_variant | length == 0 and (arch_localectl_status_lines | select('match', '^X11 Variant:') | list | length > 0))",
+            "(arch_x11_options | length == 0 and (arch_localectl_status_lines | select('match', '^X11 Options:') | list | length > 0))",
+            "set-x11-keymap",
+        ]:
+            self.assertIn(required, self.tasks)
+
     def test_localectl_probe_runs_in_check_mode(self) -> None:
         self.assertIn("check_mode: false", self.tasks)
         self.assertIn("Keyboard skipped (localectl unavailable)", self.tasks)

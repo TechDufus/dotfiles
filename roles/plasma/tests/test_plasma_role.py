@@ -475,6 +475,52 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertNotIn("placeNewUnmanagedWindow(window)", self.script)
         self.assertNotIn("default_region", self.script)
 
+
+    def test_kwin_layout_auto_selection_prefers_bounded_width_layouts(self) -> None:
+        selector_start = self.script.index("function layoutForOutput(output)")
+        selector_end = self.script.index("function setLayoutForOutput(output, layoutName)", selector_start)
+        selector = self.script[selector_start:selector_end]
+
+        manual_index = selector.index("const selected = state.layoutByOutput[key]")
+        configured_index = selector.index("const configured = configuredLayoutNameForOutput(output)")
+        fallback_index = selector.index("let fallbackName")
+        bounded_return_index = selector.index("if (bounded)")
+        fallback_capture_index = selector.index("if (!fallbackLayout)")
+
+        self.assertEqual(list(self.layouts)[:3], ["standard", "fourk", "hd"])
+        self.assertNotIn("min_width", self.layouts["standard"])
+        self.assertNotIn("max_width", self.layouts["standard"])
+        self.assertEqual(self.layouts["fourk"]["min_width"], 2560)
+        self.assertEqual(self.layouts["hd"]["max_width"], 2559)
+        standard_index = self.script.index("standard: {")
+        fourk_index = self.script.index("fourk: {")
+        hd_index = self.script.index("hd: {")
+        full_index = self.script.index("full: {", hd_index)
+        self.assertLess(standard_index, fourk_index)
+        self.assertLess(fourk_index, hd_index)
+        self.assertLess(hd_index, full_index)
+        self.assertNotIn("min_width", self.script[standard_index:fourk_index])
+        self.assertNotIn("max_width", self.script[standard_index:fourk_index])
+        self.assertIn("min_width: 2560", self.script[fourk_index:hd_index])
+        self.assertIn("max_width: 2559", self.script[hd_index:full_index])
+        self.assertLess(manual_index, configured_index)
+        self.assertLess(configured_index, fallback_index)
+        self.assertLess(bounded_return_index, fallback_capture_index)
+        self.assertIn("if (width >= minWidth && width <= maxWidth)", selector)
+        self.assertIn(
+            "const bounded = layout.min_width !== undefined || layout.max_width !== undefined",
+            selector,
+        )
+        self.assertIn(
+            "const minWidth = layout.min_width === undefined ? 0 : Number(layout.min_width)",
+            selector,
+        )
+        self.assertIn(
+            "const maxWidth = layout.max_width === undefined ? Number.POSITIVE_INFINITY : Number(layout.max_width)",
+            selector,
+        )
+        self.assertIn("return [fallbackName, fallbackLayout]", selector)
+
     def test_layout_reapply_uses_all_kwin_windows_across_desktops(self) -> None:
         for required in [
             "function allWorkspaceWindows()",

@@ -36,10 +36,32 @@ class NvmRoleTests(unittest.TestCase):
         self.assertIn('nvm_install_result is changed', resolve_block)
         self.assertIn('current_nvm_version.stdout != "not-installed"', resolve_block)
         self.assertNotIn('nvm_install_result is not changed', resolve_block)
-        self.assertIn('nvm version "{{ nvm_node_version }}"', resolve_block)
-        self.assertNotIn('ls-remote', resolve_block)
 
-    def test_node_install_reports_unchanged_when_lts_exists(self) -> None:
+    def test_node_version_resolution_prefers_remote_metadata(self) -> None:
+        resolve_block = self._block(
+            '- name: "NVM | Resolve installed Node.js version"',
+            '- name: "NVM | Check if Node.js version is already installed"',
+        )
+        remote_lookup = 'remote_version="$(nvm version-remote "{{ nvm_node_version }}"'
+        local_lookup = 'local_version="$(nvm version "{{ nvm_node_version }}"'
+        self.assertIn(remote_lookup, resolve_block)
+        self.assertIn(local_lookup, resolve_block)
+        self.assertIn('[ "$remote_version" != "N/A" ]', resolve_block)
+        self.assertIn('else\n      local_version=', resolve_block)
+        self.assertLess(
+            resolve_block.index(remote_lookup),
+            resolve_block.index(local_lookup),
+        )
+        self.assertIn('printf \'%s\\n\' "$remote_version"', resolve_block)
+
+    def test_node_install_stat_uses_normalized_version(self) -> None:
+        stat_block = self._block(
+            '- name: "NVM | Check if Node.js version is already installed"',
+            '- name: "NVM | Install Node.js version"',
+        )
+        self.assertIn("{{ node_version_normalized.stdout }}", stat_block)
+
+    def test_node_install_reports_unchanged_when_target_exists(self) -> None:
         node_install_block = self._block(
             '- name: "NVM | Install Node.js version"',
             '- name: "NVM | Check current default Node.js version"',

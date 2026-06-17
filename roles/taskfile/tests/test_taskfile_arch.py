@@ -18,6 +18,15 @@ class TaskfileArchTests(unittest.TestCase):
         self.assertIn("Taskfile_{{ ansible_facts['distribution'] }}.yml", self.tasks)
         self.assertTrue(ARCH_TASKFILE.exists())
 
+    def test_directory_setup_does_not_force_check_mode(self) -> None:
+        update_completions_block = self.tasks.split(
+            "- name: TASKFILE | Load OS-Specific Taskfile",
+            1,
+        )[0]
+        self.assertIn("TASKFILE | Ensure .task config dir exists", update_completions_block)
+        self.assertIn("TASKFILE | Ensure .task/completions dir exists", update_completions_block)
+        self.assertNotIn("check_mode: false", update_completions_block)
+
     def test_role_skips_managed_marker_when_check_mode_has_no_dest(self) -> None:
         self.assertIn("TASKFILE | Check copied user Taskfile", self.tasks)
         self.assertIn("taskfile_user_taskfile", self.tasks)

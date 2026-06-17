@@ -14,13 +14,18 @@ class GoRoleTests(unittest.TestCase):
         cls.packages = PACKAGES.read_text(encoding="utf-8")
         cls.arch = ARCH.read_text(encoding="utf-8")
 
-    def test_go_package_installs_use_home_path_for_idempotency(self) -> None:
-        self.assertIn('cmd: "go install {{ item.package }}"', self.packages)
-        self.assertIn("creates: \"{{ ansible_facts['env']['HOME'] }}/go/bin/{{ item.cmd }}\"", self.packages)
+    def _task_block(self, start: str, end: str) -> str:
+        return self.packages.split(start, 1)[1].split(end, 1)[0]
 
-    def test_go_install_reports_changed_only_after_success(self) -> None:
-        self.assertIn("changed_when: go_install.rc == 0", self.packages)
-        self.assertNotIn("changed_when: go_install.rc != 0", self.packages)
+    def test_go_package_installs_use_creates_without_changed_override(self) -> None:
+        install_block = self._task_block(
+            "- name: Go-Lang | Install GoLang Packages",
+            "- name: Go-Lang | Go packages skipped",
+        )
+        self.assertIn('cmd: "go install {{ item.package }}"', install_block)
+        self.assertIn("creates: \"{{ ansible_facts['env']['HOME'] }}/go/bin/{{ item.cmd }}\"", install_block)
+        self.assertNotIn("changed_when:", install_block)
+        self.assertNotIn("register: go_install", install_block)
 
     def test_go_package_installs_skip_when_go_is_unavailable(self) -> None:
         self.assertIn("Go-Lang | Detect Go binary", self.packages)

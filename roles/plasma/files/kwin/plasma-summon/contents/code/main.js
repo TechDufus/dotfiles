@@ -856,14 +856,26 @@ function layoutForOutput(output) {
     const area = outputArea(output);
     const width = Math.round(area.width);
     const names = layoutNames();
+    let fallbackName = "";
+    let fallbackLayout = null;
     for (let i = 0; i < names.length; i += 1) {
         const name = names[i];
         const layout = layouts[name];
-        const minWidth = Number(layout.min_width || 0);
-        const maxWidth = Number(layout.max_width || 999999);
+        const bounded = layout.min_width !== undefined || layout.max_width !== undefined;
+        const minWidth = layout.min_width === undefined ? 0 : Number(layout.min_width);
+        const maxWidth = layout.max_width === undefined ? Number.POSITIVE_INFINITY : Number(layout.max_width);
         if (width >= minWidth && width <= maxWidth) {
-            return [name, layout];
+            if (bounded) {
+                return [name, layout];
+            }
+            if (!fallbackLayout) {
+                fallbackName = name;
+                fallbackLayout = layout;
+            }
         }
+    }
+    if (fallbackLayout) {
+        return [fallbackName, fallbackLayout];
     }
     return [names[0], layouts[names[0]]];
 }

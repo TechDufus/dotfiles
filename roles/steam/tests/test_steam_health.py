@@ -175,12 +175,32 @@ class SteamHealthTests(unittest.TestCase):
         self.assertIn("exec gamescope --steam -- steam -gamepadui", script)
         self.assertIn("Exec=dotfiles-gamescope-steam-session", desktop)
 
-    def test_role_renames_health_helper_without_legacy_shim(self) -> None:
+    def test_role_removes_only_managed_legacy_health_symlinks(self) -> None:
         tasks = MAIN_TASKS.read_text(encoding="utf-8")
-        self.assertIn("files/bin/steam-health", tasks)
-        self.assertIn(".local/bin/steam-health", tasks)
-        self.assertIn("Remove legacy gaming health helper", tasks)
-        self.assertIn(".local/bin/gaming-health", tasks)
+        stat_task = tasks.split(
+            '- name: "{{ role_name }} | Check legacy gaming health helper"', 1
+        )[1].split("\n- name:", 1)[0]
+        removal_task = tasks.split(
+            '- name: "{{ role_name }} | Remove legacy gaming health helper"', 1
+        )[1].split("\n- name:", 1)[0]
+        managed_target_guard = (
+            '(steam_legacy_gaming_health.stat.lnk_source | default("")) '
+            "in steam_managed_legacy_health_helper_targets"
+        )
+
+        self.assertIn("  ansible.builtin.stat:", stat_task)
+        self.assertIn("follow: false", stat_task)
+        self.assertIn("register: steam_legacy_gaming_health", stat_task)
+        self.assertIn("  ansible.builtin.file:", removal_task)
+        self.assertIn("state: absent", removal_task)
+        self.assertIn("files/bin/gaming-health", removal_task)
+        self.assertIn("files/bin/steam-health", removal_task)
+        self.assertIn("when:", removal_task)
+        self.assertIn(
+            "steam_legacy_gaming_health.stat.islnk | default(false)",
+            removal_task,
+        )
+        self.assertIn(managed_target_guard, removal_task)
 
 
     def test_steam_state_scans_extra_libraries_and_proton_runtimes(self) -> None:

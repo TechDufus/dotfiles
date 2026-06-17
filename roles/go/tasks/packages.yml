@@ -10,8 +10,6 @@
   ansible.builtin.command:
     cmd: "go install {{ item.package }}"
     creates: "{{ ansible_facts['env']['HOME'] }}/go/bin/{{ item.cmd }}"
-  register: go_install
-  changed_when: go_install.rc == 0
   loop_control:
     label: "{{ item.package }}"
   loop: "{{ go.packages }}"

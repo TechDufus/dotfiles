@@ -12,6 +12,8 @@
     detected_package_manager: ''
     privilege_escalation_available: false
     sudo_credentials_cached: false
+    become_password_available: false
+    sudo_password_based_available: false
 
 - name: Detect package manager based on OS
   block:
@@ -155,6 +157,11 @@
         - not has_sudo
         - pkexec_test.rc | default(1) == 0
 
+- name: Detect provided become password
+  set_fact:
+    become_password_available: >-
+      {{ ((ansible_become_password | default(ansible_become_pass | default(ansible_sudo_pass | default('')))) | string | length) > 0 }}
+
 - name: Detect password-based sudo availability
   when: not has_sudo
   block:
@@ -166,6 +173,11 @@
       changed_when: false
       failed_when: false
 
+    - name: Record password-based sudo availability
+      set_fact:
+        sudo_password_based_available: true
+      when: sudo_binary_check.rc | default(1) == 0
+
     - name: Set password-based sudo facts
       set_fact:
         has_sudo: true
@@ -173,12 +185,9 @@
         sudo_requires_password: true
         sudo_credentials_cached: false
         privilege_escalation_available: true
-      when: sudo_binary_check.rc | default(1) == 0
-
-- name: Detect provided become password
-  set_fact:
-    become_password_available: >-
-      {{ ((ansible_become_password | default(ansible_become_pass | default(ansible_sudo_pass | default('')))) | string | length) > 0 }}
+      when:
+        - sudo_binary_check.rc | default(1) == 0
+        - become_password_available | default(false) | bool
 
 - name: Determine package installation capability
   set_fact:
@@ -196,8 +205,7 @@
       - "Sudo is available, but no cached sudo credentials or Ansible become password were detected."
       - "Package roles will skip privileged installs unless you pre-cache sudo with `sudo -v` or run ansible-playbook with `--ask-become-pass`."
   when:
-    - has_sudo
-    - sudo_method == 'sudo'
+    - sudo_password_based_available | default(false) | bool
     - sudo_requires_password | bool
     - not (sudo_credentials_cached | default(false) | bool)
     - not (become_password_available | default(false) | bool)

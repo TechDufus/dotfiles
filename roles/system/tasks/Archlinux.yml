@@ -112,14 +112,19 @@
       - "{{ arch_x11_variant }}"
       - "{{ arch_x11_options }}"
   become: true
+  vars:
+    arch_localectl_status_lines: "{{ arch_localectl_status.stdout_lines | default([]) | map('trim') | list }}"
   when:
     - keyboard is defined
     - can_install_packages | default(false)
     - arch_localectl_status.rc | default(1) == 0
     - >
-      ('X11 Layout: ' ~ arch_x11_layout) not in arch_localectl_status.stdout or
-      (arch_x11_variant | length > 0 and ('X11 Variant: ' ~ arch_x11_variant) not in arch_localectl_status.stdout) or
-      (arch_x11_options | length > 0 and ('X11 Options: ' ~ arch_x11_options) not in arch_localectl_status.stdout)
+      ('X11 Layout: ' ~ arch_x11_layout) not in arch_localectl_status_lines or
+      ('X11 Model: ' ~ arch_x11_model) not in arch_localectl_status_lines or
+      (arch_x11_variant | length > 0 and ('X11 Variant: ' ~ arch_x11_variant) not in arch_localectl_status_lines) or
+      (arch_x11_variant | length == 0 and (arch_localectl_status_lines | select('match', '^X11 Variant:') | list | length > 0)) or
+      (arch_x11_options | length > 0 and ('X11 Options: ' ~ arch_x11_options) not in arch_localectl_status_lines) or
+      (arch_x11_options | length == 0 and (arch_localectl_status_lines | select('match', '^X11 Options:') | list | length > 0))
 
 - name: "System | {{ ansible_facts['distribution'] }} | Keyboard skipped (no sudo)"
   ansible.builtin.debug:

@@ -145,6 +145,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("run_user \"${PLASMA_SUMMON_SERVICE}\" --macro \"$1\"", self.keyd_bridge)
         self.assertIn("org.kde.kglobalaccel.Component.invokeShortcut", self.keyd_bridge)
         self.assertIn("\"Macro a via F16\"", self.keyd_bridge)
+        self.assertIn("emoji_picker|screenshot_area", self.keyd_bridge)
+
 
     def test_sddm_enablement_preserves_existing_display_manager(self) -> None:
         for required in [
@@ -543,6 +545,8 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertEqual(self.apps["files"]["region"], "center")
         self.assertEqual(self.apps["obsidian"]["region"], "side")
         self.assertNotIn("region", self.apps["steam"])
+        self.assertNotIn("key", self.apps["steam"])
+        self.assertNotIn('key: "g"', self.script)
         self.assertEqual(self.regions["main"]["w"], "65%")
         self.assertEqual(self.regions["side"]["x"], "65%")
         self.assertEqual(self.regions["top_right"]["y"], "5%")
@@ -566,6 +570,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertEqual(self.layouts["standard"]["apps"]["browser"], 1)
         self.assertEqual(self.layouts["standard"]["apps"]["terminal"], 2)
         self.assertEqual(self.layouts["standard"]["apps"]["onepassword"], 3)
+        self.assertEqual(list(self.layouts), ["standard", "fourk", "hd", "full"])
         self.assertEqual(self.layouts["fourk"]["apps"]["terminal"], 1)
         self.assertEqual(self.layouts["fourk"]["apps"]["browser"], 2)
         self.assertEqual(self.layouts["fourk"]["apps"]["onepassword"], 4)
@@ -624,8 +629,9 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         self.assertEqual(config["output_layouts"], {})
 
         payload = json.loads(plasma_summon_service.config_json(SUMMON_DIR))
-        self.assertEqual(list(payload["layouts"]), ["fourk", "hd", "standard", "full"])
+        self.assertEqual(list(payload["layouts"]), ["standard", "fourk", "hd", "full"])
         self.assertEqual(payload["apps"]["files"]["exec"], "dolphin")
+        self.assertNotIn("key", payload["apps"]["steam"])
         self.assertEqual(payload["output_layouts"], {})
         self.assertNotIn("default_region", payload["layouts"]["standard"])
 

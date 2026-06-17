@@ -58,7 +58,6 @@
     path: "{{ role_path }}/files/bin/plasma-summon-service.py"
     mode: "0755"
 
-
 - name: "{{ role_name }} | Symlink Plasma summon app registry"
   ansible.builtin.file:
     src: "{{ role_path }}/files/summon/apps.toml"

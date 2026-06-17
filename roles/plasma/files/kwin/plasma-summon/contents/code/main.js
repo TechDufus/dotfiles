@@ -115,7 +115,6 @@ let apps = {
         region: "center",
     },
     steam: {
-        key: "g",
         exec: "steam",
         match: [
             "class:Steam",
@@ -152,6 +151,21 @@ let regions = {
 };
 
 let layouts = {
+    standard: {
+        label: "Standard Dev",
+        cells: ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"],
+        apps: {
+            terminal: 2,
+            browser: 1,
+            discord: 3,
+            signal: 3,
+            spotify: 3,
+            onepassword: 3,
+            files: 3,
+            obsidian: 3,
+            steam: 3,
+        },
+    },
     fourk: {
         label: "4K Workspace",
         min_width: 2560,
@@ -176,21 +190,6 @@ let layouts = {
         apps: {
             terminal: 1,
             browser: 2,
-            discord: 3,
-            signal: 3,
-            spotify: 3,
-            onepassword: 3,
-            files: 3,
-            obsidian: 3,
-            steam: 3,
-        },
-    },
-    standard: {
-        label: "Standard Dev",
-        cells: ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"],
-        apps: {
-            terminal: 2,
-            browser: 1,
             discord: 3,
             signal: 3,
             spotify: 3,

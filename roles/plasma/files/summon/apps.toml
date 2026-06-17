@@ -111,7 +111,6 @@ monitor = "HDMI-A-1"
 region = "center"
 
 [apps.steam]
-key = "g"
 exec = "steam"
 match = [
   "class:Steam",

@@ -16,13 +16,11 @@ region = "main"
 
 [apps.browser]
 key = "b"
-exec = "brave"
+exec = "zen-browser"
 match = [
-  "class:brave-browser",
-  "class:Brave-browser",
-  "resourceClass:brave-browser",
-  "resourceClass:Brave-browser",
-  "desktopFileName:brave-browser",
+  "class:zen",
+  "resourceClass:zen",
+  "desktopFileName:zen",
 ]
 workspace = "2"
 monitor = "HDMI-A-1"

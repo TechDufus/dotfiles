@@ -97,7 +97,7 @@ plasma_desktop_kconfig_settings:
   - file: kdeglobals
     group_path: [General]
     key: BrowserApplication
-    value: brave-browser.desktop
+    value: zen.desktop
   - file: kdeglobals
     group_path: [General]
     key: TerminalApplication

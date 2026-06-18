@@ -187,7 +187,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "value: org.kde.oxygen",
             "file: kdeglobals",
             "key: BrowserApplication",
-            "value: brave-browser.desktop",
+            "value: zen.desktop",
             "key: TerminalApplication",
             "value: /usr/bin/ghostty --gtk-single-instance=true",
             "key: Theme",
@@ -476,18 +476,24 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertNotIn("default_region", self.script)
 
 
-    def test_kwin_layout_auto_selection_prefers_bounded_width_layouts(self) -> None:
+    def test_kwin_layout_auto_selection_prefers_explicit_default_before_width_fallback(self) -> None:
         selector_start = self.script.index("function layoutForOutput(output)")
         selector_end = self.script.index("function setLayoutForOutput(output, layoutName)", selector_start)
         selector = self.script[selector_start:selector_end]
 
         manual_index = selector.index("const selected = state.layoutByOutput[key]")
         configured_index = selector.index("const configured = configuredLayoutNameForOutput(output)")
+        default_index = selector.index("if (layout.default === true)")
+        width_index = selector.index("const area = outputArea(output)")
         fallback_index = selector.index("let fallbackName")
         bounded_return_index = selector.index("if (bounded)")
         fallback_capture_index = selector.index("if (!fallbackLayout)")
 
         self.assertEqual(list(self.layouts)[:3], ["standard", "fourk", "hd"])
+        self.assertEqual(
+            [name for name, layout in self.layouts.items() if layout.get("default")],
+            ["standard"],
+        )
         self.assertNotIn("min_width", self.layouts["standard"])
         self.assertNotIn("max_width", self.layouts["standard"])
         self.assertEqual(self.layouts["fourk"]["min_width"], 2560)
@@ -499,12 +505,15 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertLess(standard_index, fourk_index)
         self.assertLess(fourk_index, hd_index)
         self.assertLess(hd_index, full_index)
+        self.assertIn("default: true", self.script[standard_index:fourk_index])
         self.assertNotIn("min_width", self.script[standard_index:fourk_index])
         self.assertNotIn("max_width", self.script[standard_index:fourk_index])
         self.assertIn("min_width: 2560", self.script[fourk_index:hd_index])
         self.assertIn("max_width: 2559", self.script[hd_index:full_index])
         self.assertLess(manual_index, configured_index)
-        self.assertLess(configured_index, fallback_index)
+        self.assertLess(configured_index, default_index)
+        self.assertLess(default_index, width_index)
+        self.assertLess(width_index, fallback_index)
         self.assertLess(bounded_return_index, fallback_capture_index)
         self.assertIn("if (width >= minWidth && width <= maxWidth)", selector)
         self.assertIn(
@@ -584,6 +593,20 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("name:ghostty", self.apps["terminal"]["match"])
         self.assertIn("desktopFileName:com.mitchellh.ghostty.desktop", self.apps["terminal"]["match"])
         self.assertEqual(self.apps["browser"]["region"], "wide")
+        self.assertEqual(self.apps["browser"]["key"], "b")
+        self.assertEqual(self.apps["browser"]["exec"], "zen-browser")
+        self.assertEqual(
+            self.apps["browser"]["match"],
+            ["class:zen", "resourceClass:zen", "desktopFileName:zen"],
+        )
+        for required in [
+            'browser: {\n        key: "b"',
+            'exec: "zen-browser"',
+            '"class:zen"',
+            '"resourceClass:zen"',
+            '"desktopFileName:zen"',
+        ]:
+            self.assertIn(required, self.script)
         self.assertEqual(self.apps["discord"]["region"], "chat")
         self.assertEqual(self.apps["signal"]["region"], "chat")
         self.assertEqual(self.apps["spotify"]["region"], "side")

@@ -24,13 +24,11 @@ let apps = {
     },
     browser: {
         key: "b",
-        exec: "brave",
+        exec: "zen-browser",
         match: [
-            "class:brave-browser",
-            "class:Brave-browser",
-            "resourceClass:brave-browser",
-            "resourceClass:Brave-browser",
-            "desktopFileName:brave-browser",
+            "class:zen",
+            "resourceClass:zen",
+            "desktopFileName:zen",
         ],
         workspace: "2",
         monitor: "HDMI-A-1",
@@ -153,6 +151,7 @@ let regions = {
 let layouts = {
     standard: {
         label: "Standard Dev",
+        default: true,
         cells: ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"],
         apps: {
             terminal: 2,
@@ -853,9 +852,17 @@ function layoutForOutput(output) {
         return [configured, layouts[configured]];
     }
 
+    const names = layoutNames();
+    for (let i = 0; i < names.length; i += 1) {
+        const name = names[i];
+        const layout = layouts[name];
+        if (layout.default === true) {
+            return [name, layout];
+        }
+    }
+
     const area = outputArea(output);
     const width = Math.round(area.width);
-    const names = layoutNames();
     let fallbackName = "";
     let fallbackLayout = null;
     for (let i = 0; i < names.length; i += 1) {

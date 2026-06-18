@@ -1,0 +1,13 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install packages"
+  community.general.pacman:
+    name:
+      - signal-desktop
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: signal-desktop"
+  when: not (can_install_packages | default(false))

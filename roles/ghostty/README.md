@@ -8,16 +8,17 @@ This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fas
 
 ## Supported Platforms
 
-| Platform | Status | Installation Method |
-|----------|--------|---------------------|
-| macOS | ✅ Full Support | Homebrew Cask (`ghostty@tip`) |
-| Linux | 🚧 Architecture Ready | Not yet implemented |
-| Windows | 🚧 Architecture Ready | Not yet implemented |
+| Platform          | Status | Installation Method |
+|-------------------|--------|---------------------|
+| macOS             | ✅ Full Support | Homebrew Cask (`ghostty@tip`) |
+| Archlinux/CachyOS | ✅ Full Support | pacman (`ghostty`) |
+| Windows           | 🚧 Architecture Ready | Not yet implemented |
 
 ## What Gets Installed
 
 ### Packages
-- **Ghostty nightly** (`ghostty@tip`) - Latest features including background image support
+- **macOS:** Ghostty nightly (`ghostty@tip`) via Homebrew Cask
+- **Archlinux/CachyOS:** Ghostty (`ghostty`) via pacman
 
 ### Configuration Files
 
@@ -41,7 +42,7 @@ This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fas
 - **Catppuccin Mocha Theme**: Professional dark color scheme
 
 ### ⚡ Performance
-- **GPU Acceleration**: Metal rendering on macOS for smooth 60+ FPS
+- **GPU Acceleration**: Native Ghostty rendering on supported platforms for smooth 60+ FPS
 - **Font Rendering**: Enhanced typography with BerkeleyMono Nerd Font
 - **Optimized Shaders**: Branch-free GLSL for minimal performance impact
 
@@ -86,9 +87,10 @@ auto-update-channel = tip
 graph TD
     A[Role Entry Point] --> B{OS Detection}
     B -->|macOS| C[Install ghostty@tip]
-    B -->|Linux| D[Not Implemented]
+    B -->|Archlinux/CachyOS| D[Install ghostty via pacman]
     B -->|Windows| E[Not Implemented]
     C --> F[Create ~/.config/ghostty]
+    D --> F
     F --> G[Deploy config file]
     F --> H[Deploy shaders/]
     F --> I[Deploy themes/]
@@ -149,19 +151,20 @@ background-image-fit = cover               # cover, contain, stretch, tile
 
 ### Required
 - **macOS**: Homebrew installed
+- **Archlinux/CachyOS**: pacman package installation available
 - **Font**: BerkeleyMono Nerd Font (or modify `font-family` in config)
 
 ### Optional
 - Background image at configured path
-- GPU with Metal support for shader effects
+- GPU support for shader effects
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | Background image not loading | Verify file path exists, use absolute path |
-| Shader effects not working | Update to nightly (`ghostty@tip`), check GPU support |
-| Font rendering issues | Install BerkeleyMono Nerd Font via Homebrew |
+| Shader effects not working | Update Ghostty, check GPU support |
+| Font rendering issues | Install BerkeleyMono Nerd Font or update `font-family` |
 | Performance problems | Disable custom shaders, reduce blur radius |
 
 ## Links

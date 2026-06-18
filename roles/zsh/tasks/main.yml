@@ -41,14 +41,20 @@
 
 - name: "ZSH | Calculate os config src"
   ansible.builtin.set_fact:
-    zsh_os_config: "{{ zsh_os_distribution_config if zsh_os_distribution_config.stat.exists else zsh_os_family_config }}"
+    zsh_os_config_src: >-
+      {{
+        (role_path ~ '/files/os/' ~ ansible_facts['distribution'])
+        if zsh_os_distribution_config.stat.exists
+        else
+        (role_path ~ '/files/os/' ~ ansible_facts['os_family'])
+      }}
+    zsh_os_config_exists: "{{ zsh_os_distribution_config.stat.exists or (zsh_os_family_config.stat.exists | default(false)) }}"
 
-- name: "ZSH | Copy custom zsh config for os: {{ zsh_os_config.stat.path | basename }}"
+- name: "ZSH | Copy custom zsh config for os: {{ zsh_os_config_src | basename }}"
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/zsh/"
-    src: "{{ zsh_os_config.stat.path }}/"
+    src: "{{ zsh_os_config_src }}/"
     mode: "0644"
     force: true
   when:
-    - zsh_os_config is defined
-    - zsh_os_config.stat.exists
+    - zsh_os_config_exists

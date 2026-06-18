@@ -1,0 +1,13 @@
+[Unit]
+Description=Plasma summon D-Bus helper
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/plasma-summon-service
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=graphical-session.target

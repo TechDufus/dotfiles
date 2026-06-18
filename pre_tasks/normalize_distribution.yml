@@ -1,0 +1,28 @@
+---
+- name: Preserve original distribution fact
+  ansible.builtin.set_fact:
+    dotfiles_distribution_original: "{{ ansible_facts['distribution'] }}"
+    dotfiles_distribution_normalized: >-
+      {%- if ansible_facts['distribution'] in ['CachyOS', 'Archlinux'] -%}
+      Archlinux
+      {%- elif ansible_facts['distribution_file_variety'] | default('') == 'Archlinux' -%}
+      Archlinux
+      {%- else -%}
+      {{ ansible_facts['distribution'] }}
+      {%- endif -%}
+  tags:
+    - always
+
+- name: Normalize Arch-family distribution task selection
+  ansible.builtin.set_fact:
+    ansible_facts: "{{ ansible_facts | combine({'distribution_original': dotfiles_distribution_original, 'distribution': dotfiles_distribution_normalized}) }}"
+  when: dotfiles_distribution_normalized != ansible_facts['distribution']
+  tags:
+    - always
+
+- name: Show normalized distribution
+  ansible.builtin.debug:
+    msg: "Distribution: {{ ansible_facts['distribution_original'] | default(ansible_facts['distribution']) }} -> {{ ansible_facts['distribution'] }}"
+  when: ansible_facts['distribution_original'] | default(ansible_facts['distribution']) != ansible_facts['distribution']
+  tags:
+    - always

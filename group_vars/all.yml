@@ -1,3 +1,7 @@
+arch_pacman_extra_args: "--disable-download-timeout"
+arch_pacman_update_cache_extra_args: "--disable-download-timeout"
+arch_pacman_upgrade_extra_args: "--disable-download-timeout"
+
 default_roles:
   - system
   - 1password
@@ -9,6 +13,7 @@ default_roles:
   - bat
   - borders
   - btop
+  - brave
   - bun
   - claude
   - codex
@@ -18,7 +23,9 @@ default_roles:
   - fonts
   - fzf
   - gh
+  - discord
   - ghostty
+  - plasma
   - git
   - worktrunk
   - go
@@ -65,6 +72,23 @@ default_roles:
   - zoxide
   - zsh
 
+
+exclude_roles_by_distribution:
+  Archlinux:
+    - asciiquarium
+    - bash
+    - aldente
+    - awesomewm
+    - borders
+    - hammerspoon
+    - nala
+    - raycast
+    - slides
+    - superwhisper
+    - vicinae
+    - flatpak
+    - starship
+
 git_user_name: "TechDufus"
 
 keyboard:
@@ -97,8 +121,6 @@ op:
       techdufus:
         - name: id_ed25519
           vault_path: "op://Personal/TechDufus SSH"
-        - name: raft-infra
-          vault_path: "op://Raft/Raft-SSH"
 # FIXME: See `system/tasks/main.yml` for how to structure this var looping.
   # system:
   #   hosts:

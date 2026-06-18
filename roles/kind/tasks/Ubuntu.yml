@@ -2,9 +2,7 @@
 - name: kind | Install kind with Go
   ansible.builtin.command:
     cmd: "go install {{ item.package }}"
-    creates: "~/go/bin/{{ item.cmd }}"
-  register: go_install
-  changed_when: go_install.rc != 0
+    creates: "{{ ansible_facts['env']['HOME'] }}/go/bin/{{ item.cmd }}"
   loop_control:
     label: "{{ item.package }}"
   loop:

@@ -1,0 +1,124 @@
+[apps.terminal]
+key = "t"
+exec = "ghostty"
+match = [
+  "class:com.mitchellh.ghostty",
+  "class:ghostty",
+  "resourceClass:com.mitchellh.ghostty",
+  "resourceClass:ghostty",
+  "desktopFileName:com.mitchellh.ghostty",
+  "name:ghostty",
+  "desktopFileName:com.mitchellh.ghostty.desktop",
+]
+workspace = "1"
+monitor = "HDMI-A-1"
+region = "main"
+
+[apps.browser]
+key = "b"
+exec = "brave"
+match = [
+  "class:brave-browser",
+  "class:Brave-browser",
+  "resourceClass:brave-browser",
+  "resourceClass:Brave-browser",
+  "desktopFileName:brave-browser",
+]
+workspace = "2"
+monitor = "HDMI-A-1"
+region = "wide"
+
+[apps.discord]
+key = "d"
+exec = "discord"
+match = [
+  "class:discord",
+  "resourceClass:discord",
+  "desktopFileName:discord",
+]
+workspace = "4"
+monitor = "DP-1"
+region = "chat"
+
+[apps.signal]
+key = "c"
+exec = "signal-desktop"
+match = [
+  "class:signal",
+  "class:Signal",
+  "resourceClass:signal",
+  "resourceClass:Signal",
+  "desktopFileName:signal-desktop",
+]
+workspace = "4"
+monitor = "DP-1"
+region = "chat"
+
+[apps.spotify]
+key = "s"
+exec = "spotify-launcher"
+match = [
+  "class:Spotify",
+  "class:spotify",
+  "resourceClass:Spotify",
+  "resourceClass:spotify",
+  "desktopFileName:spotify",
+]
+workspace = "5"
+monitor = "DP-1"
+region = "side"
+
+[apps.obsidian]
+key = "n"
+exec = "obsidian"
+match = [
+  "class:obsidian",
+  "class:Obsidian",
+  "resourceClass:obsidian",
+  "resourceClass:Obsidian",
+  "desktopFileName:obsidian",
+]
+workspace = "3"
+monitor = "HDMI-A-1"
+region = "side"
+
+[apps.onepassword]
+key = "o"
+exec = "1password"
+match = [
+  "class:1Password",
+  "class:1password",
+  "resourceClass:1Password",
+  "resourceClass:1password",
+  "desktopFileName:1password",
+]
+workspace = "1"
+monitor = "HDMI-A-1"
+region = "center"
+
+[apps.files]
+key = "f"
+exec = "dolphin"
+match = [
+  "class:dolphin",
+  "class:org.kde.dolphin",
+  "resourceClass:dolphin",
+  "resourceClass:org.kde.dolphin",
+  "desktopFileName:org.kde.dolphin",
+]
+workspace = "1"
+monitor = "HDMI-A-1"
+region = "center"
+
+[apps.steam]
+exec = "steam"
+match = [
+  "class:Steam",
+  "class:steam",
+  "resourceClass:Steam",
+  "resourceClass:steam",
+  "desktopFileName:steam",
+  "title:Steam",
+]
+workspace = "6"
+monitor = "HDMI-A-1"

@@ -11,11 +11,6 @@
     - not ansible_host_environment_is_wsl
     - ansible_host_is_desktop_environment | bool
 
-- name: "Obsidian | Clone Obsidian Git Repo"
-  ansible.builtin.git:
-    repo: "git@github.com:techdufus/SecondBrain.git"
-    dest: "{{ ansible_facts['user_dir'] }}/SecondBrain"
-  failed_when: false # This only really needs to be run once, ever.
 
 # - name: "Obsidian | Create Cron Job to Pull, Commit, and Push to Git"
 #   ansible.builtin.cron:

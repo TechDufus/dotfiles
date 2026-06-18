@@ -8,11 +8,13 @@ if ! command -v "$zsh_bin" >/dev/null; then
   echo "zsh is required for this test" >&2
   exit 1
 fi
+zsh_bin="$(command -v "$zsh_bin")"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
 home_dir="$tmp_dir/home"
+no_zoxide_bin="$tmp_dir/no-zoxide-bin"
 data_dir="$tmp_dir/data"
 bin_dir="$tmp_dir/bin"
 stale_fpath="$tmp_dir/stale-zsh-functions"
@@ -22,6 +24,7 @@ mkdir -p \
   "$data_dir/zinit/zinit.git" \
   "$data_dir/zinit/completions" \
   "$bin_dir" \
+  "$no_zoxide_bin" \
   "$stale_fpath"
 
 printf ': noop\n' > "$home_dir/.config/zsh/noop.zsh"
@@ -39,7 +42,18 @@ for fn in is-at-least colors add-zsh-hook bashcompinit compinit _main_complete _
   fi
 done
 
-zinit() { :; }
+zinit() {
+  if [[ "$*" == *romkatv/powerlevel10k* ]]; then
+    print -ru2 "powerlevel10k loaded without a terminal"
+    exit 126
+  fi
+
+  if [[ "$1" == snippet && "$2" == OMZP::aws ]]; then
+    if [[ "$SHOW_AWS_PROMPT" != false && "$RPROMPT" != *'$(aws_prompt_info)'* ]]; then
+      RPROMPT='$(aws_prompt_info)'"$RPROMPT"
+    fi
+  fi
+}
 alias zi='zinit'
 ZINIT
 
@@ -49,6 +63,7 @@ if [ "${1:-}" = "init" ] && [ "${2:-}" = "zsh" ]; then
   printf '%s\n' 'zoxide() { :; }'
 fi
 ZOXIDE
+ln -s "$(command -v find)" "$no_zoxide_bin/find"
 chmod +x "$bin_dir/zoxide"
 
 # shellcheck disable=SC2016
@@ -73,4 +88,30 @@ FPATH="$stale_fpath" \
     print -ru2 "FPATH is still exported: ${(t)FPATH}"
     exit 1
   fi
+
+  if [[ "$RPROMPT" == *"aws_prompt_info"* ]]; then
+    print -ru2 "aws plugin installed fallback RPROMPT in non-TTY startup"
+    exit 1
+  fi
 '
+
+startup_output="$(
+  HOME="$home_dir" \
+  XDG_DATA_HOME="$data_dir" \
+  ZDOTDIR="$home_dir" \
+  PATH="$no_zoxide_bin" \
+  FPATH="$stale_fpath" \
+  "$zsh_bin" -i -c ':' 2>&1
+)"
+if [[ "$startup_output" == *zoxide* ]]; then
+  printf '%s\n' "$startup_output" >&2
+  exit 1
+fi
+
+tasks_output="$(
+  REPO_ROOT="$repo_root" "$zsh_bin" -i -c 'source "$REPO_ROOT/roles/zsh/files/zsh/tasks.zsh"' 2>&1
+)"
+if [[ "$tasks_output" == *"can't change option: monitor"* ]]; then
+  printf '%s\n' "$tasks_output" >&2
+  exit 1
+fi

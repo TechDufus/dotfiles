@@ -1,7 +1,13 @@
 ---
 - name: "Git | {{ ansible_facts['distribution'] }} | Install git"
-  ansible.builtin.pacman:
+  community.general.pacman:
     name:
       - git
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Git | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: git"
+  when: not (can_install_packages | default(false))

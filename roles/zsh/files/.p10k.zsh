@@ -188,6 +188,14 @@ emulate -L zsh -o extended_glob
   fi
 
   #################################[ os_icon: os identifier ]##################################
+  # Powerlevel10k only checks ID= in /etc/os-release. CachyOS exposes
+  # Arch via ID_LIKE=arch, so override the generic Linux fallback there.
+  if [[ -r /etc/os-release ]]; then
+    local _p10k_os_release=${(L)"$(</etc/os-release)"}
+    if [[ $_p10k_os_release == (id|id_like)=*arch* || $_p10k_os_release == *$'\n'(id|id_like)=*arch* ]]; then
+      typeset -g POWERLEVEL9K_LINUX_ICON='\uF303'
+    fi
+  fi
   # OS identifier color.
   typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=
   # Custom icon.

@@ -1,11 +1,25 @@
 ---
+- name: Go-Lang | Detect Go binary
+  ansible.builtin.command: which go
+  check_mode: false
+  register: go_binary
+  changed_when: false
+  failed_when: false
+
 - name: Go-Lang | Install GoLang Packages
   ansible.builtin.command:
     cmd: "go install {{ item.package }}"
-    creates: "~/go/bin/{{ item.cmd }}"
-  register: go_install
-  changed_when: go_install.rc != 0
+    creates: "{{ ansible_facts['env']['HOME'] }}/go/bin/{{ item.cmd }}"
   loop_control:
     label: "{{ item.package }}"
   loop: "{{ go.packages }}"
-  when: go.packages is defined
+  when:
+    - go.packages is defined
+    - go_binary.rc == 0
+
+- name: Go-Lang | Go packages skipped
+  ansible.builtin.debug:
+    msg: "Go package installation skipped because go is not installed."
+  when:
+    - go.packages is defined
+    - go_binary.rc != 0

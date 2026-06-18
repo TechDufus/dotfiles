@@ -11,6 +11,9 @@
     sudo_test_command: 'echo "sudo test successful"'
     detected_package_manager: ''
     privilege_escalation_available: false
+    sudo_credentials_cached: false
+    become_password_available: false
+    sudo_password_based_available: false
 
 - name: Detect package manager based on OS
   block:
@@ -47,6 +50,7 @@
 
     - name: Verify detected package manager exists
       command: "which {{ detected_package_manager }}"
+      check_mode: false
       register: pm_check
       changed_when: false
       failed_when: false
@@ -64,6 +68,7 @@
   block:
     - name: Test sudo without password
       command: sudo -n {{ sudo_test_command }}
+      check_mode: false
       register: sudo_nopass_test
       ignore_errors: true
       changed_when: false
@@ -75,6 +80,7 @@
         has_sudo: true
         sudo_method: 'sudo'
         sudo_requires_password: false
+        sudo_credentials_cached: true
         privilege_escalation_available: true
       when: sudo_nopass_test.rc == 0
 
@@ -82,7 +88,8 @@
   when: not has_sudo
   block:
     - name: Check if sudo credentials are cached
-      command: sudo -v
+      command: sudo -n -v
+      check_mode: false
       register: sudo_cached_test
       ignore_errors: true
       changed_when: false
@@ -90,12 +97,13 @@
       no_log: true
 
     - name: Test sudo with potentially cached password
-      command: sudo {{ sudo_test_command }}
+      command: sudo -n {{ sudo_test_command }}
+      check_mode: false
       register: sudo_cached_exec
       ignore_errors: true
       changed_when: false
       failed_when: false
-      when: sudo_cached_test.rc == 0
+      when: sudo_cached_test.rc | default(1) == 0
       no_log: true
 
     - name: Set sudo with cached credentials facts
@@ -103,16 +111,18 @@
         has_sudo: true
         sudo_method: 'sudo'
         sudo_requires_password: true
+        sudo_credentials_cached: true
         privilege_escalation_available: true
       when:
-        - sudo_cached_test.rc == 0
-        - sudo_cached_exec.rc == 0
+        - sudo_cached_test.rc | default(1) == 0
+        - sudo_cached_exec.rc | default(1) == 0
 
 - name: Test alternative privilege escalation methods
   when: not has_sudo
   block:
     - name: Test doas (OpenBSD/some Linux)
-      command: doas {{ sudo_test_command }}
+      command: doas -n {{ sudo_test_command }}
+      check_mode: false
       register: doas_test
       ignore_errors: true
       changed_when: false
@@ -129,6 +139,7 @@
 
     - name: Test pkexec (PolicyKit)
       command: pkexec --disable-internal-agent {{ sudo_test_command }}
+      check_mode: false
       register: pkexec_test
       ignore_errors: true
       changed_when: false
@@ -144,13 +155,61 @@
         privilege_escalation_available: true
       when:
         - not has_sudo
-        - pkexec_test.rc == 0
+        - pkexec_test.rc | default(1) == 0
+
+- name: Detect provided become password
+  set_fact:
+    become_password_available: >-
+      {{ ((ansible_become_password | default(ansible_become_pass | default(ansible_sudo_pass | default('')))) | string | length) > 0 }}
+
+- name: Detect password-based sudo availability
+  when: not has_sudo
+  block:
+    - name: Check sudo binary for password-based escalation
+      command: which sudo
+      check_mode: false
+      register: sudo_binary_check
+      ignore_errors: true
+      changed_when: false
+      failed_when: false
+
+    - name: Record password-based sudo availability
+      set_fact:
+        sudo_password_based_available: true
+      when: sudo_binary_check.rc | default(1) == 0
+
+    - name: Set password-based sudo facts
+      set_fact:
+        has_sudo: true
+        sudo_method: 'sudo'
+        sudo_requires_password: true
+        sudo_credentials_cached: false
+        privilege_escalation_available: true
+      when:
+        - sudo_binary_check.rc | default(1) == 0
+        - become_password_available | default(false) | bool
 
 - name: Determine package installation capability
   set_fact:
     can_install_packages: >-
       {{ (detected_package_manager == 'brew') or
-         (has_sudo and detected_package_manager in ['apt', 'pacman', 'dnf', 'yum']) }}
+         (has_sudo and
+          detected_package_manager in ['apt', 'pacman', 'dnf', 'yum'] and
+          ((not (sudo_requires_password | bool)) or
+           (sudo_credentials_cached | default(false) | bool) or
+           (become_password_available | default(false) | bool))) }}
+
+- name: Warn when sudo password is required
+  ansible.builtin.debug:
+    msg:
+      - "Sudo is available, but no cached sudo credentials or Ansible become password were detected."
+      - "Package roles will skip privileged installs unless you pre-cache sudo with `sudo -v` or run ansible-playbook with `--ask-become-pass`."
+  when:
+    - sudo_password_based_available | default(false) | bool
+    - sudo_requires_password | bool
+    - not (sudo_credentials_cached | default(false) | bool)
+    - not (become_password_available | default(false) | bool)
+    - detected_package_manager in ['apt', 'pacman', 'dnf', 'yum']
 
 - name: Display privilege escalation detection results
   debug:

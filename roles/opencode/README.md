@@ -12,14 +12,15 @@ This role deploys OpenCode with a comprehensive configuration optimized for engi
 |----------|-------------------|--------|
 | macOS | Homebrew (`sst/tap/opencode`) | ✅ Supported |
 | Ubuntu | npm / curl fallback | ✅ Supported |
-| Fedora | - | ❌ Not supported |
-| Arch | - | ❌ Not supported |
+| Fedora | bun global install when bun is present | ⚠️ Config deploy supported |
+| Arch | bun global install when bun is present | ✅ Supported on CachyOS/Arch profile |
 
 ## What Gets Installed
 
 ### Packages
 - **macOS**: `opencode` via Homebrew tap `sst/tap/opencode`
 - **Ubuntu**: `opencode-ai` via npm (falls back to curl installer if npm unavailable)
+- **Archlinux/CachyOS**: `opencode-ai` via `bun install -g` after the `bun` role
 
 ### Configuration Files
 

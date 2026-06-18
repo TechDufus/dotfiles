@@ -1,23 +1,27 @@
 modelRoles: 
   default: openai-codex/gpt-5.5:xhigh
-  smol: openai-codex/gpt-5.4-mini
-  task: openai-codex/gpt-5.5:high
+  smol: openai-codex/gpt-5.4-mini:xhigh
+  task: openai-codex/gpt-5.5:xhigh
   slow: openai-codex/gpt-5.5:xhigh
   plan: openai-codex/gpt-5.5:xhigh
-  designer: openai-codex/gpt-5.5:high
-  vision: openai-codex/gpt-5.5:high
-  commit: openai-codex/gpt-5.4-mini
+  designer: openai-codex/gpt-5.5:xhigh
+  vision: openai-codex/gpt-5.5:xhigh
+  commit: openai-codex/gpt-5.4-mini:xhigh
+cycleOrder: 
+  - smol
+  - default
 theme: 
   dark: dark-catppuccin
 symbolPreset: nerd
 display: 
   shimmer: kitt
 defaultThinkingLevel: xhigh
+serviceTier: priority
 contextPromotion: 
   enabled: false
 compaction: 
   thresholdPercent: 60
-  remoteEnabled: true
+  strategy: snapcompact
 hideThinkingBlock: true
 disabledProviders: 
   - claude
@@ -41,7 +45,9 @@ lsp:
   diagnosticsOnEdit: true
 collapseChangelog: true
 memory: 
-  backend: local
+  backend: mnemopi
+mnemopi: 
+  scoping: per-project-tagged
 github: 
   enabled: true
 renderMermaid: 
@@ -49,14 +55,11 @@ renderMermaid:
 inspect_image: 
   enabled: true
 task: 
-  eager: true
+  eager: always
   showResolvedModelBadge: true
+  enableLsp: true
   isolation: 
     mode: auto
-async: 
-  enabled: true
-irc: 
-  enabled: true
 skills: 
   enableCodexUser: false
   enableClaudeUser: false
@@ -68,7 +71,9 @@ commands:
   enableOpencodeProject: false
 mcp: 
   enableProjectConfig: false
-lastChangelogVersion: 15.9.1
-dev: 
-  autoqa: false
 setupVersion: 1
+vault: 
+  enabled: true
+dev: 
+  autoqa: 
+    consent: granted

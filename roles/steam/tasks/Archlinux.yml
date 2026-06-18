@@ -1,0 +1,176 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect pacman repositories"
+  ansible.builtin.command:
+    argv:
+      - pacman-conf
+      - --repo-list
+  register: steam_pacman_repos
+  changed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect CachyOS Steam meta package"
+  ansible.builtin.command:
+    argv:
+      - pacman
+      - -Si
+      - cachyos-gaming-meta
+  register: steam_cachyos_meta
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect CachyOS Gamescope session"
+  ansible.builtin.command:
+    argv:
+      - pacman
+      - -Si
+      - gamescope-session-cachyos
+  register: steam_cachyos_gamescope_session
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install CachyOS Steam meta package"
+  community.general.pacman:
+    name:
+      - cachyos-gaming-meta
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - "'multilib' in steam_pacman_repos.stdout_lines"
+    - steam_cachyos_meta.rc == 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install CachyOS Gamescope session"
+  community.general.pacman:
+    name:
+      - gamescope-session-cachyos
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - steam_cachyos_gamescope_session.rc == 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install fallback Gamescope Steam session launcher"
+  ansible.builtin.copy:
+    src: bin/dotfiles-gamescope-steam-session
+    dest: /usr/local/bin/dotfiles-gamescope-steam-session
+    mode: "0755"
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - steam_cachyos_gamescope_session.rc != 0
+    - "'multilib' in steam_pacman_repos.stdout_lines"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install fallback Gamescope Steam desktop entry"
+  ansible.builtin.copy:
+    src: gamescope/dotfiles-gamescope-steam.desktop
+    dest: /usr/share/wayland-sessions/dotfiles-gamescope-steam.desktop
+    mode: "0644"
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - steam_cachyos_gamescope_session.rc != 0
+    - "'multilib' in steam_pacman_repos.stdout_lines"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install native Steam support packages"
+  community.general.pacman:
+    name:
+      - gamescope
+      - mangohud
+      - goverlay
+      - gamemode
+      - protontricks
+      - winetricks
+      - vulkan-tools
+      - vulkan-icd-loader
+      - nvidia-utils
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Steam and 32-bit support packages"
+  community.general.pacman:
+    name:
+      - steam
+      - lib32-mangohud
+      - lib32-gamemode
+      - lib32-vulkan-icd-loader
+      - lib32-nvidia-utils
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - "'multilib' in steam_pacman_repos.stdout_lines"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect Gamescope binary"
+  ansible.builtin.stat:
+    path: /usr/bin/gamescope
+  register: steam_gamescope_binary
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Allow Gamescope realtime scheduling"
+  community.general.capabilities:
+    path: /usr/bin/gamescope
+    capability: cap_sys_nice=eip
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - steam_gamescope_binary.stat.exists
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect gamemode group"
+  ansible.builtin.getent:
+    database: group
+    key: gamemode
+    fail_key: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Add user to gamemode group"
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    groups:
+      - gamemode
+    append: true
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - "'gamemode' in (ansible_facts.getent_group | default({}))"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Explain gamemode group activation"
+  ansible.builtin.debug:
+    msg: "User {{ ansible_facts['user_id'] }} is managed in the gamemode group; log out and back in before expecting CPU governor changes in existing sessions."
+  when:
+    - can_install_packages | default(false)
+    - "'gamemode' in (ansible_facts.getent_group | default({}))"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Explain missing multilib"
+  ansible.builtin.debug:
+    msg:
+      - "Steam/Proton 32-bit packages require the Arch multilib repository."
+      - "Enable [multilib] in /etc/pacman.conf, run pacman -Syu, then rerun: dotfiles -t steam"
+      - "Native Vulkan, Gamescope, MangoHud, GOverlay, GameMode, and NVIDIA userspace packages are still managed without multilib."
+  when:
+    - can_install_packages | default(false)
+    - "'multilib' not in steam_pacman_repos.stdout_lines"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Explain missing Gamescope binary"
+  ansible.builtin.debug:
+    msg: "Gamescope realtime capability was skipped because /usr/bin/gamescope is not installed."
+  when:
+    - can_install_packages | default(false)
+    - not steam_gamescope_binary.stat.exists
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Explain missing gamemode group"
+  ansible.builtin.debug:
+    msg: "GameMode group membership was skipped because the gamemode group is not present."
+  when:
+    - can_install_packages | default(false)
+    - "'gamemode' not in (ansible_facts.getent_group | default({}))"
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "Steam package installation skipped: cachyos-gaming-meta, Steam, Gamescope, MangoHud, GameMode, Proton, Vulkan/NVIDIA userspace"
+      - "Managed package tasks require sudo-capable privileges."
+  when: not (can_install_packages | default(false))

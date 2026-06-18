@@ -3,7 +3,18 @@
   hosts: localhost
   connection: local
 
+  module_defaults:
+    community.general.pacman:
+      extra_args: "{{ arch_pacman_extra_args | default('') }}"
+      update_cache_extra_args: "{{ arch_pacman_update_cache_extra_args | default('') }}"
+      upgrade_extra_args: "{{ arch_pacman_upgrade_extra_args | default('') }}"
+
   pre_tasks:
+    - name: Normalize Distribution
+      ansible.builtin.import_tasks: pre_tasks/normalize_distribution.yml
+      tags:
+        - always
+
     - name: Detect WSL
       ansible.builtin.import_tasks: pre_tasks/detect_wsl.yml
       tags:
@@ -45,8 +56,14 @@
   tasks:
     - name: Set roles
       ansible.builtin.set_fact:
-        # yamllint disable-line rule:line-length
-        run_roles: "{% if ansible_run_tags | list == ['all'] %}{{ default_roles | reject('in', exclude_roles | default([])) | list }}{% else %}{{ (default_roles | select('in', ansible_run_tags) | list) + (ansible_run_tags | reject('in', default_roles) | reject('equalto', 'all') | list) }}{% endif %}"
+        run_roles: >-
+          {%- set distro_exclude_roles = (exclude_roles_by_distribution | default({})).get(ansible_facts['distribution'], []) -%}
+          {%- set default_excluded_roles = (exclude_roles | default([])) + distro_exclude_roles -%}
+          {%- if ansible_run_tags | list == ['all'] -%}
+          {{ default_roles | reject('in', default_excluded_roles) | list }}
+          {%- else -%}
+          {{ (default_roles | select('in', ansible_run_tags) | list) + (ansible_run_tags | reject('in', default_roles) | reject('equalto', 'all') | list) }}
+          {%- endif -%}
       tags:
         - always
 

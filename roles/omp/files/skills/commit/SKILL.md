@@ -17,9 +17,14 @@ Only use this skill when the user explicitly requests a commit or commit message
 6. Commit only after verification has run, concrete prior verification evidence is recorded honestly, or the user explicitly accepts the remaining risk.
 
 ## Message shape
-- Use conventional commit format: `type(scope): summary`.
+- Use conventional commit format on the first line: `type(scope): summary`.
 - Prefer `fix`, `feat`, `refactor`, `docs`, `test`, `chore`, or `ci`.
+- Keep the subject line 50 characters or fewer.
 - Summary should describe user-visible or maintainer-visible effect, not implementation trivia.
+- A commit body is allowed when it improves future archaeology.
+- Separate subject and body with one blank line.
+- Wrap non-blank body lines at 72 characters or fewer.
+- Use body paragraphs for why, risk, migration notes, or verification context that belongs in git history.
 
 ## PR follow-ups
 

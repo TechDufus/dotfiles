@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Gamescope Steam (dotfiles)
+Comment=Fallback Steam Big Picture session managed by dotfiles
+Exec=dotfiles-gamescope-steam-session
+Type=Application
+DesktopNames=gamescope

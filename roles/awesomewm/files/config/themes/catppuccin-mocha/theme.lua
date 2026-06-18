@@ -65,7 +65,7 @@ theme.fg_minimize   = mocha.overlay0
 theme.useless_gap   = dpi(5)
 theme.border_width  = dpi(2)
 theme.border_normal = mocha.surface0 .. "aa"  -- With transparency
-theme.border_focus  = mocha.blue .. "ee"      -- Matches Hyprland
+theme.border_focus  = mocha.blue .. "ee"
 theme.border_marked = mocha.red
 
 -- Taglist

@@ -20,7 +20,7 @@ This Ansible role installs and configures [bat](https://github.com/sharkdp/bat),
 | **macOS** | ✅ | Homebrew |
 | **Ubuntu/Debian** | ✅ | GitHub Release (.deb) |
 | **Fedora** | ✅ | DNF / GitHub Release |
-| **Arch Linux** | ⚠️ | Not configured (use AUR) |
+| **Arch Linux** | ✅ | Pacman |
 
 > **Note**: Ubuntu installation excludes aarch64 architecture due to binary availability
 

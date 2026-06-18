@@ -1,0 +1,65 @@
+#!/bin/sh
+set -eu
+
+PLASMA_SUMMON_USER="{{ ansible_facts['user_id'] }}"
+PLASMA_SUMMON_SERVICE="{{ plasma_local_bin_dir }}/plasma-summon-service"
+
+dry_run() {
+  [ "${PLASMA_SUMMON_KEYD_DRY_RUN:-0}" = "1" ]
+}
+
+run_user() {
+  if dry_run; then
+    printf '%s' "/usr/bin/systemd-run --user --machine=${PLASMA_SUMMON_USER}@.host --collect --no-block --quiet --service-type=exec"
+    for arg in "$@"; do
+      printf ' %s' "$arg"
+    done
+    printf '\n'
+    return 0
+  fi
+
+  exec /usr/bin/systemd-run \
+    --user \
+    --machine="${PLASMA_SUMMON_USER}@.host" \
+    --collect \
+    --no-block \
+    --quiet \
+    --service-type=exec \
+    "$@"
+}
+
+run_action() {
+  # The keyd command binding is a oneshot-layer keypress, so it consumes and
+  # clears plasma_macro_action by itself. Do not run `keyd do clear()` here:
+  # `do` accepts macro expressions, not actions, and would type literal
+  # "clear()" into the focused application under the active keyboard layout.
+  case "${1:-}" in
+    emoji_picker|screenshot_area)
+      run_user "${PLASMA_SUMMON_SERVICE}" --macro "$1"
+      ;;
+    cycle_same_app)
+      run_user /usr/bin/qdbus6 \
+        org.kde.kglobalaccel \
+        /component/kwin \
+        org.kde.kglobalaccel.Component.invokeShortcut \
+        "Macro a via F16"
+      ;;
+    *)
+      echo "usage: plasma-summon-keyd {cancel|run cycle_same_app|run emoji_picker|run screenshot_area}" >&2
+      exit 64
+      ;;
+  esac
+}
+
+case "${1:-}" in
+  cancel)
+    exit 0
+    ;;
+  run)
+    run_action "${2:-}"
+    ;;
+  *)
+    echo "usage: plasma-summon-keyd {cancel|run cycle_same_app|run emoji_picker|run screenshot_area}" >&2
+    exit 64
+    ;;
+esac

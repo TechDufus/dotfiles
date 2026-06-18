@@ -1,6 +1,12 @@
 ---
 - name: "{{ role_name }} | Archlinux | Install GitLab CLI"
   community.general.pacman:
-    name: gitlab-glab
+    name: glab
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | Archlinux | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: glab"
+  when: not (can_install_packages | default(false))

@@ -22,6 +22,7 @@
       Accept: "application/vnd.github.v3+json"
   register: _github_latest_release_json
   changed_when: false
+  check_mode: false
 
 - name: "GitHub Release | {{ github_release_binary_name }} | Get specific release information"
   when: github_release_tag != "latest"
@@ -31,6 +32,7 @@
       Accept: "application/vnd.github.v3+json"
   register: _github_specific_release_json
   changed_when: false
+  check_mode: false
 
 - name: "GitHub Release | {{ github_release_binary_name }} | Set release information"
   ansible.builtin.set_fact:
@@ -46,6 +48,7 @@
   register: _github_release_which
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: "GitHub Release | {{ github_release_binary_name }} | Get current version if installed"
   when: _github_release_which.rc == 0
@@ -54,6 +57,7 @@
   register: _github_release_current_version
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: "GitHub Release | {{ github_release_binary_name }} | Extract version from output"
   when: _github_release_which.rc == 0
@@ -66,7 +70,7 @@
       {{
         github_release_force_install or
         _github_release_which.rc != 0 or
-        _github_release_tag.lstrip('v') not in (_github_release_installed_version | default(''))
+        _github_release_tag.lstrip('v') not in (_github_release_installed_version | default('', true))
       }}
 
 - name: "GitHub Release | {{ github_release_binary_name }} | Display version information"
@@ -77,8 +81,17 @@
       - "Installed version: {{ _github_release_installed_version | default('Not installed') }}"
       - "Installation needed: {{ _github_release_needs_install }}"
 
+- name: "GitHub Release | {{ github_release_binary_name }} | Check mode install summary"
+  ansible.builtin.debug:
+    msg: "Would install {{ github_release_binary_name }} {{ _github_release_tag }} from {{ github_release_repo }}."
+  when:
+    - _github_release_needs_install
+    - ansible_check_mode
+
 - name: "GitHub Release | {{ github_release_binary_name }} | Install from GitHub release"
-  when: _github_release_needs_install
+  when:
+    - _github_release_needs_install
+    - not ansible_check_mode
   block:
     - name: "GitHub Release | {{ github_release_binary_name }} | Find matching asset"
       ansible.builtin.include_tasks: find_asset.yml

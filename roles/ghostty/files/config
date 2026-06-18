@@ -18,7 +18,7 @@ bold-is-bright = true
 # Window Config
 macos-titlebar-style = hidden
 macos-option-as-alt = true
-window-decoration = true
+window-decoration = server
 window-padding-x = 10
 window-padding-y = 10
 window-padding-balance = true

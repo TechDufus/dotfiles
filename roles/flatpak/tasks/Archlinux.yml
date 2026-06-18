@@ -1,0 +1,40 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install packages"
+  community.general.pacman:
+    name:
+      - flatpak
+    state: present
+  become: true
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: flatpak"
+  when: not (can_install_packages | default(false))
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Detect flatpak command"
+  ansible.builtin.command:
+    argv:
+      - which
+      - flatpak
+  register: flatpak_command
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Add Flathub remote"
+  community.general.flatpak_remote:
+    name: "flathub"
+    flatpakrepo_url: "https://flathub.org/repo/flathub.flatpakrepo"
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - flatpak_command.rc == 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Flathub remote skipped"
+  ansible.builtin.debug:
+    msg: "Flathub remote configuration skipped because flatpak is not installed in the current check-mode/runtime environment."
+  when:
+    - can_install_packages | default(false)
+    - flatpak_command.rc != 0

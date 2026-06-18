@@ -1,8 +1,5 @@
 #!/usr/bin/env zsh
 
-# Disable job control messages for this file
-setopt NO_MONITOR
-
 # Generate a timestamped log file name
 #   Usage: LOG=$(generate_log)
 #   Returns: the log file name as a string
@@ -63,12 +60,9 @@ function __task {
   # set new task
   TASK="$*"
   
-  # Start spinner in background
-  _spinner "$TASK" &
+  # Start spinner in background without registering it as a shell job.
+  _spinner "$TASK" &!
   SPINNER_PID=$!
-  
-  # Disable job control messages
-  disown $SPINNER_PID 2>/dev/null
 }
 
 # _clear_task clears the current task

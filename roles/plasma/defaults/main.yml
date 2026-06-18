@@ -1,0 +1,182 @@
+---
+role_name: plasma
+
+plasma_enable_sddm: true
+plasma_enable_kwin_summon: true
+plasma_start_summon_service: true
+plasma_enable_capslock_f13: true
+
+
+plasma_summon_script_id: plasma-summon
+
+plasma_local_bin_dir: "{{ ansible_facts['user_dir'] }}/.local/bin"
+plasma_config_dir: "{{ ansible_facts['user_dir'] }}/.config/plasma-summon"
+plasma_systemd_user_dir: "{{ ansible_facts['user_dir'] }}/.config/systemd/user"
+plasma_kwin_scripts_dir: "{{ ansible_facts['user_dir'] }}/.local/share/kwin/scripts"
+
+plasma_arch_packages:
+  - plasma-meta
+  - sddm
+  - xdg-desktop-portal-kde
+  - qt6-wayland
+  - qt6-tools
+  - xorg-xwayland
+  - dolphin
+  - konsole
+  - systemsettings
+  - spectacle
+  - ark
+  - kate
+  - kcalc
+  - kdialog
+  - fuzzel
+  # Revisit after Plasma 6.8; upstream emojier quits after copy.
+  - rofimoji
+  - rofi
+  - wl-clipboard
+  - noto-fonts-emoji
+  - kpackage
+  - kconfig
+  - python
+  - python-dbus-next
+
+plasma_capslock_f13_arch_packages:
+  - keyd
+
+plasma_manage_desktop_settings: true
+
+# Sparse KConfig writes for stable desktop preferences.
+# To capture a manual change, discover it with:
+#   kreadconfig6 --file <file> --group <outer> [--group <inner>] --key <key>
+# Then add one item here. `group_path` is ordered outer-to-inner and `value`
+# stays quoted so KDE receives the exact scalar string.
+plasma_desktop_kconfig_settings:
+  - file: kcminputrc
+    group_path: [Keyboard]
+    key: RepeatDelay
+    value: "400"
+  - file: kcminputrc
+    group_path: [Keyboard]
+    key: RepeatRate
+    value: "30"
+  - file: kcminputrc
+    group_path: [Mouse]
+    key: cursorTheme
+    value: Sweet-cursors
+
+  - file: plasmanotifyrc
+    group_path: [Notifications]
+    key: PopupTimeout
+    value: "4000"
+
+  - file: kwinrc
+    group_path: [Plugins]
+    key: blurEnabled
+    value: "true"
+  - file: kwinrc
+    group_path: [Plugins]
+    key: mouseclickEnabled
+    value: "true"
+  - file: kwinrc
+    group_path: [Windows]
+    key: ElectricBorders
+    value: "1"
+  - file: kwinrc
+    group_path: [Xwayland]
+    key: Scale
+    value: "1"
+  - file: kwinrc
+    group_path: [org.kde.kdecoration2]
+    key: library
+    value: org.kde.oxygen
+  - file: kwinrc
+    group_path: [org.kde.kdecoration2]
+    key: theme
+    value: Oxygen
+
+  - file: kdeglobals
+    group_path: [General]
+    key: BrowserApplication
+    value: brave-browser.desktop
+  - file: kdeglobals
+    group_path: [General]
+    key: TerminalApplication
+    value: /usr/bin/ghostty --gtk-single-instance=true
+  - file: kdeglobals
+    group_path: [General]
+    key: TerminalService
+    value: com.mitchellh.ghostty.desktop
+  - file: kdeglobals
+    group_path: [General]
+    key: XftAntialias
+    value: "true"
+  - file: kdeglobals
+    group_path: [General]
+    key: XftHintStyle
+    value: hintslight
+  - file: kdeglobals
+    group_path: [General]
+    key: XftSubPixel
+    value: none
+  - file: kdeglobals
+    group_path: [General]
+    key: fixed
+    value: BerkeleyMono Nerd Font,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+  - file: kdeglobals
+    group_path: [General]
+    key: font
+    value: BerkeleyMono Nerd Font,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+  - file: kdeglobals
+    group_path: [General]
+    key: menuFont
+    value: BerkeleyMono Nerd Font,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+  - file: kdeglobals
+    group_path: [General]
+    key: smallestReadableFont
+    value: BerkeleyMono Nerd Font,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+  - file: kdeglobals
+    group_path: [General]
+    key: toolBarFont
+    value: BerkeleyMono Nerd Font,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+  - file: kdeglobals
+    group_path: [Icons]
+    key: Theme
+    value: candy-icons
+  - file: kdeglobals
+    group_path: [KDE]
+    key: AnimationDurationFactor
+    value: "0.125"
+  - file: kdeglobals
+    group_path: [KDE]
+    key: DefaultDarkLookAndFeel
+    value: CachyOS-Nord
+  - file: kdeglobals
+    group_path: [KDE]
+    key: LookAndFeelPackage
+    value: org.kde.breezedark.desktop
+
+  - file: plasma-localerc
+    group_path: [Formats]
+    key: LANG
+    value: en_US.UTF-8
+
+  - file: powerdevilrc
+    group_path: [AC, Display]
+    key: DimDisplayIdleTimeoutSec
+    value: "600"
+  - file: powerdevilrc
+    group_path: [AC, Display]
+    key: TurnOffDisplayIdleTimeoutSec
+    value: "900"
+  - file: powerdevilrc
+    group_path: [AC, Display]
+    key: TurnOffDisplayIdleTimeoutWhenLockedSec
+    value: "120"
+  - file: powerdevilrc
+    group_path: [AC, SuspendAndShutdown]
+    key: AutoSuspendIdleTimeoutSec
+    value: "5400"
+  - file: powerdevilrc
+    group_path: [AC, SuspendAndShutdown]
+    key: PowerButtonAction
+    value: "1"

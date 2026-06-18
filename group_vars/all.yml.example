@@ -14,6 +14,12 @@
 # For more examples, see: docs/EXAMPLES.md
 # ====================================================================
 
+# Arch/CachyOS pacman defaults. CachyOS mirrors can occasionally stall on large
+# packages; this keeps package installs from failing due curl's low-speed timer.
+arch_pacman_extra_args: "--disable-download-timeout"
+arch_pacman_update_cache_extra_args: "--disable-download-timeout"
+arch_pacman_upgrade_extra_args: "--disable-download-timeout"
+
 # --------------------------------------------------------------------
 # ROLES CONFIGURATION
 # --------------------------------------------------------------------
@@ -84,6 +90,7 @@ default_roles:
   
   # === Communication & Media ===
   # - discord      # Team communication
+  # - signal       # Private messaging
   # - spotify      # Music streaming
   
   # === Network & Remote Access ===
@@ -96,6 +103,8 @@ default_roles:
   
   # === Linux Specific ===
   # - awesomewm     # X11 window manager and keyboard-driven desktop
+  # - plasma        # KDE Plasma Wayland desktop and KWin summon workflow
+  # - steam         # Steam/Proton/Gamescope support for Arch/CachyOS
   # - vicinae       # Raycast-style launcher for Linux/AwesomeWM
   # - fabric        # AwesomeWM top command deck UI
   # - flatpak      # Universal Linux package manager
@@ -147,6 +156,25 @@ default_roles:
   # === Network Analysis ===
   # - tshark       # Command-line network protocol analyzer
 
+
+# Optional per-distribution defaults pruning. Explicit `--tags role` still runs
+# a role; this only keeps `dotfiles`/`--tags all` from pulling irrelevant stacks.
+exclude_roles_by_distribution:
+  Archlinux:
+    - asciiquarium
+    - bash
+    - aldente
+    - awesomewm
+    - borders
+    - hammerspoon
+    - nala
+    - raycast
+    - slides
+    - superwhisper
+    - vicinae
+    - flatpak
+    - starship
+
 # --------------------------------------------------------------------
 # USER CONFIGURATION
 # --------------------------------------------------------------------
@@ -155,9 +183,8 @@ default_roles:
 # This will be used for git config user.name
 git_user_name: "Your Full Name"
 
-# Optional: Keyboard layout for Linux/X11 systems.
-# This config is applied by the `system` role on Ubuntu and is also used
-# by the AwesomeWM startup remap so your session keeps the intended layout.
+# Optional keyboard layout for Linux system/X11 paths. Plasma desktop keyboard
+# preferences live in `roles/plasma/defaults/main.yml`.
 #
 # keyboard:
 #   model: pc105

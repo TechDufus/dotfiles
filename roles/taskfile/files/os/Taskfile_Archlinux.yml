@@ -1,0 +1,223 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # ====================
+  # Arch/CachyOS System Update Tasks
+  # ====================
+  update:
+    desc: Refresh package databases and upgrade the system
+    platforms: [linux]
+    cmds:
+      - sudo pacman -Syu --disable-download-timeout
+
+  upgrade:
+    desc: Alias for Arch's full-system upgrade
+    platforms: [linux]
+    cmds:
+      - task: update
+
+  full-upgrade:
+    desc: Full system upgrade plus dotfiles package reconciliation
+    platforms: [linux]
+    cmds:
+      - sudo pacman -Syu --disable-download-timeout
+      - dotfiles --check
+
+  aur-upgrade:
+    desc: Upgrade AUR packages when an AUR helper is installed
+    platforms: [linux]
+    preconditions:
+      - sh: command -v paru || command -v yay
+        msg: "Install paru or yay before running AUR upgrades"
+    cmds:
+      - |
+        if command -v paru >/dev/null 2>&1; then
+          paru -Sua
+        else
+          yay -Sua
+        fi
+
+  clean-cache:
+    desc: Clean pacman package cache safely
+    platforms: [linux]
+    cmds:
+      - |
+        if command -v paccache >/dev/null 2>&1; then
+          sudo paccache -rk2
+          sudo paccache -ruk0
+        else
+          sudo pacman -Sc
+        fi
+
+  pacnew:
+    desc: List .pacnew/.pacsave files that need manual review
+    platforms: [linux]
+    cmds:
+      - sudo find /etc -type f \( -name '*.pacnew' -o -name '*.pacsave' \) -print
+
+  # ====================
+  # System Maintenance
+  # ====================
+  clean-logs:
+    desc: Clean old system logs (keeps last 3 days)
+    platforms: [linux]
+    cmds:
+      - sudo journalctl --vacuum-time=3d
+      - echo "Log cleanup complete"
+
+  clean-temp:
+    desc: Clean temporary files
+    platforms: [linux]
+    cmds:
+      - sudo rm -rf /tmp/*
+      - sudo rm -rf /var/tmp/*
+      - echo "Temporary files cleaned"
+
+  disk-usage:
+    desc: Show disk usage analysis
+    platforms: [linux]
+    cmds:
+      - echo "=== Disk Usage by Mount Point ==="
+      - df -h
+      - echo ""
+      - echo "=== Largest Directories in Home ==="
+      - du -h ~/ --max-depth=1 2>/dev/null | sort -hr | head -n 20
+      - echo ""
+      - echo "=== Pacman Cache Size ==="
+      - du -sh /var/cache/pacman/pkg 2>/dev/null || echo "No cache found"
+
+  disk-usage-root:
+    desc: Show disk usage analysis for system (requires sudo)
+    platforms: [linux]
+    cmds:
+      - echo "=== Largest Directories in Root ==="
+      - sudo du -h / --max-depth=1 2>/dev/null | sort -hr | head -n 20
+      - echo ""
+      - echo "=== Journal Size ==="
+      - journalctl --disk-usage
+
+  clean-system:
+    desc: Comprehensive system cleanup (logs, temp, cache)
+    platforms: [linux]
+    cmds:
+      - task: clean-logs
+      - task: clean-temp
+      - task: clean-cache
+      - echo "System cleanup complete!"
+
+  # ====================
+  # Development Tools
+  # ====================
+  docker-clean:
+    desc: Clean Docker/Podman containers and images (keeps volumes)
+    platforms: [linux]
+    cmds:
+      - |
+        if command -v docker >/dev/null 2>&1; then
+          docker container prune -f
+          docker image prune -f
+        fi
+        if command -v podman >/dev/null 2>&1; then
+          podman container prune -f
+          podman image prune -f
+        fi
+      - echo "Container cleanup complete (volumes preserved)"
+
+  docker-prune:
+    desc: Aggressive Docker/Podman cleanup (containers, images, networks, build cache)
+    platforms: [linux]
+    prompt: This will remove ALL unused container resources. Continue?
+    cmds:
+      - command -v docker >/dev/null 2>&1 && docker system prune -a -f || true
+      - command -v podman >/dev/null 2>&1 && podman system prune -a -f || true
+      - echo "Container systems pruned"
+
+  npm-clean:
+    desc: Clean npm cache
+    platforms: [linux]
+    preconditions:
+      - sh: command -v npm
+        msg: "npm is not installed"
+    cmds:
+      - npm cache clean --force
+      - echo "npm cache cleaned"
+
+  pip-clean:
+    desc: Clean pip cache
+    platforms: [linux]
+    preconditions:
+      - sh: command -v pip || command -v pip3
+        msg: "pip is not installed"
+    cmds:
+      - pip cache purge 2>/dev/null || pip3 cache purge 2>/dev/null || echo "No pip cache to clean"
+      - echo "pip cache cleaned"
+
+  cargo-clean:
+    desc: Clean Rust cargo cache and build artifacts
+    platforms: [linux]
+    preconditions:
+      - sh: command -v cargo
+        msg: "cargo is not installed"
+    cmds:
+      - cargo cache -a || echo "cargo-cache not installed, skipping"
+      - echo "Run 'cargo install cargo-cache' for better cleanup"
+
+  dev-clean:
+    desc: Clean all development tool caches
+    platforms: [linux]
+    cmds:
+      - task: npm-clean
+      - task: pip-clean
+      - task: cargo-clean
+      - task: docker-clean
+      - echo "Development tools cleaned"
+
+  # ====================
+  # CachyOS / Plasma Validation
+  # ====================
+  desktop-health:
+    desc: Validate Plasma/summon/Steam runtime state
+    platforms: [linux]
+    cmds:
+      - plasma-summon-service --print-config
+      - systemctl --user is-active plasma-summon.service
+      - steam-health --runtime --strict
+
+  dotfiles-check:
+    desc: Check Arch/CachyOS desktop roles without applying changes
+    platforms: [linux]
+    cmds:
+      - dotfiles --check -t system,plasma,steam
+
+  # ====================
+  # Service Management
+  # ====================
+  service-status:
+    desc: "Check service status (usage: task service-status -- <service-name>)"
+    platforms: [linux]
+    cmds:
+      - sudo systemctl status {{.CLI_ARGS}}
+
+  service-restart:
+    desc: "Restart a service (usage: task service-restart -- <service-name>)"
+    platforms: [linux]
+    cmds:
+      - sudo systemctl restart {{.CLI_ARGS}}
+      - sudo systemctl status {{.CLI_ARGS}}
+
+  service-logs:
+    desc: "View service logs (usage: task service-logs -- <service-name>)"
+    platforms: [linux]
+    cmds:
+      - sudo journalctl -u {{.CLI_ARGS}} -n 50 -f
+
+  failed-services:
+    desc: List all failed systemd services
+    platforms: [linux]
+    cmds:
+      - systemctl --failed

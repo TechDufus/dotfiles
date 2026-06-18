@@ -1,14 +1,15 @@
 # 📦 Flatpak Role
 
-Universal Linux application management with Flatpak - Install and manage containerized desktop applications from Flathub.
+Universal Linux application management with Flatpak - runtime setup plus Ubuntu desktop applications from Flathub.
 
 ## Overview
 
-This Ansible role sets up Flatpak on Linux systems and intelligently installs a curated set of desktop applications when a graphical environment is detected. It provides a consistent application experience across different Linux distributions by leveraging Flatpak's containerized approach.
+This Ansible role sets up Flatpak on Linux systems. Ubuntu uses it for a curated desktop app set when a graphical environment is detected. Archlinux/CachyOS only installs the Flatpak runtime and Flathub remote when the role is explicitly tagged; Arch desktop apps should prefer native pacman role installs, with Flatpak as an optional fallback.
 
 ## Supported Platforms
 
-- **Ubuntu** (and Debian-based distributions)
+- **Ubuntu** - runtime, Flathub, and desktop apps when graphical
+- **Archlinux/CachyOS** - runtime and Flathub only, explicit tag required
 
 ## What Gets Installed
 
@@ -16,11 +17,11 @@ This Ansible role sets up Flatpak on Linux systems and intelligently installs a 
 - **flatpak** - Universal Linux application sandboxing and distribution framework
 
 ### Flathub Remote
-- Automatically configures the official [Flathub](https://flathub.org) repository
+- Configures the official [Flathub](https://flathub.org) repository
 
 ### Desktop Applications
 
-When a graphical desktop environment is detected, the following applications are automatically installed:
+On Ubuntu with a graphical desktop environment, the following applications are installed:
 
 | Application | Flatpak ID | Description |
 |------------|------------|-------------|
@@ -34,7 +35,7 @@ When a graphical desktop environment is detected, the following applications are
 
 ### 🎯 Smart Desktop Detection
 
-The role uses systemd to detect whether the system is running a graphical desktop environment:
+On Ubuntu, the role uses systemd to detect whether the system is running a graphical desktop environment:
 
 ```mermaid
 flowchart TD
@@ -47,13 +48,14 @@ flowchart TD
     D --> F
 ```
 
-- Checks if `systemctl get-default` returns `graphical.target`
-- Skips desktop applications on headless servers
-- Skips desktop applications in WSL environments
+- Ubuntu checks if `systemctl get-default` returns `graphical.target`
+- Ubuntu skips desktop applications on headless servers
+- Ubuntu skips desktop applications in WSL environments
+- Archlinux/CachyOS does not install desktop applications from Flatpak
 
 ### 🔒 Sandboxed Applications
 
-All Flatpak applications run in containerized environments with:
+Ubuntu Flatpak desktop applications run in containerized environments with:
 - Isolated filesystem access
 - Controlled system permissions
 - Consistent runtime dependencies
@@ -72,9 +74,9 @@ All Flatpak applications run in containerized environments with:
 - **Scope**: System-wide
 
 ### Desktop Integration
-- Applications appear in system application menus
-- Desktop files integrated with DE
-- Icon themes properly registered
+- Ubuntu Flatpak applications appear in system application menus
+- Desktop files integrate with the desktop environment
+- Icon themes are registered by Flatpak
 
 ## Dependencies
 
@@ -82,8 +84,8 @@ All Flatpak applications run in containerized environments with:
 - `community.general` (for `flatpak` and `flatpak_remote` modules)
 
 ### System Requirements
-- systemd-based Linux distribution
-- Graphical desktop environment (for desktop apps)
+- Linux distribution with a supported task file
+- Graphical desktop environment (Ubuntu desktop apps only)
 - Internet connection for Flathub
 
 ## Usage
@@ -94,33 +96,40 @@ dotfiles -t flatpak
 ```
 
 ### Install as part of default roles
-The role is included in `default_roles` and runs automatically with:
+On Ubuntu, the role is included in `default_roles` and runs automatically with:
 ```bash
 dotfiles
 ```
 
+On Archlinux/CachyOS, the role is excluded from default runs. Use `dotfiles -t flatpak` only when you want the Flatpak runtime and Flathub remote.
+
 ### Skip desktop applications
-If you want Flatpak but not the desktop apps, modify the role or run on a headless system (automatically detected).
+Archlinux/CachyOS always skips Flatpak desktop application installs. On Ubuntu, run on a headless system or WSL to skip them automatically.
 
 ## Architecture
 
 ```mermaid
 graph LR
-    A[Flatpak Role] --> B[Install Flatpak]
-    B --> C[Configure Flathub]
-    C --> D{Desktop Environment?}
-    D -->|Yes| E[Install Desktop Apps]
-    D -->|No| F[Skip Apps]
-    E --> G[Brave Browser]
-    E --> H[Discord]
-    E --> I[Spotify]
-    E --> J[Obsidian]
-    E --> K[Steam]
+    A[Flatpak Role] --> B{Distribution}
+    B -->|Ubuntu| C[Install Flatpak]
+    B -->|Archlinux/CachyOS tagged| D[Install Flatpak]
+    C --> E[Configure Flathub]
+    D --> E
+    E --> F{Ubuntu Desktop?}
+    F -->|Yes| G[Install Ubuntu Desktop Apps]
+    F -->|No or Archlinux/CachyOS| H[Skip Apps]
+    G --> I[Brave Browser]
+    G --> J[Discord]
+    G --> K[Spotify]
+    G --> L[Obsidian]
+    G --> M[Steam]
 ```
 
 ## Key Implementation Details
 
 ### Environment Detection Logic
+Ubuntu desktop app installation uses:
+
 ```yaml
 # Checks systemd default target
 systemctl get-default  # Returns: graphical.target or multi-user.target
@@ -130,14 +139,14 @@ flatpak_is_desktop: "{{ flatpak_systemd_target.stdout == 'graphical.target' and 
 ```
 
 ### Application Installation Pattern
-- Uses `community.general.flatpak` module
+- Ubuntu desktop apps use the `community.general.flatpak` module
 - Installs from `flathub` remote
-- Loops through application list
+- Loops through the Ubuntu application list
 - Requires `become: true` for system-wide installation
 
 ## Customization
 
-To modify the list of desktop applications, edit `roles/flatpak/tasks/Ubuntu.yml`:
+To modify the Ubuntu Flatpak desktop application list, edit `roles/flatpak/tasks/Ubuntu.yml`:
 
 ```yaml
 - name: "Flatpak | Install desktop applications"
@@ -156,7 +165,7 @@ Browse available applications at [Flathub.org](https://flathub.org).
 ## Troubleshooting
 
 ### Applications not installing
-- Verify you're running a graphical desktop: `systemctl get-default`
+- Ubuntu only: verify you're running a graphical desktop with `systemctl get-default`
 - Check Flathub is accessible: `flatpak remote-list`
 - Manually test: `flatpak install flathub com.brave.Browser`
 
@@ -165,7 +174,7 @@ Browse available applications at [Flathub.org](https://flathub.org).
 - Check user is in required groups: `groups $USER`
 
 ### WSL limitations
-- Desktop apps are intentionally skipped in WSL
+- Ubuntu desktop apps are intentionally skipped in WSL
 - Use native Windows apps or WSLg instead
 
 ## Links
@@ -181,6 +190,6 @@ Browse available applications at [Flathub.org](https://flathub.org).
 roles/flatpak/
 ├── README.md          # This file
 └── tasks/
-    ├── main.yml       # OS detection entry point
-    └── Ubuntu.yml     # Ubuntu-specific installation tasks
+    ├── Archlinux.yml  # Arch runtime and Flathub only
+    └── Ubuntu.yml     # Ubuntu runtime, Flathub, and desktop apps
 ```

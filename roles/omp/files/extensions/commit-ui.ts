@@ -2,13 +2,19 @@ import type { Component } from "@oh-my-pi/pi-tui";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const TOOL_NAME = "omp_commit";
+const MIN_RENDER_WIDTH = 20;
+const MIN_WRAP_CONTENT_WIDTH = 12;
+const MAX_WRAPPED_FIELD_LINES = 3;
+const MAX_EXPANDED_WRAPPED_FIELD_LINES = 8;
 const MAX_VISIBLE_STEPS = 7;
 const MAX_FINAL_LINES = 8;
 const MAX_OUTPUT_CHARS = 2_000;
 const MAX_SECRET_SCAN_CHARS = 2_000_000;
+const MAX_COMMIT_SUBJECT_CHARS = 50;
+const MAX_COMMIT_BODY_LINE_CHARS = 72;
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const CONVENTIONAL_COMMIT_RE = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?: .+/;
+const CONVENTIONAL_COMMIT_RE = /^[a-z]+(?:\([a-z0-9-]+\))?!?: .+/;
 const MUTATING_GIT_VERBS = new Set(["add", "am", "apply", "checkout", "cherry-pick", "clean", "commit", "merge", "mv", "pull", "push", "rebase", "reset", "restore", "revert", "rm", "stash", "switch"]);
 
 const COMMIT_MESSAGE_ONLY_RE = /\b(?:commit message|message for (?:this )?commit|draft (?:a )?commit|suggest (?:a )?commit|write (?:a )?commit message)\b/i;
@@ -48,6 +54,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
 
 type RunStatus = "running" | "succeeded" | "failed";
 type StepStatus = "running" | "done" | "failed";
+type CommitUiStatus = "pending" | "running" | "succeeded" | "failed";
 
 interface CommitStep {
 	label: string;
@@ -89,6 +96,7 @@ interface CommitToolParams extends CommitToolCommitParams {
 
 interface CommitSpec {
 	files: string[];
+	deriveFilesFromStatus: boolean;
 	commitMessage: string;
 	rationale: string;
 	verification: VerificationPlan[];
@@ -134,6 +142,9 @@ interface CommitResultDetails {
 	verificationEvidence: string[];
 	acceptRisk: boolean;
 	commitHash?: string;
+	status?: CommitUiStatus;
+	phase?: string;
+	errorText?: string;
 }
 
 interface CommitRunDetails {
@@ -191,8 +202,8 @@ export default function commitUi(pi: ExtensionAPI): void {
 		source: z.string().optional().describe("Either observed or user-reported."),
 	});
 	const commitParam = z.object({
-		files: z.array(z.string()).optional().describe("Repo-relative files or directories to include for this commit."),
-		commitMessage: z.string().optional().describe("Conventional commit message for this commit."),
+		files: z.array(z.string()).optional().describe("Repo-relative files or directories for this split commit. Use exact files for split commits; empty files block when multiple commits need split membership."),
+		commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 		rationale: z.string().optional().describe("Why these files and this message belong together."),
 		verification: z.array(verificationParam).optional().describe("Narrow verification commands for this commit."),
 		verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence for this commit."),
@@ -206,16 +217,16 @@ export default function commitUi(pi: ExtensionAPI): void {
 		description: "Execute a reviewed commit plan in-process with one live progress card and hidden git operations.",
 		defaultInactive: true,
 		parameters: z.object({
-			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. Leave empty only to block safely when the current context is insufficient."),
-			commitMessage: z.string().optional().describe("Conventional commit message to use. The first line must be conventional-commit formatted."),
+			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. For one commit, omit or pass [] to derive all changed files from git status when the whole working tree should be committed."),
+			commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
 			verification: z.array(verificationParam).optional().describe("Narrow verification commands to run before staging/committing."),
 			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
-			commits: z.array(commitParam).optional().describe("Atomic commit plans to execute inside this single tool call. Use for multi-commit requests."),
+			commits: z.array(commitParam).optional().describe("Split commit plans. Omit for single commits; never pass an empty array."),
 			context: z.string().optional().describe("Additional slash-command context."),
 			dryRun: z.boolean().optional().describe("Validate and preview without staging, committing, or pushing."),
 			push: z.boolean().optional().describe("Push after all requested commits succeed."),
-			multiCommit: z.boolean().optional().describe("Render and execute this request as an atomic multi-commit group."),
+			multiCommit: z.boolean().optional().describe("Render and execute this request as a sequential commit group."),
 			acceptRisk: z.boolean().optional().describe("Allow committing without verification only when the user explicitly accepted the risk."),
 		}),
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
@@ -323,13 +334,14 @@ class CommitCallComponent implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
+		const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
 		const commitCount = this.plan.commits.length;
 		const fileCount = new Set(this.plan.commits.flatMap(commit => commit.files)).size;
-		const title = this.plan.dryRun ? "Commit preview" : "Commit";
+		const title = this.plan.dryRun ? "Commit preview" : commitCount > 1 ? "Commit group" : "Commit";
 		const lines = [`${this.theme.fg("accent", "●")} ${this.theme.fg("accent", this.theme.bold(title))}`];
 		const flags = [
 			this.plan.push ? "push" : undefined,
-			this.plan.multiCommit || commitCount > 1 ? `${commitCount} atomic commit${commitCount === 1 ? "" : "s"}` : undefined,
+			this.plan.multiCommit || commitCount > 1 ? `${commitCount} split commit${commitCount === 1 ? "" : "s"}` : undefined,
 			this.plan.acceptRisk ? "risk accepted" : undefined,
 			fileCount > 0 ? `${fileCount} file${fileCount === 1 ? "" : "s"}` : "no files selected",
 		].filter(Boolean);
@@ -337,13 +349,13 @@ class CommitCallComponent implements Component {
 		const subjects = this.plan.commits.map(commit => commit.commitMessage.split("\n", 1)[0]).filter(Boolean);
 		if (subjects.length > 0) {
 			const message = commitCount > 1 ? `${commitCount} commits: ${subjects.slice(0, 3).join("; ")}${subjects.length > 3 ? "; …" : ""}` : subjects[0];
-			lines.push(` ${this.theme.fg("dim", this.theme.tree.branch)} ${this.theme.fg("muted", message)}`);
+			appendWrappedText(lines, ` ${this.theme.fg("dim", this.theme.tree.branch)} `, ` ${this.theme.fg("dim", this.theme.tree.vertical)}  `, message, this.theme, "muted", renderWidth, MAX_WRAPPED_FIELD_LINES);
 		}
 		const rationale = this.plan.context || this.plan.commits.find(commit => commit.rationale)?.rationale;
 		if (rationale) {
-			lines.push(` ${this.theme.fg("dim", this.theme.tree.last)} ${this.theme.fg("muted", rationale)}`);
+			appendWrappedField(lines, this.theme, renderWidth, this.theme.tree.last, " ", this.plan.context ? "Context" : "Rationale", rationale, MAX_WRAPPED_FIELD_LINES);
 		}
-		return lines.map(line => truncateVisible(line, Math.max(20, width)));
+		return lines.map(line => truncateVisible(line, renderWidth));
 	}
 }
 
@@ -358,8 +370,9 @@ class CommitRunComponent implements Component {
 	invalidate(): void {}
 
 	render(width: number): string[] {
-		const lines = renderCommitRun(this.details, this.expanded, this.theme, this.spinnerFrame);
-		return lines.map(line => truncateVisible(line, Math.max(20, width)));
+		const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
+		const lines = renderCommitRun(this.details, this.expanded, this.theme, this.spinnerFrame, renderWidth);
+		return lines.map(line => truncateVisible(line, renderWidth));
 	}
 }
 
@@ -384,7 +397,10 @@ async function executeCommitPlan(
 	signal: AbortSignal | undefined,
 ): Promise<void> {
 	throwIfAborted(signal);
-	await withStep(details, "Validating commit plan", onUpdate, async () => validateCommitPlan(plan));
+	await withStep(details, "Validating commit plan", onUpdate, async () => {
+		repairCommitMessages(plan, details);
+		validateCommitPlan(plan);
+	});
 
 	const repoRoot = await withStep(details, "Inspecting working tree", onUpdate, async () => {
 		const root = (await runGit(cwd, ["rev-parse", "--show-toplevel"], signal, details)).stdout.trim();
@@ -395,15 +411,22 @@ async function executeCommitPlan(
 		const selectedByFile = new Map<string, number>();
 		for (const [index, commit] of plan.commits.entries()) {
 			const label = formatCommitLabel(index, plan.commits.length);
-			const { selected, unmatched } = resolveSelectedFiles(commit.files, status);
+			let selected: string[];
 			if (commit.files.length === 0) {
-				throw new WorkflowError(`${label}: no files were selected from the current conversation context. Changed files: ${statusPaths.join(", ")}`);
-			}
-			if (unmatched.length > 0) {
-				throw new WorkflowError(`${label}: requested files are not changed: ${unmatched.join(", ")}`);
-			}
-			if (selected.length === 0) {
-				throw new WorkflowError(`${label}: selected files do not match any working tree changes.`);
+				if (!commit.deriveFilesFromStatus || plan.commits.length > 1) {
+					throw new WorkflowError(`${label}: no files were selected from the current conversation context. Changed files: ${statusPaths.join(", ")}`);
+				}
+				selected = statusPaths;
+				details.warnings.push(`${label}: no files were supplied; selected all current git status paths.`);
+			} else {
+				const { selected: matched, unmatched } = resolveSelectedFiles(commit.files, status);
+				selected = matched;
+				if (selected.length === 0) {
+					throw new WorkflowError(`${label}: requested files are not changed: ${unmatched.join(", ")}`);
+				}
+				if (unmatched.length > 0) {
+					details.warnings.push(`${label}: ignored requested files that are not changed: ${unmatched.join(", ")}.`);
+				}
 			}
 			details.commits[index].selectedFiles = selected;
 			for (const file of selected) {
@@ -442,12 +465,26 @@ async function executeCommitPlan(
 	for (const [index, commit] of plan.commits.entries()) {
 		const label = formatCommitLabel(index, plan.commits.length);
 		const result = details.commits[index];
-		await withStep(details, `${label}: staging selected changes`, onUpdate, () => runGit(cwd, ["add", "--", ...result.selectedFiles], signal, details));
-		await withStep(details, `${label}: creating commit`, onUpdate, () => runGit(cwd, ["commit", "--only", "-m", commit.commitMessage, "--", ...result.selectedFiles], signal, details));
-		const commitHash = (await withStep(details, `${label}: checking commit result`, onUpdate, () => runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details))).stdout.trim();
-		result.commitHash = commitHash;
-		details.commitHash = commitHash;
-		onUpdate();
+		try {
+			setCommitState(result, "running", "Staging selected changes");
+			onUpdate();
+			await withStep(details, `${label}: staging selected changes`, onUpdate, () => runGit(cwd, ["add", "--", ...result.selectedFiles], signal, details));
+			setCommitState(result, "running", "Creating commit");
+			onUpdate();
+			await withStep(details, `${label}: creating commit`, onUpdate, () => runGit(cwd, ["commit", "--only", ...commitMessageArgs(commit.commitMessage), "--", ...result.selectedFiles], signal, details));
+			setCommitState(result, "running", "Checking commit result");
+			onUpdate();
+			const commitHash = (await withStep(details, `${label}: checking commit result`, onUpdate, () => runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details))).stdout.trim();
+			result.commitHash = commitHash;
+			details.commitHash = commitHash;
+			setCommitState(result, "succeeded", "Created");
+			onUpdate();
+		} catch (error) {
+			setCommitState(result, "failed", result.phase || `${label} failed`, formatError(error));
+			details.phase = `${label} blocked`;
+			onUpdate();
+			throw error;
+		}
 	}
 
 	if (plan.push) {
@@ -478,8 +515,23 @@ async function withStep<T>(details: CommitRunDetails, label: string, onUpdate: (
 	}
 }
 
+function setCommitState(commit: CommitResultDetails, status: CommitUiStatus, phase: string, errorText?: string): void {
+	commit.status = status;
+	commit.phase = phase;
+	if (errorText) commit.errorText = errorText;
+	else if (status !== "failed") delete commit.errorText;
+}
+
 function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
-	const sourceCommits = Array.isArray(params.commits) ? params.commits : [params];
+	const explicitCommits = Array.isArray(params.commits) ? params.commits : [];
+	const explicitNonEmptyCommits = explicitCommits.filter(hasCommitSpecContent);
+	const useExplicitCommits =
+		Boolean(params.multiCommit) ||
+		explicitNonEmptyCommits.length > 0 ||
+		(explicitCommits.length > 0 && !hasCommitSpecContent(params));
+	const sourceCommits = useExplicitCommits
+		? (explicitNonEmptyCommits.length > 0 ? explicitNonEmptyCommits : explicitCommits)
+		: [params];
 	const inheritedAcceptRisk = Boolean(params.acceptRisk);
 	const commits = sourceCommits.map(commit => normalizeCommitSpec(commit, inheritedAcceptRisk));
 	return {
@@ -492,9 +544,21 @@ function normalizeCommitPlan(params: CommitToolParams): CommitPlan {
 	};
 }
 
+function hasCommitSpecContent(params: CommitToolCommitParams): boolean {
+	return Boolean(
+		(params.files ?? []).some(file => file.trim()) ||
+			params.commitMessage?.trim() ||
+			params.rationale?.trim() ||
+			(params.verification ?? []).length > 0 ||
+			(params.verificationEvidence ?? []).length > 0,
+	);
+}
+
 function normalizeCommitSpec(params: CommitToolCommitParams, inheritedAcceptRisk: boolean): CommitSpec {
+	const files = dedupe((params.files ?? []).map(file => file.trim()).filter(Boolean));
 	return {
-		files: dedupe((params.files ?? []).map(file => file.trim()).filter(Boolean)),
+		files,
+		deriveFilesFromStatus: files.length === 0,
 		commitMessage: params.commitMessage?.trim() ?? "",
 		rationale: params.rationale?.trim() ?? "",
 		verification: (params.verification ?? []).map(item => ({
@@ -514,13 +578,14 @@ function normalizeCommitSpec(params: CommitToolCommitParams, inheritedAcceptRisk
 }
 
 function createRunDetails(plan: CommitPlan): CommitRunDetails {
-	const commits = plan.commits.map(commit => ({
+	const commits: CommitResultDetails[] = plan.commits.map(commit => ({
 		commitMessage: commit.commitMessage || undefined,
 		rationale: commit.rationale || undefined,
 		selectedFiles: [],
 		verificationCount: commit.verification.length,
 		verificationEvidence: commit.verificationEvidence.map(formatVerificationEvidence),
 		acceptRisk: commit.acceptRisk,
+		status: "pending",
 	}));
 	return {
 		id: `commit-${Date.now().toString(36)}`,
@@ -558,9 +623,21 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 	const prefix = label === "Commit" ? "" : `${label}: `;
 	if (!commit.commitMessage) throw new WorkflowError(`${prefix}commit message is required.`);
 	if (commit.commitMessage.includes("\0")) throw new WorkflowError(`${prefix}commit message contains a NUL byte.`);
-	const subject = commit.commitMessage.split("\n", 1)[0];
+	const lines = commit.commitMessage.split("\n");
+	const subject = lines[0] ?? "";
 	if (!CONVENTIONAL_COMMIT_RE.test(subject)) {
-		throw new WorkflowError(`${prefix}commit message must be conventional-commit formatted. Received: ${subject}`);
+		throw new WorkflowError(`${prefix}commit message subject must be conventional-commit formatted. Received: ${subject}`);
+	}
+	if (subject.length > MAX_COMMIT_SUBJECT_CHARS) {
+		throw new WorkflowError(`${prefix}commit message subject must be ${MAX_COMMIT_SUBJECT_CHARS} characters or fewer. Received ${subject.length}.`);
+	}
+	if (lines.length > 1 && lines[1] !== "") {
+		throw new WorkflowError(`${prefix}commit message body must be separated from the subject by one blank line.`);
+	}
+	for (const [lineIndex, line] of lines.slice(2).entries()) {
+		if (line.length > MAX_COMMIT_BODY_LINE_CHARS) {
+			throw new WorkflowError(`${prefix}commit message body line ${lineIndex + 3} must be ${MAX_COMMIT_BODY_LINE_CHARS} characters or fewer. Received ${line.length}.`);
+		}
 	}
 	for (const file of commit.files) validateRepoPath(file);
 	if (commit.verification.length === 0 && commit.verificationEvidence.length === 0 && !commit.acceptRisk) {
@@ -568,6 +645,100 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 	}
 	for (const verification of commit.verification) validateVerification(verification);
 	for (const evidence of commit.verificationEvidence) validateVerificationEvidence(evidence);
+}
+
+function repairCommitMessages(plan: CommitPlan, details: CommitRunDetails): void {
+	for (const [index, commit] of plan.commits.entries()) {
+		const repaired = repairCommitMessage(commit.commitMessage);
+		if (repaired === commit.commitMessage) continue;
+		commit.commitMessage = repaired;
+		details.commits[index].commitMessage = repaired;
+		if (plan.commits.length === 1) details.commitMessage = repaired;
+		details.warnings.push(`${formatCommitLabel(index, plan.commits.length)}: commit message repaired to fit ${MAX_COMMIT_SUBJECT_CHARS}/${MAX_COMMIT_BODY_LINE_CHARS} character limits.`);
+	}
+}
+
+function repairCommitMessage(message: string): string {
+	if (!message || message.includes("\0")) return message;
+	const lines = message.split("\n");
+	if (lines.length > 1 && lines[1] !== "") return message;
+
+	const subjectRepair = repairCommitSubject(lines[0] ?? "");
+	if (!subjectRepair && !lines.slice(2).some(line => line.length > MAX_COMMIT_BODY_LINE_CHARS)) return message;
+
+	const subject = subjectRepair?.subject ?? lines[0] ?? "";
+	const bodyLines = lines.slice(2);
+	if (subjectRepair?.overflow) bodyLines.unshift(subjectRepair.overflow, "");
+	const repairedBody = wrapBodyLines(bodyLines);
+	return repairedBody.length > 0 ? [subject, "", ...repairedBody].join("\n") : subject;
+}
+
+function repairCommitSubject(subject: string): { subject: string; overflow: string } | undefined {
+	if (subject.length <= MAX_COMMIT_SUBJECT_CHARS) return undefined;
+	const match = subject.match(/^([a-z]+(?:\([a-z0-9-]+\))?!?: )(.+)$/);
+	if (!match) return undefined;
+
+	const prefix = match[1] ?? "";
+	const words = (match[2] ?? "").trim().split(/\s+/).filter(Boolean);
+	const kept: string[] = [];
+	let next = prefix;
+	for (const word of words) {
+		const candidate = kept.length === 0 ? `${prefix}${word}` : `${next} ${word}`;
+		if (candidate.length > MAX_COMMIT_SUBJECT_CHARS) break;
+		kept.push(word);
+		next = candidate;
+	}
+	if (kept.length === 0) return undefined;
+	if (kept.length === words.length) return next === subject ? undefined : { subject: next, overflow: "" };
+	return { subject: next, overflow: words.slice(kept.length).join(" ") };
+}
+
+function wrapBodyLines(lines: string[]): string[] {
+	const wrapped: string[] = [];
+	let paragraph: string[] = [];
+	const flush = () => {
+		if (paragraph.length === 0) return;
+		wrapped.push(...wrapWords(paragraph.join(" "), MAX_COMMIT_BODY_LINE_CHARS));
+		paragraph = [];
+	};
+	for (const line of lines) {
+		if (line.trim() === "") {
+			flush();
+			if (wrapped.length > 0 && wrapped[wrapped.length - 1] !== "") wrapped.push("");
+			continue;
+		}
+		paragraph.push(line.trim());
+	}
+	flush();
+	while (wrapped[wrapped.length - 1] === "") wrapped.pop();
+	return wrapped;
+}
+
+function wrapWords(text: string, width: number): string[] {
+	const lines: string[] = [];
+	let current = "";
+	for (const word of text.split(/\s+/).filter(Boolean)) {
+		if (word.length > width) {
+			if (current) lines.push(current);
+			for (let index = 0; index < word.length; index += width) lines.push(word.slice(index, index + width));
+			current = "";
+			continue;
+		}
+		const candidate = current ? `${current} ${word}` : word;
+		if (candidate.length > width) {
+			if (current) lines.push(current);
+			current = word;
+		} else {
+			current = candidate;
+		}
+	}
+	if (current) lines.push(current);
+	return lines;
+}
+
+function commitMessageArgs(message: string): string[] {
+	const paragraphs = message.split(/\n{2,}/).map(paragraph => paragraph.trim()).filter(Boolean);
+	return paragraphs.flatMap(paragraph => ["-m", paragraph]);
 }
 
 function formatCommitLabel(index: number, total: number): string {
@@ -598,10 +769,8 @@ function validateVerification(verification: VerificationPlan): void {
 function validateVerificationEvidence(evidence: VerificationEvidence): void {
 	if (!evidence.description) throw new WorkflowError("Verification evidence description is required.");
 	if (evidence.description.includes("\0")) throw new WorkflowError("Verification evidence contains a NUL byte.");
-	if (evidence.command) {
-		if (evidence.command.includes("/") || evidence.command.includes("\0")) {
-			throw new WorkflowError(`Verification evidence command must be an executable name, not a path: ${evidence.command}`);
-		}
+	if (evidence.command?.includes("\0")) {
+		throw new WorkflowError("Verification evidence command contains a NUL byte.");
 	}
 	if (evidence.source && evidence.source !== "observed" && evidence.source !== "user-reported") {
 		throw new WorkflowError(`Verification evidence source must be observed or user-reported: ${evidence.source}`);
@@ -811,47 +980,61 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		? "The user asked to commit in natural language. Use the existing conversation context to plan the commit; do not answer conversationally, start a new session, or start a nested omp process."
 		: "The user invoked /commit. Use the existing conversation context to plan the commit; do not start a new session or a nested omp process.";
 	const toolCallRule = parsed.multiCommit
-		? "Call the omp_commit tool exactly once with a commits array containing every planned atomic commit. Do not make separate omp_commit calls, and do not call git, bash, read, search, or any other tool; the tool owns grouped execution and one live UI card."
+		? "Call the omp_commit tool exactly once with a commits array containing every planned split commit. Do not make separate omp_commit calls, and do not call git, bash, read, search, or any other tool; the tool owns sequential grouped execution and one live UI card."
 		: "Call the omp_commit tool exactly once. Do not call git, bash, read, search, or any other tool; omp_commit owns hidden git operations and live UI.";
 	return [
 		triggerDescription,
 		toolCallRule,
 		"Commit skill guidance:",
 		skillText.trim(),
-		"Tool argument contract:",
+		"Single-commit tool arguments:",
 		JSON.stringify(
 			{
-				files: ["repo-relative file or directory to include for a single-commit request"],
-				commitMessage: "type(scope): concise subject",
+				files: ["repo-relative file or directory to include, or omit/pass [] to derive all current git status paths for one commit"],
+				commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why, when useful.",
 				rationale: "why this file set and message match the current conversation",
 				verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
 				verificationEvidence: [{ description: "observed or user-reported verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
-				commits: [{
-					files: ["repo-relative file or directory for this atomic commit"],
-					commitMessage: "type(scope): concise subject",
-					rationale: "why this atomic commit is separate",
-					verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
-					verificationEvidence: [{ description: "observed or user-reported verification for this atomic commit", command: "executable", args: ["arg"], source: "observed" }],
-				}],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
-				multiCommit: parsed.multiCommit || undefined,
 				acceptRisk: parsed.acceptRisk || undefined,
 				context: parsed.context || undefined,
 			},
 			null,
 			2,
 		),
+		parsed.multiCommit ? "Split/multiple commit tool arguments:" : "",
+		parsed.multiCommit ? JSON.stringify(
+			{
+				commits: [{
+					files: ["exact repo-relative file or directory for this split commit"],
+					commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why this split exists.",
+					rationale: "why this split commit is separate",
+					verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
+					verificationEvidence: [{ description: "observed or user-reported verification for this split commit", command: "executable", args: ["arg"], source: "observed" }],
+				}],
+				dryRun: parsed.dryRun || undefined,
+				push: parsed.push || undefined,
+				multiCommit: true,
+				acceptRisk: parsed.acceptRisk || undefined,
+				context: parsed.context || undefined,
+			},
+			null,
+			2,
+		) : "",
 		"Rules:",
-		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields.",
-		"- For atomic/multiple commit mode, pass one commits array containing every logical commit. Each commits[] entry MUST include only the files for that atomic commit; do not make multiple omp_commit tool calls.",
-		"- files MUST be only the files intentionally belonging to the commit, inferred from the current conversation context.",
-		"- If the current context is insufficient to select files confidently, pass files: [] for a single commit or a commits entry with files: [] for atomic mode and explain the uncertainty in rationale; omp_commit will block safely with the actual changed files.",
+		"- For a single logical commit, pass top-level files/commitMessage/rationale/verification fields and omit the commits field entirely; do not include an empty commits array or blank commit object.",
+		"- For split/multiple commit mode, pass one non-empty commits array containing every logical commit. Each commits[] entry MUST include only the files for that split commit; do not make multiple omp_commit tool calls.",
+		`- Commit messages MAY be a block: subject line, blank line, then one or more body paragraphs in the same commitMessage string.`,
+		`- Commit subject line MUST be ${MAX_COMMIT_SUBJECT_CHARS} characters or fewer. Body lines MUST be ${MAX_COMMIT_BODY_LINE_CHARS} characters or fewer.`,
+		"- Use a body when the rationale belongs in git history; keep implementation notes in rationale if they are only for this workflow.",
+		"- For a single commit, use exact files when known; omit files or pass files: [] only when the commit should include every current git status path or context is insufficient and status-derived selection is acceptable.",
+		"- For split/multiple commit mode, each commits[] entry MUST use exact files for that split commit. Empty files in a split entry blocks safely because omp_commit cannot infer split membership.",
 		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",
 		"- If verification already appears in the conversation, pass verificationEvidence instead of rerunning it. Use source=observed for tool output seen in-session and source=user-reported only for explicit user-reported checks; never invent evidence.",
 		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk.",
 		"- Preserve unrelated user changes. Do not include files just because they are modified.",
-		parsed.multiCommit ? "- Atomic/multiple commit mode is requested: make separate commits for separate logical changes inside this one tool call, and let the single tool UI report all created commits." : "",
+		parsed.multiCommit ? "- Split/multiple commit mode is requested: make separate commits for separate logical changes inside this one sequential tool call, and let the single tool UI report all created commits." : "",
 		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, and residual risk.",
 		parsed.model ? `Note: --model ${parsed.model} was provided but /commit now runs in the current session model; do not pass model to the tool.` : "",
 		`Commit-request flags: ${JSON.stringify(flags)}`,
@@ -1037,72 +1220,386 @@ function formatVerificationEvidence(evidence: VerificationEvidence): string {
 	return `${source}${evidence.description}${command}`;
 }
 
-function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame?: number): string[] {
+type WorkflowSummaryKey = "plan" | "tree" | "diff" | "secrets" | "verify" | "stage" | "commit" | "hash" | "push";
+type DashboardStepStatus = StepStatus | "pending";
+
+const WORKFLOW_RAIL: readonly { key: WorkflowSummaryKey; label: string }[] = [
+	{ key: "plan", label: "plan" },
+	{ key: "tree", label: "tree" },
+	{ key: "diff", label: "diff" },
+	{ key: "secrets", label: "secrets" },
+	{ key: "verify", label: "verify" },
+	{ key: "stage", label: "stage" },
+	{ key: "commit", label: "commit" },
+	{ key: "hash", label: "hash" },
+	{ key: "push", label: "push" },
+];
+
+function renderCommitRun(details: CommitRunDetails, expanded: boolean, theme: any, spinnerFrame: number | undefined, width: number): string[] {
+	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
 	const lines: string[] = [];
 	const commits = getCommitRunCommits(details);
 	const running = details.status === "running";
-	const statusColor = details.status === "failed" ? "error" : details.status === "succeeded" ? "success" : "accent";
-	const icon = running ? spinner(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
-	const title = details.dryRun ? "Commit preview" : "Commit";
-	const badges = [details.push ? "push" : undefined, details.multiCommit || commits.length > 1 ? `${commits.length} atomic commit${commits.length === 1 ? "" : "s"}` : undefined, details.acceptRisk ? "risk accepted" : undefined, (details.verificationEvidence?.length ?? 0) > 0 ? "verification evidence" : undefined].filter(Boolean);
-	const suffix = badges.length > 0 ? ` ${theme.fg("dim", badges.map(badge => `[${badge}]`).join(" "))}` : "";
-	lines.push(`${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}${suffix}`);
-	lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Status")}: ${theme.fg(statusColor, details.phase)}`);
-	lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Internal actions")}: ${theme.fg("muted", `${details.toolCount}`)}${details.failedToolCount > 0 ? theme.fg("error", ` (${details.failedToolCount} failed)`) : ""}`);
-	if (commits.length > 1) {
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Commits")}: ${theme.fg("muted", `${commits.length}`)}`);
-		const visibleCommits = expanded ? commits : commits.slice(0, MAX_VISIBLE_STEPS);
-		for (const [index, commit] of visibleCommits.entries()) {
-			const hash = commit.commitHash ? `${commit.commitHash} ` : "";
-			const files = commit.selectedFiles.length > 0 ? ` — ${commit.selectedFiles.join(", ")}` : "";
-			lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("muted", `${index + 1}. ${hash}${commit.commitMessage}${files}`)}`);
-		}
-		if (visibleCommits.length < commits.length) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "…")}`);
+	const statusColor = runStatusColor(details.status);
+	const icon = running ? compactSpinnerGlyph(spinnerFrame) : details.status === "failed" ? "✖" : "✔";
+	const title = details.dryRun ? "Commit preview" : commits.length > 1 ? "Commit group" : "Commit";
+	const titleText = `${theme.fg(statusColor, icon)} ${theme.fg("accent", theme.bold(title))}`;
+
+	lines.push(cardBorder(theme, renderWidth, "┌", "┐", titleText));
+	appendCommitStatusHero(lines, details, commits, theme, spinnerFrame, renderWidth);
+
+	if (expanded) {
+		renderExpandedCommitDashboard(lines, details, commits, theme, spinnerFrame, renderWidth);
 	} else {
-		const commit = commits[0];
-		if (commit.commitMessage) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Message")}: ${theme.fg("muted", commit.commitMessage.split("\n", 1)[0])}`);
-		if (commit.rationale) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Rationale")}: ${theme.fg("muted", commit.rationale)}`);
-		if (commit.selectedFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Files")}: ${theme.fg("muted", commit.selectedFiles.join(", "))}`);
-		if ((commit.verificationEvidence?.length ?? 0) > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Verification")}: ${theme.fg("muted", commit.verificationEvidence.join("; "))}`);
-	}
-	if (details.ignoredFiles.length > 0) lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Ignored")}: ${theme.fg("muted", details.ignoredFiles.join(", "))}`);
-
-	const visibleSteps = expanded ? details.steps : details.steps.slice(-MAX_VISIBLE_STEPS);
-	if (details.steps.length > visibleSteps.length) {
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", `… ${details.steps.length - visibleSteps.length} earlier steps`)}`);
-	}
-	for (const [index, step] of visibleSteps.entries()) {
-		const isLast = index === visibleSteps.length - 1 && !details.finalText && !details.errorText;
-		const prefix = isLast ? theme.tree.last : theme.tree.branch;
-		const stepIcon = step.status === "failed" ? "✖" : step.status === "done" ? "✔" : spinner(spinnerFrame);
-		const color = step.status === "failed" ? "error" : step.status === "done" ? "success" : "accent";
-		lines.push(` ${theme.fg("dim", prefix)} ${theme.fg(color, stepIcon)} ${theme.fg("muted", step.label)}`);
+		renderCollapsedCommitDashboard(lines, details, commits, theme, spinnerFrame, renderWidth);
 	}
 
-	if (details.errorText) {
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("error", "Blocked")}`);
-		for (const line of details.errorText.split("\n").slice(0, MAX_FINAL_LINES)) {
-			lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("error", line)}`);
-		}
-	}
-
-	if (details.finalText) {
-		const finalLines = details.finalText.split("\n").filter(Boolean);
-		const shown = expanded ? finalLines : finalLines.slice(0, MAX_FINAL_LINES);
-		lines.push(` ${theme.fg("dim", theme.tree.branch)} ${theme.fg("dim", "Result")}`);
-		for (const line of shown) lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("muted", line)}`);
-		if (shown.length < finalLines.length) lines.push(` ${theme.fg("dim", theme.tree.vertical)}  ${theme.fg("dim", "…")}`);
-	}
-
-	if (details.finishedAt) {
-		lines.push(` ${theme.fg("dim", theme.tree.last)} ${theme.fg("dim", `Completed in ${formatDuration(details.finishedAt - details.startedAt)}`)}`);
-	}
+	const duration = details.finishedAt ? `Completed in ${formatDuration(details.finishedAt - details.startedAt)}` : running ? `Running ${formatDuration(Date.now() - details.startedAt)}` : undefined;
+	lines.push(cardBorder(theme, renderWidth, "└", "┘", duration ? theme.fg("dim", duration) : undefined));
 	return lines;
 }
 
-function spinner(frame: number | undefined): string {
-	return SPINNER_FRAMES[(frame ?? Math.floor(Date.now() / 120)) % SPINNER_FRAMES.length];
+function renderCollapsedCommitDashboard(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, spinnerFrame: number | undefined, width: number): void {
+	const maxFieldLines = MAX_WRAPPED_FIELD_LINES;
+
+	appendSummaryChips(lines, details, commits, theme, width, maxFieldLines);
+	appendWorkflowRail(lines, details, theme, spinnerFrame, width, maxFieldLines);
+	appendCommitRows(lines, commits, details.status === "succeeded", theme, spinnerFrame, width, maxFieldLines, MAX_VISIBLE_STEPS);
+	if (details.status === "running" && commits.length === 1 && commits[0]!.selectedFiles.length > 0) appendCompactListField(lines, theme, width, "Files", commits[0]!.selectedFiles, maxFieldLines);
+
+	if (details.ignoredFiles.length > 0) appendCompactListField(lines, theme, width, "Ignored", details.ignoredFiles, maxFieldLines);
+	if (details.warnings.length > 0) appendCompactListField(lines, theme, width, "Warnings", details.warnings, maxFieldLines, "warning");
+	appendCommitOutcome(lines, details, commits, theme, width, false);
 }
+
+function renderExpandedCommitDashboard(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, spinnerFrame: number | undefined, width: number): void {
+	const maxFieldLines = MAX_EXPANDED_WRAPPED_FIELD_LINES;
+	const completed = details.status === "succeeded";
+
+	appendSummaryChips(lines, details, commits, theme, width, maxFieldLines);
+	appendWorkflowRail(lines, details, theme, spinnerFrame, width, maxFieldLines);
+	if (details.context) appendCardField(lines, theme, width, "Context", details.context, maxFieldLines);
+	if (details.rationale) appendCardField(lines, theme, width, "Rationale", details.rationale, maxFieldLines);
+
+	appendCommitRows(lines, commits, completed, theme, spinnerFrame, width, maxFieldLines, commits.length);
+	for (const [index, commit] of commits.entries()) {
+		appendCardSeparator(lines, theme, width, commits.length > 1 ? `Commit ${index + 1}` : "Commit details");
+		if (commit.commitMessage) appendCardField(lines, theme, width, "Subject", commitSubject(commit), maxFieldLines);
+		if (commit.rationale) appendCardField(lines, theme, width, "Rationale", commit.rationale, maxFieldLines);
+		if (commit.selectedFiles.length > 0) appendCompactListField(lines, theme, width, "Files", commit.selectedFiles, maxFieldLines);
+		appendCardField(lines, theme, width, "Verification", formatSingleCommitVerification(commit, completed), maxFieldLines);
+		if (commit.errorText) appendCardField(lines, theme, width, "Error", commit.errorText, maxFieldLines, "error");
+	}
+
+	if (details.ignoredFiles.length > 0) appendCompactListField(lines, theme, width, "Ignored", details.ignoredFiles, maxFieldLines);
+	if (details.warnings.length > 0) appendCompactListField(lines, theme, width, "Warnings", details.warnings, maxFieldLines, "warning");
+
+	if (details.steps.length > 0) {
+		appendCardSeparator(lines, theme, width, "Steps");
+		for (const step of details.steps) {
+			const stepIcon = workflowStatusIcon(step.status, spinnerFrame);
+			const color = dashboardStepStatusColor(step.status);
+			appendCardWrappedText(lines, theme, width, `${theme.fg(color, stepIcon)} `, "  ", step.label, "muted", MAX_WRAPPED_FIELD_LINES);
+		}
+	}
+
+	appendCommitOutcome(lines, details, commits, theme, width, true);
+}
+
+function appendCommitStatusHero(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, spinnerFrame: number | undefined, width: number): void {
+	const color = runStatusColor(details.status);
+	const mode = details.dryRun ? "Preview" : commits.length > 1 ? "Commit group" : "Commit";
+	const status = details.status === "running" ? `${compactSpinnerGlyph(spinnerFrame)} Running` : details.status === "failed" ? "✖ Blocked" : "✔ Complete";
+	appendCardWrappedText(lines, theme, width, `${theme.fg(color, status)} ${theme.fg("dim", "·")} `, "  ", `${mode}: ${details.phase}`, color, MAX_WRAPPED_FIELD_LINES);
+}
+
+function appendSummaryChips(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number, _maxLines: number): void {
+	const prefix = `${theme.fg("dim", "Stats")}: `;
+	const continuationPrefix = "  ";
+	const innerWidth = cardContentWidth(width);
+	const firstWidth = Math.max(1, innerWidth - visibleLength(prefix));
+	const nextWidth = Math.max(1, innerWidth - visibleLength(continuationPrefix));
+	for (const [index, row] of wrapSummaryChips(formatSummaryChips(details, commits), firstWidth, nextWidth).entries()) {
+		appendCardLine(lines, theme, width, `${index === 0 ? prefix : continuationPrefix}${theme.fg("muted", row)}`);
+	}
+}
+
+function formatSummaryChips(details: CommitRunDetails, commits: CommitResultDetails[]): string[] {
+	const hashes = commits.filter(commit => commit.commitHash).length;
+	return [
+		details.dryRun ? "dry run" : undefined,
+		`commits ${commits.length}`,
+		`files ${totalSelectedFiles(commits)}`,
+		`verification ${compactRunVerificationState(details, commits)}`,
+		`push ${compactPushState(details)}`,
+		`ignored ${details.ignoredFiles.length}`,
+		`warnings ${details.warnings.length}`,
+		`hash ${hashes}/${commits.length}`,
+	].filter((chip): chip is string => Boolean(chip)).map(chip => `[${chip}]`);
+}
+
+function wrapSummaryChips(chips: string[], firstWidth: number, nextWidth: number): string[] {
+	const rows: string[] = [];
+	let row = "";
+	for (const chip of chips) {
+		const width = Math.max(1, rows.length === 0 ? firstWidth : nextWidth);
+		const nextRow = row ? `${row} ${chip}` : chip;
+		if (row && visibleLength(nextRow) > width) {
+			rows.push(row);
+			row = chip;
+		} else {
+			row = nextRow;
+		}
+	}
+	if (row) rows.push(row);
+	return rows;
+}
+
+function appendWorkflowRail(lines: string[], details: CommitRunDetails, theme: any, spinnerFrame: number | undefined, width: number, maxLines: number): void {
+	const states = workflowStepStates(details);
+	const label = details.status === "running" ? "Progress" : "Checklist";
+	const items = WORKFLOW_RAIL.map(step => `${workflowStatusIcon(states.get(step.key) ?? "pending", spinnerFrame)} ${step.label}`);
+	appendItemizedCardLine(lines, theme, width, `${theme.fg("dim", label)}: `, "  ", items, "muted", maxLines);
+}
+
+function appendItemizedCardLine(lines: string[], theme: any, width: number, firstPrefix: string, continuationPrefix: string, items: string[], color: string, maxLines: number): void {
+	let prefix = firstPrefix;
+	let row = "";
+	let emitted = 0;
+	for (const item of items) {
+		const available = Math.max(1, cardContentWidth(width) - visibleLength(prefix));
+		const candidate = row ? `${row}  ${item}` : item;
+		if (visibleLength(candidate) > available && row) {
+			appendCardLine(lines, theme, width, `${prefix}${theme.fg(color, row)}`);
+			emitted += 1;
+			prefix = continuationPrefix;
+			row = item;
+			if (emitted >= maxLines) return;
+		} else {
+			row = candidate;
+		}
+	}
+	if (row && emitted < maxLines) appendCardLine(lines, theme, width, `${prefix}${theme.fg(color, row)}`);
+}
+
+function workflowStepStates(details: CommitRunDetails): Map<WorkflowSummaryKey, DashboardStepStatus> {
+	const states = new Map<WorkflowSummaryKey, DashboardStepStatus>();
+	for (const step of WORKFLOW_RAIL) states.set(step.key, "pending");
+	for (const step of details.steps) {
+		const key = workflowSummaryKey(stepSummaryLabel(step.label));
+		if (!key) continue;
+		const previous = states.get(key);
+		if (previous === "failed" || step.status === "failed") {
+			states.set(key, "failed");
+		} else if (previous !== "running" || step.status === "running") {
+			states.set(key, step.status);
+		}
+	}
+	return states;
+}
+
+function workflowSummaryKey(label: string): WorkflowSummaryKey | undefined {
+	return WORKFLOW_RAIL.find(step => step.key === label)?.key;
+}
+
+function workflowStatusIcon(status: DashboardStepStatus, spinnerFrame: number | undefined): string {
+	if (status === "failed") return "✖";
+	if (status === "done") return "✓";
+	if (status === "running") return compactSpinnerGlyph(spinnerFrame);
+	return "○";
+}
+
+function dashboardStepStatusColor(status: DashboardStepStatus): string {
+	if (status === "failed") return "error";
+	if (status === "done") return "success";
+	if (status === "running") return "accent";
+	return "muted";
+}
+
+function appendCommitRows(lines: string[], commits: CommitResultDetails[], completed: boolean, theme: any, spinnerFrame: number | undefined, width: number, maxLines: number, limit: number): void {
+	appendCardSeparator(lines, theme, width, commits.length > 1 ? "Commits" : "Commit");
+	const visibleCommits = commits.slice(0, limit);
+	for (const [index, commit] of visibleCommits.entries()) {
+		const state = commitUiStatus(commit);
+		appendCardWrappedText(lines, theme, width, "", "  ", formatCommitDashboardRow(commit, index, commits.length, completed, spinnerFrame), commitStatusColor(state), maxLines);
+	}
+	if (visibleCommits.length < commits.length) appendCardLine(lines, theme, width, theme.fg("dim", `… ${commits.length - visibleCommits.length} more commits`));
+}
+
+function appendCompactListField(lines: string[], theme: any, width: number, label: string, values: string[], maxLines: number, color = "muted"): void {
+	appendCardField(lines, theme, width, label, values.join(", "), maxLines, color);
+}
+
+function appendCommitOutcome(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number, expanded: boolean): void {
+	const maxFieldLines = expanded ? MAX_EXPANDED_WRAPPED_FIELD_LINES : MAX_WRAPPED_FIELD_LINES;
+	const outcomeLines = buildCommitOutcomeLines(details, commits, expanded);
+	if (outcomeLines.length > 0) {
+		appendCardSeparator(lines, theme, width, details.status === "failed" ? "Blocked" : "Outcome");
+		for (const line of outcomeLines) {
+			appendCardWrappedText(lines, theme, width, "", "  ", line, details.status === "failed" ? "error" : "muted", maxFieldLines);
+		}
+	}
+
+	const created = commits.filter(commit => commit.commitHash);
+	if (details.status === "failed" && created.length > 0) {
+		appendCardField(lines, theme, width, "Already created", `${formatCreatedCommits(created)}. Review git history before retrying; this commit group is only partially complete.`, maxFieldLines, "error");
+	}
+
+}
+
+function buildCommitOutcomeLines(details: CommitRunDetails, commits: CommitResultDetails[], expanded: boolean): string[] {
+	const lines: string[] = [];
+	if (details.status === "running") {
+		lines.push(`Running: ${latestCommitAction(commits, details)}`);
+		return lines;
+	}
+	if (details.errorText) {
+		lines.push(...details.errorText.split("\n").map(line => line.trim()).filter(Boolean).slice(0, expanded ? MAX_FINAL_LINES : 2));
+		return lines;
+	}
+	if (details.status === "failed") {
+		lines.push(details.phase || "Commit workflow blocked.");
+		return lines;
+	}
+	if (details.dryRun) {
+		lines.push(`Preview ready: ${commits.length} ${commits.length === 1 ? "commit" : "commits"} covering ${formatFileCount(totalSelectedFiles(commits))}; no commit created.`);
+		lines.push(`Messages: ${formatCommitSubjects(commits)}.`);
+	} else {
+		const created = commits.filter(commit => commit.commitHash);
+		if (created.length > 0 && commits.length > 1) {
+			lines.push(`Commits created: ${created.length}. ${formatCreatedCommits(created)}.`);
+		} else {
+			lines.push(created.length > 0 ? `Commit created: ${formatCreatedCommits(created)}.` : "No commit hash recorded.");
+		}
+	}
+	lines.push(`Push: ${compactPushState(details)}.`);
+	if (details.ignoredFiles.length > 0) lines.push(`Ignored left untouched: ${formatFileCount(details.ignoredFiles.length)}.`);
+	if (details.warnings.length > 0) lines.push(`Warnings: ${details.warnings.length}.`);
+	return lines;
+}
+
+function formatCreatedCommits(commits: CommitResultDetails[]): string {
+	return commits.map(commit => `${commit.commitHash ?? "pending"} ${commitSubject(commit)}`).join("; ");
+}
+
+function formatCommitSubjects(commits: CommitResultDetails[]): string {
+	return commits.map(commit => commitSubject(commit)).join("; ");
+}
+
+function formatCommitDashboardRow(commit: CommitResultDetails, index: number, total: number, completed: boolean, spinnerFrame: number | undefined): string {
+	const state = commitUiStatus(commit);
+	const icon = state === "running" ? compactSpinnerGlyph(spinnerFrame) : commitStatusIcon(state);
+	const commitIndex = total > 1 ? `#${index + 1}` : "#1";
+	const hash = commit.commitHash ?? (state === "running" ? "running" : "pending");
+	return `${icon} ${commitIndex} │ ${hash} │ ${commitSubject(commit)} │ ${formatFileCount(commit.selectedFiles.length)} │ verification ${compactCommitVerificationState(commit, completed)}`;
+}
+
+function totalSelectedFiles(commits: CommitResultDetails[]): number {
+	return new Set(commits.flatMap(commit => commit.selectedFiles)).size;
+}
+
+function compactRunVerificationState(details: CommitRunDetails, commits: CommitResultDetails[]): string {
+	if (
+		details.status === "failed" &&
+		(commits.some(commit => commit.status === "failed" || commit.errorText) ||
+			details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "verify") ||
+			details.errorText?.toLowerCase().includes("verification"))
+	) return "failed";
+	if (details.status === "succeeded" && commits.some(commit => commit.verificationCount > 0)) return "ok";
+	if (commits.some(commit => (commit.verificationEvidence?.length ?? 0) > 0)) return "evidence";
+	if (commits.some(commit => commit.verificationCount > 0)) return "planned";
+	if (commits.every(commit => commit.acceptRisk)) return "risk";
+	return "none";
+}
+
+function compactCommitVerificationState(commit: CommitResultDetails, completed: boolean): string {
+	if (commit.status === "failed" || commit.errorText) return "failed";
+	if (commit.verificationCount > 0) return completed || Boolean(commit.commitHash) ? "ok" : "planned";
+	if ((commit.verificationEvidence?.length ?? 0) > 0) return "evidence";
+	return commit.acceptRisk ? "risk" : "none";
+}
+
+function compactPushState(details: CommitRunDetails): string {
+	if (!details.push) return "not pushed";
+	if (details.status === "succeeded") return "pushed";
+	if (details.status === "failed" && details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "push")) return "failed";
+	return "pending";
+}
+
+function runStatusColor(status: RunStatus): string {
+	if (status === "failed") return "error";
+	if (status === "succeeded") return "success";
+	return "accent";
+}
+
+
+function latestCommitAction(commits: CommitResultDetails[], details: CommitRunDetails): string {
+	for (const [index, commit] of commits.entries()) {
+		if (commit.status === "running" && commit.phase) return `${formatCommitLabel(index, commits.length)}: ${commit.phase}`;
+	}
+	for (let index = details.steps.length - 1; index >= 0; index -= 1) {
+		if (details.steps[index].status === "running") return details.steps[index].label;
+	}
+	return details.phase;
+}
+
+
+function stepSummaryLabel(label: string): string {
+	const normalized = label.toLowerCase();
+	if (normalized.includes("validating commit plan")) return "plan";
+	if (normalized.includes("inspecting working tree")) return "tree";
+	if (normalized.includes("reviewing selected diff")) return "diff";
+	if (normalized.includes("checking for secrets")) return "secrets";
+	if (normalized.includes("running verification")) return "verify";
+	if (normalized.includes("staging selected changes")) return "stage";
+	if (normalized.includes("creating commit")) return "commit";
+	if (normalized.includes("checking commit result")) return "hash";
+	if (normalized.includes("pushing branch")) return "push";
+	return label.replace(/^Commit \d+\/\d+: /, "");
+}
+
+function commitUiStatus(commit: CommitResultDetails): CommitUiStatus {
+	if (commit.status) return commit.status;
+	return commit.commitHash ? "succeeded" : "pending";
+}
+
+function commitStatusIcon(status: CommitUiStatus): string {
+	if (status === "failed") return "✖";
+	if (status === "succeeded") return "✔";
+	if (status === "running") return "●";
+	return "○";
+}
+
+function commitStatusColor(status: CommitUiStatus): string {
+	if (status === "failed") return "error";
+	if (status === "succeeded") return "success";
+	if (status === "running") return "accent";
+	return "muted";
+}
+
+function commitSubject(commit: CommitResultDetails): string {
+	return commit.commitMessage?.split("\n", 1)[0] || "(no message)";
+}
+
+function formatFileCount(count: number): string {
+	return `${count} file${count === 1 ? "" : "s"}`;
+}
+
+
+function formatSingleCommitVerification(commit: CommitResultDetails, completed: boolean): string {
+	const summary = formatVerificationSummary(commit, completed);
+	return (commit.verificationEvidence?.length ?? 0) > 0 ? `${summary}; ${commit.verificationEvidence.join("; ")}` : summary;
+}
+
+function compactSpinnerGlyph(frame: number | undefined): string {
+	const index = frameIndex(frame);
+	return SPINNER_FRAMES[index % SPINNER_FRAMES.length];
+}
+
+function frameIndex(frame: number | undefined): number {
+	return frame ?? Math.floor(Date.now() / 120);
+}
+
 
 function upsertStep(details: CommitRunDetails, label: string, status: StepStatus): void {
 	const last = details.steps[details.steps.length - 1];
@@ -1151,6 +1648,119 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
 function trimOutput(text: string): string {
 	const trimmed = text.trim();
 	return trimmed.length > MAX_OUTPUT_CHARS ? `${trimmed.slice(0, MAX_OUTPUT_CHARS)}…` : trimmed;
+}
+
+function cardContentWidth(width: number): number {
+	return Math.max(1, Math.max(MIN_RENDER_WIDTH, width) - 4);
+}
+
+function cardBorder(theme: any, width: number, left: string, right: string, label?: string): string {
+	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
+	const innerWidth = Math.max(1, renderWidth - 2);
+	if (!label) return theme.fg("dim", `${left}${"─".repeat(innerWidth)}${right}`);
+
+	const clipped = truncateVisible(label, Math.max(1, innerWidth - 3));
+	const head = `${left}─ ${clipped} `;
+	const fill = "─".repeat(Math.max(0, renderWidth - visibleLength(head) - 1));
+	return `${theme.fg("dim", `${left}─ `)}${clipped}${theme.fg("dim", ` ${fill}${right}`)}`;
+}
+
+function appendCardLine(lines: string[], theme: any, width: number, content: string): void {
+	const innerWidth = cardContentWidth(width);
+	const clipped = truncateVisible(content, innerWidth);
+	const padding = " ".repeat(Math.max(0, innerWidth - visibleLength(clipped)));
+	lines.push(`${theme.fg("dim", "│")} ${clipped}${padding} ${theme.fg("dim", "│")}`);
+}
+
+function appendCardSeparator(lines: string[], theme: any, width: number, label?: string): void {
+	lines.push(cardBorder(theme, width, "├", "┤", label ? theme.fg("dim", label) : undefined));
+}
+
+function appendCardField(lines: string[], theme: any, width: number, label: string, value: string, maxLines: number, color = "muted"): void {
+	appendCardWrappedText(lines, theme, width, `${theme.fg("dim", label)}: `, "  ", value, color, maxLines);
+}
+
+function appendCardWrappedText(lines: string[], theme: any, width: number, prefix: string, continuationPrefix: string, value: string, color: string, maxLines: number): void {
+	const innerWidth = cardContentWidth(width);
+	const firstWidth = Math.max(1, innerWidth - visibleLength(prefix));
+	const nextWidth = Math.max(1, innerWidth - visibleLength(continuationPrefix));
+	const chunks = wrapPlainText(value, firstWidth, nextWidth, maxLines);
+	for (const [index, chunk] of chunks.entries()) {
+		appendCardLine(lines, theme, width, `${index === 0 ? prefix : continuationPrefix}${theme.fg(color, chunk)}`);
+	}
+}
+
+function appendWrappedField(lines: string[], theme: any, width: number, branch: string, continuation: string, label: string, value: string, maxLines: number, color = "muted"): void {
+	appendWrappedText(
+		lines,
+		` ${theme.fg("dim", branch)} ${theme.fg("dim", label)}: `,
+		` ${theme.fg("dim", continuation)}  `,
+		value,
+		theme,
+		color,
+		width,
+		maxLines,
+	);
+}
+
+function appendWrappedText(lines: string[], prefix: string, continuationPrefix: string, value: string, theme: any, color: string, width: number, maxLines: number): void {
+	const safeWidth = Math.max(MIN_RENDER_WIDTH, width) - 1;
+	const firstWidth = Math.max(MIN_WRAP_CONTENT_WIDTH, safeWidth - visibleLength(prefix));
+	const nextWidth = Math.max(MIN_WRAP_CONTENT_WIDTH, safeWidth - visibleLength(continuationPrefix));
+	const chunks = wrapPlainText(value, firstWidth, nextWidth, maxLines);
+	for (const [index, chunk] of chunks.entries()) {
+		lines.push(`${index === 0 ? prefix : continuationPrefix}${theme.fg(color, chunk)}`);
+	}
+}
+
+function wrapPlainText(value: string, firstWidth: number, nextWidth: number, maxLines: number): string[] {
+	let remaining = value.replace(/\s+/g, " ").trim();
+	const lines: string[] = [];
+	while (remaining.length > 0 && lines.length < maxLines) {
+		const width = Math.max(1, lines.length === 0 ? firstWidth : nextWidth);
+		if (remaining.length <= width) {
+			lines.push(remaining);
+			remaining = "";
+			break;
+		}
+		const breakAt = findWrapBreak(remaining, width);
+		lines.push(remaining.slice(0, breakAt).trimEnd());
+		remaining = remaining.slice(breakAt).trimStart();
+	}
+	if (remaining.length > 0 && lines.length > 0) {
+		const width = Math.max(1, lines.length === 1 ? firstWidth : nextWidth);
+		lines[lines.length - 1] = appendEllipsis(lines[lines.length - 1], width);
+	}
+	return lines;
+}
+
+function findWrapBreak(value: string, width: number): number {
+	let lastWhitespace = -1;
+	const limit = Math.min(value.length, width + 1);
+	for (let index = 0; index < limit; index += 1) {
+		if (/\s/.test(value[index])) lastWhitespace = index;
+	}
+	return lastWhitespace > 0 ? lastWhitespace : Math.max(1, width);
+}
+
+function appendEllipsis(value: string, width: number): string {
+	if (width <= 1) return "…";
+	return `${value.slice(0, width - 1).trimEnd()}…`;
+}
+
+function visibleLength(input: string): number {
+	let visible = 0;
+	for (let i = 0; i < input.length; i += 1) {
+		if (input[i] === "\u001b") {
+			const end = input.indexOf("m", i);
+			if (end !== -1) {
+				i = end;
+				continue;
+			}
+		}
+		visible += 1;
+	}
+	return visible;
 }
 
 function dedupe(values: string[]): string[] {

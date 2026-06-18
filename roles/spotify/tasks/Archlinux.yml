@@ -4,3 +4,9 @@
     name: spotify-launcher
     state: present
   become: true
+  when: can_install_packages | default(false)
+
+- name: "Spotify | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: spotify-launcher"
+  when: not (can_install_packages | default(false))

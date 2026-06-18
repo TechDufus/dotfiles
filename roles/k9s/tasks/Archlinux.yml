@@ -1,7 +1,12 @@
 ---
 - name: "K9s | Archlinux | Install K9s"
-  ansible.builtin.package:
+  community.general.pacman:
     name: k9s
     state: present
-    update_cache: true
   become: true
+  when: can_install_packages | default(false)
+
+- name: "K9s | Archlinux | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: k9s"
+  when: not (can_install_packages | default(false))

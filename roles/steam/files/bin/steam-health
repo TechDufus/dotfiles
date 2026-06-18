@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""Non-interactive Arch/CachyOS Steam/Proton health checks."""
+
+from __future__ import annotations
+
+import argparse
+import getpass
+import grp
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+from typing import Iterable
+
+
+class Result:
+    def __init__(self, level: str, name: str, detail: str) -> None:
+        self.level = level
+        self.name = name
+        self.detail = detail
+
+
+def run(argv: list[str], timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(errors="replace")
+        return subprocess.CompletedProcess(argv, 124, stdout=stdout, stderr="")
+
+
+def command(name: str) -> str | None:
+    return shutil.which(name)
+
+
+WAYLAND_SESSIONS_DIR = Path("/usr/share/wayland-sessions")
+GAMESCOPE_BINARY = Path("/usr/bin/gamescope")
+
+
+def steam_paths() -> list[Path]:
+    home = Path.home()
+    return [
+        home / ".local/share/Steam",
+        home / ".steam/steam",
+    ]
+
+
+def vdf_value(line: str, key: str) -> str | None:
+    stripped = line.strip()
+    if not stripped.startswith(f'"{key}"'):
+        return None
+    parts = stripped.split('"')
+    if len(parts) < 4:
+        return None
+    return parts[3].replace("\\\\", "\\")
+
+
+def steam_library_paths() -> list[Path]:
+    libraries: list[Path] = []
+    seen: set[Path] = set()
+
+    for base in steam_paths():
+        candidates = [base]
+        library_file = base / "steamapps/libraryfolders.vdf"
+        try:
+            for line in library_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                path = vdf_value(line, "path")
+                if path:
+                    candidates.append(Path(path))
+        except OSError:
+            pass
+
+        for candidate in candidates:
+            if candidate not in seen:
+                seen.add(candidate)
+                libraries.append(candidate)
+
+    return libraries
+
+
+def steam_login_files() -> list[Path]:
+    return [base / "config/loginusers.vdf" for base in steam_paths()]
+
+
+def steam_app_manifests() -> list[Path]:
+    manifests: list[Path] = []
+    for base in steam_library_paths():
+        steamapps = base / "steamapps"
+        if steamapps.is_dir():
+            manifests.extend(sorted(steamapps.glob("appmanifest_*.acf")))
+    return manifests
+
+
+def proton_dx12_runtime_paths() -> list[Path]:
+    paths: list[Path] = []
+    roots = [Path("/usr/share/steam/compatibilitytools.d")]
+    roots.extend(base / "compatibilitytools.d" for base in steam_paths())
+
+    for root in roots:
+        paths.extend(root.glob("*/files/lib/wine/vkd3d-proton/x86_64-windows/d3d12.dll"))
+
+    for base in steam_library_paths():
+        common = base / "steamapps/common"
+        paths.extend(common.glob("Proton*/files/lib/wine/vkd3d-proton/x86_64-windows/d3d12.dll"))
+
+    return sorted({path for path in paths if path.is_file()})
+
+
+def check_commands() -> Iterable[Result]:
+    required = [
+        "steam",
+        "gamescope",
+        "mangohud",
+        "gamemoderun",
+        "protontricks",
+        "winetricks",
+        "vulkaninfo",
+        "vkcube",
+        "nvidia-smi",
+    ]
+    for name in required:
+        path = command(name)
+        if path:
+            yield Result("pass", f"command:{name}", path)
+        else:
+            yield Result("fail", f"command:{name}", "not found in PATH")
+
+
+def pacman_query(package: str) -> subprocess.CompletedProcess[str]:
+    return run(["pacman", "-Q", package], timeout=10)
+
+
+def check_arch_stack() -> Iterable[Result]:
+    if not command("pacman"):
+        yield Result("warn", "pacman", "pacman not found; Arch package checks skipped")
+        return
+
+    if command("pacman-conf"):
+        repos = run(["pacman-conf", "--repo-list"], timeout=10)
+        if repos.returncode == 0 and "multilib" in repos.stdout.splitlines():
+            yield Result("pass", "pacman-multilib", "multilib repository is enabled")
+        else:
+            yield Result("fail", "pacman-multilib", "multilib repository is required for Steam/Proton 32-bit graphics support")
+
+    required_packages = [
+        "steam",
+        "gamescope",
+        "mangohud",
+        "lib32-mangohud",
+        "goverlay",
+        "gamemode",
+        "lib32-gamemode",
+        "protontricks",
+        "winetricks",
+        "vulkan-tools",
+        "vulkan-icd-loader",
+        "lib32-vulkan-icd-loader",
+        "nvidia-utils",
+        "lib32-nvidia-utils",
+    ]
+    missing = [package for package in required_packages if pacman_query(package).returncode != 0]
+    if missing:
+        yield Result("fail", "steam-packages", "missing: " + ", ".join(missing))
+    else:
+        yield Result("pass", "steam-packages", "Steam/Gamescope/Vulkan/NVIDIA 32-bit packages installed")
+
+
+def check_nvidia_drm() -> Iterable[Result]:
+    modeset = Path("/sys/module/nvidia_drm/parameters/modeset")
+    if not modeset.exists():
+        yield Result("warn", "nvidia-drm-modeset", "nvidia_drm modeset parameter is unavailable")
+        return
+
+    try:
+        value = modeset.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        if command("sudo"):
+            proc = run(["sudo", "-n", "cat", str(modeset)], timeout=10)
+            if proc.returncode == 0:
+                value = proc.stdout.strip()
+            else:
+                yield Result("warn", "nvidia-drm-modeset", f"unable to read {modeset}: {proc.stdout.strip() or 'sudo -n cat failed'}")
+                return
+        else:
+            yield Result("warn", "nvidia-drm-modeset", f"unable to read {modeset} without sudo")
+            return
+    if value == "Y":
+        yield Result("pass", "nvidia-drm-modeset", "enabled")
+    else:
+        yield Result("fail", "nvidia-drm-modeset", f"expected Y, got {value!r}")
+
+
+def nvidia_gpu_names() -> list[str]:
+    if not command("nvidia-smi"):
+        return []
+    proc = run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], timeout=15)
+    if proc.returncode != 0:
+        return []
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
+
+def nvidia_icd_files() -> list[Path]:
+    return [
+        path for path in [
+            Path("/usr/share/vulkan/icd.d/nvidia_icd.json"),
+            Path("/usr/share/vulkan/icd.d/nvidia_icd.i686.json"),
+        ]
+        if path.is_file()
+    ]
+
+
+def check_nvidia() -> Iterable[Result]:
+    if not command("nvidia-smi"):
+        yield Result("fail", "nvidia", "nvidia-smi not found")
+        return
+    proc = run(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"], timeout=15)
+    if proc.returncode == 0 and proc.stdout.strip():
+        yield Result("pass", "nvidia", proc.stdout.strip())
+    else:
+        yield Result("fail", "nvidia", proc.stdout.strip() or f"exit {proc.returncode}")
+
+
+def check_vulkan() -> Iterable[Result]:
+    if not command("vulkaninfo"):
+        yield Result("fail", "vulkan", "vulkaninfo not found")
+        return
+
+    icds = nvidia_icd_files()
+    if icds:
+        yield Result("pass", "vulkan-nvidia-icd", ", ".join(str(path) for path in icds))
+    else:
+        yield Result("warn", "vulkan-nvidia-icd", "no NVIDIA Vulkan ICD JSON found")
+
+    proc = run(["vulkaninfo", "--summary"], timeout=30)
+    out = proc.stdout
+    if proc.returncode != 0:
+        yield Result("fail", "vulkan", out.strip() or f"exit {proc.returncode}")
+        return
+
+    matching_gpus = [name for name in nvidia_gpu_names() if name in out]
+    if matching_gpus:
+        yield Result("pass", "vulkan", "NVIDIA GPU visible to Vulkan: " + ", ".join(matching_gpus))
+    elif "DRIVER_ID_NVIDIA" in out or "driverName         = NVIDIA" in out:
+        yield Result("pass", "vulkan", "NVIDIA Vulkan driver is active")
+    else:
+        yield Result("warn", "vulkan", "vulkaninfo passed, but no NVIDIA GPU or NVIDIA driver was found in the Vulkan summary")
+
+
+def desktop_exec_binary(exec_line: str) -> str | None:
+    try:
+        tokens = shlex.split(exec_line)
+    except ValueError:
+        tokens = exec_line.split()
+    if not tokens:
+        return None
+    if tokens[0] == "env":
+        for token in tokens[1:]:
+            if "=" not in token:
+                return token
+        return None
+    return tokens[0]
+
+
+def executable_exists(binary: str) -> bool:
+    if "/" in binary:
+        return Path(binary).exists()
+    return command(binary) is not None
+
+
+def check_gamescope_static() -> Iterable[Result]:
+    sessions: list[tuple[Path, str | None]] = []
+    if WAYLAND_SESSIONS_DIR.is_dir():
+        for desktop in sorted(WAYLAND_SESSIONS_DIR.glob("*.desktop")):
+            text = desktop.read_text(encoding="utf-8", errors="replace")
+            if "gamescope" not in text.casefold():
+                continue
+            exec_binary = None
+            for line in text.splitlines():
+                if line.startswith("Exec="):
+                    exec_binary = desktop_exec_binary(line.split("=", 1)[1].strip())
+                    break
+            sessions.append((desktop, exec_binary))
+
+    if sessions:
+        yield Result("pass", "gamescope-session", ", ".join(str(path) for path, _ in sessions))
+    else:
+        yield Result("fail", "gamescope-session", "missing Gamescope desktop entry in /usr/share/wayland-sessions")
+
+    starter_candidates = [binary for _, binary in sessions if binary] or ["start-gamescope-session"]
+    starters = [binary for binary in starter_candidates if executable_exists(binary)]
+    if starters:
+        yield Result("pass", "start-gamescope-session", ", ".join(starters))
+    else:
+        yield Result("fail", "start-gamescope-session", "missing executable referenced by Gamescope session")
+
+    binary = GAMESCOPE_BINARY
+    if binary.exists() and command("getcap"):
+        proc = run(["getcap", str(binary)], timeout=10)
+        if "cap_sys_nice=eip" in proc.stdout:
+            yield Result("pass", "gamescope-capability", proc.stdout.strip())
+        else:
+            yield Result("warn", "gamescope-capability", proc.stdout.strip() or "cap_sys_nice missing")
+
+
+def check_gamemode(runtime: bool) -> Iterable[Result]:
+    user = getpass.getuser()
+
+    try:
+        gamemode = grp.getgrnam("gamemode")
+        configured = user in gamemode.gr_mem
+    except KeyError:
+        configured = False
+
+    active_groups = set()
+    for gid in os.getgroups():
+        try:
+            active_groups.add(grp.getgrgid(gid).gr_name)
+        except KeyError:
+            continue
+
+    if "gamemode" in active_groups:
+        yield Result("pass", "gamemode-group", "current session has active gamemode group membership")
+    elif configured:
+        yield Result("warn", "gamemode-group", "user is configured for gamemode; log out/in before relying on session group membership")
+    else:
+        yield Result("warn", "gamemode-group", "user is not listed in gamemode group")
+
+    if runtime and command("gamemoded"):
+        proc = run(["gamemoded", "-t"], timeout=120)
+        if proc.returncode == 0 and "All Tests Passed" in proc.stdout:
+            yield Result("pass", "gamemoded", "gamemoded -t passed")
+        else:
+            yield Result("fail", "gamemoded", proc.stdout.strip() or f"exit {proc.returncode}")
+
+
+def check_steam_state() -> Iterable[Result]:
+    login_files = [path for path in steam_login_files() if path.is_file()]
+    manifests = steam_app_manifests()
+
+    if login_files:
+        yield Result("pass", "steam-login-state", ", ".join(str(path) for path in login_files))
+    else:
+        yield Result("warn", "steam-login-state", "Steam has no loginusers.vdf; sign in before game validation")
+
+    if manifests:
+        yield Result("pass", "steam-installed-games", f"{len(manifests)} app manifest(s) found")
+    else:
+        yield Result("warn", "steam-installed-games", "no Steam appmanifest_*.acf files found; install native/Proton/DX12 test games")
+
+    proton_paths = proton_dx12_runtime_paths()
+    if proton_paths:
+        yield Result("pass", "proton-dx12-runtime", ", ".join(str(path) for path in proton_paths))
+    else:
+        yield Result("warn", "proton-dx12-runtime", "no Proton vkd3d-proton d3d12.dll found")
+
+
+def check_runtime_smoke() -> Iterable[Result]:
+    if command("vkcube"):
+        proc = run(["vkcube", "--c", "10"], timeout=15)
+        if proc.returncode == 0:
+            yield Result("pass", "vkcube", "vkcube --c 10 exited cleanly")
+        elif proc.returncode == 124 and "Selected GPU" in proc.stdout:
+            yield Result("warn", "vkcube", "vkcube selected a Vulkan GPU but did not exit before timeout")
+        else:
+            yield Result("fail", "vkcube", proc.stdout.strip() or f"exit {proc.returncode}")
+    if command("gamescope") and command("vkcube"):
+        proc = run(["timeout", "8s", "gamescope", "--keep-alive", "-W", "1280", "-H", "720", "--", "vkcube", "--c", "10"], timeout=20)
+        gamescope_started = "gamescope version" in proc.stdout or "Running compositor on wayland display" in proc.stdout
+        child_started = (
+            "Primary child shut down" in proc.stdout
+            or "Creating Gamescope surface" in proc.stdout
+            or "Selected GPU" in proc.stdout
+        )
+        if proc.returncode == 124 and child_started:
+            yield Result("pass", "gamescope-nested-smoke", "Gamescope launched vkcube and stayed alive until timeout")
+        elif proc.returncode == 124 and gamescope_started:
+            yield Result("warn", "gamescope-nested-smoke", "Gamescope started and stayed alive until timeout; nested child did not finish before timeout")
+        elif proc.returncode == 0:
+            yield Result("pass", "gamescope-nested-smoke", "Gamescope smoke exited cleanly")
+        else:
+            yield Result("fail", "gamescope-nested-smoke", proc.stdout.strip() or f"exit {proc.returncode}")
+
+
+def collect(runtime: bool) -> list[Result]:
+    results: list[Result] = []
+    for checker in [
+        check_commands,
+        check_arch_stack,
+        check_nvidia_drm,
+        check_nvidia,
+        check_vulkan,
+        check_gamescope_static,
+        lambda: check_gamemode(runtime),
+        check_steam_state,
+    ]:
+        results.extend(checker())
+    if runtime:
+        results.extend(check_runtime_smoke())
+    return results
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--runtime", action="store_true", help="Run vkcube, gamemoded -t, and nested Gamescope smoke checks")
+    parser.add_argument("--strict", action="store_true", help="Exit non-zero on warnings; use for final cutover validation")
+    args = parser.parse_args()
+
+    results = collect(args.runtime)
+    width = max(len(result.name) for result in results) if results else 0
+    for result in results:
+        print(f"{result.level.upper():4} {result.name:<{width}} {result.detail}")
+
+    if any(result.level == "fail" for result in results):
+        return 1
+    if args.strict and any(result.level == "warn" for result in results):
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

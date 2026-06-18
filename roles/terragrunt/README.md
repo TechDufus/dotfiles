@@ -17,14 +17,15 @@ This role installs Terragrunt, a powerful infrastructure-as-code wrapper that en
 | macOS    | ✅ Full Support | Homebrew |
 | Ubuntu   | ⚠️ Planned | apt |
 | Fedora   | ⚠️ Planned | dnf |
-| Arch     | ⚠️ Planned | pacman |
+| Arch     | ✅ Full Support | pacman |
 
-> **Note**: Currently only macOS installation is implemented. The uninstall script supports all platforms for future compatibility.
+> **Note**: Archlinux/CachyOS and macOS installation are implemented. The uninstall script supports all platforms for future compatibility.
 
 ## 📦 What Gets Installed
 
 ### Packages
-- **terragrunt** - Latest version from Homebrew
+- **macOS**: `terragrunt` from Homebrew
+- **Archlinux/CachyOS**: `terragrunt` from pacman
 
 ### No Configuration Files
 This role performs a minimal installation with no custom configuration. Terragrunt uses Terraform configurations and its own `.hcl` files which are project-specific.
@@ -52,16 +53,21 @@ This role performs a minimal installation with no custom configuration. Terragru
 graph TD
     A[Start Role] --> B{OS Detection}
     B -->|macOS| C[Check for MacOSX.yml]
-    B -->|Other OS| D[Skip - No Implementation]
-    C --> E[Install via Homebrew]
-    E --> F[terragrunt binary available]
-    F --> G[Complete]
-    D --> G
+    B -->|Archlinux/CachyOS| D[Check for Archlinux.yml]
+    B -->|Other OS| E[Skip - No Implementation]
+    C --> F[Install via Homebrew]
+    D --> G[Install via pacman]
+    F --> H[terragrunt binary available]
+    G --> H
+    H --> I[Complete]
+    E --> I
 
     style C fill:#a6e3a1,stroke:#40a02b
-    style E fill:#89b4fa,stroke:#1e66f5
-    style F fill:#a6e3a1,stroke:#40a02b
-    style D fill:#f9e2af,stroke:#df8e1d
+    style D fill:#a6e3a1,stroke:#40a02b
+    style F fill:#89b4fa,stroke:#1e66f5
+    style G fill:#89b4fa,stroke:#1e66f5
+    style H fill:#a6e3a1,stroke:#40a02b
+    style E fill:#f9e2af,stroke:#df8e1d
 ```
 
 ## 🚀 Usage
@@ -119,7 +125,7 @@ tg --version
 
 - [ ] Add Ubuntu/Debian installation support
 - [ ] Add Fedora installation support
-- [ ] Add Arch Linux installation support
+- [x] Add Arch Linux installation support
 - [ ] Consider adding common terragrunt.hcl templates
 - [ ] Add environment-specific configuration examples
 

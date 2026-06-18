@@ -9,7 +9,7 @@ Ansible role for installing [Bun](https://bun.sh/) - a fast all-in-one JavaScrip
 | macOS | Official Homebrew tap | Supported |
 | Ubuntu | Official install script | Supported |
 | Fedora | - | Not supported |
-| Arch | - | Not supported |
+| Arch | Pacman (`bun`) | Supported |
 
 ## What Gets Installed
 
@@ -17,6 +17,7 @@ Ansible role for installing [Bun](https://bun.sh/) - a fast all-in-one JavaScrip
 - **Shared Bun global packages** - JavaScript-distributed LSP servers used by agent/editor roles
 - **Ubuntu**: Installed to `~/.bun/bin/bun` via official script
 - **macOS**: Installed via the official `oven-sh/bun` Homebrew tap
+- **Archlinux/CachyOS**: Installed via pacman
 
 ## Configuration
 

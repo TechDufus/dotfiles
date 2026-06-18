@@ -1,5 +1,6 @@
 [layouts.standard]
 label = "Standard Dev"
+default = true
 cells = ["standard_browser_left", "standard_terminal_right", "standard_utility_overlay"]
 
 [layouts.standard.apps]

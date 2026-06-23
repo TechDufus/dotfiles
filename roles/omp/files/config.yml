@@ -20,9 +20,8 @@ serviceTier: priority
 contextPromotion: 
   enabled: false
 compaction: 
-  thresholdPercent: 60
   strategy: snapcompact
-  autoContinue: false
+  autoContinue: true
 hideThinkingBlock: true
 disabledProviders: 
   - claude

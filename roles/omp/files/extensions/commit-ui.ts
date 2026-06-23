@@ -36,6 +36,7 @@ const NATURAL_ATOMIC_RE = /--atomic\b|\batomic\s+commits?\b|\bmultiple\s+commits
 interface SecretPattern {
 	name: string;
 	pattern: RegExp;
+	isMatch?: (match: RegExpMatchArray) => boolean;
 }
 
 interface SecretScanEntry {
@@ -44,12 +45,29 @@ interface SecretScanEntry {
 	text: string;
 }
 
+const literalSecretValuePattern = /^[A-Za-z0-9_./+=-]{12,}$/;
+const qualifiedReferencePattern = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/;
+const environmentReferencePattern = /^[A-Z_][A-Z0-9_]*$/;
+
+function isLiteralSecretAssignment(match: RegExpMatchArray): boolean {
+	const value = match[1] ?? "";
+	if (value.length < 12) return false;
+	if (/[()[\]{}$]/.test(value)) return false;
+	if (qualifiedReferencePattern.test(value)) return false;
+	if (environmentReferencePattern.test(value)) return false;
+	return literalSecretValuePattern.test(value);
+}
+
 const SECRET_PATTERNS: SecretPattern[] = [
 	{ name: "private key", pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/ },
 	{ name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
 	{ name: "GitHub token", pattern: /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/ },
 	{ name: "Slack token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/ },
-	{ name: "generic secret assignment", pattern: /(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?key|token)\s*[:=]\s*["']?[^"'\s]{12,}/i },
+	{
+		name: "generic secret assignment",
+		pattern: /(?:password|passwd|pwd|client[_-]?secret|secret[_-]?key|secret|api[_-]?key|access[_-]?key|token)\s*[:=]\s*["']?([^"'\s,;#}]+)/i,
+		isMatch: isLiteralSecretAssignment,
+	},
 ];
 
 type RunStatus = "running" | "succeeded" | "failed";
@@ -859,9 +877,10 @@ function parseDiffNewPath(line: string): string {
 
 function scanForSecrets(entries: SecretScanEntry[]): void {
 	for (const entry of entries) {
-		for (const { name, pattern } of SECRET_PATTERNS) {
-			if (pattern.test(entry.text)) {
-				throw new WorkflowError(`Potential ${name} found in selected changes at ${entry.file}:${entry.line}: ${redactSecretExcerpt(entry.text)}`);
+		for (const secretPattern of SECRET_PATTERNS) {
+			const match = entry.text.match(secretPattern.pattern);
+			if (match && (!secretPattern.isMatch || secretPattern.isMatch(match))) {
+				throw new WorkflowError(`Potential ${secretPattern.name} found in selected changes at ${entry.file}:${entry.line}: ${redactSecretExcerpt(entry.text)}`);
 			}
 		}
 	}

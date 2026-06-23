@@ -7,6 +7,7 @@ modelRoles:
   designer: openai-codex/gpt-5.5:xhigh
   vision: openai-codex/gpt-5.5:xhigh
   commit: openai-codex/gpt-5.4-mini:xhigh
+  advisor: openai-codex/gpt-5.4-mini:xhigh
 cycleOrder: 
   - smol
   - default
@@ -19,6 +20,11 @@ defaultThinkingLevel: xhigh
 serviceTier: priority
 contextPromotion: 
   enabled: false
+advisor:
+  enabled: true
+  subagents: false
+  syncBacklog: 1
+  immuneTurns: 3
 compaction: 
   strategy: snapcompact
   autoContinue: true

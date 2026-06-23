@@ -22,6 +22,7 @@ contextPromotion:
 compaction: 
   thresholdPercent: 60
   strategy: snapcompact
+  autoContinue: false
 hideThinkingBlock: true
 disabledProviders: 
   - claude
@@ -48,6 +49,7 @@ memory:
   backend: mnemopi
 mnemopi: 
   scoping: per-project-tagged
+  proactiveLinking: true
 github: 
   enabled: true
 renderMermaid: 

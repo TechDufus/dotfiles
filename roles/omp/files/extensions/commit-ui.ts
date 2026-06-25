@@ -12,6 +12,7 @@ const MAX_OUTPUT_CHARS = 2_000;
 const MAX_SECRET_SCAN_CHARS = 2_000_000;
 const MAX_COMMIT_SUBJECT_CHARS = 50;
 const MAX_COMMIT_BODY_LINE_CHARS = 72;
+const MAX_SECRET_FINDINGS_RESULT = 5;
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const CONVENTIONAL_COMMIT_RE = /^[a-z]+(?:\([a-z0-9-]+\))?!?: .+/;
@@ -44,6 +45,13 @@ interface SecretScanEntry {
 	line: number;
 	text: string;
 	added?: boolean;
+}
+
+interface SecretScanFinding {
+	name: string;
+	file: string;
+	line: number;
+	excerpt: string;
 }
 
 const literalSecretValuePattern = /^[A-Za-z0-9_./+=-]{12,}$/;
@@ -237,6 +245,7 @@ interface CommitRunDetails {
 	finalText?: string;
 	errorText?: string;
 	warnings: string[];
+	secretFindings?: SecretScanFinding[];
 }
 
 class WorkflowError extends Error {}
@@ -515,7 +524,13 @@ async function executeCommitPlan(
 	});
 
 	const scanEntries = await withStep(details, "Reviewing selected diff", onUpdate, () => collectSecretScanEntries(cwd, repoRoot, details.selectedFiles, signal, details));
-	await withStep(details, "Checking for secrets", onUpdate, async () => scanForSecrets(scanEntries));
+	await withStep(details, "Checking for secrets", onUpdate, async () => {
+		const findings = scanForSecrets(scanEntries);
+		details.secretFindings = findings;
+		if (findings.length > 0) {
+			details.warnings.push(`${findings.length} potential secret ${findings.length === 1 ? "finding" : "findings"} detected; review redacted findings in the final response.`);
+		}
+	});
 	await withStep(details, "Running verification", onUpdate, async () => runVerification(plan, cwd, signal, details));
 
 	if (plan.dryRun) {
@@ -674,6 +689,7 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 		commitHash: undefined,
 		commits,
 		warnings: [],
+		secretFindings: [],
 	};
 }
 
@@ -930,17 +946,51 @@ function parseDiffNewPath(line: string): string {
 	return path === "/dev/null" ? "" : path;
 }
 
-function scanForSecrets(entries: SecretScanEntry[]): void {
+function scanForSecrets(entries: SecretScanEntry[]): SecretScanFinding[] {
+	const findings: SecretScanFinding[] = [];
+	const seen = new Set<string>();
 	for (const entry of secretScanContexts(entries)) {
-		for (const secretPattern of SECRET_PATTERNS) {
+		const entryFindings: Array<{ finding: SecretScanFinding; start: number; end: number; generic: boolean }> = [];
+		for (const secretPattern of secretPatternsForEntry(entry)) {
 			const flags = secretPattern.pattern.flags.includes("g") ? secretPattern.pattern.flags : `${secretPattern.pattern.flags}g`;
 			for (const match of entry.text.matchAll(new RegExp(secretPattern.pattern.source, flags))) {
 				if (!secretPattern.isMatch || secretPattern.isMatch(match, entry)) {
-					throw new WorkflowError(`Potential ${secretPattern.name} found in selected changes at ${entry.file}:${entry.line}: ${redactSecretExcerpt(entry.text)}`);
+					const matchedText = match[0] ?? "";
+					if (entry.text.includes("\n") && secretPattern.name === "generic secret assignment" && !matchedText.includes("\n")) continue;
+					const start = match.index ?? 0;
+					entryFindings.push({
+						finding: {
+							name: secretPattern.name,
+							file: entry.file,
+							line: entry.line,
+							excerpt: redactSecretExcerpt(entry.text),
+						},
+						start,
+						end: start + matchedText.length,
+						generic: secretPattern.name === "generic secret assignment",
+					});
 				}
 			}
 		}
+		const specificFindings = entryFindings.filter(candidate => !candidate.generic);
+		for (const candidate of entryFindings) {
+			if (candidate.generic && specificFindings.some(specific => rangesOverlap(candidate, specific))) continue;
+			const key = `${candidate.finding.name}\0${candidate.finding.file}\0${candidate.finding.line}\0${candidate.start}\0${candidate.end}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			findings.push(candidate.finding);
+		}
 	}
+	return findings;
+}
+
+function secretPatternsForEntry(entry: SecretScanEntry): SecretPattern[] {
+	if (!entry.text.includes("\n")) return SECRET_PATTERNS;
+	return SECRET_PATTERNS.filter(pattern => pattern.name === "generic secret assignment");
+}
+
+function rangesOverlap(left: { start: number; end: number }, right: { start: number; end: number }): boolean {
+	return left.start < right.end && right.start < left.end;
 }
 
 function secretScanContexts(entries: SecretScanEntry[]): SecretScanEntry[] {
@@ -951,7 +1001,7 @@ function secretScanContexts(entries: SecretScanEntry[]): SecretScanEntry[] {
 			end += 1;
 		}
 		const group = entries.slice(start, end + 1);
-		if (group.length > 1 && group.some(entry => entry.added !== false)) {
+		if (group.length > 1 && group.some(entry => entry.added !== false) && group.some(entry => isAssignmentPrefixLine(entry.text)) && group.filter(entry => entry.text.trim() !== "").length > 1) {
 			contexts.push({ file: group[0]!.file, line: group[0]!.line, text: group.map(entry => entry.text).join("\n"), added: true });
 		}
 		start = end;
@@ -961,8 +1011,11 @@ function secretScanContexts(entries: SecretScanEntry[]): SecretScanEntry[] {
 
 function redactSecretExcerpt(text: string): string {
 	const compact = text.trim().replace(/\s+/g, " ");
-	const clipped = compact.length > 180 ? `${compact.slice(0, 177)}...` : compact;
-	return clipped.replace(/[A-Za-z0-9_./+=-]{12,}/g, "<redacted>");
+	const redacted = compact
+		.replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/g, "<redacted>")
+		.replace(/-----END [A-Z0-9 ]*PRIVATE KEY-----/g, "<redacted>")
+		.replace(/[A-Za-z0-9_./+=-]{12,}/g, "<redacted>");
+	return redacted.length > 180 ? `${redacted.slice(0, 177)}...` : redacted;
 }
 
 async function runGit(cwd: string, args: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<CommandResult> {
@@ -1127,7 +1180,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk.",
 		"- Preserve unrelated user changes. Do not include files just because they are modified.",
 		parsed.multiCommit ? "- Split/multiple commit mode is requested: make separate commits for separate logical changes inside this one sequential tool call, and let the single tool UI report all created commits." : "",
-		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, and residual risk.",
+		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, non-blocking secret findings, and residual risk. Review any details.secretFindings/redacted Secret findings; warn the user about likely live credentials, but do not treat these findings as tool blockers when omp_commit succeeds.",
 		parsed.model ? `Note: --model ${parsed.model} was provided but /commit now runs in the current session model; do not pass model to the tool.` : "",
 		`Commit-request flags: ${JSON.stringify(flags)}`,
 	].filter(Boolean).join("\n\n");
@@ -1226,9 +1279,8 @@ function tokenize(input: string): string[] {
 }
 
 function buildToolResultText(details: CommitRunDetails): string {
-	if (details.status === "failed") return details.errorText || details.phase;
-	if (details.finalText) return details.finalText;
-	return details.phase;
+	const text = details.status === "failed" ? details.errorText || details.phase : details.finalText || details.phase;
+	return appendSecretFindingsResultText(text, details);
 }
 
 function buildDryRunText(details: CommitRunDetails): string {
@@ -1290,6 +1342,49 @@ function formatVerificationSummary(details: { verificationCount: number; verific
 	if (evidenceCount > 0) parts.push(`evidence: ${evidenceCount}`);
 	if (parts.length > 0) return `Verification ${parts.join("; ")}`;
 	return details.acceptRisk ? "Verification: accepted risk; no command run" : "Verification: none";
+}
+
+function appendSecretFindingsResultText(text: string, details: CommitRunDetails): string {
+	const findingText = formatSecretFindingsResultText(details);
+	return findingText ? `${text}\n${findingText}` : text;
+}
+
+function formatSecretFindingsResultText(details: CommitRunDetails): string {
+	const findings = getSecretScanFindings(details);
+	if (findings.length === 0) return "";
+	const lines = [`Secret findings (non-blocking, redacted): ${findings.length}`];
+	lines.push(...formatSecretFindingLines(findings, MAX_SECRET_FINDINGS_RESULT).map(line => `- ${line}`));
+	return lines.join("\n");
+}
+
+function formatSecretFindingLines(findings: SecretScanFinding[], limit: number): string[] {
+	const visibleFindings = findings.slice(0, limit);
+	const lines = visibleFindings.map(formatSecretFindingLine);
+	const remaining = findings.length - visibleFindings.length;
+	if (remaining > 0) lines.push(`${remaining} more redacted ${remaining === 1 ? "finding" : "findings"}`);
+	return lines;
+}
+
+function formatSecretFindingLine(finding: SecretScanFinding): string {
+	return `${finding.name} at ${finding.file}:${finding.line}: ${redactSecretExcerpt(finding.excerpt)}`;
+}
+
+function getSecretScanFindings(details: CommitRunDetails): SecretScanFinding[] {
+	const findings = (details as { secretFindings?: unknown }).secretFindings;
+	if (!Array.isArray(findings)) return [];
+	return findings.filter(isSecretScanFinding);
+}
+
+function isSecretScanFinding(value: unknown): value is SecretScanFinding {
+	return Boolean(
+		value &&
+			typeof value === "object" &&
+			typeof (value as { name?: unknown }).name === "string" &&
+			typeof (value as { file?: unknown }).file === "string" &&
+			typeof (value as { line?: unknown }).line === "number" &&
+			Number.isFinite((value as { line?: number }).line) &&
+			typeof (value as { excerpt?: unknown }).excerpt === "string",
+	);
 }
 
 function getCommitRunCommits(details: CommitRunDetails): CommitResultDetails[] {
@@ -1360,6 +1455,7 @@ function renderCollapsedCommitDashboard(lines: string[], details: CommitRunDetai
 	if (details.status === "running" && commits.length === 1 && commits[0]!.selectedFiles.length > 0) appendCompactListField(lines, theme, width, "Files", commits[0]!.selectedFiles, maxFieldLines);
 
 	if (details.ignoredFiles.length > 0) appendCompactListField(lines, theme, width, "Ignored", details.ignoredFiles, maxFieldLines);
+	if (getSecretScanFindings(details).length > 0) appendSecretFindingsCard(lines, details, theme, width, maxFieldLines, 3);
 	if (details.warnings.length > 0) appendCompactListField(lines, theme, width, "Warnings", details.warnings, maxFieldLines, "warning");
 	appendCommitOutcome(lines, details, commits, theme, width, false);
 }
@@ -1384,6 +1480,7 @@ function renderExpandedCommitDashboard(lines: string[], details: CommitRunDetail
 	}
 
 	if (details.ignoredFiles.length > 0) appendCompactListField(lines, theme, width, "Ignored", details.ignoredFiles, maxFieldLines);
+	if (getSecretScanFindings(details).length > 0) appendSecretFindingsCard(lines, details, theme, width, maxFieldLines, MAX_SECRET_FINDINGS_RESULT);
 	if (details.warnings.length > 0) appendCompactListField(lines, theme, width, "Warnings", details.warnings, maxFieldLines, "warning");
 
 	if (details.steps.length > 0) {
@@ -1418,6 +1515,7 @@ function appendSummaryChips(lines: string[], details: CommitRunDetails, commits:
 
 function formatSummaryChips(details: CommitRunDetails, commits: CommitResultDetails[]): string[] {
 	const hashes = commits.filter(commit => commit.commitHash).length;
+	const secretFindingCount = getSecretScanFindings(details).length;
 	return [
 		details.dryRun ? "dry run" : undefined,
 		`commits ${commits.length}`,
@@ -1425,6 +1523,7 @@ function formatSummaryChips(details: CommitRunDetails, commits: CommitResultDeta
 		`verification ${compactRunVerificationState(details, commits)}`,
 		`push ${compactPushState(details)}`,
 		`ignored ${details.ignoredFiles.length}`,
+		secretFindingCount > 0 ? `secret findings ${secretFindingCount}` : undefined,
 		`warnings ${details.warnings.length}`,
 		`hash ${hashes}/${commits.length}`,
 	].filter((chip): chip is string => Boolean(chip)).map(chip => `[${chip}]`);
@@ -1520,6 +1619,10 @@ function appendCommitRows(lines: string[], commits: CommitResultDetails[], compl
 
 function appendCompactListField(lines: string[], theme: any, width: number, label: string, values: string[], maxLines: number, color = "muted"): void {
 	appendCardField(lines, theme, width, label, values.join(", "), maxLines, color);
+}
+
+function appendSecretFindingsCard(lines: string[], details: CommitRunDetails, theme: any, width: number, maxLines: number, limit: number): void {
+	appendCardField(lines, theme, width, "Secret findings", formatSecretFindingLines(getSecretScanFindings(details), limit).join("; "), maxLines, "warning");
 }
 
 function appendCommitOutcome(lines: string[], details: CommitRunDetails, commits: CommitResultDetails[], theme: any, width: number, expanded: boolean): void {

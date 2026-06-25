@@ -16,7 +16,6 @@ return {
     apps = {
       Terminal    = { cell = 1, open = true },
       Browser     = { cell = 2, open = true },
-      MatterMost  = { cell = 3, open = true },
       Signal      = { cell = 3 },
       Discord     = { cell = 3 },
       Outlook     = { cell = 4 },
@@ -40,7 +39,6 @@ return {
     apps = {
       Terminal    = { cell = 1, open = true },
       Browser     = { cell = 1, open = true },
-      MatterMost  = { cell = 1 },
       Signal      = { cell = 1 },
       Discord     = { cell = 1 },
       Outlook     = { cell = 1 },
@@ -66,7 +64,6 @@ return {
     apps = {
       Terminal    = { cell = 1, open = true },
       Browser     = { cell = 2, open = true },
-      MatterMost  = { cell = 3 },
       Signal      = { cell = 3 },
       Discord     = { cell = 3 },
       Outlook     = { cell = 3 },
@@ -94,7 +91,6 @@ return {
       { positions.standard.right_hidden, positions.standard.right_hidden },
     },
     apps = {
-      MatterMost  = { cell = 1, open = true },
       Signal      = { cell = 1 },
       Spotify     = { cell = 2, open = true },
       Outlook     = { cell = 2, open = true },

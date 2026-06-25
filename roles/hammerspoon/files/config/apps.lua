@@ -7,10 +7,6 @@ return {
     id = 'com.brave.Browser',
     summon = 'b', -- [B]rowser
   },
-  MatterMost  = {
-    id = 'Mattermost.Desktop',
-    summon = 'c', -- [C]hat
-  },
   Signal      = {
     id = 'org.whispersystems.signal-desktop',
     summon = 'C', -- Signal chat

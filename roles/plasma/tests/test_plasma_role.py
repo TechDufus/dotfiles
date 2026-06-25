@@ -56,6 +56,31 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         cls.layouts = load_toml(SUMMON_DIR / "layouts.toml")["layouts"]
         cls.keyd_bridge = (ROLE / "templates" / "bin" / "plasma-summon-keyd.j2").read_text(encoding="utf-8")
 
+    def test_main_yml_is_arch_distribution_dispatcher_only(self) -> None:
+        self.assertEqual(
+            self.tasks.strip().splitlines(),
+            [
+                "---",
+                "- name: \"{{ role_name }} | Run Arch Linux tasks\"",
+                "  ansible.builtin.include_tasks: Archlinux.yml",
+                "  when: ansible_facts['distribution'] == 'Archlinux'",
+            ],
+        )
+        for generic in [
+            "ansible.builtin.file:",
+            "ansible.builtin.command:",
+            "ansible.builtin.systemd:",
+            "state: link",
+            "kwriteconfig6",
+            "plasma-summon",
+            "rofimoji.rc",
+            "{{ plasma_local_bin_dir }}",
+            "{{ plasma_config_dir }}",
+            "{{ plasma_systemd_user_dir }}",
+            "{{ plasma_kwin_scripts_dir }}",
+        ]:
+            self.assertNotIn(generic, self.tasks)
+
     def test_arch_role_installs_normal_plasma_wayland_stack(self) -> None:
         for package in [
             "plasma-meta",
@@ -229,14 +254,14 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "--group {{ group | quote }}",
             "item.group_path | join('/')",
         ]:
-            self.assertIn(required, self.tasks)
+            self.assertIn(required, self.arch_tasks)
         self.assertLess(
-            self.tasks.index("Resolve browser desktop entry"),
-            self.tasks.index("Validate role-managed Plasma desktop settings"),
+            self.arch_tasks.index("Resolve browser desktop entry"),
+            self.arch_tasks.index("Validate role-managed Plasma desktop settings"),
         )
         self.assertNotIn("value: app.zen_browser.zen.desktop", self.defaults)
         self.assertNotIn("plasma_desktop_nested_kconfig_settings", self.defaults)
-        self.assertNotIn("item.groups[0]", self.tasks)
+        self.assertNotIn("item.groups[0]", self.arch_tasks)
 
 
     def test_role_owns_plasma_summon_runtime_paths(self) -> None:
@@ -288,7 +313,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "rofimoji.rc",
             "{{ ansible_facts['user_dir'] }}/.config/rofimoji.rc",
         ]:
-            self.assertIn(required, self.tasks)
+            self.assertIn(required, self.arch_tasks)
         self.assertIn("plasma_summon_script_id: plasma-summon", self.defaults)
         self.assertIn("ExecStart=%h/.local/bin/plasma-summon-service", self.service)
         self.assertIn("WantedBy=graphical-session.target", self.service)
@@ -302,7 +327,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "Enable and restart Plasma summon service",
             "state: restarted",
         ]:
-            self.assertIn(required, self.tasks)
+            self.assertIn(required, self.arch_tasks)
 
     def test_role_manages_rofimoji_copy_config(self) -> None:
         config_sources = [ROLE / "files" / "rofimoji.rc", ROLE / "templates" / "rofimoji.rc.j2"]
@@ -326,7 +351,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertNotIn(obsolete, self.defaults)
             self.assertNotIn(obsolete, self.group_vars)
-            self.assertNotIn(obsolete, self.tasks)
+            self.assertNotIn(obsolete, self.arch_tasks)
         for obsolete in [
             "files/bin/plasma-output-wakeup",
             "plasma-output-wakeup.service",
@@ -337,7 +362,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "Disable Plasma output wake service",
             "Remove Plasma output wake service",
         ]:
-            self.assertNotIn(obsolete, self.tasks)
+            self.assertNotIn(obsolete, self.arch_tasks)
         self.assertFalse((ROLE / "files" / "bin" / "plasma-output-wakeup").exists())
         self.assertFalse((ROLE / "templates" / "systemd" / "plasma-output-wakeup.service.j2").exists())
 

@@ -119,3 +119,435 @@
     - can_install_packages | default(false)
     - plasma_enable_capslock_f13 | bool
     - not ansible_check_mode
+
+- name: "{{ role_name }} | Ensure local bin exists"
+  ansible.builtin.file:
+    path: "{{ plasma_local_bin_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure user config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink rofimoji config"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/rofimoji.rc"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/rofimoji.rc"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Ensure summon config directory exists"
+  ansible.builtin.file:
+    path: "{{ plasma_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure systemd user directory exists"
+  ansible.builtin.file:
+    path: "{{ plasma_systemd_user_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Ensure KWin script directory exists"
+  ansible.builtin.file:
+    path: "{{ plasma_kwin_scripts_dir }}"
+    state: directory
+    mode: "0755"
+  when: plasma_enable_kwin_summon | bool
+
+- name: "{{ role_name }} | Symlink Plasma summon helper"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/bin/plasma-summon-service.py"
+    dest: "{{ plasma_local_bin_dir }}/plasma-summon-service"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Ensure Plasma summon helper is executable"
+  ansible.builtin.file:
+    path: "{{ role_path }}/files/bin/plasma-summon-service.py"
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink Plasma summon app registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/apps.toml"
+    dest: "{{ plasma_config_dir }}/apps.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Plasma summon region registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/regions.toml"
+    dest: "{{ plasma_config_dir }}/regions.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Plasma summon layout registry"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/summon/layouts.toml"
+    dest: "{{ plasma_config_dir }}/layouts.toml"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Symlink Plasma summon systemd service"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/systemd/plasma-summon.service"
+    dest: "{{ plasma_systemd_user_dir }}/plasma-summon.service"
+    state: link
+    force: true
+
+
+
+- name: "{{ role_name }} | Symlink KWin summon script package"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/kwin/{{ plasma_summon_script_id }}"
+    dest: "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}"
+    state: link
+    force: true
+  when: plasma_enable_kwin_summon | bool
+
+- name: "{{ role_name }} | Use explicit browser desktop entry"
+  ansible.builtin.set_fact:
+    plasma_resolved_browser_desktop_file: "{{ plasma_browser_desktop_file | trim }}"
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_browser_desktop_file | default('') | trim | length > 0
+
+- name: "{{ role_name }} | Probe browser desktop entry candidates"
+  ansible.builtin.stat:
+    path: "{{ item.1 }}/{{ item.0 }}"
+  loop: "{{ plasma_browser_desktop_file_candidates | product(plasma_browser_desktop_entry_dirs) | list }}"
+  loop_control:
+    label: "{{ item.1 }}/{{ item.0 }}"
+  register: plasma_browser_desktop_entry_candidates
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_browser_desktop_file | default('') | trim | length == 0
+
+- name: "{{ role_name }} | Resolve browser desktop entry"
+  ansible.builtin.set_fact:
+    plasma_resolved_browser_desktop_file: >-
+      {{
+        (
+          plasma_browser_desktop_file_candidates
+          | select('in', plasma_installed_browser_desktop_entries)
+          | first
+          | default('')
+        )
+      }}
+  vars:
+    plasma_installed_browser_desktop_entries: >-
+      {{
+        plasma_browser_desktop_entry_candidates.results
+        | default([])
+        | selectattr('stat.exists')
+        | map(attribute='item.0')
+        | list
+      }}
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_browser_desktop_file | default('') | trim | length == 0
+
+
+- name: "{{ role_name }} | Assert browser desktop entry resolved"
+  ansible.builtin.assert:
+    that:
+      - plasma_resolved_browser_desktop_file is string
+      - plasma_resolved_browser_desktop_file | length > 0
+    fail_msg: >-
+      Set plasma_browser_desktop_file or install one of:
+      {{ plasma_browser_desktop_file_candidates | join(', ') }}
+    quiet: true
+  when: plasma_manage_desktop_settings | bool
+
+- name: "{{ role_name }} | Detect kwriteconfig6"
+  ansible.builtin.stat:
+    path: /usr/bin/kwriteconfig6
+  register: plasma_kwriteconfig6
+  check_mode: false
+
+- name: "{{ role_name }} | Validate role-managed Plasma desktop settings"
+  ansible.builtin.assert:
+    that:
+      - item.file is string
+      - item.file | length > 0
+      - item.group_path is sequence
+      - item.group_path is not string
+      - item.group_path | length > 0
+      - item.key is string
+      - item.key | length > 0
+      - item.value is string
+    quiet: true
+  loop: "{{ plasma_desktop_kconfig_settings }}"
+  loop_control:
+    label: "{{ item.file }}:{{ item.group_path | join('/') }}:{{ item.key }}"
+  when: plasma_manage_desktop_settings | bool
+
+- name: "{{ role_name }} | Configure role-managed Plasma desktop settings"
+  ansible.builtin.command:
+    cmd: >-
+      kwriteconfig6
+      --file {{ item.file | quote }}
+      {% for group in item.group_path %}
+      --group {{ group | quote }}
+      {% endfor %}
+      --key {{ item.key | quote }}
+      {{ item.value | string | quote }}
+  loop: "{{ plasma_desktop_kconfig_settings }}"
+  loop_control:
+    label: "{{ item.file }}:{{ item.group_path | join('/') }}:{{ item.key }}"
+  changed_when: false
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Enable KWin summon script"
+  ansible.builtin.command:
+    argv:
+      - kwriteconfig6
+      - --file
+      - kwinrc
+      - --group
+      - Plugins
+      - --key
+      - "{{ plasma_summon_script_id }}Enabled"
+      - "true"
+  changed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Reserve Tools key for Plasma summon"
+  ansible.builtin.command:
+    argv:
+      - kwriteconfig6
+      - --file
+      - kglobalshortcutsrc
+      - --group
+      - systemsettings.desktop
+      - --key
+      - _launch
+      - "none,Tools\tMeta+I,System Settings"
+  changed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Configure Plasma summon KWin shortcuts"
+  ansible.builtin.command:
+    argv:
+      - kwriteconfig6
+      - --file
+      - kglobalshortcutsrc
+      - --group
+      - kwin
+      - --key
+      - "{{ item.key }}"
+      - "{{ item.value }}"
+  loop:
+    - key: Move Active to Cell 1
+      value: "none,none,Move active window to layout cell 1"
+    - key: Move Active to Cell 2
+      value: "none,none,Move active window to layout cell 2"
+    - key: Move Active to Cell 3
+      value: "none,none,Move active window to layout cell 3"
+    - key: Move Active to Cell 4
+      value: "none,none,Move active window to layout cell 4"
+    - key: Move Active to Cell 5
+      value: "none,none,Move active window to layout cell 5"
+    - key: Move Active to Cell 6
+      value: "none,none,Move active window to layout cell 6"
+    - key: Move Active to Region bottom_right
+      value: "none,none,Move active window to bottom_right"
+    - key: Move Active to Region center
+      value: "none,none,Move active window to center"
+    - key: Move Active to Region chat
+      value: "none,none,Move active window to chat"
+    - key: Move Active to Region full
+      value: "none,none,Move active window to full"
+    - key: Move Active to Region left
+      value: "none,none,Move active window to left"
+    - key: Move Active to Region main
+      value: "none,none,Move active window to main"
+    - key: Move Active to Region right
+      value: "none,none,Move active window to right"
+    - key: Move Active to Region side
+      value: "none,none,Move active window to side"
+    - key: Move Active to Region top_right
+      value: "none,none,Move active window to top_right"
+    - key: Move Active to Region wide
+      value: "none,none,Move active window to wide"
+    - key: Cycle Active Screen Layout
+      value: "none,none,Cycle active screen layout"
+    - key: Pick Active Window Region
+      value: "none,none,Pick region/cell for active window"
+    - key: Pick Active Screen Layout
+      value: "none,none,Pick active screen layout"
+    - key: Open Plasma Summon Window Mover
+      value: "Meta+U,none,Pick region/cell for active window"
+    - key: Hide Active Window
+      value: "Meta+H,none,Minimize active window"
+    - key: Open Plasma Summon Layout Picker
+      value: "Meta+Alt+Ctrl+Shift+P,none,Pick active screen layout"
+  changed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Explain missing kwriteconfig6"
+  ansible.builtin.debug:
+    msg: "KWin summon script was deployed but not enabled because kwriteconfig6 is not installed yet."
+  when:
+    - plasma_enable_kwin_summon | bool
+    - not plasma_kwriteconfig6.stat.exists
+
+- name: "{{ role_name }} | Detect qdbus6"
+  ansible.builtin.stat:
+    path: /usr/bin/qdbus6
+  register: plasma_qdbus6
+  check_mode: false
+
+- name: "{{ role_name }} | Ask KGlobalAccel to release System Settings Tools shortcut"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.kglobalaccel
+      - /component/systemsettings_desktop
+      - org.kde.kglobalaccel.Component.cleanUp
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Unload existing Plasma summon KWin script"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /Scripting
+      - org.kde.kwin.Scripting.unloadScript
+      - "{{ plasma_summon_script_id }}"
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Load Plasma summon into running KWin"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /Scripting
+      - org.kde.kwin.Scripting.loadScript
+      - "{{ plasma_kwin_scripts_dir }}/{{ plasma_summon_script_id }}/contents/code/main.js"
+      - "{{ plasma_summon_script_id }}"
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Start pending KWin scripts"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /Scripting
+      - org.kde.kwin.Scripting.start
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Configure running Plasma summon shortcuts"
+  ansible.builtin.command:
+    argv:
+      - "{{ plasma_local_bin_dir }}/plasma-summon-service"
+      - --configure-shortcuts
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Ask running KWin to reload scripts"
+  ansible.builtin.command:
+    argv:
+      - qdbus6
+      - org.kde.KWin
+      - /KWin
+      - reconfigure
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_enable_kwin_summon | bool
+    - plasma_qdbus6.stat.exists
+
+- name: "{{ role_name }} | Import Plasma graphical environment into user services"
+  ansible.builtin.command:
+    argv:
+      - dbus-update-activation-environment
+      - --systemd
+      - DISPLAY
+      - WAYLAND_DISPLAY
+      - XAUTHORITY
+      - XDG_CURRENT_DESKTOP
+      - XDG_SESSION_TYPE
+      - XDG_SESSION_DESKTOP
+      - DESKTOP_SESSION
+      - KDE_FULL_SESSION
+      - KDE_SESSION_VERSION
+      - QT_WAYLAND_RECONNECT
+      - XDG_DATA_DIRS
+      - XKB_DEFAULT_LAYOUT
+      - XKB_DEFAULT_VARIANT
+      - XKB_DEFAULT_OPTIONS
+  changed_when: false
+  failed_when: false
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+    - (ansible_facts.env.DISPLAY is defined) or (ansible_facts.env.WAYLAND_DISPLAY is defined)
+
+- name: "{{ role_name }} | Remove legacy default-target summon service enablement"
+  ansible.builtin.file:
+    path: "{{ plasma_systemd_user_dir }}/default.target.wants/plasma-summon.service"
+    state: absent
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Enable and restart Plasma summon service"
+  ansible.builtin.systemd:
+    name: plasma-summon.service
+    scope: user
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  register: plasma_summon_systemd
+  failed_when: false
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Explain summon service check-mode skip"
+  ansible.builtin.debug:
+    msg: "Plasma summon service start skipped in check mode; rerun without --check to activate the D-Bus launcher helper."
+  when:
+    - plasma_start_summon_service | bool
+    - ansible_check_mode
+
+- name: "{{ role_name }} | Explain summon service activation failure"
+  ansible.builtin.debug:
+    msg: "Plasma summon service was deployed but could not be started in this session; it will start after the next graphical login or can be started with systemctl --user start plasma-summon.service."
+  when:
+    - plasma_start_summon_service | bool
+    - not ansible_check_mode
+    - plasma_summon_systemd is failed
+

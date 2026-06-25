@@ -20,12 +20,10 @@
     dest: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty/config"
     mode: "0644"
 
-- name: "{{ role_name }} | Deploy Shaders directory"
-  ansible.builtin.copy:
-    src: shaders
-    dest: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty/"
-    mode: "0644"
-    directory_mode: "0755"
+- name: "{{ role_name }} | Remove legacy shaders directory"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.config/ghostty/shaders"
+    state: absent
 
 - name: "{{ role_name }} | Deploy Themes directory"
   ansible.builtin.copy:

@@ -1,10 +1,10 @@
 # 👻 Ghostty Terminal Role
 
-Modern GPU-accelerated terminal emulator configuration with custom shaders, themes, and performance optimizations.
+Modern GPU-accelerated terminal emulator configuration with themes and performance optimizations.
 
 ## Overview
 
-This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fast, native, GPU-accelerated terminal emulator written in Zig by Mitchell Hashimoto. The configuration includes custom GLSL cursor shaders, background images, and the Catppuccin Mocha theme for a visually stunning development environment.
+This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fast, native, GPU-accelerated terminal emulator written in Zig by Mitchell Hashimoto. The configuration includes background images and the Catppuccin Mocha theme for a visually polished development environment.
 
 ## Supported Platforms
 
@@ -25,26 +25,19 @@ This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fas
 ```
 ~/.config/ghostty/
 ├── config                      # Main configuration
-├── shaders/
-│   ├── cursor_blaze.glsl      # Electric cyan trail effect
-│   └── cursor_smear.glsl      # Smooth sapphire trail effect
 └── themes/
     └── catppuccin-mocha       # Color palette
 ```
 
 ## Key Features
 
-### 🎨 Visual Effects
-- **Custom Cursor Shaders**: GPU-powered cursor trail effects
-  - `cursor_blaze.glsl` - Electric cyan trail with motion blur (200ms)
-  - `cursor_smear.glsl` - Smooth sapphire trail (120ms)
+### 🎨 Appearance
 - **Background Images**: Custom backgrounds with opacity and blur support
 - **Catppuccin Mocha Theme**: Professional dark color scheme
 
 ### ⚡ Performance
 - **GPU Acceleration**: Native Ghostty rendering on supported platforms for smooth 60+ FPS
 - **Font Rendering**: Enhanced typography with BerkeleyMono Nerd Font
-- **Optimized Shaders**: Branch-free GLSL for minimal performance impact
 
 ### 🛠️ Configuration Highlights
 
@@ -58,7 +51,7 @@ background-image = ~/Pictures/your-image.jpg
 background-image-opacity = 0.15
 
 # Typography
-font-size = 15
+font-size = 11
 font-family = "BerkeleyMono Nerd Font"
 font-thicken = true
 
@@ -68,15 +61,17 @@ macos-option-as-alt = true
 window-padding-x = 10
 window-padding-y = 10
 
-# Cursor Effects
+# Cursor settings
 cursor-style = block
 cursor-style-blink = true
-custom-shader = shaders/cursor_blaze.glsl
+cursor-color = #f38ba8
+cursor-text = #11111b
 
 # Productivity
 clipboard-read = allow
 clipboard-write = allow
 copy-on-select = true
+shell-integration-features = no-cursor
 auto-update = check
 auto-update-channel = tip
 ```
@@ -92,28 +87,10 @@ graph TD
     C --> F[Create ~/.config/ghostty]
     D --> F
     F --> G[Deploy config file]
-    F --> H[Deploy shaders/]
-    F --> I[Deploy themes/]
-    G --> J[Ghostty Ready]
-    H --> J
-    I --> J
+    F --> H[Deploy themes/]
+    G --> I[Ghostty Ready]
+    H --> I
 ```
-
-## Shader Technology
-
-Both custom shaders use **Signed Distance Fields (SDF)** for precise geometric calculations and are based on [Inigo Quilez's distance functions](https://iquilezles.org/articles/distfunctions2d/).
-
-### Cursor Blaze
-- Electric cyan color scheme (`#00E0FF`)
-- Parallelogram trail between cursor positions
-- Distance-based opacity fade
-- 200ms duration with easing functions
-
-### Cursor Smear
-- Catppuccin Sapphire blue (`#74c7ed`)
-- 12+ color variants available (commented)
-- 120ms duration for snappier feel
-- Optimized for better performance
 
 ## Usage
 
@@ -127,16 +104,6 @@ dotfiles -t ghostty --check
 
 # Uninstall (interactive)
 ~/.dotfiles/roles/ghostty/uninstall.sh
-```
-
-### Customize Cursor Effect
-
-Edit `~/.config/ghostty/config`:
-```ini
-# Switch between effects
-custom-shader = shaders/cursor_blaze.glsl   # Electric trail
-custom-shader = shaders/cursor_smear.glsl   # Smooth trail
-# custom-shader =                           # Disable effects
 ```
 
 ### Change Background Image
@@ -156,16 +123,14 @@ background-image-fit = cover               # cover, contain, stretch, tile
 
 ### Optional
 - Background image at configured path
-- GPU support for shader effects
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | Background image not loading | Verify file path exists, use absolute path |
-| Shader effects not working | Update Ghostty, check GPU support |
 | Font rendering issues | Install BerkeleyMono Nerd Font or update `font-family` |
-| Performance problems | Disable custom shaders, reduce blur radius |
+| Performance problems | Reduce blur radius or background-image opacity |
 
 ## Links
 
@@ -176,4 +141,4 @@ background-image-fit = cover               # cover, contain, stretch, tile
 
 ## Advanced Configuration
 
-For detailed customization options, shader development, and platform-specific notes, use the upstream Ghostty docs plus this README.
+For detailed customization options and platform-specific notes, use the upstream Ghostty docs plus this README.

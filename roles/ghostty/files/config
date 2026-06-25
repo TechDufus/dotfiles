@@ -10,7 +10,7 @@ background-image-opacity = 0.15
 background-image-fit = cover
 
 # Font
-font-size = 15
+font-size = 11
 font-family = "BerkeleyMono Nerd Font"
 font-thicken = true
 bold-is-bright = true
@@ -26,8 +26,8 @@ window-padding-balance = true
 # Cursor style
 cursor-style = block
 cursor-style-blink = true
-cursor-invert-fg-bg = true
-custom-shader = shaders/cursor_blaze.glsl
+cursor-color = #f38ba8
+cursor-text = #11111b
 mouse-hide-while-typing = true
 
 # Clipboard settings

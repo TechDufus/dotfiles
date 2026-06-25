@@ -4,6 +4,28 @@
     name: FelixKratz/formulae
     state: present
 
+- name: "{{ role_name }} | macOS | Check Homebrew tap trust requirement"
+  ansible.builtin.command: brew config
+  register: borders_brew_config
+  changed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | macOS | Check trusted Homebrew formulae"
+  ansible.builtin.command: brew trust --json v1
+  register: borders_brew_trust
+  changed_when: false
+  check_mode: false
+  when: "'HOMEBREW_REQUIRE_TAP_TRUST: set' in borders_brew_config.stdout"
+
+- name: "{{ role_name }} | macOS | Trust borders Homebrew formula"
+  ansible.builtin.command: brew trust --formula felixkratz/formulae/borders
+  changed_when: true
+  when:
+    - "'HOMEBREW_REQUIRE_TAP_TRUST: set' in borders_brew_config.stdout"
+    - >
+      'felixkratz/formulae/borders' not in
+      ((borders_brew_trust.stdout | default('{"formulae": []}') | from_json).formulae | default([]))
+
 - name: "{{ role_name }} | macOS | Install borders"
   community.general.homebrew:
     name: borders

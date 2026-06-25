@@ -19,7 +19,7 @@ return {
       Signal      = { cell = 3 },
       Discord     = { cell = 3 },
       Outlook     = { cell = 4 },
-      Spotify     = { cell = 4, open = true },
+      Spotify     = { cell = 4 },
       Finder      = { cell = 4 },
       OnePassword = { cell = 4 },
       Teams       = { cell = 5 },
@@ -92,7 +92,7 @@ return {
     },
     apps = {
       Signal      = { cell = 1 },
-      Spotify     = { cell = 2, open = true },
+      Spotify     = { cell = 2 },
       Outlook     = { cell = 2, open = true },
       Finder      = { cell = 2 },
       Teams       = { cell = 3 },

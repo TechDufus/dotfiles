@@ -6,11 +6,12 @@ return {
     -- Values can be layout keys from layouts.lua ("fourk", "fullscreen", "hd", "standard")
     -- or the human-readable layout names.
     --
-    -- Example:
-    -- all = 'fullscreen',
-    -- ['profile:fourk'] = 'fourk',
-    -- primary = 'fourk',
-    -- ['screen:2'] = 'fullscreen',
-    -- ['Built-in Retina Display'] = 'fullscreen',
+    -- Profile defaults:
+    -- - built-in laptop display -> single fullscreen cell
+    -- - standard/4K/ultrawide external displays -> matching workspace
+    ['profile:builtin'] = 'fullscreen',
+    ['profile:standard'] = 'hd',
+    ['profile:fourk'] = 'fourk',
+    ['profile:ultrawide'] = 'standard',
   },
 }

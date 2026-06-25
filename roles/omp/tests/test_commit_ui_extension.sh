@@ -998,7 +998,307 @@ try {
   assertRenderedMatches(groupedRendered, "grouped execution", /(^|\n).*2(?:\/2|\b).*fix\(test\): add beta fixture/i, "second grouped execution row");
   assertRenderedExcludes(groupedRendered, "grouped execution", "Result");
   if (/\batomic\b/i.test(groupedRendered)) throw new Error(`grouped execution render should not say atomic: ${groupedRendered}`);
-  await writeFile(join(tmp, "secret.txt"), "api_key = \"" + "a".repeat(12) + "\"\n");
+  const snake = (...parts) => parts.join("_");
+  const dash = (...parts) => parts.join("-");
+  const dotted = (...parts) => parts.join(".");
+  await mkdir(join(tmp, "docs"), { recursive: true });
+  await writeFile(join(tmp, "docs", "deployment-env.md"), `OPENAI_${snake("API", "KEY")}=$OPENAI_${snake("API", "KEY")}\n`);
+  const envReferencePreview = await tool.execute(
+    "commit-env-reference-secret-test",
+    {
+      files: ["docs/deployment-env.md"],
+      commitMessage: "chore(test): allow env secret reference",
+      rationale: "Environment variable references are not secret material.",
+      verificationEvidence: [{ description: "env reference fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (envReferencePreview.isError) throw new Error(`env var secret reference was blocked: ${JSON.stringify(envReferencePreview)}`);
+
+  await mkdir(join(tmp, "apps", "api", "src", "routes"), { recursive: true });
+  const authFixturePath = "apps/api/src/routes/auth.routes.test.ts";
+  await writeFile(join(tmp, authFixturePath), [
+    "const authConfig = {",
+    `  ${snake("JWT", "SECRET")}: '${"6f".repeat(32)}',`,
+    `  ${snake("OIDC", "CLIENT", "SECRET")}: '${dash("auth", "route", "test", "secret")}',`,
+    "};",
+    "const oidcResponse = {",
+    `  ${snake("access", "token")}: '${dash("test", "only", "access", "token")}',`,
+    `  ${snake("id", "token")}: '${dash("test", "only", "id", "token")}',`,
+    "  token_type: 'Bearer',",
+    "};",
+    "",
+  ].join("\n"));
+  const testFixturePreview = await tool.execute(
+    "commit-test-fixture-secret-test",
+    {
+      files: [authFixturePath],
+      commitMessage: "chore(test): allow auth fixture literals",
+      rationale: "Test fixture literals are not deployable secret material.",
+      verificationEvidence: [{ description: "auth fixture literals reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (testFixturePreview.isError) throw new Error(`test fixture secret literals were blocked: ${JSON.stringify(testFixturePreview)}`);
+
+  const leakedTokenFixturePath = "apps/api/src/routes/auth.leaked-token.test.ts";
+  await writeFile(join(tmp, leakedTokenFixturePath), `export const oidcResponse = { ${snake("access", "token")}: '${["ghp", "test", "a".repeat(24)].join("_")}' };\n`);
+  const leakedTokenBlocked = await tool.execute(
+    "commit-test-token-secret-test",
+    {
+      files: [leakedTokenFixturePath],
+      commitMessage: "chore(test): block token-shaped fixture",
+      rationale: "Real credential-shaped literals should still block in test files.",
+      verificationEvidence: [{ description: "token-shaped fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const leakedTokenText = leakedTokenBlocked.content?.[0]?.text ?? JSON.stringify(leakedTokenBlocked);
+  if (!leakedTokenBlocked.isError || !leakedTokenText.includes("Potential GitHub token")) {
+    throw new Error(`token-shaped test fixture did not block: ${leakedTokenText}`);
+  }
+
+  const hexTokenFixturePath = "apps/api/src/routes/auth.hex-token.test.ts";
+  await writeFile(join(tmp, hexTokenFixturePath), `export const oidcResponse = { ${snake("access", "token")}: '${"ab".repeat(32)}' };\n`);
+  const hexTokenBlocked = await tool.execute(
+    "commit-test-hex-secret-test",
+    {
+      files: [hexTokenFixturePath],
+      commitMessage: "chore(test): block bare hex token fixture",
+      rationale: "Bare high-entropy token values should still block in test files.",
+      verificationEvidence: [{ description: "hex token fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const hexTokenText = hexTokenBlocked.content?.[0]?.text ?? JSON.stringify(hexTokenBlocked);
+  if (!hexTokenBlocked.isError || !hexTokenText.includes("Potential generic secret assignment")) {
+    throw new Error(`bare hex token fixture did not block: ${hexTokenText}`);
+  }
+
+  const markedTokenFixturePath = "apps/api/src/routes/auth.marked-token.test.ts";
+  await writeFile(join(tmp, markedTokenFixturePath), `export const config = { ${snake("api", "key")}: '${["my", "test", "token", "a".repeat(24)].join("-")}' };\n`);
+  const markedTokenBlocked = await tool.execute(
+    "commit-test-marked-secret-test",
+    {
+      files: [markedTokenFixturePath],
+      commitMessage: "chore(test): block marked secret fixture",
+      rationale: "A delimiter-separated fixture marker alone should not allow a secret-like literal.",
+      verificationEvidence: [{ description: "marked secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const markedTokenText = markedTokenBlocked.content?.[0]?.text ?? JSON.stringify(markedTokenBlocked);
+  if (!markedTokenBlocked.isError || !markedTokenText.includes("Potential generic secret assignment")) {
+    throw new Error(`marked secret-like fixture did not block: ${markedTokenText}`);
+  }
+
+  await writeFile(join(tmp, "docs", "deployment-placeholder.md"), `OPENAI_${snake("API", "KEY")}=${["sk", "proj", "YOUR", "KEY", "HERE"].join("-")}\n`);
+  const placeholderBlocked = await tool.execute(
+    "commit-secret-placeholder-test",
+    {
+      files: ["docs/deployment-placeholder.md"],
+      commitMessage: "chore(test): block secret placeholder",
+      rationale: "Secret-shaped placeholders should still block.",
+      verificationEvidence: [{ description: "secret placeholder fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (!placeholderBlocked.isError || !placeholderBlocked.content[0].text.includes("Potential OpenAI API key")) {
+    throw new Error(`secret-shaped placeholder did not block: ${JSON.stringify(placeholderBlocked)}`);
+  }
+
+  await writeFile(join(tmp, "nested-secret-config.ts"), dotted("config", "oauth", "client", "secret") + " = \"" + "b".repeat(12) + "\"\n");
+  const nestedSecretBlocked = await tool.execute(
+    "commit-nested-secret-test",
+    {
+      files: ["nested-secret-config.ts"],
+      commitMessage: "chore(test): block nested secret assignment",
+      rationale: "Nested config secret assignments should still be scanned.",
+      verificationEvidence: [{ description: "nested secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const nestedSecretText = nestedSecretBlocked.content?.[0]?.text ?? JSON.stringify(nestedSecretBlocked);
+  if (!nestedSecretBlocked.isError || !nestedSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`nested secret assignment did not block: ${nestedSecretText}`);
+  }
+
+  await writeFile(join(tmp, "bracket-secret-config.ts"), "config[" + JSON.stringify(snake("api", "key")) + "] = \"" + "c".repeat(12) + "\"\n");
+  const bracketSecretBlocked = await tool.execute(
+    "commit-bracket-secret-test",
+    {
+      files: ["bracket-secret-config.ts"],
+      commitMessage: "chore(test): block bracket secret assignment",
+      rationale: "Static bracketed secret keys should still be scanned.",
+      verificationEvidence: [{ description: "bracket secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const bracketSecretText = bracketSecretBlocked.content?.[0]?.text ?? JSON.stringify(bracketSecretBlocked);
+  if (!bracketSecretBlocked.isError || !bracketSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`bracket secret assignment did not block: ${bracketSecretText}`);
+  }
+
+  await writeFile(join(tmp, "punctuated-bracket-secret-config.ts"), "config[" + JSON.stringify("2fa_" + "secret") + "] = \"" + "e".repeat(12) + "\"\n");
+  const punctuatedBracketSecretBlocked = await tool.execute(
+    "commit-punctuated-bracket-secret-test",
+    {
+      files: ["punctuated-bracket-secret-config.ts"],
+      commitMessage: "chore(test): block punctuated bracket secret",
+      rationale: "Quoted bracket secret keys with punctuation should still be scanned.",
+      verificationEvidence: [{ description: "punctuated bracket secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const punctuatedBracketSecretText = punctuatedBracketSecretBlocked.content?.[0]?.text ?? JSON.stringify(punctuatedBracketSecretBlocked);
+  if (!punctuatedBracketSecretBlocked.isError || !punctuatedBracketSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`punctuated bracket secret assignment did not block: ${punctuatedBracketSecretText}`);
+  }
+
+  await writeFile(join(tmp, "template-bracket-secret-config.ts"), "config[`" + snake("api", "key") + "`] = \"" + "f".repeat(12) + "\"\n");
+  const templateBracketSecretBlocked = await tool.execute(
+    "commit-template-bracket-secret-test",
+    {
+      files: ["template-bracket-secret-config.ts"],
+      commitMessage: "chore(test): block template bracket secret",
+      rationale: "Static template-literal bracket secret keys should still be scanned.",
+      verificationEvidence: [{ description: "template bracket secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const templateBracketSecretText = templateBracketSecretBlocked.content?.[0]?.text ?? JSON.stringify(templateBracketSecretBlocked);
+  if (!templateBracketSecretBlocked.isError || !templateBracketSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`template bracket secret assignment did not block: ${templateBracketSecretText}`);
+  }
+
+  await writeFile(join(tmp, "escaped-bracket-secret-config.ts"), 'config["' + "api" + '\\"_' + "key" + '"] = "' + "g".repeat(12) + '"\n');
+  const escapedBracketSecretBlocked = await tool.execute(
+    "commit-escaped-bracket-secret-test",
+    {
+      files: ["escaped-bracket-secret-config.ts"],
+      commitMessage: "chore(test): block escaped bracket secret",
+      rationale: "Escaped static bracket secret keys should still be scanned.",
+      verificationEvidence: [{ description: "escaped bracket secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const escapedBracketSecretText = escapedBracketSecretBlocked.content?.[0]?.text ?? JSON.stringify(escapedBracketSecretBlocked);
+  if (!escapedBracketSecretBlocked.isError || !escapedBracketSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`escaped bracket secret assignment did not block: ${escapedBracketSecretText}`);
+  }
+
+  await writeFile(join(tmp, "dollar-bracket-secret-config.ts"), 'config["client$' + "secret" + '"] = "' + "i".repeat(12) + '"\n');
+  const dollarBracketSecretBlocked = await tool.execute(
+    "commit-dollar-bracket-secret-test",
+    {
+      files: ["dollar-bracket-secret-config.ts"],
+      commitMessage: "chore(test): block dollar bracket secret",
+      rationale: "Quoted static bracket secret keys may contain dollar signs.",
+      verificationEvidence: [{ description: "dollar bracket secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const dollarBracketSecretText = dollarBracketSecretBlocked.content?.[0]?.text ?? JSON.stringify(dollarBracketSecretBlocked);
+  if (!dollarBracketSecretBlocked.isError || !dollarBracketSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`dollar bracket secret assignment did not block: ${dollarBracketSecretText}`);
+  }
+
+  await writeFile(join(tmp, "bare-bracket-secret-config.ts"), "config[" + snake("API", "KEY") + "] = \"" + "d".repeat(12) + "\"\n");
+  const bareBracketSecretBlocked = await tool.execute(
+    "commit-bare-bracket-secret-test",
+    {
+      files: ["bare-bracket-secret-config.ts"],
+      commitMessage: "chore(test): block bare bracket secret",
+      rationale: "Static bare bracket secret keys should still be scanned.",
+      verificationEvidence: [{ description: "bare bracket secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const bareBracketSecretText = bareBracketSecretBlocked.content?.[0]?.text ?? JSON.stringify(bareBracketSecretBlocked);
+  if (!bareBracketSecretBlocked.isError || !bareBracketSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`bare bracket secret assignment did not block: ${bareBracketSecretText}`);
+  }
+
+  await writeFile(join(tmp, "multiline-secret.yml"), snake("api", "key") + ":\n  |\n    " + "h".repeat(12) + "\n");
+  const multilineSecretBlocked = await tool.execute(
+    "commit-multiline-secret-test",
+    {
+      files: ["multiline-secret.yml"],
+      commitMessage: "chore(test): block multiline secret",
+      rationale: "Adjacent added lines with a key then literal value should still be scanned.",
+      verificationEvidence: [{ description: "multiline secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const multilineSecretText = multilineSecretBlocked.content?.[0]?.text ?? JSON.stringify(multilineSecretBlocked);
+  if (!multilineSecretBlocked.isError || !multilineSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`multiline secret assignment did not block: ${multilineSecretText}`);
+  }
+
+  await writeFile(join(tmp, "context-secret.yml"), snake("api", "key") + ":\n");
+  await git(tmp, ["add", "context-secret.yml"]);
+  await git(tmp, ["commit", "-m", "chore(test): add context secret key"]);
+  await writeFile(join(tmp, "context-secret.yml"), snake("api", "key") + ":\n  |\n    " + "j".repeat(12) + "\n");
+  const contextSecretBlocked = await tool.execute(
+    "commit-context-secret-test",
+    {
+      files: ["context-secret.yml"],
+      commitMessage: "chore(test): block context secret",
+      rationale: "Unchanged key lines adjacent to added literal values should still be scanned.",
+      verificationEvidence: [{ description: "context secret fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  const contextSecretText = contextSecretBlocked.content?.[0]?.text ?? JSON.stringify(contextSecretBlocked);
+  if (!contextSecretBlocked.isError || !contextSecretText.includes("Potential generic secret assignment")) {
+    throw new Error(`context secret assignment did not block: ${contextSecretText}`);
+  }
+  await writeFile(join(tmp, "secret.txt"), snake("api", "key") + " = \"" + "a".repeat(12) + "\"\n");
   const blocked = await tool.execute(
     "commit-secret-test",
     {

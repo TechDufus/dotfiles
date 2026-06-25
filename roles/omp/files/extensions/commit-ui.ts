@@ -36,36 +36,83 @@ const NATURAL_ATOMIC_RE = /--atomic\b|\batomic\s+commits?\b|\bmultiple\s+commits
 interface SecretPattern {
 	name: string;
 	pattern: RegExp;
-	isMatch?: (match: RegExpMatchArray) => boolean;
+	isMatch?: (match: RegExpMatchArray, entry: SecretScanEntry) => boolean;
 }
 
 interface SecretScanEntry {
 	file: string;
 	line: number;
 	text: string;
+	added?: boolean;
 }
 
 const literalSecretValuePattern = /^[A-Za-z0-9_./+=-]{12,}$/;
 const qualifiedReferencePattern = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/;
 const environmentReferencePattern = /^[A-Z_][A-Z0-9_]*$/;
+const secretAssignmentPattern = /(?:["']?([A-Za-z_$][\w$-]*)["']?|\[\s*["']((?:\\.|[^"'\]])+?)["']\s*\]|\[\s*`((?:\\.|(?!\$\{)[^`\]])+?)`\s*\]|\[\s*([A-Za-z_$][\w$-]*)\s*\])\s*[:=]\s*(?:[|>]\s*)?["']?([^"'\s,;#}]+)/i;
+const testFixturePathPattern = /(^|[\\/])(?:__tests__|tests?|spec|fixtures?|mocks?)([\\/]|$)|(?:\.test|\.spec)\.[cm]?[jt]sx?$/i;
+const fixtureValuePattern = /^(?:test-only|fixture-only|mock-only|dummy-only|example-only)[-_.][A-Za-z0-9_.-]+$|^[A-Za-z0-9_.-]+[-_.](?:test|fixture|mock|dummy|example)[-_.]secret$/i;
+const deterministicHexFixturePattern = /^[a-f0-9]{32,}$/i;
+const awsAccessKeyPattern = /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/;
+const githubTokenPattern = /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/;
+const slackTokenPattern = /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/;
+const openAiApiKeyPattern = /\bsk-(?:proj-[A-Za-z0-9_-]{8,}|[A-Za-z0-9][A-Za-z0-9_-]{20,})\b/;
+const knownSecretValuePatterns = [awsAccessKeyPattern, githubTokenPattern, slackTokenPattern, openAiApiKeyPattern];
+const deterministicHexFixtureKeys = new Set(["jwt_secret"]);
+const protocolMetadataKeys = new Set(["token_type"]);
 
-function isLiteralSecretAssignment(match: RegExpMatchArray): boolean {
-	const value = match[1] ?? "";
+function isLiteralSecretAssignment(match: RegExpMatchArray, entry: SecretScanEntry): boolean {
+	const key = match[1] ?? match[2] ?? match[3] ?? match[4] ?? "";
+	const value = match[5] ?? "";
+	if (!isSecretAssignmentKey(key)) return false;
+	if (!isLiteralSecretValue(value)) return false;
+	if (isAllowedTestFixtureSecret(key, value, entry.file)) return false;
+	return true;
+}
+
+function isSecretAssignmentKey(rawKey: string): boolean {
+	const normalized = rawKey.toLowerCase().replace(/-/g, "_");
+	if (protocolMetadataKeys.has(normalized)) return false;
+	const segments = normalized.split(/[^a-z0-9]+/).filter(Boolean);
+	const compact = segments.join("");
+	return (
+		segments.some(segment => segment === "password" || segment === "passwd" || segment === "pwd" || segment === "secret" || segment === "token") ||
+		compact.endsWith("secret") ||
+		compact.endsWith("token") ||
+		compact.includes("secretkey") ||
+		compact.includes("clientsecret") ||
+		compact.includes("apikey") ||
+		compact.includes("accesskey")
+	);
+}
+
+function isLiteralSecretValue(value: string): boolean {
 	if (value.length < 12) return false;
-	if (/[()[\]{}$]/.test(value)) return false;
+	if (/[`()[\]{}$]/.test(value)) return false;
 	if (qualifiedReferencePattern.test(value)) return false;
 	if (environmentReferencePattern.test(value)) return false;
 	return literalSecretValuePattern.test(value);
 }
 
+function isAllowedTestFixtureSecret(key: string, value: string, file: string): boolean {
+	if (!testFixturePathPattern.test(file) || isKnownSecretValue(value)) return false;
+	if (fixtureValuePattern.test(value)) return true;
+	return deterministicHexFixtureKeys.has(key.toLowerCase().replace(/-/g, "_")) && deterministicHexFixturePattern.test(value);
+}
+
+function isKnownSecretValue(value: string): boolean {
+	return knownSecretValuePatterns.some(pattern => pattern.test(value));
+}
+
 const SECRET_PATTERNS: SecretPattern[] = [
 	{ name: "private key", pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/ },
-	{ name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
-	{ name: "GitHub token", pattern: /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/ },
-	{ name: "Slack token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/ },
+	{ name: "AWS access key", pattern: awsAccessKeyPattern },
+	{ name: "GitHub token", pattern: githubTokenPattern },
+	{ name: "Slack token", pattern: slackTokenPattern },
+	{ name: "OpenAI API key", pattern: openAiApiKeyPattern },
 	{
 		name: "generic secret assignment",
-		pattern: /(?:password|passwd|pwd|client[_-]?secret|secret[_-]?key|secret|api[_-]?key|access[_-]?key|token)\s*[:=]\s*["']?([^"'\s,;#}]+)/i,
+		pattern: secretAssignmentPattern,
 		isMatch: isLiteralSecretAssignment,
 	},
 ];
@@ -822,7 +869,7 @@ async function runVerification(plan: CommitPlan, cwd: string, signal: AbortSigna
 }
 
 async function collectSecretScanEntries(cwd: string, repoRoot: string, selectedFiles: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<SecretScanEntry[]> {
-	const diff = await runGit(cwd, ["diff", "--no-ext-diff", "--unified=0", "HEAD", "--", ...selectedFiles], signal, details);
+	const diff = await runGit(cwd, ["diff", "--no-ext-diff", "--unified=1", "HEAD", "--", ...selectedFiles], signal, details);
 	if (diff.stdout.length > MAX_SECRET_SCAN_CHARS) {
 		throw new WorkflowError("Selected diff is too large to secret-scan safely.");
 	}
@@ -859,14 +906,22 @@ function parseAddedDiffLines(diff: string): SecretScanEntry[] {
 		}
 		if (!file) continue;
 		if (line.startsWith("+") && !line.startsWith("+++")) {
-			entries.push({ file, line: nextLine, text: line.slice(1) });
+			entries.push({ file, line: nextLine, text: line.slice(1), added: true });
 			nextLine += 1;
 			continue;
 		}
 		if (line.startsWith("-") && !line.startsWith("---")) continue;
-		if (line.startsWith(" ") || line === "") nextLine += 1;
+		if (line.startsWith(" ") || line === "") {
+			const text = line.startsWith(" ") ? line.slice(1) : "";
+			if (isAssignmentPrefixLine(text)) entries.push({ file, line: nextLine, text, added: false });
+			nextLine += 1;
+		}
 	}
 	return entries;
+}
+
+function isAssignmentPrefixLine(text: string): boolean {
+	return /[:=]\s*$/.test(text);
 }
 
 function parseDiffNewPath(line: string): string {
@@ -876,14 +931,32 @@ function parseDiffNewPath(line: string): string {
 }
 
 function scanForSecrets(entries: SecretScanEntry[]): void {
-	for (const entry of entries) {
+	for (const entry of secretScanContexts(entries)) {
 		for (const secretPattern of SECRET_PATTERNS) {
-			const match = entry.text.match(secretPattern.pattern);
-			if (match && (!secretPattern.isMatch || secretPattern.isMatch(match))) {
-				throw new WorkflowError(`Potential ${secretPattern.name} found in selected changes at ${entry.file}:${entry.line}: ${redactSecretExcerpt(entry.text)}`);
+			const flags = secretPattern.pattern.flags.includes("g") ? secretPattern.pattern.flags : `${secretPattern.pattern.flags}g`;
+			for (const match of entry.text.matchAll(new RegExp(secretPattern.pattern.source, flags))) {
+				if (!secretPattern.isMatch || secretPattern.isMatch(match, entry)) {
+					throw new WorkflowError(`Potential ${secretPattern.name} found in selected changes at ${entry.file}:${entry.line}: ${redactSecretExcerpt(entry.text)}`);
+				}
 			}
 		}
 	}
+}
+
+function secretScanContexts(entries: SecretScanEntry[]): SecretScanEntry[] {
+	const contexts = entries.filter(entry => entry.added !== false);
+	for (let start = 0; start < entries.length; start += 1) {
+		let end = start;
+		while (end + 1 < entries.length && entries[end + 1].file === entries[end].file && entries[end + 1].line === entries[end].line + 1) {
+			end += 1;
+		}
+		const group = entries.slice(start, end + 1);
+		if (group.length > 1 && group.some(entry => entry.added !== false)) {
+			contexts.push({ file: group[0]!.file, line: group[0]!.line, text: group.map(entry => entry.text).join("\n"), added: true });
+		}
+		start = end;
+	}
+	return contexts;
 }
 
 function redactSecretExcerpt(text: string): string {

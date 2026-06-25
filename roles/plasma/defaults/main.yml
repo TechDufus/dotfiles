@@ -43,6 +43,17 @@ plasma_arch_packages:
 plasma_capslock_f13_arch_packages:
   - keyd
 
+plasma_browser_desktop_file: ""
+plasma_browser_desktop_file_candidates:
+  - zen.desktop
+  - app.zen_browser.zen.desktop
+plasma_browser_desktop_entry_dirs:
+  - "{{ ansible_facts['user_dir'] }}/.local/share/applications"
+  - /usr/local/share/applications
+  - /usr/share/applications
+  - "{{ ansible_facts['user_dir'] }}/.local/share/flatpak/exports/share/applications"
+  - /var/lib/flatpak/exports/share/applications
+
 plasma_manage_desktop_settings: true
 
 # Sparse KConfig writes for stable desktop preferences.
@@ -97,7 +108,7 @@ plasma_desktop_kconfig_settings:
   - file: kdeglobals
     group_path: [General]
     key: BrowserApplication
-    value: zen.desktop
+    value: "{{ plasma_resolved_browser_desktop_file }}"
   - file: kdeglobals
     group_path: [General]
     key: TerminalApplication

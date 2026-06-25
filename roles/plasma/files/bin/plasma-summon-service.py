@@ -174,12 +174,8 @@ def launch_detached(argv: list[str], *, kind: str, name: str) -> None:
         close_fds=True,
     )
 
-def build_launch_argv(apps: dict[str, dict[str, Any]], app_name: str) -> list[str]:
-    app = apps.get(app_name)
-    if not app:
-        raise ValueError(f"Unknown app: {app_name}")
-
-    command = str(app.get("exec", "")).strip()
+def split_exec_command(command: str, app_name: str) -> list[str]:
+    command = command.strip()
     if not command:
         raise ValueError(f"App has no exec command: {app_name}")
 
@@ -187,6 +183,72 @@ def build_launch_argv(apps: dict[str, dict[str, Any]], app_name: str) -> list[st
     if not argv:
         raise ValueError(f"App has empty exec command: {app_name}")
     return argv
+
+
+def executable_path(command: str) -> str:
+    if os.path.isabs(command):
+        return command if os.path.isfile(command) and os.access(command, os.X_OK) else ""
+    return shutil.which(command) or ""
+
+
+def flatpak_run_app_id(argv: list[str]) -> str:
+    if os.path.basename(argv[0]) != "flatpak":
+        return ""
+    try:
+        run_index = argv.index("run")
+    except ValueError:
+        return ""
+    for argument in argv[run_index + 1 :]:
+        if argument == "--" or argument.startswith("-"):
+            continue
+        return argument
+    return ""
+
+
+def flatpak_app_installed(flatpak: str, app_id: str) -> bool:
+    result = subprocess.run(
+        [flatpak, "info", app_id],
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def launch_candidate_available(argv: list[str]) -> bool:
+    executable = executable_path(argv[0])
+    if not executable:
+        return False
+
+    app_id = flatpak_run_app_id(argv)
+    if app_id and os.path.basename(executable) == "flatpak":
+        return flatpak_app_installed(executable, app_id)
+    return True
+
+
+def build_launch_argv(apps: dict[str, dict[str, Any]], app_name: str) -> list[str]:
+    app = apps.get(app_name)
+    if not app:
+        raise ValueError(f"Unknown app: {app_name}")
+
+    exec_config = app.get("exec", "")
+    if isinstance(exec_config, str):
+        return split_exec_command(exec_config, app_name)
+    if not isinstance(exec_config, list):
+        raise ValueError(f"App exec must be a command string or list of command strings: {app_name}")
+
+    unavailable: list[str] = []
+    for candidate in exec_config:
+        if not isinstance(candidate, str):
+            raise ValueError(f"App exec candidate must be a command string: {app_name}")
+        argv = split_exec_command(candidate, app_name)
+        if launch_candidate_available(argv):
+            return argv
+        unavailable.append(argv[0])
+
+    candidate_names = ", ".join(unavailable) or "none"
+    raise ValueError(f"No available exec candidate for app {app_name}: {candidate_names}")
 
 
 def launch_app(config_dir: Path, app_name: str, *, dry_run: bool = False) -> str:

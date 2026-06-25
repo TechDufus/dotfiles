@@ -164,6 +164,12 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         for required in [
             "plasma_manage_desktop_settings: true",
             "Sparse KConfig writes for stable desktop preferences.",
+            "plasma_browser_desktop_file: \"\"",
+            "plasma_browser_desktop_file_candidates:",
+            "  - zen.desktop",
+            "  - app.zen_browser.zen.desktop",
+            "plasma_browser_desktop_entry_dirs:",
+            "/var/lib/flatpak/exports/share/applications",
             "plasma_desktop_kconfig_settings:",
             "group_path: [Keyboard]",
             "file: kcminputrc",
@@ -187,7 +193,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "value: org.kde.oxygen",
             "file: kdeglobals",
             "key: BrowserApplication",
-            "value: zen.desktop",
+            "value: \"{{ plasma_resolved_browser_desktop_file }}\"",
             "key: TerminalApplication",
             "value: /usr/bin/ghostty --gtk-single-instance=true",
             "key: Theme",
@@ -203,6 +209,14 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.defaults)
         for required in [
+            "Use explicit browser desktop entry",
+            "Probe browser desktop entry candidates",
+            "Resolve browser desktop entry",
+            "plasma_browser_desktop_file_candidates | product(plasma_browser_desktop_entry_dirs) | list",
+            "selectattr('stat.exists')",
+            "plasma_resolved_browser_desktop_file",
+            "Assert browser desktop entry resolved",
+            "Set plasma_browser_desktop_file or install one of:",
             "Validate role-managed Plasma desktop settings",
             "Configure role-managed Plasma desktop settings",
             "kwriteconfig6",
@@ -216,6 +230,11 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "item.group_path | join('/')",
         ]:
             self.assertIn(required, self.tasks)
+        self.assertLess(
+            self.tasks.index("Resolve browser desktop entry"),
+            self.tasks.index("Validate role-managed Plasma desktop settings"),
+        )
+        self.assertNotIn("value: app.zen_browser.zen.desktop", self.defaults)
         self.assertNotIn("plasma_desktop_nested_kconfig_settings", self.defaults)
         self.assertNotIn("item.groups[0]", self.tasks)
 
@@ -594,17 +613,35 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("desktopFileName:com.mitchellh.ghostty.desktop", self.apps["terminal"]["match"])
         self.assertEqual(self.apps["browser"]["region"], "wide")
         self.assertEqual(self.apps["browser"]["key"], "b")
-        self.assertEqual(self.apps["browser"]["exec"], "zen-browser")
+        self.assertEqual(
+            self.apps["browser"]["exec"],
+            ["zen", "zen-browser", "/usr/bin/flatpak run app.zen_browser.zen"],
+        )
         self.assertEqual(
             self.apps["browser"]["match"],
-            ["class:zen", "resourceClass:zen", "desktopFileName:zen"],
+            [
+                "class:app.zen_browser.zen",
+                "class:zen",
+                "resourceClass:app.zen_browser.zen",
+                "resourceClass:zen",
+                "desktopFileName:app.zen_browser.zen",
+                "desktopFileName:zen",
+                "desktopFileName:app.zen_browser.zen.desktop",
+            ],
         )
         for required in [
             'browser: {\n        key: "b"',
-            'exec: "zen-browser"',
+            'exec: [',
+            '"zen"',
+            '"zen-browser"',
+            '"/usr/bin/flatpak run app.zen_browser.zen"',
+            '"class:app.zen_browser.zen"',
             '"class:zen"',
+            '"resourceClass:app.zen_browser.zen"',
             '"resourceClass:zen"',
+            '"desktopFileName:app.zen_browser.zen"',
             '"desktopFileName:zen"',
+            '"desktopFileName:app.zen_browser.zen.desktop"',
         ]:
             self.assertIn(required, self.script)
         self.assertEqual(self.apps["discord"]["region"], "chat")
@@ -710,6 +747,64 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         self.assertEqual(plasma_summon_service.build_launch_argv(apps, "signal"), ["signal-desktop"])
         with self.assertRaises(ValueError):
             plasma_summon_service.build_launch_argv(apps, "missing")
+
+    def test_helper_launch_argv_selects_available_exec_candidate(self) -> None:
+        apps = {
+            "browser": {
+                "exec": [
+                    "zen --new-window",
+                    "/usr/bin/flatpak run app.zen_browser.zen",
+                ],
+            },
+        }
+
+        def native_zen_only(binary: str) -> str | None:
+            return "/usr/bin/zen" if binary == "zen" else None
+
+        with patch.object(plasma_summon_service.shutil, "which", side_effect=native_zen_only):
+            self.assertEqual(
+                plasma_summon_service.build_launch_argv(apps, "browser"),
+                ["zen", "--new-window"],
+            )
+
+        with (
+            patch.object(plasma_summon_service.shutil, "which", return_value=None),
+            patch.object(plasma_summon_service.os.path, "isfile", return_value=True),
+            patch.object(plasma_summon_service.os, "access", return_value=True),
+            patch.object(
+                plasma_summon_service.subprocess,
+                "run",
+                return_value=plasma_summon_service.subprocess.CompletedProcess(args=[], returncode=0),
+            ),
+        ):
+            self.assertEqual(
+                plasma_summon_service.build_launch_argv(apps, "browser"),
+                ["/usr/bin/flatpak", "run", "app.zen_browser.zen"],
+            )
+
+        with (
+            patch.object(plasma_summon_service.shutil, "which", return_value=None),
+            patch.object(plasma_summon_service.os.path, "isfile", return_value=True),
+            patch.object(plasma_summon_service.os, "access", return_value=True),
+            patch.object(
+                plasma_summon_service.subprocess,
+                "run",
+                return_value=plasma_summon_service.subprocess.CompletedProcess(args=[], returncode=1),
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "No available exec candidate for app browser"):
+                plasma_summon_service.build_launch_argv(apps, "browser")
+
+    def test_helper_dry_run_shell_quotes_selected_exec_candidate(self) -> None:
+        apps = {"browser": {"exec": ["zen --profile 'Default User'"]}}
+        with (
+            patch.object(plasma_summon_service, "load_config", return_value={"apps": apps}),
+            patch.object(plasma_summon_service.shutil, "which", return_value="/usr/bin/zen"),
+        ):
+            self.assertEqual(
+                plasma_summon_service.launch_app(Path("/unused"), "browser", dry_run=True),
+                "zen --profile 'Default User'",
+            )
 
     def test_helper_dry_run_does_not_spawn_processes(self) -> None:
         self.assertEqual(

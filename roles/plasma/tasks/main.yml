@@ -96,6 +96,60 @@
     force: true
   when: plasma_enable_kwin_summon | bool
 
+- name: "{{ role_name }} | Use explicit browser desktop entry"
+  ansible.builtin.set_fact:
+    plasma_resolved_browser_desktop_file: "{{ plasma_browser_desktop_file | trim }}"
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_browser_desktop_file | default('') | trim | length > 0
+
+- name: "{{ role_name }} | Probe browser desktop entry candidates"
+  ansible.builtin.stat:
+    path: "{{ item.1 }}/{{ item.0 }}"
+  loop: "{{ plasma_browser_desktop_file_candidates | product(plasma_browser_desktop_entry_dirs) | list }}"
+  loop_control:
+    label: "{{ item.1 }}/{{ item.0 }}"
+  register: plasma_browser_desktop_entry_candidates
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_browser_desktop_file | default('') | trim | length == 0
+
+- name: "{{ role_name }} | Resolve browser desktop entry"
+  ansible.builtin.set_fact:
+    plasma_resolved_browser_desktop_file: >-
+      {{
+        (
+          plasma_browser_desktop_file_candidates
+          | select('in', plasma_installed_browser_desktop_entries)
+          | first
+          | default('')
+        )
+      }}
+  vars:
+    plasma_installed_browser_desktop_entries: >-
+      {{
+        plasma_browser_desktop_entry_candidates.results
+        | default([])
+        | selectattr('stat.exists')
+        | map(attribute='item.0')
+        | list
+      }}
+  when:
+    - plasma_manage_desktop_settings | bool
+    - plasma_browser_desktop_file | default('') | trim | length == 0
+
+
+- name: "{{ role_name }} | Assert browser desktop entry resolved"
+  ansible.builtin.assert:
+    that:
+      - plasma_resolved_browser_desktop_file is string
+      - plasma_resolved_browser_desktop_file | length > 0
+    fail_msg: >-
+      Set plasma_browser_desktop_file or install one of:
+      {{ plasma_browser_desktop_file_candidates | join(', ') }}
+    quiet: true
+  when: plasma_manage_desktop_settings | bool
+
 - name: "{{ role_name }} | Detect kwriteconfig6"
   ansible.builtin.stat:
     path: /usr/bin/kwriteconfig6

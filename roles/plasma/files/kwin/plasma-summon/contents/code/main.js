@@ -24,11 +24,19 @@ let apps = {
     },
     browser: {
         key: "b",
-        exec: "zen-browser",
+        exec: [
+            "zen",
+            "zen-browser",
+            "/usr/bin/flatpak run app.zen_browser.zen",
+        ],
         match: [
+            "class:app.zen_browser.zen",
             "class:zen",
+            "resourceClass:app.zen_browser.zen",
             "resourceClass:zen",
+            "desktopFileName:app.zen_browser.zen",
             "desktopFileName:zen",
+            "desktopFileName:app.zen_browser.zen.desktop",
         ],
         workspace: "2",
         monitor: "HDMI-A-1",

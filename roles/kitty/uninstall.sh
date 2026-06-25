@@ -31,22 +31,23 @@ case "$(uname -s)" in
     # Check distribution
     if [ -f /etc/os-release ]; then
       . /etc/os-release
-      case "$ID" in
-        ubuntu|debian)
+      distro_ids=" $ID ${ID_LIKE:-} "
+      case "$distro_ids" in
+        *" ubuntu "*|*" debian "*)
           if dpkg -l | grep -q "^ii  kitty"; then
             __task "Removing Kitty via apt"
             _cmd "sudo apt-get remove -y kitty"
             _task_done
           fi
           ;;
-        fedora)
+        *" fedora "*)
           if rpm -q kitty >/dev/null 2>&1; then
             __task "Removing Kitty via dnf"
             _cmd "sudo dnf remove -y kitty"
             _task_done
           fi
           ;;
-        arch)
+        *" arch "*)
           if pacman -Q kitty >/dev/null 2>&1; then
             __task "Removing Kitty via pacman"
             _cmd "sudo pacman -R --noconfirm kitty"

@@ -10,6 +10,7 @@ Kitty is a fast, feature-rich, cross-platform terminal emulator that leverages G
 
 - **macOS** - Installed via Homebrew Cask
 - **Fedora** - Installed via DNF (with graceful fallback to manual installation)
+- **Archlinux** - Installed via pacman; deploys the shared Linux `kitty.conf`
 
 ## What Gets Installed
 
@@ -18,13 +19,14 @@ Kitty is a fast, feature-rich, cross-platform terminal emulator that leverages G
 
 ### Configuration Files
 
-The role automatically selects the appropriate configuration based on the operating system:
+For macOS, the role deploys an OS-specific configuration; Fedora and Archlinux deploy the shared Linux configuration:
 
 ```mermaid
 flowchart TD
     A[Role Execution] --> B{OS Detection}
     B -->|macOS| C[kitty_MacOSX.conf]
     B -->|Fedora| D[kitty.conf]
+    B -->|Archlinux| D
     C --> E[Deploy to ~/.config/kitty/kitty.conf]
     D --> E
     E --> F[Apply Theme & Settings]
@@ -32,9 +34,9 @@ flowchart TD
 
 #### Deployed Configurations
 
-- **`~/.config/kitty/kitty.conf`** - Main configuration file (OS-specific)
+- **`~/.config/kitty/kitty.conf`** - Main configuration file
   - **macOS**: Uses `kitty_MacOSX.conf` with darker Catppuccin Mocha theme
-  - **Fedora**: Uses `kitty.conf` with standard Catppuccin Mocha theme
+  - **Fedora/Archlinux**: Uses `kitty.conf` with a darker custom Catppuccin Mocha variant
 
 #### Additional Theme Files
 
@@ -43,22 +45,22 @@ flowchart TD
 ## Key Features
 
 ### Visual Aesthetics
-- **Catppuccin Mocha color scheme** - Soothing pastel theme with darker variant on macOS
+- **Custom darker Catppuccin Mocha variants** - Soothing pastel themes tuned per deployed config
 - **BerkeleyMono Nerd Font** - Beautiful monospace font with ligatures
 - **Powerline-style tabs** - Slanted tab bar at the top
 - **Custom window padding** - Spacious 16-20pt padding for a clean look
-- **Background images** - Support for custom background images with tinting
+- **Optional background images** - Supported but disabled by default to avoid image/tint overhead
 
 ### macOS-Specific Features
 - **Titlebar-only decorations** - Hide titlebar while keeping window borders
 - **140% line height** - Extra breathing room for better readability
 - **Option key as Alt** - Proper keyboard behavior for terminal applications
-- **Background image support** - Pre-configured with OneDrive path (customizable)
+- **Optional background image hooks** - Commented by default for responsiveness
 
 ### Performance
 - **GPU acceleration** - Smooth scrolling and rendering
-- **Optimized repaint delay** - Configured for responsive updates
-- **Sync to monitor** - Prevents screen tearing
+- **Default repaint/input timing** - Uses Kitty defaults unless latency tuning is needed
+- **Sync to monitor** - Left at Kitty default to avoid tearing unless measured latency requires changing it
 
 ### Font Configuration
 - **14pt font size** - Comfortable default size
@@ -66,9 +68,9 @@ flowchart TD
 - **Disable blinking cursor** - Steady cursor for reduced distraction
 
 ### Developer-Friendly
-- **CMD+/- font size adjustment** - Easy font scaling on macOS
+- **Cmd/Super+/- font size adjustment** - Easy font scaling across deployed configs
 - **xterm-kitty TERM** - Proper terminal capabilities
-- **Mouse URL detection** - CMD+click to open URLs
+- **Mouse URL detection** - Cmd/Super+click URL opening is configured via `mouse_map`
 - **Tab management** - Disabled conflicting keyboard shortcuts
 
 ## Installation Logic
@@ -79,28 +81,27 @@ flowchart TD
 3. Detect OS-specific config: `kitty_MacOSX.conf`
 4. Deploy config to `~/.config/kitty/kitty.conf`
 
-### Fedora Flow
-1. Check if Kitty is already installed
-2. Attempt DNF installation (requires sudo)
-3. If no sudo access, display manual installation instructions
-4. Create `~/.config/kitty` directory
-5. Deploy `kitty.conf` to `~/.config/kitty/kitty.conf`
+### Fedora/Archlinux Flow
+1. Install Kitty via DNF or pacman when package installation is allowed
+2. On Fedora without sudo access, display manual installation instructions
+3. Create `~/.config/kitty` directory
+4. Deploy `kitty.conf` to `~/.config/kitty/kitty.conf`
 
 ## Configuration Highlights
 
 ### Color Scheme
 
-The role uses two Catppuccin Mocha variants:
+The role uses two custom Catppuccin Mocha variants:
 
-**Standard (Fedora):**
-- Background: `#11111b` (darker than default)
+**Fedora/Archlinux darker custom variant:**
+- Background: `#11111b` (darker than Catppuccin default)
 - Foreground: `#cdd6f4`
 - Accent: `#cba6f7` (mauve)
 
 **macOS Variant:**
 - Background: `#0F0F17` (even darker midpoint)
-- Support for background images with 95% tint
-- Dynamic opacity control
+- Background images disabled by default
+- Dynamic opacity disabled by default
 
 ### Tab Bar Styling
 ```
@@ -116,7 +117,7 @@ The role uses two Catppuccin Mocha variants:
 ### Window Padding
 
 **macOS**: 16pt vertical, 10pt horizontal
-**Fedora**: 20pt uniform padding
+**Fedora/Archlinux**: 20pt uniform padding
 
 ## Uninstallation
 
@@ -126,6 +127,7 @@ The role includes a comprehensive uninstallation script that:
 2. **Removes** the application:
    - macOS: Removes `/Applications/kitty.app` and Homebrew cask
    - Fedora: Removes via `dnf`
+   - Archlinux: Removes via `pacman`
 3. **Cleans up** configuration files in `~/.config/kitty`
 
 Run uninstallation:
@@ -155,11 +157,11 @@ bold_italic_font JetBrains Mono Nerd Font
 
 ### Background Images
 
-**macOS only** - Edit the background image path:
+Uncomment and customize these if you want a background image:
 ```conf
-background_image ~/path/to/your/image.jpg
-background_image_layout cscaled
-background_tint 0.95
+# background_image ~/path/to/your/image.jpg
+# background_image_layout cscaled
+# background_tint 0.95
 ```
 
 ## Dependencies
@@ -167,18 +169,20 @@ background_tint 0.95
 - **Font**: BerkeleyMono Nerd Font (should be installed via a separate font role)
 - **Homebrew** (macOS only): Required for cask installation
 - **DNF** (Fedora only): For package management
+- **pacman** (Archlinux/CachyOS only): For package management
 
 ## Known Gotchas
 
 - **Custom cursor warning**: The config avoids `macos_custom_beam_cursor` as it can make cursors invisible on dual GPU machines
-- **Background images**: Must be JPG/PNG format; currently configured for OneDrive paths
+- **Background images**: Supports PNG/JPEG/WEBP/TIFF/GIF/BMP; keep disabled while diagnosing latency
 - **Manual installation**: On Fedora without sudo, user must manually install using the provided instructions
 - **Conflicting shortcuts**: Some default tab shortcuts are disabled to avoid conflicts with other applications
+- **GL/EGL startup failures**: Kitty requires a working GPU/OpenGL stack; if `kitty --config NONE` fails, investigate driver or GPU-resource issues before changing kitty.conf.
 
 ## Official Documentation
 
 - [Kitty Terminal](https://sw.kovidgoyal.net/kitty/) - Official website
-- [Kitty Configuration](https://sw.kovidgoyal.net/kitty/conf.html) - Full configuration reference
+- [Kitty Configuration](https://sw.kovidgoyal.net/kitty/conf/) - Full configuration reference
 - [Catppuccin Theme](https://github.com/catppuccin/kitty) - Theme repository
 
 ## Role Variables
@@ -203,4 +207,4 @@ dotfiles -t kitty --check
 
 ---
 
-**Pro Tip**: Kitty supports remote control via socket connections, allowing you to script terminal operations. See the [remote control documentation](https://sw.kovidgoyal.net/kitty/remote-control.html) for advanced automation.
+**Pro Tip**: Kitty supports remote control via socket connections, allowing you to script terminal operations. See the [remote control documentation](https://sw.kovidgoyal.net/kitty/remote-control/) for advanced automation.

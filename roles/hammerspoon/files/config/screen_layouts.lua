@@ -6,12 +6,10 @@ return {
     -- Values can be layout keys from layouts.lua ("fourk", "fullscreen", "hd", "standard")
     -- or the human-readable layout names.
     --
-    -- Profile defaults:
+    -- Defaults:
     -- - built-in laptop display -> single fullscreen cell
-    -- - standard/4K/ultrawide external displays -> Standard Dev
+    -- - every external display -> Standard Dev
     ['profile:builtin'] = 'fullscreen',
-    ['profile:standard'] = 'standard',
-    ['profile:fourk'] = 'standard',
-    ['profile:ultrawide'] = 'standard',
+    all = 'standard',
   },
 }

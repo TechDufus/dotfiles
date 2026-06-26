@@ -8,10 +8,10 @@ return {
     --
     -- Profile defaults:
     -- - built-in laptop display -> single fullscreen cell
-    -- - standard/4K/ultrawide external displays -> matching workspace
+    -- - standard/4K/ultrawide external displays -> Standard Dev
     ['profile:builtin'] = 'fullscreen',
-    ['profile:standard'] = 'hd',
-    ['profile:fourk'] = 'fourk',
+    ['profile:standard'] = 'standard',
+    ['profile:fourk'] = 'standard',
     ['profile:ultrawide'] = 'standard',
   },
 }

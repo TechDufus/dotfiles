@@ -20,7 +20,21 @@ local function reloadConfig(files)
   end
 end
 
-configWatcher = hs.pathwatcher.new(os.getenv('HOME') .. '/.hammerspoon/', reloadConfig):start()
+local configDir = os.getenv('HOME') .. '/.hammerspoon/'
+local configFiles = {
+  'apps.lua',
+  'chain.lua',
+  'helpers.lua',
+  'init.lua',
+  'layouts.lua',
+  'positions.lua',
+  'screen_layouts.lua',
+}
+
+configWatchers = {}
+for _, file in ipairs(configFiles) do
+  configWatchers[file] = hs.pathwatcher.new(configDir .. file, reloadConfig):start()
+end
 
 require('helpers')
 

@@ -23,11 +23,11 @@ window-padding-x = 10
 window-padding-y = 10
 window-padding-balance = true
 
-# Cursor style
+# Cursor Effects
 cursor-style = block
 cursor-style-blink = true
-cursor-color = #f38ba8
-cursor-text = #11111b
+cursor-invert-fg-bg = true
+custom-shader = shaders/cursor_blaze.glsl
 mouse-hide-while-typing = true
 
 # Clipboard settings

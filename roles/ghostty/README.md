@@ -1,10 +1,10 @@
 # 👻 Ghostty Terminal Role
 
-Modern GPU-accelerated terminal emulator configuration with themes and performance optimizations.
+Modern GPU-accelerated terminal emulator configuration with custom shaders, themes, and performance optimizations.
 
 ## Overview
 
-This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fast, native, GPU-accelerated terminal emulator written in Zig by Mitchell Hashimoto. The configuration includes background images and the Catppuccin Mocha theme for a visually polished development environment.
+This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fast, native, GPU-accelerated terminal emulator written in Zig by Mitchell Hashimoto. The configuration includes custom GLSL cursor shaders, background images, and the Catppuccin Mocha theme for a visually polished development environment.
 
 ## Supported Platforms
 
@@ -25,19 +25,24 @@ This Ansible role installs and configures [Ghostty](https://ghostty.org) - a fas
 ```
 ~/.config/ghostty/
 ├── config                      # Main configuration
+├── shaders/
+│   └── cursor_blaze.glsl       # Deep Catppuccin mauve trail effect
 └── themes/
-    └── catppuccin-mocha       # Color palette
+    └── catppuccin-mocha        # Color palette
 ```
 
 ## Key Features
 
-### 🎨 Appearance
+### 🎨 Visual Effects
+- **Custom Cursor Shaders**: GPU-powered cursor trail effects
+  - `cursor_blaze.glsl` - Deep Catppuccin mauve trail with motion blur (200ms)
 - **Background Images**: Custom backgrounds with opacity and blur support
 - **Catppuccin Mocha Theme**: Professional dark color scheme
 
 ### ⚡ Performance
 - **GPU Acceleration**: Native Ghostty rendering on supported platforms for smooth 60+ FPS
 - **Font Rendering**: Enhanced typography with BerkeleyMono Nerd Font
+- **Optimized Shaders**: Branch-free GLSL for minimal performance impact
 
 ### 🛠️ Configuration Highlights
 
@@ -61,11 +66,11 @@ macos-option-as-alt = true
 window-padding-x = 10
 window-padding-y = 10
 
-# Cursor settings
+# Cursor Effects
 cursor-style = block
 cursor-style-blink = true
-cursor-color = #f38ba8
-cursor-text = #11111b
+cursor-invert-fg-bg = true
+custom-shader = shaders/cursor_blaze.glsl
 
 # Productivity
 clipboard-read = allow
@@ -87,9 +92,11 @@ graph TD
     C --> F[Create ~/.config/ghostty]
     D --> F
     F --> G[Deploy config file]
-    F --> H[Deploy themes/]
-    G --> I[Ghostty Ready]
-    H --> I
+    F --> H[Deploy shaders/]
+    F --> I[Deploy themes/]
+    G --> J[Ghostty Ready]
+    H --> J
+    I --> J
 ```
 
 ## Usage
@@ -104,6 +111,15 @@ dotfiles -t ghostty --check
 
 # Uninstall (interactive)
 ~/.dotfiles/roles/ghostty/uninstall.sh
+```
+
+### Customize Cursor Effect
+
+Edit `~/.config/ghostty/config`:
+```ini
+# Active cursor shader
+custom-shader = shaders/cursor_blaze.glsl   # Deep Catppuccin mauve trail
+# custom-shader =                           # Disable effects
 ```
 
 ### Change Background Image
@@ -123,14 +139,16 @@ background-image-fit = cover               # cover, contain, stretch, tile
 
 ### Optional
 - Background image at configured path
+- GPU support for shader effects
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | Background image not loading | Verify file path exists, use absolute path |
+| Shader effects not working | Update Ghostty, verify `custom-shader` points at `shaders/cursor_blaze.glsl`, and check GPU support |
 | Font rendering issues | Install BerkeleyMono Nerd Font or update `font-family` |
-| Performance problems | Reduce blur radius or background-image opacity |
+| Performance problems | Disable custom shaders, reduce blur radius, or lower background-image opacity |
 
 ## Links
 

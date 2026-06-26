@@ -1,30 +1,30 @@
-# ⚡ Raycast
+# ⚡ Raycast Beta
 
-> Automated installation of Raycast - the blazingly fast, extendable launcher for macOS
+> Automated installation of Raycast Beta (the v2 public beta for macOS)
 
 ## Overview
 
-This Ansible role installs [Raycast](https://www.raycast.com/), a powerful productivity tool that replaces macOS Spotlight with a supercharged command palette. Raycast provides instant access to applications, files, scripts, and custom workflows with a beautiful, keyboard-driven interface.
+This Ansible role installs [Raycast Beta](https://www.raycast.com/), the v2 public beta of a powerful productivity tool that replaces macOS Spotlight with a supercharged command palette. Raycast Beta provides instant access to applications, files, scripts, and custom workflows with a beautiful, keyboard-driven interface.
 
 ## Supported Platforms
 
 | Platform | Supported | Installation Method |
 |----------|-----------|---------------------|
-| macOS    | ✅        | Homebrew Cask       |
-| Linux    | ❌        | N/A (macOS only)    |
-| Windows  | ❌        | N/A (macOS only)    |
+| macOS on Apple Silicon + macOS Tahoe | ✅        | Official Raycast Beta DMG |
+| Linux    | ❌        | N/A (skipped) |
+| Windows  | ❌        | N/A (skipped) |
 
-> **Note**: Raycast is a macOS-exclusive application and will only be installed on macOS systems.
+> **Note**: Raycast Beta is macOS-exclusive and only installs on Apple Silicon Macs running macOS Tahoe or later. Unsupported hosts are skipped.
 
 ## What Gets Installed
 
 ### Applications
 
-- **Raycast** - Installed via Homebrew Cask as a native macOS application
+- **Raycast Beta.app** - Installed from the official Raycast Beta DMG into `/Applications/Raycast Beta.app`; `/Applications/Raycast.app` is removed only after Raycast Beta is present
 
 ### Features
 
-This role handles the installation only. Raycast provides:
+This role handles the installation only. Raycast Beta provides:
 
 - **Quick Launcher**: Launch apps, find files, and run commands instantly
 - **Extensions**: Extendable with custom scripts and integrations
@@ -33,32 +33,34 @@ This role handles the installation only. Raycast provides:
 - **File Search**: Deep file search across your entire system
 - **Snippets**: Create text snippets for quick insertion
 - **Quicklinks**: Custom web searches and URL shortcuts
-- **Script Commands**: Run custom scripts directly from Raycast
+- **Script Commands**: Run custom scripts directly from Raycast Beta
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A[Raycast Role] --> B{OS Detection}
-    B -->|macOS| C[Install via Homebrew Cask]
-    B -->|Linux/Other| D[Skip - Not Supported]
-    C --> E[Raycast Installed]
-    D --> F[Role Complete]
+    A[Raycast Beta Role] --> B{macOS Tahoe + Apple Silicon?}
+    B -->|Yes| C[Download official Raycast Beta DMG]
+    C --> D[Install /Applications/Raycast Beta.app]
+    D --> E[Remove /Applications/Raycast.app after Beta is present]
+    B -->|No| F[Skip unsupported host]
+    E --> G[Role complete]
+    F --> G
 
     style C fill:#a6e3a1
-    style D fill:#f38ba8
-    style E fill:#89b4fa
+    style D fill:#89b4fa
+    style F fill:#f38ba8
 ```
 
 ## Usage
 
-### Install Raycast
+### Install Raycast Beta
 
 ```bash
 # Install as part of all dotfiles
 dotfiles
 
-# Install only Raycast
+# Install only Raycast Beta
 dotfiles -t raycast
 
 # Test installation (dry run)
@@ -67,29 +69,28 @@ dotfiles -t raycast --check
 
 ### Configuration
 
-Raycast configuration is managed through the application itself:
+Raycast Beta configuration is managed through the application itself:
 
-1. Launch Raycast (default: `⌘ Space`)
-2. Open Raycast Settings: `⌘ ,`
+1. Launch Raycast Beta (default: `⌘ Space`)
+2. Open Raycast Beta Settings: `⌘ ,`
 3. Configure hotkeys, extensions, and preferences
 
-> **Tip**: Consider exporting your Raycast configuration for backup and version control in a separate dotfiles directory.
+> **Tip**: Consider exporting your Raycast Beta configuration for backup and version control in a separate dotfiles directory.
 
 ## Dependencies
 
 ### Required
 
-- **Homebrew** (macOS): Automatically installed by the dotfiles bootstrap process
-- **macOS**: Raycast is macOS-only
+- **macOS Tahoe on Apple Silicon** — required host platform for Raycast Beta
 
 ### Recommended Roles
 
-While Raycast works standalone, these complementary roles enhance your productivity setup:
+While Raycast Beta works standalone, these complementary roles enhance your productivity setup:
 
 - `hammerspoon` - Advanced window management and automation
 - `kitty` - GPU-accelerated terminal emulator
 - `tmux` - Terminal multiplexer for session management
-- `neovim` - Modern text editor with Raycast integration
+- `neovim` - Modern text editor with Raycast Beta integration
 
 ## Key Features
 
@@ -99,11 +100,11 @@ This role handles installation automatically - no manual configuration needed to
 
 ### 🔄 Idempotent
 
-Safe to run multiple times without side effects. If Raycast is already installed, the role skips installation.
+Safe to run multiple times without side effects. If `/Applications/Raycast Beta.app` is already present, the role skips installation.
 
 ### 🚀 Spotlight Replacement
 
-After installation, you can configure Raycast to replace macOS Spotlight for a superior launcher experience.
+After installation, you can configure Raycast Beta to replace macOS Spotlight for a superior launcher experience.
 
 ### 🧩 Extension Ecosystem
 
@@ -116,19 +117,19 @@ Access hundreds of community extensions for:
 
 ## Uninstallation
 
-To remove Raycast:
+To remove Raycast Beta:
 
 ```bash
-# Uninstall via Homebrew
-brew uninstall --cask raycast
+# Remove the application
+sudo rm -rf /Applications/Raycast\ Beta.app
 
 # Remove application preferences (optional)
-rm -rf ~/Library/Application\ Support/com.raycast.macos
-rm -rf ~/Library/Caches/com.raycast.macos
-rm -rf ~/Library/Preferences/com.raycast.macos.plist
+rm -rf ~/Library/Application\ Support/com.raycast-x.macos
+rm -rf ~/Library/Caches/com.raycast-x.macos
+rm -rf ~/Library/Preferences/com.raycast-x.macos.plist
 ```
 
-> **Warning**: Removing application support will delete all your Raycast configuration, extensions, and data.
+> **Warning**: Removing application support will delete all your Raycast Beta configuration, extensions, and data.
 
 ## Links
 

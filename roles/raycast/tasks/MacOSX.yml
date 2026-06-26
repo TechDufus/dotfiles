@@ -1,5 +1,182 @@
 ---
-- name: "RayCast | MacOSX | Install RayCast"
-  community.general.homebrew_cask:
-    name: raycast
-    state: present
+- name: "Raycast | MacOSX | Determine Raycast Beta support"
+  ansible.builtin.set_fact:
+    raycast_beta_supported: >-
+      {{
+        ansible_facts['architecture'] in ['arm64', 'aarch64']
+        and (ansible_facts['distribution_major_version'] | int) >= 26
+      }}
+
+- name: "Raycast | MacOSX | Skip Raycast Beta on unsupported host"
+  ansible.builtin.debug:
+    msg: "Raycast Beta requires Apple Silicon and macOS Tahoe or newer; skipping Raycast Beta install."
+  changed_when: false
+  when: not raycast_beta_supported
+
+- name: "Raycast | MacOSX | Check if Raycast Beta is installed"
+  ansible.builtin.stat:
+    path: /Applications/Raycast Beta.app
+  register: raycast_beta_app
+
+- name: "Raycast | MacOSX | Determine Raycast Beta installed state"
+  ansible.builtin.set_fact:
+    raycast_beta_installed: >-
+      {{
+        raycast_beta_app.stat.exists | default(false)
+        and raycast_beta_app.stat.isdir | default(false)
+      }}
+
+- name: "Raycast | MacOSX | Fail when Raycast Beta path is not an app bundle"
+  ansible.builtin.fail:
+    msg: "/Applications/Raycast Beta.app exists but is not a directory; remove or rename it before running the raycast role."
+  when:
+    - raycast_beta_supported
+    - raycast_beta_app.stat.exists | default(false)
+    - not raycast_beta_app.stat.isdir | default(false)
+
+- name: "Raycast | MacOSX | Note Raycast Beta install in check mode"
+  ansible.builtin.debug:
+    msg: "Raycast Beta would be installed from the official DMG."
+  changed_when: true
+  when:
+    - raycast_beta_supported
+    - ansible_check_mode
+    - not raycast_beta_installed
+
+- name: "Raycast | MacOSX | Install Raycast Beta"
+  when:
+    - raycast_beta_supported
+    - not ansible_check_mode
+    - not raycast_beta_installed
+  block:
+    - name: "Raycast | MacOSX | Fetch Raycast Beta download page"
+      ansible.builtin.uri:
+        url: https://www.raycast.com/new
+        return_content: true
+      register: raycast_beta_download_page
+
+    - name: "Raycast | MacOSX | Extract Raycast Beta DMG URL"
+      ansible.builtin.set_fact:
+        raycast_beta_dmg_url: >-
+          {{
+            (
+              raycast_beta_download_page.content
+              | regex_findall('https://x-r2\\.raycast-releases\\.com/Raycast_Beta_[A-Za-z0-9._-]+_arm64\\.dmg')
+            )
+            | first
+            | default('')
+          }}
+
+    - name: "Raycast | MacOSX | Assert Raycast Beta DMG URL was found"
+      ansible.builtin.assert:
+        that:
+          - raycast_beta_dmg_url | length > 0
+        fail_msg: "Could not find the Raycast Beta Apple Silicon DMG URL on https://www.raycast.com/new."
+
+    - name: "Raycast | MacOSX | Create Raycast Beta temp directory"
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: raycast-beta-
+      register: raycast_beta_temp_dir
+
+    - name: "Raycast | MacOSX | Download Raycast Beta DMG"
+      ansible.builtin.get_url:
+        url: "{{ raycast_beta_dmg_url }}"
+        dest: "{{ raycast_beta_temp_dir.path }}/Raycast_Beta_arm64.dmg"
+        mode: "0644"
+
+    - name: "Raycast | MacOSX | Create Raycast Beta DMG mountpoint"
+      ansible.builtin.file:
+        path: "{{ raycast_beta_temp_dir.path }}/mount"
+        state: directory
+        mode: "0755"
+
+    - name: "Raycast | MacOSX | Attach Raycast Beta DMG"
+      ansible.builtin.command:
+        argv:
+          - hdiutil
+          - attach
+          - -nobrowse
+          - -quiet
+          - -mountpoint
+          - "{{ raycast_beta_temp_dir.path }}/mount"
+          - "{{ raycast_beta_temp_dir.path }}/Raycast_Beta_arm64.dmg"
+      changed_when: true
+
+    - name: "Raycast | MacOSX | Check mounted Raycast Beta app"
+      ansible.builtin.stat:
+        path: "{{ raycast_beta_temp_dir.path }}/mount/Raycast Beta.app"
+      register: raycast_beta_mounted_app
+
+    - name: "Raycast | MacOSX | Assert mounted Raycast Beta app exists"
+      ansible.builtin.assert:
+        that:
+          - raycast_beta_mounted_app.stat.exists
+          - raycast_beta_mounted_app.stat.isdir
+        fail_msg: "Raycast Beta.app was not found in the mounted Raycast Beta DMG."
+
+    - name: "Raycast | MacOSX | Install Raycast Beta app"
+      ansible.builtin.command:
+        argv:
+          - ditto
+          - "{{ raycast_beta_temp_dir.path }}/mount/Raycast Beta.app"
+          - /Applications/Raycast Beta.app
+      become: true
+      changed_when: true
+  always:
+    - name: "Raycast | MacOSX | Detach Raycast Beta DMG"
+      ansible.builtin.command:
+        argv:
+          - hdiutil
+          - detach
+          - "{{ raycast_beta_temp_dir.path }}/mount"
+          - -quiet
+      changed_when: false
+      failed_when: false
+      when: raycast_beta_temp_dir is defined
+
+    - name: "Raycast | MacOSX | Remove Raycast Beta temp directory"
+      ansible.builtin.file:
+        path: "{{ raycast_beta_temp_dir.path }}"
+        state: absent
+      changed_when: false
+      failed_when: false
+      when: raycast_beta_temp_dir is defined
+
+- name: "Raycast | MacOSX | Check Raycast Beta app after install"
+  ansible.builtin.stat:
+    path: /Applications/Raycast Beta.app
+  register: raycast_beta_app_after_install
+  changed_when: false
+  when: raycast_beta_supported
+
+- name: "Raycast | MacOSX | Determine Raycast Beta post-install state"
+  ansible.builtin.set_fact:
+    raycast_beta_installed_after_install: >-
+      {{
+        (
+          raycast_beta_app_after_install.stat.exists | default(false)
+          and raycast_beta_app_after_install.stat.isdir | default(false)
+        )
+        or (ansible_check_mode and not raycast_beta_installed)
+      }}
+  when: raycast_beta_supported
+
+- name: "Raycast | MacOSX | Check manually installed stable Raycast app"
+  ansible.builtin.stat:
+    path: /Applications/Raycast.app
+  register: raycast_stable_app
+  changed_when: false
+  when:
+    - raycast_beta_supported
+    - raycast_beta_installed_after_install | default(false)
+
+- name: "Raycast | MacOSX | Remove manually installed stable Raycast app"
+  ansible.builtin.file:
+    path: /Applications/Raycast.app
+    state: absent
+  become: true
+  when:
+    - raycast_beta_supported
+    - raycast_beta_installed_after_install | default(false)
+    - raycast_stable_app.stat.exists | default(false)

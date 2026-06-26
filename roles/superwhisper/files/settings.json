@@ -1,6 +1,11 @@
 {
   "favoriteModelIDs" : [
-
+    "vad-v2",
+    "seg-v1",
+    "emb-v1",
+    "speakerkit-coreml",
+    "canary-1b-v2_474MB",
+    "nvidia_parakeet-v3_494MB"
   ],
   "modeKeys" : [
     "voice to text",

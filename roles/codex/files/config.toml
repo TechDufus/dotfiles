@@ -7,23 +7,16 @@ model_reasoning_effort = "xhigh"
 # model_verbosity = "high"
 approval_policy = "on-request"
 sandbox_mode = "danger-full-access"
-sandbox_workspace_write.network_access = true
 web_search = "live"
 # tool_output_token_limit = 120000
 model = "gpt-5.5"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "fast"
 suppress_unstable_features_warning = true
-approvals_reviewer = "auto_review"
 personality = "pragmatic"
 
 [features]
-guardian_approval = true
-multi_agent = true
-undo = true
 memories = true
-hooks = true
-goals = true
 
 [agents]
 max_threads = 12
@@ -93,21 +86,14 @@ enabled = false
 [plugins."chrome@openai-bundled"]
 enabled = true
 
-[marketplaces.openai-bundled]
-last_updated = "2026-05-18T15:11:51Z"
-source_type = "local"
-source = "/Users/mdegarmo/.codex/.tmp/bundled-marketplaces/openai-bundled"
-
-[marketplaces.openai-primary-runtime]
-last_updated = "2026-05-18T16:05:12Z"
-source_type = "local"
-source = "/Users/mdegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
-
 [memories]
-no_memories_if_mcp_or_web_search = true
+disable_on_external_context = true
 
 [projects."/home/techdufus/.dotfiles"]
 trust_level = "trusted"
 
 [projects."/home/techdufus/dev/redhorse/rh_engineering_harness"]
+trust_level = "trusted"
+
+[projects."/Users/MDegarmo/.dotfiles"]
 trust_level = "trusted"

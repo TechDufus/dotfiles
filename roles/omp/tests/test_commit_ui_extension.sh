@@ -7,7 +7,7 @@ extension_path="$repo_root/roles/omp/files/extensions/commit-ui.ts"
 bun --check "$extension_path"
 
 bun - "$extension_path" <<'TS'
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -68,7 +68,7 @@ try {
   if (!sentMessage) throw new Error("commit command did not send a hidden tool prompt");
   if (sentMessage[1].display !== false) throw new Error("commit command prompt should be hidden");
   if (sentMessage[2].deliverAs !== "nextTurn") throw new Error("commit command should deliver hidden prompt as next turn");
-  for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL", "50 characters", "72 characters"]) {
+  for (const expected of ["omp_commit", "existing conversation context", "nested omp process", "test-model", "HOME_SKILL_SENTINEL", "50 characters", "72 characters", "./scripts/check.sh"]) {
     if (!sentMessage[1].content.includes(expected)) throw new Error(`commit prompt missing ${expected}`);
   }
   if (sentMessage[1].details.multiCommit !== false) throw new Error(`plain commit command should not request multiple commits: ${JSON.stringify(sentMessage[1].details)}`);
@@ -772,14 +772,14 @@ try {
   const failedVerificationCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
   if (failedVerificationCommitted !== "verification-fails.txt") throw new Error(`failed verification committed unexpected files: ${failedVerificationCommitted}`);
 
-  await writeFile(join(tmp, "invalid-verification-path.txt"), "invalid verification path still commits\n");
-  const invalidVerificationCommit = await tool.execute(
-    "commit-invalid-verification-path-test",
+  await writeFile(join(tmp, "missing-verification-path.txt"), "missing verification path still commits\n");
+  const missingVerificationPathCommit = await tool.execute(
+    "commit-missing-verification-path-test",
     {
-      files: ["invalid-verification-path.txt"],
-      commitMessage: "chore(test): commit after invalid verification",
-      rationale: "Invalid verification command paths are skipped with warnings instead of blocking.",
-      verification: [{ command: "./scripts/check.sh", args: ["--dry-run"], description: "invalid path check", required: true }],
+      files: ["missing-verification-path.txt"],
+      commitMessage: "chore(test): commit after missing verifier path",
+      rationale: "Missing verification command paths are attempted and warn without blocking.",
+      verification: [{ command: "./scripts/check-missing.sh", args: ["--dry-run"], description: "missing script path check", required: true }],
       dryRun: false,
       push: false,
     },
@@ -787,15 +787,67 @@ try {
     () => {},
     { cwd: tmp },
   );
-  assertSingleCommitCreated(invalidVerificationCommit, "invalid verification path commit", "invalid-verification-path.txt");
-  assertWarningMatches(invalidVerificationCommit, "invalid verification path commit", /command\s+1|path|executable/i, "invalid command path");
-  assertWarningMatches(invalidVerificationCommit, "invalid verification path commit", /skip|invalid|unavailable|not run|path|executable/i, "skipped verification");
-  assertResultTextExcludes(invalidVerificationCommit, "invalid verification path commit", "commands passed");
-  const invalidVerificationRendered = tool.renderResult(invalidVerificationCommit, { expanded: true, isPartial: false }, theme).render(160).join("\n");
-  if (/commands passed|verification\s+ok/i.test(invalidVerificationRendered)) throw new Error(`invalid verification render claimed verification success: ${invalidVerificationRendered}`);
-  assertRenderedMatches(invalidVerificationRendered, "invalid verification path commit", /warning|skip|invalid|unavailable|not run/i, "skipped verification warning");
-  const invalidVerificationCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
-  if (invalidVerificationCommitted !== "invalid-verification-path.txt") throw new Error(`invalid verification committed unexpected files: ${invalidVerificationCommitted}`);
+  assertSingleCommitCreated(missingVerificationPathCommit, "missing verification path commit", "missing-verification-path.txt");
+  assertWarningMatches(missingVerificationPathCommit, "missing verification path commit", /missing script path check|could not run|not found|enoent|no such file/i, "missing path attempt");
+  if (missingVerificationPathCommit.details.commits[0].verificationCount !== 1) throw new Error(`missing verification path was not retained as a command: ${JSON.stringify(missingVerificationPathCommit.details)}`);
+  if (missingVerificationPathCommit.details.commits[0].verificationWarningCount !== 1) throw new Error(`missing verification path did not warn once: ${JSON.stringify(missingVerificationPathCommit.details)}`);
+  if ((missingVerificationPathCommit.details.commits[0].verificationSkippedCount ?? 0) !== 0) throw new Error(`missing verification path was pre-skipped: ${JSON.stringify(missingVerificationPathCommit.details)}`);
+  if (commitWarnings(missingVerificationPathCommit).some(warning => /skipped advisory verification command/i.test(warning))) throw new Error(`missing verification path was skipped during validation: ${JSON.stringify(missingVerificationPathCommit.details.warnings)}`);
+  assertResultTextExcludes(missingVerificationPathCommit, "missing verification path commit", "passed: 1");
+  const missingVerificationPathRendered = tool.renderResult(missingVerificationPathCommit, { expanded: true, isPartial: false }, theme).render(160).join("\n");
+  if (/commands \(passed|verification\s+ok/i.test(missingVerificationPathRendered)) throw new Error(`missing verification path render claimed verification success: ${missingVerificationPathRendered}`);
+  assertRenderedMatches(missingVerificationPathRendered, "missing verification path commit", /warning|could not run|unavailable|missing/i, "missing path warning");
+  const missingVerificationPathCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
+  if (missingVerificationPathCommitted !== "missing-verification-path.txt") throw new Error(`missing verification path committed unexpected files: ${missingVerificationPathCommitted}`);
+
+  await writeFile(join(tmp, "path-git-mutation.txt"), "path git mutation guard preview\n");
+  const pathGitMutationPreview = await tool.execute(
+    "commit-path-git-mutation-test",
+    {
+      files: ["path-git-mutation.txt"],
+      commitMessage: "chore(test): guard path git mutation",
+      rationale: "Direct-path git verifiers must still reject mutating git verbs.",
+      verification: [{ command: "./tools/git", args: ["reset", "--hard"], description: "path git reset", required: true }],
+      dryRun: true,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (pathGitMutationPreview.isError) throw new Error(`path git mutation guard blocked preview: ${JSON.stringify(pathGitMutationPreview)}`);
+  assertWarningMatches(pathGitMutationPreview, "path git mutation guard", /git|mutat|reset/i, "mutating git warning");
+  if ((pathGitMutationPreview.details.commits[0].verificationSkippedCount ?? 0) !== 1) throw new Error(`path git mutation was not validation-skipped: ${JSON.stringify(pathGitMutationPreview.details)}`);
+  if (pathGitMutationPreview.details.commits[0].verificationCount !== 0) throw new Error(`path git mutation command was retained unexpectedly: ${JSON.stringify(pathGitMutationPreview.details)}`);
+
+  await mkdir(join(tmp, "scripts"), { recursive: true });
+  const okScript = join(tmp, "scripts", "check-ok.sh");
+  await writeFile(okScript, "#!/bin/sh\n[ -f \"$1\" ]\n", { mode: 0o755 });
+  await chmod(okScript, 0o755);
+  await writeFile(join(tmp, "local-script-verification.txt"), "local script verification passes\n");
+  const localScriptVerificationCommit = await tool.execute(
+    "commit-local-script-verification-test",
+    {
+      files: ["local-script-verification.txt"],
+      commitMessage: "chore(test): commit after local script verifier",
+      rationale: "Repo-local executable verification paths can pass when they exist.",
+      verification: [{ command: "./scripts/check-ok.sh", args: ["local-script-verification.txt"], description: "repo-local script verifier", required: true }],
+      dryRun: false,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  assertSingleCommitCreated(localScriptVerificationCommit, "local script verification commit", "local-script-verification.txt");
+  if (localScriptVerificationCommit.details.commits[0].verificationPassedCount !== 1) throw new Error(`local script verifier did not pass: ${JSON.stringify(localScriptVerificationCommit.details)}`);
+  if ((localScriptVerificationCommit.details.commits[0].verificationWarningCount ?? 0) !== 0) throw new Error(`local script verifier warned unexpectedly: ${JSON.stringify(localScriptVerificationCommit.details)}`);
+  if ((localScriptVerificationCommit.details.commits[0].verificationSkippedCount ?? 0) !== 0) throw new Error(`local script verifier was skipped unexpectedly: ${JSON.stringify(localScriptVerificationCommit.details)}`);
+  if (!commitResultText(localScriptVerificationCommit).includes("Verification commands (passed: 1)")) throw new Error(`local script verifier result did not report a passed command: ${JSON.stringify(localScriptVerificationCommit)}`);
+  const localScriptVerificationRendered = tool.renderResult(localScriptVerificationCommit, { expanded: true, isPartial: false }, theme).render(160).join("\n");
+  assertRenderedMatches(localScriptVerificationRendered, "local script verification commit", /verification\s+ok|passed: 1|commands.*passed/i, "passed verification");
+  const localScriptVerificationCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
+  if (localScriptVerificationCommitted !== "local-script-verification.txt") throw new Error(`local script verification committed unexpected files: ${localScriptVerificationCommitted}`);
 
   await writeFile(join(tmp, "paragraph.txt"), "paragraph commit\n");
   const paragraphMessage = [

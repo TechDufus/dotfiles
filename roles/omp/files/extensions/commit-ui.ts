@@ -268,7 +268,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 
 	pi.setLabel?.("commit UI");
 	const verificationParam = z.object({
-		command: z.string().optional().describe("Advisory verification executable, without shell wrapping. Missing or unsafe commands are skipped with warnings."),
+		command: z.string().optional().describe("Advisory verification executable name or direct path, without shell wrapping. Missing commands or malformed metadata are skipped with warnings."),
 		args: z.array(z.string()).optional().describe("Executable arguments."),
 		description: z.string().optional().describe("Short human label for the advisory verification."),
 		required: z.boolean().optional().describe("Display/advisory only; verification failures do not block commit execution."),
@@ -283,7 +283,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 		files: z.array(z.string()).optional().describe("Repo-relative files or directories for this split commit. Use exact files for split commits; empty files block when multiple commits need split membership."),
 		commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 		rationale: z.string().optional().describe("Why these files and this message belong together."),
-		verification: z.array(verificationParam).optional().describe("Advisory narrow verification commands for this commit; malformed entries are skipped with warnings and command failures do not block."),
+		verification: z.array(verificationParam).optional().describe("Advisory narrow verification executable names or paths for this commit; malformed entries are skipped with warnings and command failures do not block."),
 		verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Advisory prior verification evidence for this commit."),
 		acceptRisk: z.boolean().optional().describe("Record explicit risk acceptance when verification is absent; display/advisory only."),
 	});
@@ -298,7 +298,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. For one commit, omit or pass [] to derive all changed files from git status when the whole working tree should be committed."),
 			commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
-			verification: z.array(verificationParam).optional().describe("Advisory narrow verification commands to run before staging/committing. Malformed entries are skipped with warnings; failures do not block commit creation."),
+			verification: z.array(verificationParam).optional().describe("Advisory narrow verification executable names or paths to run before staging/committing. Malformed entries are skipped with warnings; failures do not block commit creation."),
 			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Advisory prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
 			commits: z.array(commitParam).optional().describe("Split commit plans. Omit for single commits; never pass an empty array."),
 			context: z.string().optional().describe("Additional slash-command context."),
@@ -909,11 +909,10 @@ function validateRepoPath(path: string): void {
 
 function validateVerification(verification: VerificationPlan): string | undefined {
 	if (!verification.command) return "command is empty";
-	if (verification.command.includes("/") || verification.command.includes("\0")) {
-		return "command must be an executable name, not a path";
-	}
+	if (verification.command.includes("\0")) return "command contains a NUL byte";
 	const args = verification.args ?? [];
-	if (verification.command === "git" && args.length > 0 && MUTATING_GIT_VERBS.has(args[0])) {
+	const commandName = verification.command.slice(Math.max(verification.command.lastIndexOf("/"), verification.command.lastIndexOf("\\")) + 1);
+	if (commandName === "git" && args.length > 0 && MUTATING_GIT_VERBS.has(args[0])) {
 		return "git verification command would mutate repository state";
 	}
 	for (const arg of args) {
@@ -1233,8 +1232,8 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 				files: ["repo-relative file or directory to include, or omit/pass [] to derive all current git status paths for one commit"],
 				commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why, when useful.",
 				rationale: "why this file set and message match the current conversation",
-				verification: [{ command: "executable", args: ["arg"], description: "short advisory label", required: false }],
-				verificationEvidence: [{ description: "observed or user-reported advisory verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
+				verification: [{ command: "./scripts/check.sh", args: ["arg"], description: "short advisory label", required: false }],
+				verificationEvidence: [{ description: "observed or user-reported advisory verification already available in this conversation", command: "./scripts/check.sh", args: ["arg"], source: "observed" }],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
 				acceptRisk: parsed.acceptRisk || undefined,
@@ -1250,8 +1249,8 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 					files: ["exact repo-relative file or directory for this split commit"],
 					commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why this split exists.",
 					rationale: "why this split commit is separate",
-					verification: [{ command: "executable", args: ["arg"], description: "short advisory label", required: false }],
-					verificationEvidence: [{ description: "observed or user-reported advisory verification for this split commit", command: "executable", args: ["arg"], source: "observed" }],
+					verification: [{ command: "./scripts/check.sh", args: ["arg"], description: "short advisory label", required: false }],
+					verificationEvidence: [{ description: "observed or user-reported advisory verification for this split commit", command: "./scripts/check.sh", args: ["arg"], source: "observed" }],
 				}],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
@@ -1271,7 +1270,7 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		"- For a single commit, use exact files when known; omit files or pass files: [] only when the commit should include every current git status path or context is insufficient and status-derived selection is acceptable.",
 		"- For split/multiple commit mode, each commits[] entry MUST use exact files for that split commit. Empty files in a split entry blocks safely because omp_commit cannot infer split membership.",
 		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",
-		"- Verification commands and verification evidence are advisory: malformed verification metadata is skipped with warnings, command failures warn without blocking commits, and required=true is display-only.",
+		"- Verification commands and verification evidence are advisory: executable names and direct paths such as ./scripts/check.sh are allowed without shell wrapping; malformed verification metadata is skipped with warnings, command failures warn without blocking commits, and required=true is display-only.",
 		"- If verification already appears in the conversation, pass verificationEvidence instead of rerunning it. Use source=observed for tool output seen in-session and source=user-reported only for explicit user-reported checks; never invent evidence.",
 		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk; otherwise omit it and omp_commit will proceed with a residual-risk warning.",
 		"- Secret scan findings and scan unavailability are non-blocking warnings. Never include raw secret values in tool arguments, rationale, verification descriptions, or final summaries.",

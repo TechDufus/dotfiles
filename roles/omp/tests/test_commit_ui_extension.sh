@@ -224,6 +224,33 @@ function assertCommitResultDidNotBlock(result, label) {
   if (result?.details?.dryRun !== true) throw new Error(`${label} should remain a dry-run preview`);
 }
 
+function commitWarnings(result) {
+  return Array.isArray(result?.details?.warnings) ? result.details.warnings.map(String) : [];
+}
+
+function assertWarningMatches(result, label, pattern, fact) {
+  const warnings = commitWarnings(result);
+  if (!warnings.some(warning => pattern.test(warning))) {
+    throw new Error(`${label} missing ${fact} warning: ${JSON.stringify(warnings)}`);
+  }
+}
+
+function assertResultTextExcludes(result, label, unexpected) {
+  const text = commitResultText(result);
+  if (text.toLowerCase().includes(String(unexpected).toLowerCase())) {
+    throw new Error(`${label} result text should not include ${unexpected}: ${JSON.stringify(result)}`);
+  }
+}
+
+function assertSingleCommitCreated(result, label, file) {
+  if (result?.isError) throw new Error(`${label} should create a local commit: ${JSON.stringify(result)}`);
+  if (result?.details?.status !== "succeeded") throw new Error(`${label} should finish with succeeded status: ${JSON.stringify(result?.details)}`);
+  if (!result?.details?.commitHash) throw new Error(`${label} did not record a commit hash: ${JSON.stringify(result?.details)}`);
+  if (result?.details?.commits?.[0]?.status !== "succeeded") throw new Error(`${label} commit UI state did not succeed: ${JSON.stringify(result?.details)}`);
+  if (!commitResultText(result).includes("Commit created")) throw new Error(`${label} result missing local commit success text: ${JSON.stringify(result)}`);
+  if (!result?.details?.selectedFiles?.includes(file)) throw new Error(`${label} did not track selected file ${file}: ${JSON.stringify(result?.details)}`);
+}
+
 function commitSecretFindings(result) {
   return Array.isArray(result?.details?.secretFindings) ? result.details.secretFindings : [];
 }
@@ -697,6 +724,79 @@ try {
   const status = (await git(tmp, ["status", "--porcelain"])).stdout;
   if (!status.includes("?? unrelated.txt")) throw new Error(`unrelated file was not left untouched: ${status}`);
 
+  await writeFile(join(tmp, "no-verification.txt"), "no verification preview\n");
+  const noVerificationPreview = await tool.execute(
+    "commit-no-verification-preview-test",
+    {
+      files: ["no-verification.txt"],
+      commitMessage: "chore(test): preview missing verification",
+      rationale: "Exercise residual-risk warning when no verification, evidence, or accepted risk is provided.",
+      dryRun: true,
+      push: false,
+      acceptRisk: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  if (noVerificationPreview.isError) throw new Error(`missing verification preview blocked: ${JSON.stringify(noVerificationPreview)}`);
+  if (!commitResultText(noVerificationPreview).includes("Commit preview complete")) throw new Error(`missing verification did not preview: ${JSON.stringify(noVerificationPreview)}`);
+  assertWarningMatches(noVerificationPreview, "missing verification preview", /verification/i, "missing verification");
+  assertWarningMatches(noVerificationPreview, "missing verification preview", /residual|risk/i, "residual risk");
+  const noVerificationRendered = tool.renderResult(noVerificationPreview, { expanded: true, isPartial: false }, theme).render(140).join("\n");
+  assertRenderedMatches(noVerificationRendered, "missing verification preview", /warnings?/i, "warning section");
+  assertRenderedMatches(noVerificationRendered, "missing verification preview", /verification|risk/i, "residual risk warning");
+
+  await writeFile(join(tmp, "verification-fails.txt"), "failed verification still commits\n");
+  const failedVerificationCommit = await tool.execute(
+    "commit-failed-verification-test",
+    {
+      files: ["verification-fails.txt"],
+      commitMessage: "chore(test): commit after failed verification",
+      rationale: "Verification failures are advisory warnings and must not block local commit creation.",
+      verification: [{ command: "git", args: ["rev-parse", "--verify", "refs/heads/definitely-missing-verification-ref"], description: "intentional failing ref check", required: true }],
+      dryRun: false,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  assertSingleCommitCreated(failedVerificationCommit, "failed verification commit", "verification-fails.txt");
+  assertWarningMatches(failedVerificationCommit, "failed verification commit", /verification|intentional failing ref check|rev-parse/i, "verification");
+  assertWarningMatches(failedVerificationCommit, "failed verification commit", /fail|exit/i, "failed verification");
+  assertResultTextExcludes(failedVerificationCommit, "failed verification commit", "commands passed");
+  const failedVerificationRendered = tool.renderResult(failedVerificationCommit, { expanded: true, isPartial: false }, theme).render(160).join("\n");
+  if (/commands passed|verification\s+ok/i.test(failedVerificationRendered)) throw new Error(`failed verification render claimed verification success: ${failedVerificationRendered}`);
+  assertRenderedMatches(failedVerificationRendered, "failed verification commit", /warning|fail/i, "failed verification warning");
+  const failedVerificationCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
+  if (failedVerificationCommitted !== "verification-fails.txt") throw new Error(`failed verification committed unexpected files: ${failedVerificationCommitted}`);
+
+  await writeFile(join(tmp, "invalid-verification-path.txt"), "invalid verification path still commits\n");
+  const invalidVerificationCommit = await tool.execute(
+    "commit-invalid-verification-path-test",
+    {
+      files: ["invalid-verification-path.txt"],
+      commitMessage: "chore(test): commit after invalid verification",
+      rationale: "Invalid verification command paths are skipped with warnings instead of blocking.",
+      verification: [{ command: "./scripts/check.sh", args: ["--dry-run"], description: "invalid path check", required: true }],
+      dryRun: false,
+      push: false,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  assertSingleCommitCreated(invalidVerificationCommit, "invalid verification path commit", "invalid-verification-path.txt");
+  assertWarningMatches(invalidVerificationCommit, "invalid verification path commit", /command\s+1|path|executable/i, "invalid command path");
+  assertWarningMatches(invalidVerificationCommit, "invalid verification path commit", /skip|invalid|unavailable|not run|path|executable/i, "skipped verification");
+  assertResultTextExcludes(invalidVerificationCommit, "invalid verification path commit", "commands passed");
+  const invalidVerificationRendered = tool.renderResult(invalidVerificationCommit, { expanded: true, isPartial: false }, theme).render(160).join("\n");
+  if (/commands passed|verification\s+ok/i.test(invalidVerificationRendered)) throw new Error(`invalid verification render claimed verification success: ${invalidVerificationRendered}`);
+  assertRenderedMatches(invalidVerificationRendered, "invalid verification path commit", /warning|skip|invalid|unavailable|not run/i, "skipped verification warning");
+  const invalidVerificationCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
+  if (invalidVerificationCommitted !== "invalid-verification-path.txt") throw new Error(`invalid verification committed unexpected files: ${invalidVerificationCommitted}`);
+
   await writeFile(join(tmp, "paragraph.txt"), "paragraph commit\n");
   const paragraphMessage = [
     "feat(test): preserve commit body",
@@ -969,6 +1069,34 @@ try {
   const remoteHead = (await git(remote, ["rev-parse", "--short", "HEAD"])).stdout.trim();
   if (remoteHead !== pushed.details.commitHash) throw new Error(`push did not update remote HEAD: remote=${remoteHead} local=${pushed.details.commitHash}`);
 
+  await git(tmp, ["remote", "set-url", "origin", join(tmp, "missing-remote.git")]);
+  await writeFile(join(tmp, "push-fail.txt"), "push failure still leaves a local commit\n");
+  const pushFailed = await tool.execute(
+    "commit-push-failure-test",
+    {
+      files: ["push-fail.txt"],
+      commitMessage: "chore(test): keep local commit on push failure",
+      rationale: "A push failure after commit creation should be reported as a warning without hiding the local commit.",
+      verificationEvidence: [{ description: "push failure fixture reviewed in test", source: "observed" }],
+      dryRun: false,
+      push: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  assertSingleCommitCreated(pushFailed, "push failure commit", "push-fail.txt");
+  assertWarningMatches(pushFailed, "push failure commit", /push/i, "push");
+  assertWarningMatches(pushFailed, "push failure commit", /fail|rejected|could not/i, "push failure");
+  assertResultTextExcludes(pushFailed, "push failure commit", "Pushed to remote.");
+  const pushFailureRendered = tool.renderResult(pushFailed, { expanded: true, isPartial: false }, theme).render(160).join("\n");
+  assertRenderedExcludes(pushFailureRendered, "push failure commit", "Pushed to remote.");
+  if (/pushed to remote/i.test(pushFailureRendered)) throw new Error(`push failure render claimed a remote push succeeded: ${pushFailureRendered}`);
+  assertRenderedMatches(pushFailureRendered, "push failure commit", /push/i, "push status");
+  assertRenderedMatches(pushFailureRendered, "push failure commit", /fail|warning|not pushed/i, "push failure warning");
+  const pushFailedCommitted = (await git(tmp, ["diff", "--name-only", "HEAD^", "HEAD"])).stdout.trim();
+  if (pushFailedCommitted !== "push-fail.txt") throw new Error(`push failure committed unexpected files: ${pushFailedCommitted}`);
+
 
   const evidencePreview = await tool.execute(
     "commit-evidence-test",
@@ -1054,6 +1182,24 @@ try {
   const dash = (...parts) => parts.join("-");
   const dotted = (...parts) => parts.join(".");
   await mkdir(join(tmp, "docs"), { recursive: true });
+  await writeFile(join(tmp, "large-secret-scan.txt"), `${"safe ".repeat(400_001)}\n`);
+  const largeSecretScanPreview = await tool.execute(
+    "commit-large-secret-scan-test",
+    {
+      files: ["large-secret-scan.txt"],
+      commitMessage: "chore(test): warn when secret scan is too large",
+      rationale: "Secret scan size limits are advisory and must not block a preview.",
+      verificationEvidence: [{ description: "large secret scan fixture reviewed in test", source: "observed" }],
+      dryRun: true,
+    },
+    undefined,
+    () => {},
+    { cwd: tmp },
+  );
+  assertNoSecretFindings(largeSecretScanPreview, "large secret scan");
+  if (!commitResultText(largeSecretScanPreview).includes("Commit preview complete")) throw new Error(`large secret scan did not preview: ${JSON.stringify(largeSecretScanPreview)}`);
+  assertWarningMatches(largeSecretScanPreview, "large secret scan", /secret/i, "secret scan");
+  assertWarningMatches(largeSecretScanPreview, "large secret scan", /large|size|unavailable|skip|unable|too large/i, "secret scan size");
   await writeFile(join(tmp, "docs", "deployment-env.md"), `OPENAI_${snake("API", "KEY")}=$OPENAI_${snake("API", "KEY")}\n`);
   const envReferencePreview = await tool.execute(
     "commit-env-reference-secret-test",

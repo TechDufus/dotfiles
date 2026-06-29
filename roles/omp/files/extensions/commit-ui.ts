@@ -212,6 +212,9 @@ interface CommitResultDetails {
 	rationale?: string;
 	selectedFiles: string[];
 	verificationCount: number;
+	verificationPassedCount?: number;
+	verificationWarningCount?: number;
+	verificationSkippedCount?: number;
 	verificationEvidence: string[];
 	acceptRisk: boolean;
 	commitHash?: string;
@@ -231,6 +234,7 @@ interface CommitRunDetails {
 	failedToolCount: number;
 	dryRun: boolean;
 	push: boolean;
+	pushSucceeded?: boolean;
 	acceptRisk: boolean;
 	multiCommit: boolean;
 	context?: string;
@@ -264,13 +268,13 @@ export default function commitUi(pi: ExtensionAPI): void {
 
 	pi.setLabel?.("commit UI");
 	const verificationParam = z.object({
-		command: z.string().describe("Verification executable, without shell wrapping."),
+		command: z.string().optional().describe("Advisory verification executable, without shell wrapping. Missing or unsafe commands are skipped with warnings."),
 		args: z.array(z.string()).optional().describe("Executable arguments."),
-		description: z.string().optional().describe("Short human label for the verification."),
-		required: z.boolean().optional().describe("Reserved for display; failing verification still blocks."),
+		description: z.string().optional().describe("Short human label for the advisory verification."),
+		required: z.boolean().optional().describe("Display/advisory only; verification failures do not block commit execution."),
 	});
 	const verificationEvidenceParam = z.object({
-		description: z.string().describe("Concrete verification already observed in the conversation or explicitly reported by the user."),
+		description: z.string().optional().describe("Concrete advisory verification already observed in the conversation or explicitly reported by the user. Missing descriptions are skipped with warnings."),
 		command: z.string().optional().describe("Executable that produced the evidence, when known."),
 		args: z.array(z.string()).optional().describe("Arguments for the evidence command, when known."),
 		source: z.string().optional().describe("Either observed or user-reported."),
@@ -279,9 +283,9 @@ export default function commitUi(pi: ExtensionAPI): void {
 		files: z.array(z.string()).optional().describe("Repo-relative files or directories for this split commit. Use exact files for split commits; empty files block when multiple commits need split membership."),
 		commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 		rationale: z.string().optional().describe("Why these files and this message belong together."),
-		verification: z.array(verificationParam).optional().describe("Narrow verification commands for this commit."),
-		verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence for this commit."),
-		acceptRisk: z.boolean().optional().describe("Allow this commit without verification only when the user explicitly accepted the risk."),
+		verification: z.array(verificationParam).optional().describe("Advisory narrow verification commands for this commit; malformed entries are skipped with warnings and command failures do not block."),
+		verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Advisory prior verification evidence for this commit."),
+		acceptRisk: z.boolean().optional().describe("Record explicit risk acceptance when verification is absent; display/advisory only."),
 	});
 
 
@@ -294,14 +298,14 @@ export default function commitUi(pi: ExtensionAPI): void {
 			files: z.array(z.string()).optional().describe("Repo-relative files or directories to include. For one commit, omit or pass [] to derive all changed files from git status when the whole working tree should be committed."),
 			commitMessage: z.string().optional().describe("Full conventional commit message. First line is the subject; optional body paragraphs follow after one blank line."),
 			rationale: z.string().optional().describe("Why these files and this message match the current conversation context."),
-			verification: z.array(verificationParam).optional().describe("Narrow verification commands to run before staging/committing."),
-			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
+			verification: z.array(verificationParam).optional().describe("Advisory narrow verification commands to run before staging/committing. Malformed entries are skipped with warnings; failures do not block commit creation."),
+			verificationEvidence: z.array(verificationEvidenceParam).optional().describe("Advisory prior verification evidence to record without rerunning heavy checks. Do not invent evidence."),
 			commits: z.array(commitParam).optional().describe("Split commit plans. Omit for single commits; never pass an empty array."),
 			context: z.string().optional().describe("Additional slash-command context."),
 			dryRun: z.boolean().optional().describe("Validate and preview without staging, committing, or pushing."),
-			push: z.boolean().optional().describe("Push after all requested commits succeed."),
+			push: z.boolean().optional().describe("Push after all requested commits succeed; push failure is reported as a warning after local commits are created."),
 			multiCommit: z.boolean().optional().describe("Render and execute this request as a sequential commit group."),
-			acceptRisk: z.boolean().optional().describe("Allow committing without verification only when the user explicitly accepted the risk."),
+			acceptRisk: z.boolean().optional().describe("Record explicit risk acceptance when verification is absent; display/advisory only."),
 		}),
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const plan = normalizeCommitPlan(params);
@@ -473,7 +477,7 @@ async function executeCommitPlan(
 	throwIfAborted(signal);
 	await withStep(details, "Validating commit plan", onUpdate, async () => {
 		repairCommitMessages(plan, details);
-		validateCommitPlan(plan);
+		validateCommitPlan(plan, details);
 	});
 
 	const repoRoot = await withStep(details, "Inspecting working tree", onUpdate, async () => {
@@ -525,10 +529,16 @@ async function executeCommitPlan(
 
 	const scanEntries = await withStep(details, "Reviewing selected diff", onUpdate, () => collectSecretScanEntries(cwd, repoRoot, details.selectedFiles, signal, details));
 	await withStep(details, "Checking for secrets", onUpdate, async () => {
-		const findings = scanForSecrets(scanEntries);
-		details.secretFindings = findings;
-		if (findings.length > 0) {
-			details.warnings.push(`${findings.length} potential secret ${findings.length === 1 ? "finding" : "findings"} detected; review redacted findings in the final response.`);
+		try {
+			const findings = scanForSecrets(scanEntries);
+			details.secretFindings = findings;
+			if (findings.length > 0) {
+				details.warnings.push(`${findings.length} potential secret ${findings.length === 1 ? "finding" : "findings"} detected; review redacted findings in the final response.`);
+			}
+		} catch (error) {
+			if (signal?.aborted) throw error;
+			details.secretFindings = [];
+			details.warnings.push(`Secret scan could not inspect selected changes; continuing without findings. ${formatAdvisoryError(error)}`);
 		}
 	});
 	await withStep(details, "Running verification", onUpdate, async () => runVerification(plan, cwd, signal, details));
@@ -567,13 +577,22 @@ async function executeCommitPlan(
 		}
 	}
 
+	const commitNoun = plan.commits.length === 1 ? "Commit" : `${plan.commits.length} commits`;
 	if (plan.push) {
-		await withStep(details, "Pushing branch", onUpdate, () => runGit(cwd, ["push"], signal, details));
+		try {
+			await withStep(details, "Pushing branch", onUpdate, () => runGit(cwd, ["push"], signal, details));
+			details.pushSucceeded = true;
+		} catch (error) {
+			if (signal?.aborted) throw error;
+			details.pushSucceeded = false;
+			details.warnings.push(`Push failed after commit creation; commits remain local. ${formatAdvisoryError(error)}`);
+			details.phase = `${commitNoun} created locally; push failed`;
+			onUpdate();
+		}
 	}
 
 	details.status = "succeeded";
-	const commitNoun = plan.commits.length === 1 ? "Commit" : `${plan.commits.length} commits`;
-	details.phase = plan.push ? `${commitNoun} created and pushed` : `${commitNoun} created`;
+	details.phase = plan.push ? (details.pushSucceeded ? `${commitNoun} created and pushed` : `${commitNoun} created locally; push failed`) : `${commitNoun} created`;
 	details.finalText = buildSuccessText(details);
 	details.finishedAt = Date.now();
 	onUpdate();
@@ -663,6 +682,9 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 		rationale: commit.rationale || undefined,
 		selectedFiles: [],
 		verificationCount: commit.verification.length,
+		verificationPassedCount: 0,
+		verificationWarningCount: 0,
+		verificationSkippedCount: 0,
 		verificationEvidence: commit.verificationEvidence.map(formatVerificationEvidence),
 		acceptRisk: commit.acceptRisk,
 		status: "pending",
@@ -677,6 +699,7 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 		failedToolCount: 0,
 		dryRun: plan.dryRun,
 		push: plan.push,
+		pushSucceeded: false,
 		acceptRisk: plan.acceptRisk,
 		multiCommit: plan.multiCommit,
 		context: plan.context || undefined,
@@ -693,14 +716,15 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 	};
 }
 
-function validateCommitPlan(plan: CommitPlan): void {
+function validateCommitPlan(plan: CommitPlan, details: CommitRunDetails): void {
 	if (plan.commits.length === 0) throw new WorkflowError("At least one commit plan is required.");
 	for (const [index, commit] of plan.commits.entries()) {
-		validateCommitSpec(commit, formatCommitLabel(index, plan.commits.length));
+		validateCommitSpec(commit, formatCommitLabel(index, plan.commits.length), details, index);
 	}
+	syncCommitDetailsWithPlan(plan, details);
 }
 
-function validateCommitSpec(commit: CommitSpec, label: string): void {
+function validateCommitSpec(commit: CommitSpec, label: string, details: CommitRunDetails, index: number): void {
 	const prefix = label === "Commit" ? "" : `${label}: `;
 	if (!commit.commitMessage) throw new WorkflowError(`${prefix}commit message is required.`);
 	if (commit.commitMessage.includes("\0")) throw new WorkflowError(`${prefix}commit message contains a NUL byte.`);
@@ -721,11 +745,61 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 		}
 	}
 	for (const file of commit.files) validateRepoPath(file);
-	if (commit.verification.length === 0 && commit.verificationEvidence.length === 0 && !commit.acceptRisk) {
-		throw new WorkflowError(`${prefix}no verification command or prior verification evidence was provided. Pass narrow verification, concrete evidence, or rerun /commit --accept-risk only if the user accepts that risk.`);
+
+	const validVerification: VerificationPlan[] = [];
+	let skippedVerification = 0;
+	for (const [verificationIndex, verification] of commit.verification.entries()) {
+		const problem = validateVerification(verification);
+		if (problem) {
+			const commandLabel = redactSecretExcerpt([verification.command, ...(verification.args ?? [])].filter(Boolean).join(" ") || `#${verificationIndex + 1}`);
+			skippedVerification += 1;
+			details.warnings.push(`${prefix}skipped advisory verification command ${verificationIndex + 1} (${commandLabel}): ${problem}.`);
+			continue;
+		}
+		validVerification.push(verification);
 	}
-	for (const verification of commit.verification) validateVerification(verification);
-	for (const evidence of commit.verificationEvidence) validateVerificationEvidence(evidence);
+	commit.verification = validVerification;
+
+	const validEvidence: VerificationEvidence[] = [];
+	let skippedEvidence = 0;
+	for (const [evidenceIndex, evidence] of commit.verificationEvidence.entries()) {
+		const problem = validateVerificationEvidence(evidence);
+		if (problem) {
+			skippedEvidence += 1;
+			details.warnings.push(`${prefix}skipped advisory verification evidence ${evidenceIndex + 1}: ${problem}.`);
+			continue;
+		}
+		validEvidence.push(evidence);
+	}
+	commit.verificationEvidence = validEvidence;
+
+	const skipped = skippedVerification + skippedEvidence;
+	if (skipped > 0 && details.commits[index]) {
+		details.commits[index].verificationSkippedCount = (details.commits[index].verificationSkippedCount ?? 0) + skipped;
+	}
+	if (commit.verification.length === 0 && commit.verificationEvidence.length === 0) {
+		details.warnings.push(commit.acceptRisk
+			? `${prefix}no verification command or prior evidence is configured; proceeding because risk was accepted.`
+			: `${prefix}no verification command or prior evidence is configured; proceeding with residual risk.`);
+	}
+}
+
+function syncCommitDetailsWithPlan(plan: CommitPlan, details: CommitRunDetails): void {
+	for (const [index, commit] of plan.commits.entries()) {
+		const result = details.commits[index];
+		if (!result) continue;
+		result.commitMessage = commit.commitMessage || undefined;
+		result.rationale = commit.rationale || undefined;
+		result.verificationCount = commit.verification.length;
+		result.verificationEvidence = commit.verificationEvidence.map(formatVerificationEvidence);
+		result.acceptRisk = commit.acceptRisk;
+	}
+	plan.acceptRisk = plan.commits.some(commit => commit.acceptRisk);
+	details.acceptRisk = plan.acceptRisk;
+	details.rationale = plan.commits.length === 1 ? plan.commits[0]?.rationale || undefined : undefined;
+	details.commitMessage = plan.commits.length === 1 ? plan.commits[0]?.commitMessage || undefined : undefined;
+	details.verificationCount = details.commits.reduce((count, commit) => count + commit.verificationCount, 0);
+	details.verificationEvidence = details.commits.flatMap(commit => commit.verificationEvidence);
 }
 
 function repairCommitMessages(plan: CommitPlan, details: CommitRunDetails): void {
@@ -833,77 +907,98 @@ function validateRepoPath(path: string): void {
 	if (path.split(/[\\/]+/).includes("..")) throw new WorkflowError(`Selected file path must not traverse directories: ${path}`);
 }
 
-function validateVerification(verification: VerificationPlan): void {
-	if (!verification.command) throw new WorkflowError("Verification command is empty.");
+function validateVerification(verification: VerificationPlan): string | undefined {
+	if (!verification.command) return "command is empty";
 	if (verification.command.includes("/") || verification.command.includes("\0")) {
-		throw new WorkflowError(`Verification command must be an executable name, not a path: ${verification.command}`);
+		return "command must be an executable name, not a path";
 	}
 	const args = verification.args ?? [];
 	if (verification.command === "git" && args.length > 0 && MUTATING_GIT_VERBS.has(args[0])) {
-		throw new WorkflowError(`Verification command may not mutate git state: git ${args[0]}`);
+		return "git verification command would mutate repository state";
 	}
 	for (const arg of args) {
-		if (arg.includes("\0")) throw new WorkflowError("Verification argument contains a NUL byte.");
+		if (arg.includes("\0")) return "argument contains a NUL byte";
 	}
+	return undefined;
 }
 
-function validateVerificationEvidence(evidence: VerificationEvidence): void {
-	if (!evidence.description) throw new WorkflowError("Verification evidence description is required.");
-	if (evidence.description.includes("\0")) throw new WorkflowError("Verification evidence contains a NUL byte.");
+function validateVerificationEvidence(evidence: VerificationEvidence): string | undefined {
+	if (!evidence.description) return "description is required";
+	if (evidence.description.includes("\0")) return "description contains a NUL byte";
 	if (evidence.command?.includes("\0")) {
-		throw new WorkflowError("Verification evidence command contains a NUL byte.");
+		return "command contains a NUL byte";
 	}
 	if (evidence.source && evidence.source !== "observed" && evidence.source !== "user-reported") {
-		throw new WorkflowError(`Verification evidence source must be observed or user-reported: ${evidence.source}`);
+		return "source must be observed or user-reported";
 	}
 	for (const arg of evidence.args ?? []) {
-		if (arg.includes("\0")) throw new WorkflowError("Verification evidence argument contains a NUL byte.");
+		if (arg.includes("\0")) return "argument contains a NUL byte";
 	}
+	return undefined;
 }
 
 async function runVerification(plan: CommitPlan, cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<void> {
 	for (const [index, commit] of plan.commits.entries()) {
 		const commitLabel = formatCommitLabel(index, plan.commits.length);
+		const commitDetails = details.commits[index];
 		if (commit.verification.length === 0) {
 			if (commit.verificationEvidence.length > 0) {
-				details.warnings.push(`${commitLabel}: used prior verification evidence instead of rerunning commands: ${commit.verificationEvidence.length}.`);
-				continue;
+				details.warnings.push(`${commitLabel}: using prior verification evidence without rerunning commands: ${commit.verificationEvidence.length}.`);
 			}
-			details.warnings.push(`${commitLabel}: no verification was run because risk was accepted.`);
 			continue;
 		}
 		for (const verification of commit.verification) {
-			const label = verification.description || [verification.command, ...(verification.args ?? [])].join(" ");
+			const rawLabel = verification.description || [verification.command, ...(verification.args ?? [])].join(" ");
+			const label = redactSecretExcerpt(rawLabel);
 			const displayLabel = plan.commits.length === 1 ? label : `${commitLabel}: ${label}`;
 			details.phase = `Running verification: ${displayLabel}`;
-			const result = await runCommand(cwd, verification.command, verification.args ?? [], signal, details);
-			if (result.exitCode !== 0) {
-				throw new WorkflowError(`Verification failed: ${displayLabel}\n${trimOutput(result.stderr || result.stdout)}`);
+			try {
+				const result = await runCommand(cwd, verification.command, verification.args ?? [], signal, details);
+				throwIfAborted(signal);
+				if (result.exitCode === 0) {
+					if (commitDetails) commitDetails.verificationPassedCount = (commitDetails.verificationPassedCount ?? 0) + 1;
+					continue;
+				}
+				if (commitDetails) commitDetails.verificationWarningCount = (commitDetails.verificationWarningCount ?? 0) + 1;
+				const output = trimOutput(result.stderr || result.stdout);
+				details.warnings.push(output
+					? `${displayLabel}: verification exited ${result.exitCode}; continuing. Output: ${redactSecretExcerpt(output)}`
+					: `${displayLabel}: verification exited ${result.exitCode}; continuing.`);
+			} catch (error) {
+				if (signal?.aborted) throw error;
+				if (commitDetails) commitDetails.verificationWarningCount = (commitDetails.verificationWarningCount ?? 0) + 1;
+				details.warnings.push(`${displayLabel}: verification could not run; continuing. ${formatAdvisoryError(error)}`);
 			}
 		}
 	}
 }
 
 async function collectSecretScanEntries(cwd: string, repoRoot: string, selectedFiles: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<SecretScanEntry[]> {
-	const diff = await runGit(cwd, ["diff", "--no-ext-diff", "--unified=1", "HEAD", "--", ...selectedFiles], signal, details);
-	if (diff.stdout.length > MAX_SECRET_SCAN_CHARS) {
-		throw new WorkflowError("Selected diff is too large to secret-scan safely.");
-	}
-	const entries = parseAddedDiffLines(diff.stdout);
-	let scannedChars = diff.stdout.length;
-	const untracked = parseZPaths((await runGit(cwd, ["ls-files", "--others", "--exclude-standard", "-z", "--", ...selectedFiles], signal, details)).stdout);
-	for (const file of untracked) {
-		validateRepoPath(file);
-		const blob = Bun.file(`${repoRoot}/${file}`);
-		if (blob.size > MAX_SECRET_SCAN_CHARS) throw new WorkflowError(`Untracked file is too large to secret-scan safely: ${file}`);
-		const content = await blob.text();
-		scannedChars += content.length;
-		if (scannedChars > MAX_SECRET_SCAN_CHARS) throw new WorkflowError("Selected files are too large to secret-scan safely.");
-		for (const [index, line] of content.split(/\r?\n/).entries()) {
-			entries.push({ file, line: index + 1, text: line });
+	try {
+		const diff = await runGit(cwd, ["diff", "--no-ext-diff", "--unified=1", "HEAD", "--", ...selectedFiles], signal, details);
+		if (diff.stdout.length > MAX_SECRET_SCAN_CHARS) {
+			throw new WorkflowError("Selected diff is too large to secret-scan safely.");
 		}
+		const entries = parseAddedDiffLines(diff.stdout);
+		let scannedChars = diff.stdout.length;
+		const untracked = parseZPaths((await runGit(cwd, ["ls-files", "--others", "--exclude-standard", "-z", "--", ...selectedFiles], signal, details)).stdout);
+		for (const file of untracked) {
+			validateRepoPath(file);
+			const blob = Bun.file(`${repoRoot}/${file}`);
+			if (blob.size > MAX_SECRET_SCAN_CHARS) throw new WorkflowError(`Untracked file is too large to secret-scan safely: ${file}`);
+			const content = await blob.text();
+			scannedChars += content.length;
+			if (scannedChars > MAX_SECRET_SCAN_CHARS) throw new WorkflowError("Selected files are too large to secret-scan safely.");
+			for (const [index, line] of content.split(/\r?\n/).entries()) {
+				entries.push({ file, line: index + 1, text: line });
+			}
+		}
+		return entries;
+	} catch (error) {
+		if (signal?.aborted) throw error;
+		details.warnings.push(`Secret scan could not collect selected changes; continuing without findings. ${formatAdvisoryError(error)}`);
+		return [];
 	}
-	return entries;
 }
 
 function parseAddedDiffLines(diff: string): SecretScanEntry[] {
@@ -1138,8 +1233,8 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 				files: ["repo-relative file or directory to include, or omit/pass [] to derive all current git status paths for one commit"],
 				commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why, when useful.",
 				rationale: "why this file set and message match the current conversation",
-				verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
-				verificationEvidence: [{ description: "observed or user-reported verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
+				verification: [{ command: "executable", args: ["arg"], description: "short advisory label", required: false }],
+				verificationEvidence: [{ description: "observed or user-reported advisory verification already available in this conversation", command: "executable", args: ["arg"], source: "observed" }],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
 				acceptRisk: parsed.acceptRisk || undefined,
@@ -1155,8 +1250,8 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 					files: ["exact repo-relative file or directory for this split commit"],
 					commitMessage: "type(scope): concise subject\\n\\nOptional body paragraph explaining why this split exists.",
 					rationale: "why this split commit is separate",
-					verification: [{ command: "executable", args: ["arg"], description: "short label", required: true }],
-					verificationEvidence: [{ description: "observed or user-reported verification for this split commit", command: "executable", args: ["arg"], source: "observed" }],
+					verification: [{ command: "executable", args: ["arg"], description: "short advisory label", required: false }],
+					verificationEvidence: [{ description: "observed or user-reported advisory verification for this split commit", command: "executable", args: ["arg"], source: "observed" }],
 				}],
 				dryRun: parsed.dryRun || undefined,
 				push: parsed.push || undefined,
@@ -1176,11 +1271,13 @@ async function buildToolInvocationPrompt(parsed: ParsedArgs, source: CommitReque
 		"- For a single commit, use exact files when known; omit files or pass files: [] only when the commit should include every current git status path or context is insufficient and status-derived selection is acceptable.",
 		"- For split/multiple commit mode, each commits[] entry MUST use exact files for that split commit. Empty files in a split entry blocks safely because omp_commit cannot infer split membership.",
 		"- Prefer narrow, meaningful verification over broad validation. Do not choose a massive build/test step when a targeted command or prior concrete evidence covers the committed change.",
+		"- Verification commands and verification evidence are advisory: malformed verification metadata is skipped with warnings, command failures warn without blocking commits, and required=true is display-only.",
 		"- If verification already appears in the conversation, pass verificationEvidence instead of rerunning it. Use source=observed for tool output seen in-session and source=user-reported only for explicit user-reported checks; never invent evidence.",
-		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk.",
+		"- If neither meaningful verification nor concrete prior evidence exists, only set acceptRisk when the user explicitly accepted that risk; otherwise omit it and omp_commit will proceed with a residual-risk warning.",
+		"- Secret scan findings and scan unavailability are non-blocking warnings. Never include raw secret values in tool arguments, rationale, verification descriptions, or final summaries.",
 		"- Preserve unrelated user changes. Do not include files just because they are modified.",
 		parsed.multiCommit ? "- Split/multiple commit mode is requested: make separate commits for separate logical changes inside this one sequential tool call, and let the single tool UI report all created commits." : "",
-		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, non-blocking secret findings, and residual risk. Review any details.secretFindings/redacted Secret findings; warn the user about likely live credentials, but do not treat these findings as tool blockers when omp_commit succeeds.",
+		"- After omp_commit returns, summarize only the outcome, blocker, verification evidence, non-blocking warnings, redacted secret findings, push result, and residual risk. Warn the user about likely live credentials from redacted details.secretFindings, but do not treat these findings as tool blockers when omp_commit succeeds.",
 		parsed.model ? `Note: --model ${parsed.model} was provided but /commit now runs in the current session model; do not pass model to the tool.` : "",
 		`Commit-request flags: ${JSON.stringify(flags)}`,
 	].filter(Boolean).join("\n\n");
@@ -1313,14 +1410,14 @@ function buildSuccessText(details: CommitRunDetails): string {
 			`Files: ${commit.selectedFiles.join(", ")}`,
 			formatVerificationSummary(commit, true),
 			details.ignoredFiles.length > 0 ? `Ignored modified files left untouched: ${details.ignoredFiles.join(", ")}` : "No ignored modified files.",
-			details.push ? "Pushed to remote." : "Not pushed.",
+			formatPushSummary(details),
 		].join("\n");
 	}
 	return [
 		`Commits created: ${commits.length}.`,
 		...formatCommitSummaryLines(commits, true),
 		details.ignoredFiles.length > 0 ? `Ignored modified files left untouched: ${details.ignoredFiles.join(", ")}` : "No ignored modified files.",
-		details.push ? "Pushed to remote." : "Not pushed.",
+		formatPushSummary(details),
 	].join("\n");
 }
 
@@ -1335,13 +1432,31 @@ function formatCommitSummaryLines(commits: CommitResultDetails[], completed: boo
 	return lines;
 }
 
-function formatVerificationSummary(details: { verificationCount: number; verificationEvidence?: string[]; acceptRisk: boolean }, completed: boolean): string {
+function formatVerificationSummary(details: { verificationCount: number; verificationPassedCount?: number; verificationWarningCount?: number; verificationSkippedCount?: number; verificationEvidence?: string[]; acceptRisk: boolean }, completed: boolean): string {
 	const evidenceCount = details.verificationEvidence?.length ?? 0;
+	const commandCount = details.verificationCount;
+	const passedCount = details.verificationPassedCount ?? 0;
+	const warningCount = details.verificationWarningCount ?? 0;
+	const skippedCount = details.verificationSkippedCount ?? 0;
 	const parts: string[] = [];
-	if (details.verificationCount > 0) parts.push(`commands ${completed ? "passed" : "planned"}: ${details.verificationCount}`);
+	if (commandCount > 0) {
+		const commandParts: string[] = [];
+		if (passedCount > 0) commandParts.push(`passed: ${passedCount}`);
+		if (warningCount > 0) commandParts.push(`warnings: ${warningCount}`);
+		const notRunCount = Math.max(0, commandCount - passedCount - warningCount);
+		if (notRunCount > 0) commandParts.push(`${completed ? "not run" : "planned"}: ${notRunCount}`);
+		if (commandParts.length === 0 && !completed) commandParts.push(`planned: ${commandCount}`);
+		parts.push(`commands (${commandParts.join(", ")})`);
+	}
 	if (evidenceCount > 0) parts.push(`evidence: ${evidenceCount}`);
+	if (skippedCount > 0) parts.push(`skipped: ${skippedCount}`);
 	if (parts.length > 0) return `Verification ${parts.join("; ")}`;
-	return details.acceptRisk ? "Verification: accepted risk; no command run" : "Verification: none";
+	return details.acceptRisk ? "Verification: accepted risk; no command configured" : "Verification: not provided; residual risk warning";
+}
+
+function formatPushSummary(details: CommitRunDetails): string {
+	if (!details.push) return "Not pushed.";
+	return details.pushSucceeded ? "Pushed to remote." : "Push failed; commit remains local.";
 }
 
 function appendSecretFindingsResultText(text: string, details: CommitRunDetails): string {
@@ -1404,7 +1519,7 @@ function getCommitRunCommits(details: CommitRunDetails): CommitResultDetails[] {
 function formatVerificationEvidence(evidence: VerificationEvidence): string {
 	const command = evidence.command ? ` (${[evidence.command, ...(evidence.args ?? [])].join(" ")})` : "";
 	const source = evidence.source ? `${evidence.source}: ` : "";
-	return `${source}${evidence.description}${command}`;
+	return redactSecretExcerpt(`${source}${evidence.description}${command}`);
 }
 
 type WorkflowSummaryKey = "plan" | "tree" | "diff" | "secrets" | "verify" | "stage" | "commit" | "hash" | "push";
@@ -1700,7 +1815,8 @@ function compactRunVerificationState(details: CommitRunDetails, commits: CommitR
 			details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "verify") ||
 			details.errorText?.toLowerCase().includes("verification"))
 	) return "failed";
-	if (details.status === "succeeded" && commits.some(commit => commit.verificationCount > 0)) return "ok";
+	if (commits.some(commit => (commit.verificationWarningCount ?? 0) > 0 || (commit.verificationSkippedCount ?? 0) > 0)) return "warnings";
+	if (commits.some(commit => (commit.verificationPassedCount ?? 0) > 0)) return "ok";
 	if (commits.some(commit => (commit.verificationEvidence?.length ?? 0) > 0)) return "evidence";
 	if (commits.some(commit => commit.verificationCount > 0)) return "planned";
 	if (commits.every(commit => commit.acceptRisk)) return "risk";
@@ -1709,15 +1825,18 @@ function compactRunVerificationState(details: CommitRunDetails, commits: CommitR
 
 function compactCommitVerificationState(commit: CommitResultDetails, completed: boolean): string {
 	if (commit.status === "failed" || commit.errorText) return "failed";
-	if (commit.verificationCount > 0) return completed || Boolean(commit.commitHash) ? "ok" : "planned";
+	if ((commit.verificationWarningCount ?? 0) > 0 || (commit.verificationSkippedCount ?? 0) > 0) return "warnings";
+	if ((commit.verificationPassedCount ?? 0) > 0) return "ok";
+	if (commit.verificationCount > 0) return completed || Boolean(commit.commitHash) ? "configured" : "planned";
 	if ((commit.verificationEvidence?.length ?? 0) > 0) return "evidence";
 	return commit.acceptRisk ? "risk" : "none";
 }
 
 function compactPushState(details: CommitRunDetails): string {
 	if (!details.push) return "not pushed";
-	if (details.status === "succeeded") return "pushed";
-	if (details.status === "failed" && details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "push")) return "failed";
+	if (details.pushSucceeded) return "pushed";
+	if (details.status === "succeeded") return "failed/local";
+	if (details.status === "failed" && details.steps.some(step => step.status === "failed" && stepSummaryLabel(step.label) === "push")) return "failed/local";
 	return "pending";
 }
 
@@ -1834,6 +1953,10 @@ function formatError(error: unknown): string {
 	if (error instanceof CommandError) return error.message;
 	if (error instanceof Error) return error.message;
 	return String(error);
+}
+
+function formatAdvisoryError(error: unknown): string {
+	return redactSecretExcerpt(trimOutput(formatError(error)));
 }
 
 function throwIfAborted(signal: AbortSignal | undefined): void {

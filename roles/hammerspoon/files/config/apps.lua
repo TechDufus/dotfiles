@@ -4,7 +4,7 @@ return {
     summon = 'a', -- [A]genda or Granol[A]
   },
   Browser     = {
-    id = 'com.brave.Browser',
+    id = 'app.zen-browser.zen',
     summon = 'b', -- [B]rowser
   },
   Signal      = {

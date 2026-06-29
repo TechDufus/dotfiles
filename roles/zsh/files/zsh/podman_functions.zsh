@@ -8,14 +8,14 @@ function __pm_usage() {
   echo -e "${DIM}Named machine switching for host-specific low/high Podman profiles.${NC}"
   echo ""
   echo -e "${BOLD}${CAT_TEAL}Commands${NC}"
-  echo -e "  ${CAT_YELLOW}p.low${NC}      ${CAT_SUBTEXT0}Start ${PODMAN_MACHINE_LOW_NAME} and make it the active connection${NC}"
-  echo -e "  ${CAT_YELLOW}p.high${NC}     ${CAT_SUBTEXT0}Start ${PODMAN_MACHINE_HIGH_NAME} and make it the active connection${NC}"
-  echo -e "  ${CAT_YELLOW}p.use${NC}      ${CAT_SUBTEXT0}Switch to any existing machine name or logical profile${NC}"
+  echo -e "  ${CAT_YELLOW}p.low${NC}      ${CAT_SUBTEXT0}Stop other running machines, start ${PODMAN_MACHINE_LOW_NAME}, and make it active${NC}"
+  echo -e "  ${CAT_YELLOW}p.high${NC}     ${CAT_SUBTEXT0}Stop other running machines, start ${PODMAN_MACHINE_HIGH_NAME}, and make it active${NC}"
+  echo -e "  ${CAT_YELLOW}p.use${NC}      ${CAT_SUBTEXT0}Switch to any existing machine/profile after stopping other running machines${NC}"
   echo -e "  ${CAT_YELLOW}p.off${NC}      ${CAT_SUBTEXT0}Stop the currently running Podman machine${NC}"
   echo -e "  ${CAT_YELLOW}p.stop${NC}     ${CAT_SUBTEXT0}Stop every running Podman machine${NC}"
   echo -e "  ${CAT_YELLOW}p.current${NC}  ${CAT_SUBTEXT0}Show the active machine, resources, and default connection${NC}"
   echo -e "  ${CAT_YELLOW}p.status${NC}   ${CAT_SUBTEXT0}Show machine list plus current active machine details${NC}"
-  echo -e "  ${CAT_YELLOW}p.setup${NC}    ${CAT_SUBTEXT0}Ensure the low/high profile machines exist with Podman defaults${NC}"
+  echo -e "  ${CAT_YELLOW}p.setup${NC}    ${CAT_SUBTEXT0}Ensure missing low/high machines exist; macOS defaults new machines to applehv${NC}"
   echo -e "  ${CAT_YELLOW}p.help${NC}     ${CAT_SUBTEXT0}Show this help${NC}"
   echo ""
   echo -e "${BOLD}${CAT_TEAL}Profiles${NC}"
@@ -23,10 +23,11 @@ function __pm_usage() {
   echo -e "  ${CAT_GREEN}high${NC}  ${CAT_SUBTEXT0}->${NC} ${CAT_YELLOW}${PODMAN_MACHINE_HIGH_NAME}${NC}"
   echo ""
   echo -e "${BOLD}${CAT_TEAL}Examples${NC}"
-  echo -e "  ${CAT_SAPPHIRE}podman machine init --cpus 4 --memory 8192 --disk-size 120 ${PODMAN_MACHINE_LOW_NAME}${NC}"
-  echo -e "  ${CAT_SAPPHIRE}podman machine init --cpus 8 --memory 32768 --disk-size 300 ${PODMAN_MACHINE_HIGH_NAME}${NC}"
+  echo -e "  ${CAT_SAPPHIRE}p.setup${NC}"
+  echo -e "  ${CAT_SAPPHIRE}PODMAN_MACHINE_PROVIDER=<provider> p.setup${NC}"
   echo ""
-  echo -e "${DIM}Resource sizes are per-host. The dotfiles only care about the machine names.${NC}"
+  echo -e "${DIM}p.setup creates missing machines only; existing machines are not changed.${NC}"
+  echo -e "${DIM}Provider order for new machines: PODMAN_MACHINE_PROVIDER, CONTAINERS_MACHINE_PROVIDER, then applehv on macOS.${NC}"
 }
 
 function __pm_require_podman() {
@@ -62,18 +63,98 @@ function __pm_machine_exists() {
   podman machine inspect "$1" >/dev/null 2>&1
 }
 
+function __pm_machine_provider() {
+  if [[ -n "${PODMAN_MACHINE_PROVIDER:-}" ]]; then
+    print -r -- "$PODMAN_MACHINE_PROVIDER"
+    return 0
+  fi
+
+  if [[ -n "${CONTAINERS_MACHINE_PROVIDER:-}" ]]; then
+    print -r -- "$CONTAINERS_MACHINE_PROVIDER"
+    return 0
+  fi
+
+  if [[ "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+    print -r -- "applehv"
+  fi
+}
+
+function __pm_validate_machine_provider() {
+  local provider="$1"
+
+  if [[ "$provider" == "libkrun" && "$(uname -s 2>/dev/null)" == "Darwin" ]] && ! command -v krunkit >/dev/null 2>&1; then
+    echo -e "${WARNING}${RED} Cannot create libkrun Podman machine because krunkit is missing${NC}"
+    echo -e "${DIM}Use the default applehv provider, set PODMAN_MACHINE_PROVIDER=applehv, or install a Podman backend that provides krunkit.${NC}"
+    return 1
+  fi
+
+  return 0
+}
+
+function __pm_machine_vm_type() {
+  emulate -L zsh
+
+  local machine="$1"
+  local name vm_type
+
+  while IFS=$'\t' read -r name vm_type; do
+    name="${name%\*}"
+    if [[ "$name" == "$machine" ]]; then
+      print -r -- "$vm_type"
+      return 0
+    fi
+  done < <(podman machine list --format '{{range .}}{{.Name}}{{"\t"}}{{.VMType}}{{"\n"}}{{end}}' 2>/dev/null)
+}
+
+function __pm_validate_machine_startable() {
+  local machine="$1"
+  local vm_type="$(__pm_machine_vm_type "$machine")"
+
+  if [[ "$vm_type" == "libkrun" && "$(uname -s 2>/dev/null)" == "Darwin" ]] && ! command -v krunkit >/dev/null 2>&1; then
+    echo -e "${WARNING}${RED} Cannot start libkrun Podman machine because krunkit is missing:${NC} ${YELLOW}${machine}${NC}"
+    echo -e "${DIM}Recreate this machine with --provider applehv to migrate; recreating removes VM-stored images, containers, and volumes.${NC}"
+    return 1
+  fi
+
+  return 0
+}
+
+function __pm_warn_missing_krunkit_for_libkrun() {
+  emulate -L zsh
+
+  [[ "$(uname -s 2>/dev/null)" == "Darwin" ]] || return 0
+  command -v krunkit >/dev/null 2>&1 && return 0
+
+  local -a libkrun_machines
+  libkrun_machines=(${(f)"$(podman machine list --format '{{range .}}{{if eq .VMType "libkrun"}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null)"})
+  libkrun_machines=(${libkrun_machines/%\*/})
+  (( ${#libkrun_machines[@]} > 0 )) || return 0
+
+  echo -e "${WARNING}${YELLOW} Existing libkrun Podman machine(s) may not start because krunkit is missing:${NC} ${YELLOW}${(j:, :)libkrun_machines}${NC}"
+  echo -e "${DIM}p.setup only creates missing machines. Recreate affected machines with --provider applehv to migrate; recreating removes VM-stored images, containers, and volumes.${NC}"
+}
+
 function __pm_ensure_machine_exists() {
   emulate -L zsh
 
   local machine="$1"
+  local provider="$(__pm_machine_provider)"
 
   if __pm_machine_exists "$machine"; then
     echo -e "${CHECK_MARK} ${GREEN}Podman machine already exists:${NC} ${YELLOW}${machine}${NC}"
     return 0
   fi
 
-  echo -e "${ARROW} ${GREEN}Creating Podman machine with default settings:${NC} ${YELLOW}${machine}${NC}"
-  podman machine init "$machine" || return 1
+  __pm_validate_machine_provider "$provider" || return 1
+
+  if [[ -n "$provider" ]]; then
+    echo -e "${ARROW} ${GREEN}Creating Podman machine with default settings (provider: ${provider}):${NC} ${YELLOW}${machine}${NC}"
+    podman machine init --provider "$provider" "$machine" || return 1
+  else
+    echo -e "${ARROW} ${GREEN}Creating Podman machine with default settings:${NC} ${YELLOW}${machine}${NC}"
+    podman machine init "$machine" || return 1
+  fi
+
   echo -e "${CHECK_MARK} ${GREEN}Created Podman machine:${NC} ${YELLOW}${machine}${NC}"
 }
 
@@ -168,8 +249,11 @@ function p.use() {
   fi
 
   local target="$(__pm_resolve_machine_name "$1")"
-  local running="$(__pm_running_machine)"
   local connection=""
+  local -a running_machines
+  local machine target_running=0 stop_status=0
+
+  running_machines=(${(f)"$(__pm_running_machines)"})
 
   if ! __pm_machine_exists "$target"; then
     echo -e "${WARNING}${RED} Podman machine not found: ${YELLOW}${target}${NC}"
@@ -177,12 +261,29 @@ function p.use() {
     return 1
   fi
 
-  if [[ -n "$running" && "$running" != "$target" ]]; then
-    echo -e "${ARROW} ${GREEN}Stopping Podman machine:${NC} ${YELLOW}${running}${NC}"
-    podman machine stop "$running" || return 1
+  for machine in "${running_machines[@]}"; do
+    if [[ "$machine" == "$target" ]]; then
+      target_running=1
+      break
+    fi
+  done
+
+  if (( ! target_running )); then
+    __pm_validate_machine_startable "$target" || return 1
   fi
 
-  if [[ "$running" != "$target" ]]; then
+  for machine in "${running_machines[@]}"; do
+    [[ "$machine" == "$target" ]] && continue
+
+    echo -e "${ARROW} ${GREEN}Stopping Podman machine:${NC} ${YELLOW}${machine}${NC}"
+    podman machine stop "$machine" || stop_status=1
+  done
+
+  if (( stop_status != 0 )); then
+    return "$stop_status"
+  fi
+
+  if (( ! target_running )); then
     echo -e "${ARROW} ${GREEN}Starting Podman machine:${NC} ${YELLOW}${target}${NC}"
     podman machine start --no-info "$target" || return 1
   else
@@ -302,16 +403,18 @@ function p.setup() {
     return 0
   fi
 
+
   echo -e "${BOLD}${CAT_BLUE}Ensuring Podman profile machines exist${NC}"
-  echo -e "${DIM}Missing machines are created with Podman defaults. Resource tuning remains your responsibility per host.${NC}"
+  echo -e "${DIM}Missing machines are created with Podman defaults. On macOS, new machines use applehv unless a provider env var is set.${NC}"
   echo ""
+  __pm_warn_missing_krunkit_for_libkrun
 
   __pm_ensure_machine_exists "$PODMAN_MACHINE_LOW_NAME" || return 1
   __pm_ensure_machine_exists "$PODMAN_MACHINE_HIGH_NAME" || return 1
 
   echo ""
   echo -e "${CHECK_MARK} ${GREEN}Profile machines are ready:${NC} ${YELLOW}${PODMAN_MACHINE_LOW_NAME}${NC}, ${YELLOW}${PODMAN_MACHINE_HIGH_NAME}${NC}"
-  echo -e "${DIM}If you need custom CPU/RAM/disk on libkrun-based macOS installs, recreate the machines with the same names and your desired specs.${NC}"
+  echo -e "${DIM}Existing machines are unchanged. Recreate manually for custom CPU/RAM/disk/provider; that removes VM-stored images, containers, and volumes.${NC}"
 }
 
 function p.help() {

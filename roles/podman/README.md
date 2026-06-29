@@ -127,23 +127,23 @@ That separation is intentional:
 - Machine resource sizing is host-specific
 - Podman on macOS requires a Linux VM
 - Only one Podman-managed VM can be active at a time
-- On newer macOS installs using the `libkrun` backend, changing CPU, memory, or disk on an existing machine is not the right workflow
+- Homebrew Podman on macOS can otherwise create `libkrun` machines that require an unavailable `krunkit` backend binary
 
-The recommended pattern is to create a small set of named machines manually per host and switch between them from your shell.
+The recommended pattern is to keep a small set of named machines per host and switch between them from your shell.
 
 The ZSH role now ships helper functions built around two profile names:
 
 - `podman-low`
 - `podman-high`
 
-Example creation flow:
+Manual creation flow for custom resources on macOS:
 
 ```bash
 # Low-spec machine for lighter workflows
-podman machine init --cpus 4 --memory 8192 --disk-size 120 podman-low
+podman machine init --provider applehv --cpus 4 --memory 8192 --disk-size 120 podman-low
 
 # High-spec machine for heavier builds or local clusters
-podman machine init --cpus 8 --memory 32768 --disk-size 300 podman-high
+podman machine init --provider applehv --cpus 8 --memory 32768 --disk-size 300 podman-high
 ```
 
 You can pick different resource values on each host. The shell helpers only care about the names.
@@ -151,10 +151,10 @@ You can pick different resource values on each host. The shell helpers only care
 Available helper commands:
 
 ```bash
-p.setup    # create podman-low/podman-high if missing, using Podman defaults
-p.low      # stop current machine, start podman-low, switch default connection
-p.high     # stop current machine, start podman-high, switch default connection
-p.use foo  # switch to any existing machine name
+p.setup    # create missing podman-low/podman-high machines; macOS defaults to applehv
+p.low      # stop other running machines, start podman-low, switch default connection
+p.high     # stop other running machines, start podman-high, switch default connection
+p.use foo  # switch to any existing machine name, stopping other running machines first
 p.off      # stop the running machine
 p.stop     # stop every running machine
 p.current  # show current machine, resources, and active connection
@@ -169,13 +169,22 @@ export PODMAN_MACHINE_LOW_NAME=my-low
 export PODMAN_MACHINE_HIGH_NAME=my-high
 ```
 
+Provider selection only applies to machines that `p.setup` creates. Existing machines are never modified. For new machines, the helper uses this provider order:
+
+1. `PODMAN_MACHINE_PROVIDER`
+2. `CONTAINERS_MACHINE_PROVIDER`
+3. `applehv` on macOS/Darwin
+4. Podman's default provider elsewhere
+
 Recommended first-use flow:
 
 ```bash
 p.setup
 ```
 
-That command is idempotent. It only creates missing machines, and it creates them with Podman's defaults. If you want larger resources on a given host, keep the same names and recreate those machines manually with the CPU, memory, and disk values you want.
+That command is idempotent. It only creates missing machines. On macOS it initializes new machines with `applehv` by default so Homebrew Podman does not create unusable `libkrun` machines that fail later because `krunkit` is missing. If you want another provider, set `PODMAN_MACHINE_PROVIDER` or `CONTAINERS_MACHINE_PROVIDER` before running `p.setup`; `libkrun` on macOS requires `krunkit`, and the helper will fail fast when that backend is requested without the binary.
+
+If you want larger resources or a different provider for an existing profile, keep the same names and recreate those machines manually with the CPU, memory, disk, and provider values you want. Recreating machines is destructive: the images, containers, and volumes stored inside those Podman VMs are removed with them.
 
 ## 🏗️ Role Structure
 

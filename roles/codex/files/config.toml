@@ -95,5 +95,8 @@ enabled = true
 [plugins."template-creator@openai-primary-runtime"]
 enabled = true
 
+[apps._default]
+default_tools_approval_mode = "approve"
+
 [memories]
 disable_on_external_context = true

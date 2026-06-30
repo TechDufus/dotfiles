@@ -29,7 +29,7 @@ persistence = "save-all"
 [tui]
 notifications = true
 show_tooltips = false
-status_line = ["model-with-reasoning", "git-branch", "current-dir", "context-used", "five-hour-limit"]
+status_line = ["model-with-reasoning", "git-branch", "pull-request-number", "branch-changes", "current-dir", "context-used", "five-hour-limit"]
 theme = "catppuccin-mocha"
 
 [tui.keymap.editor]
@@ -86,14 +86,14 @@ enabled = false
 [plugins."chrome@openai-bundled"]
 enabled = true
 
+[plugins."sites@openai-bundled"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
 [memories]
 disable_on_external_context = true
-
-[projects."/home/techdufus/.dotfiles"]
-trust_level = "trusted"
-
-[projects."/home/techdufus/dev/redhorse/rh_engineering_harness"]
-trust_level = "trusted"
-
-[projects."/Users/MDegarmo/.dotfiles"]
-trust_level = "trusted"

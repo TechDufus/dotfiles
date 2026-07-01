@@ -11,7 +11,7 @@ web_search = "live"
 # tool_output_token_limit = 120000
 model = "gpt-5.5"
 plan_mode_reasoning_effort = "xhigh"
-service_tier = "fast"
+service_tier = "default"
 suppress_unstable_features_warning = true
 personality = "pragmatic"
 

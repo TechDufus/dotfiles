@@ -26,16 +26,71 @@ function flush_pending_blanks() {
   }
 }
 
+function is_table(line) {
+  return line ~ /^\[[^][]+\][[:space:]]*$/
+}
+
+function marketplace_is_local(line) {
+  return line ~ /^[[:space:]]*source_type[[:space:]]*=[[:space:]]*"local"[[:space:]]*$/ ||
+    line ~ /^[[:space:]]*source[[:space:]]*=[[:space:]]*"\/Users\//
+}
+
+function start_marketplace(line) {
+  in_marketplace = 1
+  marketplace_local = 0
+  marketplace_line_count = 1
+  marketplace_lines[marketplace_line_count] = line
+}
+
+function buffer_marketplace(line) {
+  marketplace_lines[++marketplace_line_count] = line
+  if (marketplace_is_local(line)) {
+    marketplace_local = 1
+  }
+}
+
+function flush_marketplace() {
+  if (!in_marketplace) {
+    return
+  }
+
+  if (!marketplace_local) {
+    flush_pending_blanks()
+    for (marketplace_line_index = 1; marketplace_line_index <= marketplace_line_count; marketplace_line_index++) {
+      print marketplace_lines[marketplace_line_index]
+    }
+  }
+
+  delete marketplace_lines
+  in_marketplace = 0
+  marketplace_local = 0
+  marketplace_line_count = 0
+}
+
+in_marketplace && is_table($0) {
+  flush_marketplace()
+}
+
+in_marketplace {
+  buffer_marketplace($0)
+  next
+}
+
 /^\[projects\.[^][]+\][[:space:]]*$/ {
   skip_projects = 1
   next
 }
 
-skip_projects && /^\[[^][]+\][[:space:]]*$/ {
+skip_projects && is_table($0) {
   skip_projects = 0
 }
 
 skip_projects {
+  next
+}
+
+/^\[marketplaces\.[^][]+\][[:space:]]*$/ {
+  start_marketplace($0)
   next
 }
 
@@ -51,6 +106,10 @@ skip_projects {
 {
   flush_pending_blanks()
   print
+}
+
+END {
+  flush_marketplace()
 }
 ' "$staged_file" >"$sanitized_file"
 

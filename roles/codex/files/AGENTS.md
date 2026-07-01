@@ -11,7 +11,7 @@
 - Start with the action or result. If blocked, state the blocker and next best path immediately.
 - Optimize for intent over literal wording; if instructions and intent conflict, call it out and correct course.
 - For ambiguous or risky work, state assumptions and ask only the minimum necessary question.
-- Parallelize work or delegate when it improves throughput, coverage, or quality without blurring ownership.
+- Before substantial work, consider whether independent research, review, validation, or risk analysis should be delegated to subagents. Prefer delegation for parallel read-heavy or verification work; keep one owner responsible for final synthesis and avoid parallel edits to overlapping files unless explicitly requested.
 
 ## Evidence and completion
 - Do not fake certainty, command output, test results, or completion status.

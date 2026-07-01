@@ -26,7 +26,7 @@ dotfiles -t codex
 
 ## Git Hygiene
 
-`codex` writes local trust metadata into [`files/config.toml`](./files/config.toml). The repo-managed hook at `.githooks/pre-commit` strips staged `trust_level = ...` lines and `[projects."..."]` tables from the committed version of that file without rewriting your working copy.
+`codex` writes local trust and plugin-runtime metadata into [`files/config.toml`](./files/config.toml). The repo-managed hook at `.githooks/pre-commit` strips staged `trust_level = ...` lines, `[projects."..."]` tables, and local absolute-path marketplace tables from the committed version of that file without rewriting your working copy.
 
 Enable the hook once per clone:
 

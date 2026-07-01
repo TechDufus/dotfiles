@@ -76,12 +76,6 @@ export RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
 
 export GH_DASH_CONFIG="$HOME/.config/gh-dash/config.yaml"
 
-export DF_HOME="$HOME/dev/raft/data-fabric"
-export RDP_HOME="$HOME/dev/raft/rdp"
-export DF_INFRA_HOME="$HOME/dev/raft/df-infra"
-export DFDEV_GIT_PROTOCOL="ssh"
-export AWS_PROFILE="Raft"
-
 # User
 export DOTFILES="$HOME/.dotfiles"
 export GOBIN="$HOME/.local/bin"

@@ -17,7 +17,7 @@ symbolPreset: nerd
 display: 
   shimmer: kitt
 defaultThinkingLevel: xhigh
-serviceTier: priority
+serviceTier: default
 contextPromotion: 
   enabled: false
 advisor:

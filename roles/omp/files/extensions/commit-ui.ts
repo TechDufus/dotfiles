@@ -10,6 +10,8 @@ const MAX_RESULT_WARNINGS = 4;
 const MAX_RESULT_FILES = 8;
 const MAX_OUTPUT_CHARS = 1_600;
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const PULSE_COLORS = ["accent", "success", "warning", "accent", "muted", "accent"] as const;
+const PULSE_BAR_WIDTH = 22;
 
 type RunStatus = "pending" | "running" | "succeeded" | "failed";
 type StepStatus = "pending" | "running" | "done" | "failed";
@@ -221,8 +223,8 @@ export default function commitUi(pi: ExtensionAPI): void {
 				isError: details.status === "failed",
 			};
 		},
-		renderCall(args: unknown, options: unknown, theme: unknown) {
-			return new CommitCallComponent(normalizeCommitPlan(args), theme, getSpinnerFrame(options));
+		renderCall(args: unknown, _options: unknown, theme: unknown) {
+			return new CommitCallComponent(normalizeCommitPlan(args), theme);
 		},
 		renderResult(result: unknown, options: unknown, theme: unknown) {
 			const details = readDetails(result);
@@ -281,13 +283,12 @@ class CommitCallComponent implements Component {
 	constructor(
 		private readonly plan: CommitPlan,
 		private readonly theme: unknown,
-		private readonly spinnerFrame?: number,
 	) {}
 
 	invalidate(): void {}
 
 	render(width: number): string[] {
-		return renderDashboard(dashboardFromPlan(this.plan), false, this.theme, this.spinnerFrame, width);
+		return renderCommitCallTeaser(this.plan, this.theme, width);
 	}
 }
 
@@ -315,6 +316,41 @@ class StaticLinesComponent implements Component {
 		return this.lines.map(line => truncateVisible(line, Math.max(MIN_RENDER_WIDTH, width)));
 	}
 }
+
+function renderCommitCallTeaser(plan: CommitPlan, theme: unknown, width: number): string[] {
+	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
+	const commitCount = plan.commits.length;
+	const fileCount = new Set(plan.commits.flatMap(commit => commit.files)).size;
+	const stats = [
+		plan.dryRun ? "preview" : "commit",
+		`${commitCount} ${plural("commit", commitCount)}`,
+		fileCount > 0 ? formatFileCount(fileCount) : "status-derived files",
+		plan.push ? "push after" : undefined,
+		plan.multiCommit ? "split" : undefined,
+	].filter(isString);
+	const headlineSubject = commitCount === 1 ? commitSubject(plan.commits[0]?.commitMessage) : `${commitCount} ${plan.multiCommit ? "split " : ""}${plural("commit", commitCount)}`;
+	const headlineSuffix = headlineSubject ? redactSuspiciousTokens(headlineSubject) : stats.join(" · ");
+	const lines = [
+		truncateVisible(
+			`${paint(theme, "muted", "·")} ${paint(theme, "accent", "/commit queued")}${headlineSuffix ? paint(theme, "muted", ` — ${redactSuspiciousTokens(headlineSuffix)}`) : ""}`,
+			renderWidth,
+		),
+	];
+	const secondary = commitCallSecondaryLine(plan, stats);
+	if (secondary) lines.push(truncateVisible(`${paint(theme, "dim", "  ")}${paint(theme, "muted", redactSuspiciousTokens(secondary))}`, renderWidth));
+	return lines;
+}
+
+function commitCallSecondaryLine(plan: CommitPlan, stats: string[]): string | undefined {
+	if (plan.commits.length > 1) {
+		return `${stats.join(" · ")} · subjects: ${formatLimitedList(plan.commits.map(commit => commitSubject(commit.commitMessage)), 3)}`;
+	}
+	const files = plan.commits[0]?.files ?? [];
+	if (files.length > 0) return `${stats.join(" · ")} · files: ${formatLimitedList(files, 3)}`;
+	if (plan.context) return `${stats.join(" · ")} · context: ${plan.context}`;
+	return stats.join(" · ") || undefined;
+}
+
 
 async function executeCommitPlan(
 	plan: CommitPlan,
@@ -876,31 +912,6 @@ function formatCommitSummary(commits: CommitResultDetails[], includeHash: boolea
 	}).join("; ");
 }
 
-function dashboardFromPlan(plan: CommitPlan): DashboardModel {
-	const commits = plan.commits.map(commit => ({
-		subject: commitSubject(commit.commitMessage),
-		files: [...commit.files],
-		requestedFiles: [...commit.files],
-		rationale: commit.rationale || undefined,
-		status: "pending" as CommitStatus,
-		phase: "Ready",
-	}));
-	return {
-		title: plan.dryRun ? "Commit preview" : plan.commits.length > 1 ? "Commit group" : "Commit",
-		status: "pending",
-		phase: "Waiting for tool call",
-		dryRun: plan.dryRun,
-		push: plan.push,
-		multiCommit: plan.multiCommit,
-		commits,
-		chips: planChips(plan),
-		rail: defaultRail(plan.push),
-		warnings: [],
-		ignoredFiles: [],
-		outcome: [],
-		context: plan.context || undefined,
-	};
-}
 
 function dashboardFromDetails(details: CommitRunDetails): DashboardModel {
 	return {
@@ -939,9 +950,10 @@ function dashboardFromDetails(details: CommitRunDetails): DashboardModel {
 function renderDashboard(model: DashboardModel, expanded: boolean, theme: unknown, spinnerFrame: number | undefined, width: number): string[] {
 	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
 	const lines: string[] = [];
-	const title = `${paint(theme, statusColor(model.status), statusIcon(model.status, spinnerFrame))} ${paint(theme, "accent", strong(theme, model.title))}`;
+	const title = `${paint(theme, statusColor(model.status), statusIcon(model.status, spinnerFrame))} ${dashboardTitleText(theme, model, spinnerFrame)}`;
 	lines.push(cardBorder(theme, renderWidth, "╭", "╮", title));
 	appendHero(lines, model, theme, spinnerFrame, renderWidth);
+	appendPulseBar(lines, model, theme, spinnerFrame, renderWidth);
 	appendChips(lines, model.chips, theme, renderWidth);
 	appendRail(lines, model.rail, theme, spinnerFrame, renderWidth);
 	appendCommitRows(lines, model, expanded, theme, spinnerFrame, renderWidth);
@@ -949,19 +961,16 @@ function renderDashboard(model: DashboardModel, expanded: boolean, theme: unknow
 	appendListField(lines, theme, renderWidth, "Warnings", model.warnings, expanded ? 6 : 2, "warning");
 	appendListField(lines, theme, renderWidth, "Left out", model.ignoredFiles, expanded ? 4 : 1, "muted");
 	appendOutcome(lines, model, theme, renderWidth, expanded);
-	const footer = model.finishedAt && model.startedAt
-		? `Done in ${formatDuration(model.finishedAt - model.startedAt)}`
-		: model.startedAt && model.status === "running"
-			? `Running ${formatDuration(Date.now() - model.startedAt)}`
-			: undefined;
+	const footer = dashboardFooter(model);
 	lines.push(cardBorder(theme, renderWidth, "╰", "╯", footer ? paint(theme, "dim", footer) : undefined));
 	return lines.map(line => truncateVisible(line, renderWidth));
 }
 
 function appendHero(lines: string[], model: DashboardModel, theme: unknown, spinnerFrame: number | undefined, width: number): void {
-	const mode = model.dryRun ? "Preview" : "Commit";
-	const glyph = model.status === "running" || model.status === "pending" ? spinnerGlyph(spinnerFrame) : statusIcon(model.status, spinnerFrame);
-	appendCardWrappedText(lines, theme, width, `${paint(theme, statusColor(model.status), glyph)} `, "  ", `${mode}: ${model.phase}`, statusColor(model.status), MAX_CARD_FIELD_LINES);
+	const isLive = model.status === "running" || model.status === "pending";
+	const pulse = isLive ? `${paint(theme, pulseColor(spinnerFrame), "✦")} ` : "";
+	const prefix = `${pulse}${paint(theme, statusColor(model.status), statusIcon(model.status, spinnerFrame))} `;
+	appendCardWrappedText(lines, theme, width, prefix, "  ", heroText(model), heroTextColor(model.status), MAX_CARD_FIELD_LINES);
 }
 
 function appendChips(lines: string[], chips: string[], theme: unknown, width: number): void {
@@ -971,22 +980,19 @@ function appendChips(lines: string[], chips: string[], theme: unknown, width: nu
 
 function appendRail(lines: string[], rail: CommitStep[], theme: unknown, spinnerFrame: number | undefined, width: number): void {
 	if (rail.length === 0) return;
-	const row = rail.map(step => `${stepIcon(step.status, spinnerFrame)} ${step.label}`).join(" ─ ");
-	appendCardWrappedText(lines, theme, width, `${paint(theme, "dim", "Rail")}: `, "  ", row, "muted", MAX_CARD_FIELD_LINES);
+	const row = rail.map(step => `${paint(theme, stepStatusColor(step.status), stepIcon(step.status, spinnerFrame))} ${paint(theme, step.status === "done" ? "success" : step.status === "running" ? "accent" : step.status === "failed" ? "error" : "muted", step.label)}`).join(paint(theme, "dim", "  ─  "));
+	appendCardLine(lines, theme, width, `${paint(theme, railAccentColor(rail, spinnerFrame), "Progress")}: ${row}`);
 }
 
 function appendCommitRows(lines: string[], model: DashboardModel, expanded: boolean, theme: unknown, spinnerFrame: number | undefined, width: number): void {
 	const limit = expanded ? model.commits.length : Math.min(model.commits.length, 3);
 	for (const [index, commit] of model.commits.slice(0, limit).entries()) {
-		const label = model.commits.length === 1 ? "Commit" : `Commit ${index + 1}`;
-		const hash = commit.hash ? `${commit.hash} ` : "";
-		const files = commit.files.length > 0 ? ` · ${formatFileCount(commit.files.length)}` : commit.requestedFiles.length > 0 ? ` · ${formatFileCount(commit.requestedFiles.length)} requested` : " · all changes";
-		const row = `${stepIcon(commit.status === "succeeded" ? "done" : commit.status === "failed" ? "failed" : commit.status === "running" ? "running" : "pending", spinnerFrame)} ${label}: ${hash}${commit.subject}${files}`;
-		appendCardWrappedText(lines, theme, width, "", "  ", row, commitStatusColor(commit.status), MAX_CARD_FIELD_LINES);
-		if (!expanded && model.status === "pending") {
-			const visibleFiles = commit.files.length > 0 ? commit.files : commit.requestedFiles;
-			if (visibleFiles.length > 0) appendCardField(lines, theme, width, "Files", visibleFiles.join(", "), 1, "muted");
-		}
+		let stepStatus: StepStatus = "pending";
+		if (commit.status === "succeeded") stepStatus = "done";
+		else if (commit.status === "failed") stepStatus = "failed";
+		else if (commit.status === "running") stepStatus = "running";
+		const glyph = paint(theme, stepStatusColor(stepStatus), stepIcon(stepStatus, spinnerFrame));
+		appendCardWrappedText(lines, theme, width, `${glyph} `, "  ", commitRowText(model, commit, index), commitStatusColor(commit.status), MAX_CARD_FIELD_LINES);
 		if (expanded) {
 			if (commit.files.length > 0) appendCardField(lines, theme, width, "Files", commit.files.join(", "), MAX_EXPANDED_CARD_FIELD_LINES, "muted");
 			else if (commit.requestedFiles.length > 0) appendCardField(lines, theme, width, "Requested", commit.requestedFiles.join(", "), MAX_EXPANDED_CARD_FIELD_LINES, "muted");
@@ -1009,19 +1015,10 @@ function appendOutcome(lines: string[], model: DashboardModel, theme: unknown, w
 	appendCardWrappedText(lines, theme, width, "", "", model.outcome.join(" "), outcomeColor(model.status), maxLines);
 }
 
-function planChips(plan: CommitPlan): string[] {
-	const fileCount = new Set(plan.commits.flatMap(commit => commit.files)).size;
-	return [
-		plan.dryRun ? "dry run" : "will commit",
-		`${plan.commits.length} ${plural("commit", plan.commits.length)}`,
-		fileCount > 0 ? `${fileCount} ${plural("file", fileCount)}` : "status-derived files",
-		plan.push ? "push after" : undefined,
-	].filter(isString);
-}
 
 function detailsChips(details: CommitRunDetails): string[] {
 	return [
-		details.dryRun ? "dry run" : details.status === "succeeded" ? "created" : details.status,
+		details.dryRun ? "preview" : details.status === "succeeded" ? "done" : details.status,
 		`${details.commits.length} ${plural("commit", details.commits.length)}`,
 		`${details.selectedFiles.length} ${plural("file", details.selectedFiles.length)}`,
 		details.push ? details.pushSucceeded ? "pushed" : details.pushSucceeded === false ? "push warning" : "push after" : undefined,
@@ -1041,18 +1038,21 @@ function defaultRail(includePush: boolean): CommitStep[] {
 }
 
 function railFromDetails(details: CommitRunDetails): CommitStep[] {
+	const defaults = defaultRail(details.push);
 	const steps = Array.isArray(details.steps) ? details.steps : [];
+	if (steps.length === 0 && details.status === "succeeded") {
+		return defaults.map(step => ({ ...step, status: "done" }));
+	}
 	const known = new Map(steps.map(step => [step.key, step]));
-	return defaultRail(details.push).map(step => known.get(step.key) ?? step);
+	return defaults.map(step => known.get(step.key) ?? step);
 }
 
 function outcomeLines(details: CommitRunDetails): string[] {
 	if (details.status === "failed") return [`Commit blocked: ${details.errorText ?? details.phase}`];
 	if (details.status !== "succeeded") return [];
-	if (details.dryRun) return [`Preview ready for ${details.selectedFiles.length} ${plural("file", details.selectedFiles.length)}.`];
-	const hashText = formatCommitSummary(details.commits, true);
-	const pushText = details.push ? details.pushSucceeded ? " Push succeeded." : " Push failed; commits are local." : "";
-	return [`${formatCommitGroup(details.commits.length)} created: ${hashText}.${pushText}`];
+	if (details.dryRun) return ["No commit written."];
+	if (!details.push) return [];
+	return [details.pushSucceeded ? "Push succeeded." : "Push failed; commits are local."];
 }
 
 function statusIcon(status: RunStatus, spinnerFrame: number | undefined): string {
@@ -1081,6 +1081,66 @@ function statusColor(status: RunStatus): string {
 	return "accent";
 }
 
+
+function dashboardTitleText(theme: unknown, model: DashboardModel, spinnerFrame: number | undefined): string {
+	const title = dashboardTitle(model);
+	if (model.status === "failed") return paint(theme, "error", strong(theme, title));
+	return strong(theme, rainbowText(theme, title, spinnerFrame));
+}
+
+function appendPulseBar(lines: string[], model: DashboardModel, theme: unknown, spinnerFrame: number | undefined, width: number): void {
+	const total = Math.max(8, Math.min(PULSE_BAR_WIDTH, cardContentWidth(width) - 2));
+	const frame = frameIndex(spinnerFrame);
+	const doneCount = model.status === "succeeded"
+		? total
+		: model.status === "failed"
+			? Math.max(1, Math.round(total * railCompletionRatio(model.rail)))
+			: Math.max(1, Math.round(total * railCompletionRatio(model.rail)));
+	const active = frame % total;
+	let bar = "";
+	for (let index = 0; index < total; index += 1) {
+		const filled = model.status === "succeeded" || index < doneCount || (model.status === "running" && index === active);
+		const glyph = filled ? "━" : "─";
+		const color = model.status === "failed"
+			? index < doneCount ? "error" : "dim"
+			: model.status === "succeeded"
+				? PULSE_COLORS[(index + frame) % PULSE_COLORS.length] ?? "success"
+				: filled
+					? PULSE_COLORS[(index + frame) % PULSE_COLORS.length] ?? "accent"
+					: "dim";
+		bar += paint(theme, color, glyph);
+	}
+	appendCardLine(lines, theme, width, `  ${bar}`);
+}
+
+function railCompletionRatio(rail: CommitStep[]): number {
+	if (rail.length === 0) return 0;
+	return rail.filter(step => step.status === "done").length / rail.length;
+}
+
+function rainbowText(theme: unknown, text: string, spinnerFrame: number | undefined): string {
+	const frame = frameIndex(spinnerFrame);
+	let visibleIndex = 0;
+	let output = "";
+	for (const char of text) {
+		if (/\s/.test(char)) {
+			output += char;
+			continue;
+		}
+		const color = PULSE_COLORS[(visibleIndex + frame) % PULSE_COLORS.length] ?? "accent";
+		output += paint(theme, color, char);
+		visibleIndex += 1;
+	}
+	return output;
+}
+
+
+function heroTextColor(status: RunStatus): string {
+	if (status === "failed") return "error";
+	if (status === "succeeded") return "success";
+	return "accent";
+}
+
 function commitStatusColor(status: CommitStatus): string {
 	if (status === "succeeded") return "success";
 	if (status === "failed") return "error";
@@ -1092,6 +1152,100 @@ function outcomeColor(status: RunStatus): string {
 	if (status === "failed") return "error";
 	if (status === "succeeded") return "success";
 	return "muted";
+}
+
+function pulseColor(spinnerFrame: number | undefined): string {
+	const color = PULSE_COLORS[frameIndex(spinnerFrame) % PULSE_COLORS.length];
+	return color ?? "accent";
+}
+
+function dashboardTitle(statusModel: DashboardModel): string {
+	if (statusModel.status === "failed") return statusModel.dryRun ? "Preview blocked" : "Commit blocked";
+	if (statusModel.status === "succeeded") return statusModel.dryRun ? "Preview ready" : "Commit complete";
+	if (statusModel.status === "running") return statusModel.dryRun ? "Preview running" : "Commit running";
+	return statusModel.dryRun ? "Preview queued" : "Commit queued";
+}
+
+function dashboardFooter(model: DashboardModel): string | undefined {
+	if (model.finishedAt && model.startedAt) return `Done in ${formatDuration(model.finishedAt - model.startedAt)}`;
+	if (model.startedAt && model.status === "running") return `Running ${formatDuration(Date.now() - model.startedAt)}`;
+	return undefined;
+}
+
+function heroText(model: DashboardModel): string {
+	if (model.status === "succeeded") return successHeroText(model);
+	if (model.status === "failed") {
+		return [model.dryRun ? "Preview blocked" : "Commit blocked", model.phase, dashboardDuration(model)].filter(isString).join(" · ");
+	}
+	const progress = railProgressText(model.rail);
+	return [model.phase || "Running", progress].filter(isString).join(" · ");
+}
+
+function successHeroText(model: DashboardModel): string {
+	const duration = dashboardDuration(model);
+	if (model.dryRun) {
+		return ["Preview ready", dashboardFileSummary(model), duration].filter(isString).join(" · ");
+	}
+	return [`${formatCommitGroup(model.commits.length)} created`, commitHashSummary(model), dashboardFileSummary(model), duration].filter(isString).join(" · ");
+}
+
+function dashboardDuration(model: DashboardModel): string | undefined {
+	if (!model.finishedAt || !model.startedAt) return undefined;
+	return formatDuration(model.finishedAt - model.startedAt);
+}
+
+function dashboardFileSummary(model: DashboardModel): string {
+	const fileCount = dashboardFileCount(model);
+	if (fileCount > 0) return formatFileCount(fileCount);
+	return "all changes";
+}
+
+function dashboardFileCount(model: DashboardModel): number {
+	const files = model.commits.flatMap(commit => commit.files.length > 0 ? commit.files : commit.requestedFiles);
+	return new Set(files).size;
+}
+
+function commitHashSummary(model: DashboardModel): string | undefined {
+	const hashes = model.commits.map(commit => commit.hash).filter(isString);
+	if (hashes.length === 0) return undefined;
+	if (hashes.length === 1) return hashes[0];
+	return formatLimitedList(hashes, 3);
+}
+
+function railProgressText(rail: CommitStep[]): string | undefined {
+	if (rail.length === 0) return undefined;
+	const done = rail.filter(step => step.status === "done").length;
+	return `${done}/${rail.length} steps`;
+}
+
+function commitRowText(model: DashboardModel, commit: DashboardCommit, index: number): string {
+	const label = model.commits.length === 1 ? "Message" : formatCommitLabel(index, model.commits.length);
+	const hash = commit.hash ? `${commit.hash} · ` : "";
+	let files = " · all changes";
+	if (commit.files.length > 0) files = ` · ${formatFileCount(commit.files.length)}`;
+	else if (commit.requestedFiles.length > 0) files = ` · ${formatFileCount(commit.requestedFiles.length)} requested`;
+	const subject = `${hash}${commit.subject}`;
+	if (commit.status === "running") {
+		const phase = commit.phase && commit.phase !== "Ready" ? `${commit.phase} · ` : "";
+		return `${label} · ${phase}${subject}${files}`;
+	}
+	if (commit.status === "failed") return `${label} · blocked · ${subject}${files}`;
+	if (commit.status === "pending") return `${label} · queued · ${subject}${files}`;
+	return `${label} · ${subject}${files}`;
+}
+
+function stepStatusColor(status: StepStatus): string {
+	if (status === "done") return "success";
+	if (status === "failed") return "error";
+	if (status === "running") return "accent";
+	return "muted";
+}
+
+function railAccentColor(rail: CommitStep[], spinnerFrame: number | undefined): string {
+	if (rail.some(step => step.status === "failed")) return "error";
+	if (rail.some(step => step.status === "running")) return pulseColor(spinnerFrame);
+	if (rail.length > 0 && rail.every(step => step.status === "done")) return "success";
+	return "dim";
 }
 
 function formatCommitLabel(index: number, total: number): string {

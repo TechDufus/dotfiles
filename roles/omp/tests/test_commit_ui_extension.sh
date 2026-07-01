@@ -137,6 +137,24 @@ function assertBoxed(value, label) {
   assertMatches(value, /[└┗╰╚╘╙]/, `${label} bottom border`);
 }
 
+function assertCompactCallTeaser(value, label) {
+  const text = String(value);
+  const lines = text.split("\n");
+  if (lines.length > 2) fail(`${label} should render as a one or two line teaser: ${value}`);
+  for (const pattern of [
+    /Waiting for tool call/i,
+    /[┌┐└┘┏┓┗┛╭╮╰╯╔╗╚╝╒╕╘╛]/,
+    /[│║┃├┝┠└┕┗╟╙]/,
+    /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/,
+  ]) {
+    if (pattern.test(text)) fail(`${label} used boxed, railed, spinner, or waiting UI ${pattern}: ${value}`);
+  }
+}
+
+function assertStaticRender(rendered, rerendered, label) {
+  if (rendered !== rerendered) fail(`${label} changed between spinner frames: ${JSON.stringify({ rendered, rerendered })}`);
+}
+
 function assertNoLegacyUi(value, label) {
   for (const pattern of [/\batomic\b/i, /secret findings/i, /\brisk\b/i]) {
     if (pattern.test(String(value))) fail(`${label} used legacy UI concept ${pattern}: ${value}`);
@@ -314,60 +332,55 @@ try {
   else process.env.HOME = originalHome;
 }
 
-const callRendered = render(tool.renderCall(
-  {
-    dryRun: true,
-    push: false,
-    files: ["roles/omp/tests/test_commit_ui_extension.sh"],
-    message: "exercise compact commit card rendering",
-    rationale: "current session test coverage",
-  },
-  {},
-  theme,
-), 58, "single commit call");
-assertBoxed(callRendered, "single commit call");
+const singleCommitCall = {
+  dryRun: true,
+  push: false,
+  files: ["roles/omp/tests/test_commit_ui_extension.sh"],
+  message: "exercise compact commit card rendering",
+  rationale: "current session test coverage",
+};
+const callRendered = render(tool.renderCall(singleCommitCall, { spinnerFrame: 0 }, theme), 58, "single commit call");
+const callRerendered = render(tool.renderCall(singleCommitCall, { spinnerFrame: 7 }, theme), 58, "single commit call rerender");
+assertCompactCallTeaser(callRendered, "single commit call");
+assertStaticRender(callRendered, callRerendered, "single commit call");
 assertIncludes(callRendered, "exercise compact", "single commit call");
-assertIncludes(callRendered, "test_commit_ui_extension.sh", "single commit call");
+assertMatches(callRendered, /test_commit_ui_extension\.sh|1\s+files?/i, "single commit call file summary");
 assertNoLegacyUi(callRendered, "single commit call");
 
-const groupedCallRendered = render(tool.renderCall(
-  {
-    dryRun: false,
-    push: true,
-    commits: [
-      { files: ["alpha.txt"], message: "split alpha", rationale: "alpha" },
-      { files: ["beta.txt"], commitMessage: "split beta", rationale: "beta" },
-    ],
-  },
-  {},
-  theme,
-), 64, "split commit call");
-assertBoxed(groupedCallRendered, "split commit call");
+const splitCommitCall = {
+  dryRun: false,
+  push: true,
+  commits: [
+    { files: ["alpha.txt"], message: "split alpha", rationale: "alpha" },
+    { files: ["beta.txt"], commitMessage: "split beta", rationale: "beta" },
+  ],
+};
+const groupedCallRendered = render(tool.renderCall(splitCommitCall, { spinnerFrame: 0 }, theme), 64, "split commit call");
+const groupedCallRerendered = render(tool.renderCall(splitCommitCall, { spinnerFrame: 7 }, theme), 64, "split commit call rerender");
+assertCompactCallTeaser(groupedCallRendered, "split commit call");
+assertStaticRender(groupedCallRendered, groupedCallRerendered, "split commit call");
 assertMatches(groupedCallRendered, /2\s+(commits?|split)|split/i, "split commit call rows");
-assertIncludes(groupedCallRendered, "split alpha", "split commit call");
-assertIncludes(groupedCallRendered, "split beta", "split commit call");
+assertMatches(groupedCallRendered, /split alpha|split beta|2\s+commits?/i, "split commit call summary");
 assertNoLegacyUi(groupedCallRendered, "split commit call");
 
-const runningRendered = renderResult(
-  {
-    content: [{ type: "text", text: "Inspecting working tree" }],
-    details: {
-      id: "render-running",
-      status: "running",
-      phase: "Inspecting working tree",
-      dryRun: true,
-      push: false,
-      selectedFiles: ["src/very/long/path/that/should/wrap-cleanly.ts"],
-      ignoredFiles: [],
-      commits: [{ status: "running", selectedFiles: ["src/very/long/path/that/should/wrap-cleanly.ts"], message: "render running" }],
-      warnings: [],
-    },
+const runningResult = {
+  content: [{ type: "text", text: "Inspecting working tree" }],
+  details: {
+    id: "render-running",
+    status: "running",
+    phase: "Inspecting working tree",
+    dryRun: true,
+    push: false,
+    selectedFiles: ["src/very/long/path/that/should/wrap-cleanly.ts"],
+    ignoredFiles: [],
+    commits: [{ status: "running", selectedFiles: ["src/very/long/path/that/should/wrap-cleanly.ts"], message: "render running" }],
+    warnings: [],
   },
-  54,
-  "running result",
-  { isPartial: true, spinnerFrame: 2 },
-);
+};
+const runningRendered = renderResult(runningResult, 54, "running result", { isPartial: true, spinnerFrame: 2 });
+const runningRerendered = renderResult(runningResult, 54, "running result rerender", { isPartial: true, spinnerFrame: 3 });
 assertBoxed(runningRendered, "running result");
+if (runningRendered === runningRerendered) fail(`running result did not animate between spinner frames: ${runningRendered}`);
 assertMatches(runningRendered, /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●•]|running|progress/i, "running result spinner or rail");
 assertNoLegacyUi(runningRendered, "running result");
 
@@ -391,7 +404,8 @@ const completedRendered = renderResult(
   "completed result",
 );
 assertBoxed(completedRendered, "completed result");
-assertMatches(completedRendered, /Commit preview complete|Outcome/i, "completed result outcome");
+assertMatches(completedRendered, /✓/, "completed result visible success checkmark");
+assertMatches(completedRendered, /Commit preview complete|Outcome|succeeded|success/i, "completed result success status");
 assertMatches(completedRendered, /stale-file|warnings?|ignored/i, "completed result warnings and ignored files");
 assertNoLegacyUi(completedRendered, "completed result");
 

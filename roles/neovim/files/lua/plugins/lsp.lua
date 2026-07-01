@@ -10,7 +10,12 @@ local lsp_servers = {
   "lua_ls",
   "yamlls",
   "cssls",
-  "pylsp",
+  "ts_ls",
+  "pyright",
+  "tailwindcss",
+  "astro",
+  "graphql",
+  "svelte",
 }
 
 return {

@@ -41,7 +41,8 @@ This role provides a battle-tested Neovim configuration optimized for software d
 **LSP Servers** (auto-installed via Mason):
 ```
 gopls, ansiblels, bashls, dockerls, jsonls,
-terraformls, lua_ls, yamlls, pylsp, and more
+terraformls, lua_ls, yamlls, cssls, ts_ls,
+pyright, tailwindcss, astro, graphql, svelte, and more
 ```
 
 ### Configuration Structure

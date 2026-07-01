@@ -319,37 +319,13 @@ class StaticLinesComponent implements Component {
 
 function renderCommitCallTeaser(plan: CommitPlan, theme: unknown, width: number): string[] {
 	const renderWidth = Math.max(MIN_RENDER_WIDTH, width);
-	const commitCount = plan.commits.length;
 	const fileCount = new Set(plan.commits.flatMap(commit => commit.files)).size;
-	const stats = [
-		plan.dryRun ? "preview" : "commit",
-		`${commitCount} ${plural("commit", commitCount)}`,
-		fileCount > 0 ? formatFileCount(fileCount) : "status-derived files",
-		plan.push ? "push after" : undefined,
-		plan.multiCommit ? "split" : undefined,
-	].filter(isString);
-	const headlineSubject = commitCount === 1 ? commitSubject(plan.commits[0]?.commitMessage) : `${commitCount} ${plan.multiCommit ? "split " : ""}${plural("commit", commitCount)}`;
-	const headlineSuffix = headlineSubject ? redactSuspiciousTokens(headlineSubject) : stats.join(" · ");
-	const lines = [
-		truncateVisible(
-			`${paint(theme, "muted", "·")} ${paint(theme, "accent", "/commit queued")}${headlineSuffix ? paint(theme, "muted", ` — ${redactSuspiciousTokens(headlineSuffix)}`) : ""}`,
-			renderWidth,
-		),
+	const metadata = fileCount > 0 ? ` · ${formatFileCount(fileCount)}` : "";
+	return [
+		truncateVisible(`${paint(theme, "accent", "/commit queued")}${paint(theme, "muted", metadata)}`, renderWidth),
 	];
-	const secondary = commitCallSecondaryLine(plan, stats);
-	if (secondary) lines.push(truncateVisible(`${paint(theme, "dim", "  ")}${paint(theme, "muted", redactSuspiciousTokens(secondary))}`, renderWidth));
-	return lines;
 }
 
-function commitCallSecondaryLine(plan: CommitPlan, stats: string[]): string | undefined {
-	if (plan.commits.length > 1) {
-		return `${stats.join(" · ")} · subjects: ${formatLimitedList(plan.commits.map(commit => commitSubject(commit.commitMessage)), 3)}`;
-	}
-	const files = plan.commits[0]?.files ?? [];
-	if (files.length > 0) return `${stats.join(" · ")} · files: ${formatLimitedList(files, 3)}`;
-	if (plan.context) return `${stats.join(" · ")} · context: ${plan.context}`;
-	return stats.join(" · ") || undefined;
-}
 
 
 async function executeCommitPlan(
@@ -981,8 +957,9 @@ function appendChips(lines: string[], chips: string[], theme: unknown, width: nu
 function appendRail(lines: string[], rail: CommitStep[], theme: unknown, spinnerFrame: number | undefined, width: number): void {
 	if (rail.length === 0) return;
 	const row = rail.map(step => `${paint(theme, stepStatusColor(step.status), stepIcon(step.status, spinnerFrame))} ${paint(theme, step.status === "done" ? "success" : step.status === "running" ? "accent" : step.status === "failed" ? "error" : "muted", step.label)}`).join(paint(theme, "dim", "  ─  "));
-	appendCardLine(lines, theme, width, `${paint(theme, railAccentColor(rail, spinnerFrame), "Progress")}: ${row}`);
+	appendCardLine(lines, theme, width, row);
 }
+
 
 function appendCommitRows(lines: string[], model: DashboardModel, expanded: boolean, theme: unknown, spinnerFrame: number | undefined, width: number): void {
 	const limit = expanded ? model.commits.length : Math.min(model.commits.length, 3);
@@ -1089,34 +1066,41 @@ function dashboardTitleText(theme: unknown, model: DashboardModel, spinnerFrame:
 }
 
 function appendPulseBar(lines: string[], model: DashboardModel, theme: unknown, spinnerFrame: number | undefined, width: number): void {
-	const total = Math.max(8, Math.min(PULSE_BAR_WIDTH, cardContentWidth(width) - 2));
+	const total = Math.max(8, Math.min(PULSE_BAR_WIDTH, cardContentWidth(width) - 12));
 	const frame = frameIndex(spinnerFrame);
-	const doneCount = model.status === "succeeded"
-		? total
-		: model.status === "failed"
-			? Math.max(1, Math.round(total * railCompletionRatio(model.rail)))
-			: Math.max(1, Math.round(total * railCompletionRatio(model.rail)));
-	const active = frame % total;
+	const ratio = railProgressRatio(model.status, model.rail);
+	const filledCount = progressFilledCount(model.status, ratio, total);
 	let bar = "";
 	for (let index = 0; index < total; index += 1) {
-		const filled = model.status === "succeeded" || index < doneCount || (model.status === "running" && index === active);
+		const filled = index < filledCount;
 		const glyph = filled ? "━" : "─";
-		const color = model.status === "failed"
-			? index < doneCount ? "error" : "dim"
-			: model.status === "succeeded"
-				? PULSE_COLORS[(index + frame) % PULSE_COLORS.length] ?? "success"
-				: filled
-					? PULSE_COLORS[(index + frame) % PULSE_COLORS.length] ?? "accent"
-					: "dim";
+		const color = progressBarColor(model.status, filled, index, frame);
 		bar += paint(theme, color, glyph);
 	}
-	appendCardLine(lines, theme, width, `  ${bar}`);
+	appendCardLine(lines, theme, width, `${paint(theme, "dim", "Progress")}: ${bar}`);
 }
 
-function railCompletionRatio(rail: CommitStep[]): number {
-	if (rail.length === 0) return 0;
+function progressFilledCount(status: RunStatus, ratio: number, total: number): number {
+	if (status === "pending") return 0;
+	if (status === "succeeded") return total;
+	const count = Math.round(total * ratio);
+	if (status === "failed") return Math.max(1, Math.min(total, count));
+	return Math.max(1, Math.min(total, count));
+}
+
+function progressBarColor(status: RunStatus, filled: boolean, index: number, frame: number): string {
+	if (!filled) return "dim";
+	if (status === "failed") return "error";
+	if (status === "succeeded") return "success";
+	return PULSE_COLORS[(index + frame) % PULSE_COLORS.length] ?? "accent";
+}
+
+function railProgressRatio(status: RunStatus, rail: CommitStep[]): number {
+	if (rail.length === 0) return status === "succeeded" ? 1 : 0;
+	if (status === "succeeded") return 1;
 	return rail.filter(step => step.status === "done").length / rail.length;
 }
+
 
 function rainbowText(theme: unknown, text: string, spinnerFrame: number | undefined): string {
 	const frame = frameIndex(spinnerFrame);
@@ -1241,12 +1225,6 @@ function stepStatusColor(status: StepStatus): string {
 	return "muted";
 }
 
-function railAccentColor(rail: CommitStep[], spinnerFrame: number | undefined): string {
-	if (rail.some(step => step.status === "failed")) return "error";
-	if (rail.some(step => step.status === "running")) return pulseColor(spinnerFrame);
-	if (rail.length > 0 && rail.every(step => step.status === "done")) return "success";
-	return "dim";
-}
 
 function formatCommitLabel(index: number, total: number): string {
 	return total === 1 ? "Commit" : `Commit ${index + 1}/${total}`;

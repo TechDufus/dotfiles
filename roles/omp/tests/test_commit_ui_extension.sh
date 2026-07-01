@@ -128,6 +128,10 @@ function assertMatches(value, pattern, label) {
   if (!pattern.test(String(value))) fail(`${label} did not match ${pattern}: ${value}`);
 }
 
+function assertNotMatches(value, pattern, label) {
+  if (pattern.test(String(value))) fail(`${label} unexpectedly matched ${pattern}: ${value}`);
+}
+
 function assertExcludes(value, unexpected, label) {
   if (String(value).includes(unexpected)) fail(`${label} unexpectedly included ${unexpected}: ${value}`);
 }
@@ -137,10 +141,11 @@ function assertBoxed(value, label) {
   assertMatches(value, /[└┗╰╚╘╙]/, `${label} bottom border`);
 }
 
-function assertCompactCallTeaser(value, label) {
+function assertCompactCallTeaser(value, label, options = {}) {
   const text = String(value);
   const lines = text.split("\n");
-  if (lines.length > 2) fail(`${label} should render as a one or two line teaser: ${value}`);
+  if (lines.length !== 1) fail(`${label} should render as one compact receipt line: ${value}`);
+  const line = lines[0].trim();
   for (const pattern of [
     /Waiting for tool call/i,
     /[┌┐└┘┏┓┗┛╭╮╰╯╔╗╚╝╒╕╘╛]/,
@@ -149,10 +154,37 @@ function assertCompactCallTeaser(value, label) {
   ]) {
     if (pattern.test(text)) fail(`${label} used boxed, railed, spinner, or waiting UI ${pattern}: ${value}`);
   }
+  const countSuffix = typeof options.expectedFiles === "number"
+    ? `(?:\\s+·\\s+${options.expectedFiles}\\s+files?)?`
+    : "(?:\\s+·\\s+\\d+\\s+files?)?";
+  const receiptPattern = new RegExp(`^\\/commit queued${countSuffix}$`, "i");
+  if (!receiptPattern.test(line)) fail(`${label} should only show /commit queued with an optional file count: ${value}`);
 }
 
 function assertStaticRender(rendered, rerendered, label) {
   if (rendered !== rerendered) fail(`${label} changed between spinner frames: ${JSON.stringify({ rendered, rerendered })}`);
+}
+
+function progressBarStats(value, label) {
+  const filledPattern = /[━█▓▒■▰]/;
+  const emptyPattern = /[─░□▱]/;
+  const barPattern = /[━─█░▒▓■□▰▱]{4,}/;
+  const bar = String(value)
+    .split("\n")
+    .map(line => line.match(barPattern)?.[0])
+    .find(match => match && filledPattern.test(match));
+  if (!bar) fail(`${label} missing visible progress bar: ${value}`);
+  const glyphs = [...bar];
+  const filled = glyphs.filter(glyph => filledPattern.test(glyph)).length;
+  const empty = glyphs.filter(glyph => emptyPattern.test(glyph)).length;
+  const total = filled + empty;
+  if (total < 4 || filled === 0) fail(`${label} progress bar was not measurable: ${value}`);
+  return { bar, filled, total, ratio: filled / total };
+}
+
+function assertVisibleProgress(value, label) {
+  assertMatches(value, /\bProgress\b/i, `${label} progress label`);
+  return progressBarStats(value, label);
 }
 
 function assertNoLegacyUi(value, label) {
@@ -341,10 +373,12 @@ const singleCommitCall = {
 };
 const callRendered = render(tool.renderCall(singleCommitCall, { spinnerFrame: 0 }, theme), 58, "single commit call");
 const callRerendered = render(tool.renderCall(singleCommitCall, { spinnerFrame: 7 }, theme), 58, "single commit call rerender");
-assertCompactCallTeaser(callRendered, "single commit call");
+assertCompactCallTeaser(callRendered, "single commit call", { expectedFiles: 1 });
 assertStaticRender(callRendered, callRerendered, "single commit call");
-assertIncludes(callRendered, "exercise compact", "single commit call");
-assertMatches(callRendered, /test_commit_ui_extension\.sh|1\s+files?/i, "single commit call file summary");
+for (const unexpected of ["exercise compact", "current session", "test_commit_ui_extension.sh"]) {
+  assertExcludes(callRendered, unexpected, "single commit call details");
+}
+assertNotMatches(callRendered, /\b(?:insertions?|deletions?|changed|stats?|subjects?|preview|push after)\b|[+-]\d+\b/i, "single commit call stale details");
 assertNoLegacyUi(callRendered, "single commit call");
 
 const splitCommitCall = {
@@ -357,10 +391,12 @@ const splitCommitCall = {
 };
 const groupedCallRendered = render(tool.renderCall(splitCommitCall, { spinnerFrame: 0 }, theme), 64, "split commit call");
 const groupedCallRerendered = render(tool.renderCall(splitCommitCall, { spinnerFrame: 7 }, theme), 64, "split commit call rerender");
-assertCompactCallTeaser(groupedCallRendered, "split commit call");
+assertCompactCallTeaser(groupedCallRendered, "split commit call", { expectedFiles: 2 });
 assertStaticRender(groupedCallRendered, groupedCallRerendered, "split commit call");
-assertMatches(groupedCallRendered, /2\s+(commits?|split)|split/i, "split commit call rows");
-assertMatches(groupedCallRendered, /split alpha|split beta|2\s+commits?/i, "split commit call summary");
+for (const unexpected of ["split alpha", "split beta", "alpha.txt", "beta.txt", "split"]) {
+  assertExcludes(groupedCallRendered, unexpected, "split commit call details");
+}
+assertNotMatches(groupedCallRendered, /\b\d+\s+commits?\b|\bsplit\b|\b(?:subjects?|insertions?|deletions?|changed|stats?|preview|push after)\b|[+-]\d+\b/i, "split commit call stale details");
 assertNoLegacyUi(groupedCallRendered, "split commit call");
 
 const runningResult = {
@@ -374,6 +410,12 @@ const runningResult = {
     selectedFiles: ["src/very/long/path/that/should/wrap-cleanly.ts"],
     ignoredFiles: [],
     commits: [{ status: "running", selectedFiles: ["src/very/long/path/that/should/wrap-cleanly.ts"], message: "render running" }],
+    steps: [
+      { key: "plan", label: "Plan", status: "done" },
+      { key: "tree", label: "Tree", status: "running" },
+      { key: "stage", label: "Stage", status: "pending" },
+      { key: "commit", label: "Commit", status: "pending" },
+    ],
     warnings: [],
   },
 };
@@ -381,7 +423,10 @@ const runningRendered = renderResult(runningResult, 54, "running result", { isPa
 const runningRerendered = renderResult(runningResult, 54, "running result rerender", { isPartial: true, spinnerFrame: 3 });
 assertBoxed(runningRendered, "running result");
 if (runningRendered === runningRerendered) fail(`running result did not animate between spinner frames: ${runningRendered}`);
-assertMatches(runningRendered, /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●•]|running|progress/i, "running result spinner or rail");
+const runningProgress = assertVisibleProgress(runningRendered, "running result");
+assertMatches(runningRendered, /1\/4\s+steps|✓\s*Plan/i, "running result partial progress");
+assertMatches(runningRendered, /Inspecting working tree|running|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s*Tree/i, "running result live label");
+if (runningProgress.filled >= runningProgress.total) fail(`running result progress should be partial, not full: ${JSON.stringify(runningProgress)}\n${runningRendered}`);
 assertNoLegacyUi(runningRendered, "running result");
 
 const completedRendered = renderResult(
@@ -404,6 +449,9 @@ const completedRendered = renderResult(
   "completed result",
 );
 assertBoxed(completedRendered, "completed result");
+const completedProgress = assertVisibleProgress(completedRendered, "completed result");
+if (completedProgress.filled !== completedProgress.total) fail(`completed result progress should be full: ${JSON.stringify(completedProgress)}\n${completedRendered}`);
+if (runningProgress.ratio >= completedProgress.ratio) fail(`running progress should be less complete than finished progress: ${JSON.stringify({ runningProgress, completedProgress })}`);
 assertMatches(completedRendered, /✓/, "completed result visible success checkmark");
 assertMatches(completedRendered, /Commit preview complete|Outcome|succeeded|success/i, "completed result success status");
 assertMatches(completedRendered, /stale-file|warnings?|ignored/i, "completed result warnings and ignored files");

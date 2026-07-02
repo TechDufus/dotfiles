@@ -161,6 +161,22 @@ function assertCompactCallTeaser(value, label, options = {}) {
   if (!receiptPattern.test(line)) fail(`${label} should only show /commit queued with an optional file count: ${value}`);
 }
 
+function assertConciseNotification(action, label) {
+  const message = String(action?.[1] ?? "");
+  if (!message) fail(`${label} notification message was empty: ${JSON.stringify(action)}`);
+  if (message.split("\n").length !== 1 || message.length > 96) {
+    fail(`${label} notification should be a concise one-line status: ${message}`);
+  }
+  for (const pattern of [
+    /[┌┐└┘┏┓┗┛╭╮╰╯╔╗╚╝╒╕╘╛]/,
+    /[│║┃├┝┠└┕┗╟╙]/,
+    /[━─█░▒▓■□▰▱]{4,}/,
+  ]) {
+    if (pattern.test(message)) fail(`${label} notification looked like a rich card: ${message}`);
+  }
+  assertMatches(message, /commit/i, `${label} notification text`);
+}
+
 function assertStaticRender(rendered, rerendered, label) {
   if (rendered !== rerendered) fail(`${label} changed between spinner frames: ${JSON.stringify({ rendered, rerendered })}`);
 }
@@ -226,6 +242,48 @@ function assertSucceeded(result, label) {
   if (result?.isError) fail(`${label} returned an error: ${JSON.stringify(result)}`);
   if (result?.details?.status && result.details.status !== "succeeded") {
     fail(`${label} did not finish succeeded: ${JSON.stringify(result.details)}`);
+  }
+}
+
+function assertDistinctSnapshotRefs(snapshot, finalDetails, label) {
+  if (snapshot === finalDetails) fail(`${label} reused the final details object`);
+  for (const key of ["steps", "commits", "selectedFiles", "ignoredFiles", "warnings"]) {
+    if (Array.isArray(snapshot?.[key]) && Array.isArray(finalDetails?.[key]) && snapshot[key] === finalDetails[key]) {
+      fail(`${label} reused mutable ${key} array`);
+    }
+  }
+  if (snapshot?.steps?.[0] && finalDetails?.steps?.[0] && snapshot.steps[0] === finalDetails.steps[0]) {
+    fail(`${label} reused mutable step row objects`);
+  }
+  if (snapshot?.commits?.[0] && finalDetails?.commits?.[0] && snapshot.commits[0] === finalDetails.commits[0]) {
+    fail(`${label} reused mutable commit row objects`);
+  }
+}
+
+function assertLiveUpdateSnapshots(updates, result, label) {
+  const snapshots = updates.map(update => update?.details).filter(details => details?.kind === "omp_commit");
+  if (snapshots.length === 0) fail(`${label} did not emit details snapshots`);
+  const finalDetails = result?.details;
+  if (!finalDetails) fail(`${label} returned no final details: ${JSON.stringify(result)}`);
+  const partialSnapshots = snapshots.length > 1 ? snapshots.slice(0, -1) : snapshots;
+  for (const snapshot of partialSnapshots) assertDistinctSnapshotRefs(snapshot, finalDetails, `${label} partial update snapshot`);
+
+  const phases = snapshots.map(details => ({ status: details.status, phase: details.phase }));
+  const runningSnapshot = snapshots.find(details => details.status === "running" && details.phase && details.phase !== finalDetails.phase);
+  if (!runningSnapshot) {
+    fail(`${label} did not preserve a running/intermediate update snapshot: ${JSON.stringify(phases)}`);
+  }
+  assertDistinctSnapshotRefs(runningSnapshot, finalDetails, `${label} running update snapshot`);
+  if (runningSnapshot.finalText) {
+    fail(`${label} running snapshot already had final text: ${JSON.stringify(runningSnapshot)}`);
+  }
+  const runningStepSnapshot = snapshots.find(details => details.steps?.some(step => step.status === "running"));
+  if (!runningStepSnapshot) {
+    fail(`${label} did not preserve a snapshot with a running step: ${JSON.stringify(snapshots.map(details => details.steps))}`);
+  }
+  const runningCommitSnapshot = snapshots.find(details => details.commits?.some(commit => commit.status === "running"));
+  if (!runningCommitSnapshot) {
+    fail(`${label} did not preserve a snapshot with a running commit row: ${JSON.stringify(snapshots.map(details => details.commits))}`);
   }
 }
 
@@ -313,17 +371,31 @@ try {
   const idleCtx = {
     isIdle: () => true,
     waitForIdle: async () => {},
-    ui: { notify: (...args) => actions.push(["notify", ...args]) },
+    ui: {
+      notify: (...args) => actions.push(["notify", ...args]),
+      setWorkingMessage: (...args) => actions.push(["setWorkingMessage", ...args]),
+    },
   };
 
   const commandContext = "Current context: commit the focused test refactor only.";
   await command.handler(`--dry-run --push --split ${commandContext}`, idleCtx);
+  const feedbackIndex = actions.findIndex(action => action[0] === "notify");
+  if (feedbackIndex === -1) fail("/commit command did not show immediate visible feedback");
+  assertConciseNotification(actions[feedbackIndex], "/commit immediate feedback");
+  const workingIndex = actions.findIndex(action => action[0] === "setWorkingMessage");
+  if (workingIndex === -1) fail("/commit command did not set a working message");
+  if (actions[workingIndex][1] !== "Planning commit…") {
+    fail(`/commit command set unexpected working message: ${JSON.stringify(actions[workingIndex])}`);
+  }
   const isolated = actions.find(action => action[0] === "setActiveTools");
   if (!isolated || isolated[1].join(",") !== "omp_commit") {
     fail(`commit command did not isolate active tools: ${JSON.stringify(actions)}`);
   }
-  const sent = actions.find(action => action[0] === "sendMessage");
+  const sentIndex = actions.findIndex(action => action[0] === "sendMessage");
+  const sent = sentIndex === -1 ? undefined : actions[sentIndex];
   if (!sent) fail("commit command did not send a hidden prompt");
+  if (feedbackIndex > sentIndex) fail("/commit command showed visible feedback after the hidden prompt");
+  if (workingIndex > sentIndex) fail("/commit command set the working message after the hidden prompt");
   const prompt = sent[1] ?? {};
   const promptText = String(prompt.content ?? prompt.text ?? "");
   const promptEnvelope = `${promptText}\n${JSON.stringify(prompt.details ?? {})}`;
@@ -479,6 +551,7 @@ try {
   }, updates);
   assertSucceeded(selected, "selected-file commit");
   if (updates.length === 0) fail("selected-file commit did not emit live updates");
+  assertLiveUpdateSnapshots(updates, selected, "selected-file commit");
   if (!hashOf(selected)) fail(`selected-file commit did not record a short hash: ${JSON.stringify(selected.details)}`);
   assertSameSet(selectedFilesOf(selected), ["included.txt"], "selected-file details");
   if (!ignoredFilesOf(selected).includes("unrelated.txt")) fail(`selected-file commit did not report ignored unrelated change: ${JSON.stringify(selected.details)}`);

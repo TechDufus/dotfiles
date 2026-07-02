@@ -12,6 +12,8 @@ const MAX_OUTPUT_CHARS = 1_600;
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PULSE_COLORS = ["accent", "success", "warning", "accent", "muted", "accent"] as const;
 const PULSE_BAR_WIDTH = 22;
+const COMMIT_HEARTBEAT_MS = 120;
+const COMMIT_WORKING_MESSAGE = "Planning commit…";
 
 type RunStatus = "pending" | "running" | "succeeded" | "failed";
 type StepStatus = "pending" | "running" | "done" | "failed";
@@ -148,10 +150,14 @@ interface DashboardModel {
 	outcome: string[];
 	context?: string;
 }
+
+interface CommitCommandUi {
+	notify(message: string, level: string): void;
+	setWorkingMessage?(message: string | undefined): void | Promise<void>;
+}
+
 interface CommitCommandContext {
-	ui: {
-		notify(message: string, level: string): void;
-	};
+	ui: CommitCommandUi;
 	isIdle(): boolean;
 	waitForIdle(): Promise<void>;
 }
@@ -164,10 +170,16 @@ class CommandError extends WorkflowError {
 	}
 }
 
+async function setCommandWorkingMessage(ui: CommitCommandUi | undefined, message: string | undefined): Promise<void> {
+	const setWorkingMessage = ui?.setWorkingMessage;
+	if (typeof setWorkingMessage !== "function") return;
+	await setWorkingMessage.call(ui, message);
+}
+
 export default function commitUi(pi: ExtensionAPI): void {
 	const z = pi.zod;
 	let restoreActiveTools: string[] | undefined;
-
+	let activeCommandUi: CommitCommandUi | undefined;
 	pi.setLabel?.("commit UI");
 
 	const commitParam = z.object({
@@ -202,8 +214,22 @@ export default function commitUi(pi: ExtensionAPI): void {
 		async execute(_toolCallId: string, params: unknown, signal: AbortSignal | undefined, onUpdate: ((update: ToolUpdate) => void) | undefined, ctx: { cwd: string }) {
 			const plan = normalizeCommitPlan(params);
 			const details = createRunDetails(plan);
-			const emit = () => onUpdate?.({ content: [{ type: "text", text: details.phase }], details });
+			const emit = () => {
+				if (!onUpdate) return;
+				const snapshot = cloneCommitRunDetails(details);
+				onUpdate({ content: [{ type: "text", text: snapshot.phase }], details: snapshot });
+			};
+			let heartbeat: Timer | undefined;
 			emit();
+			if (onUpdate) {
+				heartbeat = setInterval(() => {
+					try {
+						emit();
+					} catch {
+						// Heartbeat repainting must never alter commit behavior.
+					}
+				}, COMMIT_HEARTBEAT_MS);
+			}
 
 			try {
 				await executeCommitPlan(plan, ctx.cwd, details, emit, signal);
@@ -215,6 +241,9 @@ export default function commitUi(pi: ExtensionAPI): void {
 				markRunningSteps(details, "failed");
 				details.finalText = buildToolResultText(details);
 				emit();
+			} finally {
+				clearInterval(heartbeat);
+				await resetActiveCommandWorkingMessage();
 			}
 
 			return {
@@ -234,6 +263,12 @@ export default function commitUi(pi: ExtensionAPI): void {
 			return new CommitRunComponent(details, Boolean(readRecordFlag(options, "expanded")), theme, getSpinnerFrame(options));
 		},
 	});
+
+	const resetActiveCommandWorkingMessage = async () => {
+		const ui = activeCommandUi;
+		activeCommandUi = undefined;
+		await setCommandWorkingMessage(ui, undefined);
+	};
 
 	const startCommitWorkflow = async (parsed: ParsedArgs) => {
 		restoreActiveTools = pi.getActiveTools();
@@ -259,16 +294,25 @@ export default function commitUi(pi: ExtensionAPI): void {
 			}
 
 			const parsed = parseCommitArgs(args);
-			if (!ctx.isIdle()) {
-				ctx.ui.notify("Commit queued until the current turn finishes.", "info");
-				await ctx.waitForIdle();
-			}
+			activeCommandUi = ctx.ui;
+			ctx.ui.notify(COMMIT_WORKING_MESSAGE, "info");
+			await setCommandWorkingMessage(ctx.ui, COMMIT_WORKING_MESSAGE);
+			try {
+				if (!ctx.isIdle()) {
+					ctx.ui.notify("Commit queued until the current turn finishes.", "info");
+					await ctx.waitForIdle();
+				}
 
-			await startCommitWorkflow(parsed);
+				await startCommitWorkflow(parsed);
+			} catch (error) {
+				await resetActiveCommandWorkingMessage();
+				throw error;
+			}
 		},
 	});
 
 	const restoreTools = async () => {
+		await resetActiveCommandWorkingMessage();
 		if (!restoreActiveTools) return;
 		const tools = restoreActiveTools;
 		restoreActiveTools = undefined;
@@ -519,6 +563,22 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 		commitHash: undefined,
 		commits,
 		warnings: [],
+	};
+}
+
+function cloneCommitRunDetails(details: CommitRunDetails): CommitRunDetails {
+	return {
+		...details,
+		steps: details.steps.map(step => ({ ...step })),
+		selectedFiles: [...details.selectedFiles],
+		ignoredFiles: [...details.ignoredFiles],
+		commits: details.commits.map(commit => ({
+			...commit,
+			requestedFiles: [...commit.requestedFiles],
+			selectedFiles: [...commit.selectedFiles],
+			commitFiles: [...commit.commitFiles],
+		})),
+		warnings: [...details.warnings],
 	};
 }
 

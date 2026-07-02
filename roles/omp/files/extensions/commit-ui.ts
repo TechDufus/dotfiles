@@ -14,6 +14,7 @@ const PULSE_COLORS = ["accent", "success", "warning", "accent", "muted", "accent
 const PULSE_BAR_WIDTH = 22;
 const COMMIT_WIDGET_FRAME_MS = 120;
 const COMMIT_PARTIAL_UPDATE_MS = 120;
+const COMMIT_UI_PAINT_YIELD_MS = 16;
 const COMMIT_WORKING_MESSAGE = "Planning commit…";
 
 type IntervalHandle = Parameters<typeof clearInterval>[0];
@@ -232,6 +233,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 					onUpdate({ content: [{ type: "text", text: snapshot.phase }], details: snapshot });
 				};
 				emit();
+				await waitForUiPaint();
 				if (onUpdate) {
 					heartbeat = setInterval(() => {
 						try {
@@ -534,6 +536,12 @@ function renderQueuedReceipt(plan: CommitPlan, theme: unknown, width: number): s
 		truncateVisible(`${paint(theme, "accent", "/commit queued")}${paint(theme, "muted", metadata)}`, renderWidth),
 	];
 }
+function waitForUiPaint(): Promise<void> {
+	const { promise, resolve } = Promise.withResolvers<void>();
+	setTimeout(resolve, COMMIT_UI_PAINT_YIELD_MS);
+	return promise;
+}
+
 
 
 
@@ -551,6 +559,7 @@ async function executeCommitPlan(
 	const status = await runStep(details, "tree", "Tree", onUpdate, async () => {
 		details.phase = "Inspecting working tree";
 		onUpdate();
+		await waitForUiPaint();
 		const rawStatus = (await runGit(cwd, ["status", "--porcelain=v1", "-z", "--untracked-files=all"], signal, details)).stdout;
 		const entries = parseStatusZ(rawStatus);
 		if (entries.length === 0) throw new WorkflowError("No working tree changes to commit.");
@@ -586,6 +595,7 @@ async function executeCommitPlan(
 			setCommitState(result, "running", "Reading commit hash");
 			details.phase = `${label}: reading commit hash`;
 			onUpdate();
+			await waitForUiPaint();
 			const hash = (await runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details)).stdout.trim();
 			result.commitHash = hash;
 			details.commitHash = hash;
@@ -636,6 +646,7 @@ async function runStep<T>(
 ): Promise<T> {
 	setStep(details, key, label, "running");
 	onUpdate();
+	await waitForUiPaint();
 	try {
 		const value = await fn();
 		setStep(details, key, label, "done");

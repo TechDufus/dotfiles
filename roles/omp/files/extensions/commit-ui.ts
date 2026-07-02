@@ -153,9 +153,25 @@ interface DashboardModel {
 	context?: string;
 }
 
+interface CommitWidgetTui {
+	requestRender(): void;
+}
+
+type CommitWidgetComponent = Component & { dispose?(): void };
+type CommitWidgetFactory = (tui: CommitWidgetTui, theme: unknown) => CommitWidgetComponent;
+
+interface CommitWidgetOptions {
+	placement?: "aboveEditor" | "belowEditor";
+}
+
+interface UnrefableInterval {
+	unref(): void;
+}
+
 interface CommitCommandUi {
 	notify(message: string, level: string): void;
 	setWorkingMessage?(message: string | undefined): void | Promise<void>;
+	setWidget?(key: string, content: CommitWidgetFactory | string[] | undefined, options?: CommitWidgetOptions): void | Promise<void>;
 }
 
 interface CommitCommandContext {
@@ -178,10 +194,19 @@ async function setCommandWorkingMessage(ui: CommitCommandUi | undefined, message
 	await setWorkingMessage.call(ui, message);
 }
 
+function unrefInterval(handle: IntervalHandle | undefined): void {
+	if (hasIntervalUnref(handle)) handle.unref();
+}
+
+function hasIntervalUnref(handle: unknown): handle is UnrefableInterval {
+	return typeof handle === "object" && handle !== null && "unref" in handle && typeof handle.unref === "function";
+}
+
 export default function commitUi(pi: ExtensionAPI): void {
 	const z = pi.zod;
 	let restoreActiveTools: string[] | undefined;
 	let activeCommandUi: CommitCommandUi | undefined;
+	let activeCommitWidget: CommitLiveWidgetController | undefined;
 	pi.setLabel?.("commit UI");
 
 	const commitParam = z.object({
@@ -214,46 +239,50 @@ export default function commitUi(pi: ExtensionAPI): void {
 			acceptRisk: z.boolean().optional().describe("Legacy compatibility flag accepted and ignored."),
 		}),
 		async execute(_toolCallId: string, params: unknown, signal: AbortSignal | undefined, onUpdate: ((update: ToolUpdate) => void) | undefined, ctx: { cwd: string }) {
-			const plan = normalizeCommitPlan(params);
-			const details = createRunDetails(plan);
-			const emit = () => {
-				if (!onUpdate) return;
-				const snapshot = cloneCommitRunDetails(details);
-				onUpdate({ content: [{ type: "text", text: snapshot.phase }], details: snapshot });
-			};
 			let heartbeat: IntervalHandle | undefined;
-			emit();
-			if (onUpdate) {
-				heartbeat = setInterval(() => {
-					try {
-						emit();
-					} catch {
-						// Heartbeat repainting must never alter commit behavior.
-					}
-				}, COMMIT_HEARTBEAT_MS);
-			}
-
 			try {
-				await executeCommitPlan(plan, ctx.cwd, details, emit, signal);
-			} catch (error) {
-				details.status = "failed";
-				details.errorText = formatError(error);
-				details.phase = "Commit blocked";
-				details.finishedAt = Date.now();
-				markRunningSteps(details, "failed");
-				details.finalText = buildToolResultText(details);
+				const plan = normalizeCommitPlan(params);
+				const details = createRunDetails(plan);
+				const emit = () => {
+					const snapshot = cloneCommitRunDetails(details);
+					activeCommitWidget?.update(snapshot);
+					if (!onUpdate) return;
+					onUpdate({ content: [{ type: "text", text: snapshot.phase }], details: snapshot });
+				};
 				emit();
+				if (onUpdate) {
+					heartbeat = setInterval(() => {
+						try {
+							emit();
+						} catch {
+							// Heartbeat repainting must never alter commit behavior.
+						}
+					}, COMMIT_HEARTBEAT_MS);
+				}
+
+				try {
+					await executeCommitPlan(plan, ctx.cwd, details, emit, signal);
+				} catch (error) {
+					details.status = "failed";
+					details.errorText = formatError(error);
+					details.phase = "Commit blocked";
+					details.finishedAt = Date.now();
+					markRunningSteps(details, "failed");
+					details.finalText = buildToolResultText(details);
+					emit();
+				}
+
+				return {
+					content: [{ type: "text", text: buildToolResultText(details) }],
+					details,
+					isError: details.status === "failed",
+				};
 			} finally {
 				clearInterval(heartbeat);
-				await resetActiveCommandWorkingMessage();
+				await resetActiveCommandUi();
 			}
-
-			return {
-				content: [{ type: "text", text: buildToolResultText(details) }],
-				details,
-				isError: details.status === "failed",
-			};
 		},
+
 		renderCall(args: unknown, _options: unknown, theme: unknown) {
 			return new CommitCallComponent(normalizeCommitPlan(args), theme);
 		},
@@ -266,10 +295,17 @@ export default function commitUi(pi: ExtensionAPI): void {
 		},
 	});
 
-	const resetActiveCommandWorkingMessage = async () => {
+	const resetActiveCommandUi = async () => {
 		const ui = activeCommandUi;
+		const widget = activeCommitWidget;
 		activeCommandUi = undefined;
-		await setCommandWorkingMessage(ui, undefined);
+		activeCommitWidget = undefined;
+		widget?.dispose();
+		try {
+			await clearCommandWidget(ui);
+		} finally {
+			await setCommandWorkingMessage(ui, undefined);
+		}
 	};
 
 	const startCommitWorkflow = async (parsed: ParsedArgs) => {
@@ -297,9 +333,10 @@ export default function commitUi(pi: ExtensionAPI): void {
 
 			const parsed = parseCommitArgs(args);
 			activeCommandUi = ctx.ui;
-			ctx.ui.notify(COMMIT_WORKING_MESSAGE, "info");
-			await setCommandWorkingMessage(ctx.ui, COMMIT_WORKING_MESSAGE);
 			try {
+				ctx.ui.notify(COMMIT_WORKING_MESSAGE, "info");
+				startActiveCommandWidget(ctx.ui, parsed);
+				await setCommandWorkingMessage(ctx.ui, COMMIT_WORKING_MESSAGE);
 				if (!ctx.isIdle()) {
 					ctx.ui.notify("Commit queued until the current turn finishes.", "info");
 					await ctx.waitForIdle();
@@ -307,18 +344,40 @@ export default function commitUi(pi: ExtensionAPI): void {
 
 				await startCommitWorkflow(parsed);
 			} catch (error) {
-				await resetActiveCommandWorkingMessage();
+				await resetActiveCommandUi();
 				throw error;
 			}
 		},
 	});
 
 	const restoreTools = async () => {
-		await resetActiveCommandWorkingMessage();
+		await resetActiveCommandUi();
 		if (!restoreActiveTools) return;
 		const tools = restoreActiveTools;
 		restoreActiveTools = undefined;
 		await pi.setActiveTools(tools);
+	};
+
+	const startActiveCommandWidget = (ui: CommitCommandUi, parsed: ParsedArgs) => {
+		activeCommitWidget?.dispose();
+		activeCommitWidget = undefined;
+		const setWidget = ui.setWidget;
+		if (typeof setWidget !== "function") return;
+		const widget = new CommitLiveWidgetController(createPlanningRunDetails(parsed));
+		activeCommitWidget = widget;
+		try {
+			setWidget.call(ui, TOOL_NAME, (tui, theme) => widget.createComponent(tui, theme), { placement: "aboveEditor" });
+		} catch (error) {
+			if (activeCommitWidget === widget) activeCommitWidget = undefined;
+			widget.dispose();
+			throw error;
+		}
+	};
+
+	const clearCommandWidget = async (ui: CommitCommandUi | undefined) => {
+		const setWidget = ui?.setWidget;
+		if (typeof setWidget !== "function") return;
+		await setWidget.call(ui, TOOL_NAME, undefined);
 	};
 
 	pi.on("turn_end", restoreTools);
@@ -352,6 +411,88 @@ class CommitRunComponent implements Component {
 		return renderDashboard(dashboardFromDetails(this.details), this.expanded, this.theme, this.spinnerFrame, width);
 	}
 }
+
+class CommitLiveWidgetController {
+	private details: CommitRunDetails;
+	private readonly components = new Set<CommitLiveWidgetComponent>();
+	private disposed = false;
+
+	constructor(details: CommitRunDetails) {
+		this.details = cloneCommitRunDetails(details);
+	}
+
+	createComponent(tui: CommitWidgetTui, theme: unknown): CommitLiveWidgetComponent {
+		const component = new CommitLiveWidgetComponent(this, tui, theme);
+		this.components.add(component);
+		return component;
+	}
+
+	snapshot(): CommitRunDetails {
+		return this.details;
+	}
+
+	update(details: CommitRunDetails): void {
+		if (this.disposed) return;
+		this.details = cloneCommitRunDetails(details);
+		for (const component of this.components) {
+			component.requestRender();
+		}
+	}
+
+	detach(component: CommitLiveWidgetComponent): void {
+		this.components.delete(component);
+	}
+
+	dispose(): void {
+		if (this.disposed) return;
+		this.disposed = true;
+		for (const component of [...this.components]) {
+			component.dispose();
+		}
+		this.components.clear();
+	}
+}
+
+class CommitLiveWidgetComponent implements Component {
+	private spinnerFrame = 0;
+	private interval: IntervalHandle | undefined;
+	private disposed = false;
+
+	constructor(
+		private readonly controller: CommitLiveWidgetController,
+		private readonly tui: CommitWidgetTui,
+		private readonly theme: unknown,
+	) {
+		this.interval = setInterval(() => {
+			this.spinnerFrame = (this.spinnerFrame + 1) % SPINNER_FRAMES.length;
+			this.requestRender();
+		}, COMMIT_HEARTBEAT_MS);
+		unrefInterval(this.interval);
+	}
+
+	invalidate(): void {}
+
+	requestRender(): void {
+		try {
+			this.tui.requestRender();
+		} catch {
+			// Widget repainting must never alter commit behavior.
+		}
+	}
+
+	render(width: number): string[] {
+		return renderDashboard(dashboardFromDetails(this.controller.snapshot()), false, this.theme, this.spinnerFrame, width);
+	}
+
+	dispose(): void {
+		if (this.disposed) return;
+		this.disposed = true;
+		clearInterval(this.interval);
+		this.interval = undefined;
+		this.controller.detach(this);
+	}
+}
+
 
 class StaticLinesComponent implements Component {
 	constructor(private readonly lines: string[]) {}
@@ -566,6 +707,26 @@ function createRunDetails(plan: CommitPlan): CommitRunDetails {
 		commits,
 		warnings: [],
 	};
+}
+
+function createPlanningRunDetails(parsed: ParsedArgs): CommitRunDetails {
+	const details = createRunDetails({
+		commits: [{
+			files: [],
+			deriveFilesFromStatus: true,
+			commitMessage: "Planning commit from context",
+			rationale: "",
+		}],
+		context: parsed.context,
+		dryRun: parsed.dryRun,
+		push: parsed.push,
+		multiCommit: parsed.multiCommit,
+	});
+	details.phase = COMMIT_WORKING_MESSAGE;
+	details.steps = [{ key: "plan", label: "Plan", status: "running" }];
+	const commit = details.commits[0];
+	if (commit) commit.phase = "Planning";
+	return details;
 }
 
 function cloneCommitRunDetails(details: CommitRunDetails): CommitRunDetails {

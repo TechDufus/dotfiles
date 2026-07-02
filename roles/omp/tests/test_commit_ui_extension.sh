@@ -35,6 +35,7 @@ function schema() {
 const zod = new Proxy({}, { get: () => () => schema() });
 const calls = [];
 const actions = [];
+const COMMIT_WIDGET_KEY = "omp_commit";
 let activeTools = ["read", "bash"];
 const api = {
   zod,
@@ -83,6 +84,7 @@ for (const method of ["execute", "renderCall", "renderResult"]) {
 
 const eventHandlers = name => calls.filter(call => call[0] === "event" && call[1] === name).map(call => call[2]);
 const turnEndHandler = eventHandlers("turn_end").find(handler => typeof handler === "function");
+const agentEndHandler = eventHandlers("agent_end").find(handler => typeof handler === "function");
 const inputHandler = eventHandlers("input").find(handler => typeof handler === "function");
 
 const themeBase = {
@@ -118,6 +120,109 @@ function render(component, width, label) {
 
 function renderResult(result, width, label, options = {}) {
   return render(tool.renderResult(result, { expanded: false, isPartial: false, spinnerFrame: 1, ...options }, theme), width, label);
+}
+
+function captureIntervals() {
+  const realSetInterval = globalThis.setInterval;
+  const realClearInterval = globalThis.clearInterval;
+  const timers = [];
+  globalThis.setInterval = ((callback, delay, ...args) => {
+    const timer = {
+      callback,
+      delay,
+      args,
+      cleared: false,
+      unref() {
+        return timer;
+      },
+      ref() {
+        return timer;
+      },
+    };
+    timers.push(timer);
+    return timer;
+  }) as typeof globalThis.setInterval;
+  globalThis.clearInterval = ((timer) => {
+    const captured = timers.find(candidate => candidate === timer);
+    if (captured) {
+      captured.cleared = true;
+      return undefined;
+    }
+    return realClearInterval(timer);
+  }) as typeof globalThis.clearInterval;
+  return {
+    timers,
+    tick: async () => {
+      for (const timer of [...timers]) {
+        if (timer.cleared || typeof timer.callback !== "function") continue;
+        await timer.callback(...timer.args);
+      }
+    },
+    restore: () => {
+      globalThis.setInterval = realSetInterval;
+      globalThis.clearInterval = realClearInterval;
+    },
+  };
+}
+
+function assertCommitWidgetSetAction(action, label) {
+  if (!action || action[0] !== "setWidget" || action[1] !== COMMIT_WIDGET_KEY) {
+    fail(`${label} did not set the ${COMMIT_WIDGET_KEY} widget: ${JSON.stringify(action)}`);
+  }
+  if (typeof action[2] !== "function") {
+    fail(`${label} widget action did not include a render factory: ${JSON.stringify(action)}`);
+  }
+  const placement = String(action[3]?.placement ?? "");
+  if (!/above/i.test(placement)) {
+    fail(`${label} widget should be placed above the editor/input: ${JSON.stringify(action[3])}`);
+  }
+}
+
+function assertWidgetCleared(actionList, label) {
+  const clear = actionList.find(action => action[0] === "setWidget" && action[1] === COMMIT_WIDGET_KEY && action[2] === undefined);
+  if (!clear) fail(`${label} did not clear the ${COMMIT_WIDGET_KEY} widget: ${JSON.stringify(actionList)}`);
+  return clear;
+}
+
+function mountCommitWidget(action, label) {
+  assertCommitWidgetSetAction(action, label);
+  const intervals = captureIntervals();
+  const requests = [];
+  try {
+    const component = action[2]({
+      requestRender: () => requests.push(Date.now()),
+    });
+    return { component, intervals, requests };
+  } catch (error) {
+    intervals.restore();
+    throw error;
+  }
+}
+
+async function assertImmediateCommitWidget(action, label) {
+  const mounted = mountCommitWidget(action, label);
+  try {
+    const rendered = render(mounted.component, 54, label);
+    assertBoxed(rendered, label);
+    assertMatches(rendered, /commit/i, `${label} commit context`);
+    assertMatches(rendered, /Planning commit|commit planning|planning/i, `${label} planning context`);
+    liveActivityRow(rendered, /Planning commit|commit planning|planning|commit/i, label);
+    assertVisibleProgress(rendered, label);
+    if (mounted.intervals.timers.length === 0) {
+      fail(`${label} did not start a live spinner/progress interval`);
+    }
+    await mounted.intervals.tick();
+    if (mounted.requests.length === 0) {
+      fail(`${label} interval did not request a render`);
+    }
+    const rerendered = render(mounted.component, 54, `${label} rerender`);
+    if (rendered === rerendered) {
+      fail(`${label} did not change after a spinner/state tick: ${rendered}`);
+    }
+    return { rendered, rerendered };
+  } finally {
+    mounted.intervals.restore();
+  }
 }
 
 function assertIncludes(value, expected, label) {
@@ -407,6 +512,7 @@ try {
     ui: {
       notify: (...args) => actions.push(["notify", ...args]),
       setWorkingMessage: (...args) => actions.push(["setWorkingMessage", ...args]),
+      setWidget: (...args) => actions.push(["setWidget", ...args]),
     },
   };
 
@@ -424,11 +530,17 @@ try {
   if (!isolated || isolated[1].join(",") !== "omp_commit") {
     fail(`commit command did not isolate active tools: ${JSON.stringify(actions)}`);
   }
+  const widgetIndex = actions.findIndex(action => action[0] === "setWidget" && action[1] === COMMIT_WIDGET_KEY && typeof action[2] === "function");
+  if (widgetIndex === -1) fail(`/commit command did not set an immediate ${COMMIT_WIDGET_KEY} widget: ${JSON.stringify(actions)}`);
+  const widgetAction = actions[widgetIndex];
+  assertCommitWidgetSetAction(widgetAction, "/commit immediate widget");
   const sentIndex = actions.findIndex(action => action[0] === "sendMessage");
   const sent = sentIndex === -1 ? undefined : actions[sentIndex];
   if (!sent) fail("commit command did not send a hidden prompt");
   if (feedbackIndex > sentIndex) fail("/commit command showed visible feedback after the hidden prompt");
   if (workingIndex > sentIndex) fail("/commit command set the working message after the hidden prompt");
+  if (widgetIndex > sentIndex) fail(`/commit command set the live widget after the hidden prompt: ${JSON.stringify(actions)}`);
+  await assertImmediateCommitWidget(widgetAction, "/commit immediate widget");
   const prompt = sent[1] ?? {};
   const promptText = String(prompt.content ?? prompt.text ?? "");
   const promptEnvelope = `${promptText}\n${JSON.stringify(prompt.details ?? {})}`;
@@ -449,10 +561,38 @@ try {
   if (!turnEndHandler) fail("commit command did not register turn_end active-tool restoration");
   actions.length = 0;
   await turnEndHandler();
+  assertWidgetCleared(actions, "/commit turn_end cleanup");
   const restored = actions.find(action => action[0] === "setActiveTools");
   if (!restored || restored[1].join(",") !== "read,bash") {
     fail(`commit command did not restore previous active tools: ${JSON.stringify(actions)}`);
   }
+
+  if (!agentEndHandler) fail("commit command did not register agent_end active-tool restoration");
+  actions.length = 0;
+  await command.handler("--dry-run agent-end cleanup", idleCtx);
+  actions.length = 0;
+  await agentEndHandler();
+  assertWidgetCleared(actions, "/commit agent_end cleanup");
+  const agentRestored = actions.find(action => action[0] === "setActiveTools");
+  if (!agentRestored || agentRestored[1].join(",") !== "read,bash") {
+    fail(`commit command did not restore previous active tools on agent_end: ${JSON.stringify(actions)}`);
+  }
+
+  actions.length = 0;
+  await command.handler("--dry-run tool completion cleanup", idleCtx);
+  const completionWidget = actions.find(action => action[0] === "setWidget" && action[1] === COMMIT_WIDGET_KEY && typeof action[2] === "function");
+  if (!completionWidget) fail(`/commit command did not set a widget for tool completion cleanup: ${JSON.stringify(actions)}`);
+  const completionRepo = await makeRepo("widget-cleanup-");
+  actions.length = 0;
+  const completion = await execute(completionRepo, "widget-cleanup", {
+    commitMessage: "chore(test): widget cleanup",
+    dryRun: true,
+    push: false,
+  });
+  assertError(completion, /No working tree changes to commit/i, "tool completion widget cleanup fixture");
+  assertWidgetCleared(actions, "/commit tool completion cleanup");
+  actions.length = 0;
+  await turnEndHandler();
 
   if (inputHandler) {
     actions.length = 0;

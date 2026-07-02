@@ -17,10 +17,9 @@ symbolPreset: nerd
 display: 
   shimmer: kitt
 defaultThinkingLevel: xhigh
-serviceTier: default
 contextPromotion: 
   enabled: false
-advisor:
+advisor: 
   enabled: false
   subagents: false
   syncBacklog: 1
@@ -84,3 +83,7 @@ vault:
 dev: 
   autoqa: 
     consent: granted
+tier: 
+  openai: default
+browser: 
+  headless: false

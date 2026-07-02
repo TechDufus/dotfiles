@@ -21,7 +21,7 @@ serviceTier: default
 contextPromotion: 
   enabled: false
 advisor:
-  enabled: true
+  enabled: false
   subagents: false
   syncBacklog: 1
   immuneTurns: 3

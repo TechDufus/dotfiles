@@ -203,6 +203,39 @@ function assertVisibleProgress(value, label) {
   return progressBarStats(value, label);
 }
 
+function renderedLines(value) {
+  return String(value).split("\n");
+}
+
+function liveActivityRow(value, phasePattern, label) {
+  const row = renderedLines(value).find(line =>
+    /(?:Working|Activity|Current|Now|Live|Running|In progress|Doing|Status)\s*:/i.test(line) &&
+    phasePattern.test(line)
+  );
+  if (!row) fail(`${label} missing a live activity/detail row: ${value}`);
+  if (!/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏✦]/.test(row)) {
+    fail(`${label} live activity/detail row was not visibly animated: ${row}\n${value}`);
+  }
+  return row;
+}
+
+function assertPendingSelectionSignal(value, label) {
+  assertNotMatches(value, /\b0\s+files?\b/i, `${label} unresolved file count`);
+  assertMatches(value, /\b(?:files?|selection|changes?)\b/i, `${label} pending file context`);
+  assertMatches(value, /\b(?:pending|scanning|selecting|discovering|resolving|checking|detecting|loading)\b/i, `${label} pending file signal`);
+}
+
+function assertCollapsedLeftOut(value, width, label) {
+  const line = renderedLines(value).find(candidate => /\bLeft out\b/i.test(candidate));
+  if (!line) fail(`${label} lost Left out label: ${value}`);
+  if (line.length > width) fail(`${label} Left out line exceeded width ${width}: ${line}\n${value}`);
+  assertMatches(line, /\bLeft out\b\s*:\s*\S/i, `${label} left out label and value`);
+  assertNotMatches(line, /;\s*…|;…|;\s*$/, `${label} malformed semicolon truncation`);
+  assertNotMatches(line, /\bLeft out\b\s*:\s*(?:…|\.\.\.)\s*$/i, `${label} collapsed away ignored file context`);
+  assertMatches(line, /\b\d+\s+files?\b/i, `${label} left out count`);
+  assertMatches(line, /ignored\//i, `${label} ignored path context`);
+}
+
 function assertNoLegacyUi(value, label) {
   for (const pattern of [/\batomic\b/i, /secret findings/i, /\brisk\b/i]) {
     if (pattern.test(String(value))) fail(`${label} used legacy UI concept ${pattern}: ${value}`);
@@ -495,11 +528,42 @@ const runningRendered = renderResult(runningResult, 54, "running result", { isPa
 const runningRerendered = renderResult(runningResult, 54, "running result rerender", { isPartial: true, spinnerFrame: 3 });
 assertBoxed(runningRendered, "running result");
 if (runningRendered === runningRerendered) fail(`running result did not animate between spinner frames: ${runningRendered}`);
+const runningActivity = liveActivityRow(runningRendered, /Inspecting working tree/i, "running result");
+const rerenderedRunningActivity = liveActivityRow(runningRerendered, /Inspecting working tree/i, "running result rerender");
+if (runningActivity === rerenderedRunningActivity) {
+  fail(`running result live activity/detail row did not animate between spinner frames: ${JSON.stringify({ runningActivity, rerenderedRunningActivity })}`);
+}
 const runningProgress = assertVisibleProgress(runningRendered, "running result");
 assertMatches(runningRendered, /1\/4\s+steps|✓\s*Plan/i, "running result partial progress");
 assertMatches(runningRendered, /Inspecting working tree|running|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s*Tree/i, "running result live label");
 if (runningProgress.filled >= runningProgress.total) fail(`running result progress should be partial, not full: ${JSON.stringify(runningProgress)}\n${runningRendered}`);
 assertNoLegacyUi(runningRendered, "running result");
+
+const pendingSelectionResult = {
+  content: [{ type: "text", text: "Scanning working tree" }],
+  details: {
+    id: "render-pending-selection",
+    status: "running",
+    phase: "Scanning working tree",
+    dryRun: true,
+    push: false,
+    selectedFiles: [],
+    ignoredFiles: [],
+    commits: [{ status: "pending", requestedFiles: ["src/pending-selection.ts"], selectedFiles: [], message: "render scan" }],
+    steps: [
+      { key: "plan", label: "Plan", status: "running" },
+      { key: "tree", label: "Tree", status: "pending" },
+      { key: "stage", label: "Stage", status: "pending" },
+      { key: "commit", label: "Commit", status: "pending" },
+    ],
+    warnings: [],
+  },
+};
+const pendingSelectionRendered = renderResult(pendingSelectionResult, 54, "pending selection result", { isPartial: true, spinnerFrame: 4 });
+assertBoxed(pendingSelectionRendered, "pending selection result");
+liveActivityRow(pendingSelectionRendered, /Scanning working tree/i, "pending selection result");
+assertPendingSelectionSignal(pendingSelectionRendered, "pending selection result");
+assertVisibleProgress(pendingSelectionRendered, "pending selection result");
 
 const completedRendered = renderResult(
   {
@@ -528,6 +592,33 @@ assertMatches(completedRendered, /✓/, "completed result visible success checkm
 assertMatches(completedRendered, /Commit preview complete|Outcome|succeeded|success/i, "completed result success status");
 assertMatches(completedRendered, /stale-file|warnings?|ignored/i, "completed result warnings and ignored files");
 assertNoLegacyUi(completedRendered, "completed result");
+
+const collapsedLeftOutRendered = renderResult(
+  {
+    content: [{ type: "text", text: "Commit preview complete." }],
+    details: {
+      id: "render-left-out-collapse",
+      status: "succeeded",
+      phase: "Commit preview complete",
+      dryRun: true,
+      push: false,
+      selectedFiles: ["kept-file-with-a-long-name.txt"],
+      ignoredFiles: [
+        "ignored/generated-artifact-with-a-very-long-name-one.txt",
+        "ignored/generated-artifact-with-a-very-long-name-two.txt",
+        "ignored/generated-artifact-with-a-very-long-name-three.txt",
+      ],
+      warnings: [],
+      commits: [{ status: "succeeded", selectedFiles: ["kept-file-with-a-long-name.txt"], message: "preview compact card" }],
+      finalText: "Commit preview complete.",
+    },
+  },
+  54,
+  "collapsed left out result",
+);
+assertBoxed(collapsedLeftOutRendered, "collapsed left out result");
+assertCollapsedLeftOut(collapsedLeftOutRendered, 54, "collapsed left out result");
+assertNoLegacyUi(collapsedLeftOutRendered, "collapsed left out result");
 
 try {
   const emptyRepo = await makeRepo("empty-");

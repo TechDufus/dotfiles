@@ -100,3 +100,14 @@ default_tools_approval_mode = "approve"
 
 [memories]
 disable_on_external_context = true
+
+[projects."/Users/MDegarmo/dev/redhorse/atlas"]
+trust_level = "trusted"
+
+[projects."/Users/MDegarmo/.dotfiles"]
+trust_level = "trusted"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-07-01T06:26:14Z"
+source_type = "local"
+source = "/Users/MDegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"

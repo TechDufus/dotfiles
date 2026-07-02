@@ -183,6 +183,12 @@ function assertWidgetCleared(actionList, label) {
   if (!clear) fail(`${label} did not clear the ${COMMIT_WIDGET_KEY} widget: ${JSON.stringify(actionList)}`);
   return clear;
 }
+function assertWorkingMessageCleared(actionList, label) {
+  const clear = actionList.find(action => action[0] === "setWorkingMessage" && action[1] === undefined);
+  if (!clear) fail(`${label} did not clear the working message: ${JSON.stringify(actionList)}`);
+  return clear;
+}
+
 
 function mountCommitWidget(action, label) {
   assertCommitWidgetSetAction(action, label);
@@ -518,6 +524,20 @@ try {
 
   const commandContext = "Current context: commit the focused test refactor only.";
   await command.handler(`--dry-run --push --split ${commandContext}`, idleCtx);
+  const widgetIndex = actions.findIndex(action => action[0] === "setWidget" && action[1] === COMMIT_WIDGET_KEY && typeof action[2] === "function");
+  if (widgetIndex === -1) fail(`/commit command did not set an immediate ${COMMIT_WIDGET_KEY} widget: ${JSON.stringify(actions)}`);
+  const widgetAction = actions[widgetIndex];
+  assertCommitWidgetSetAction(widgetAction, "/commit immediate widget");
+  const firstWorkflowIndex = actions.findIndex(action =>
+    action[0] === "setWidget" ||
+    action[0] === "notify" ||
+    action[0] === "setWorkingMessage" ||
+    action[0] === "setActiveTools" ||
+    action[0] === "sendMessage"
+  );
+  if (firstWorkflowIndex !== widgetIndex) {
+    fail(`/commit command did not set the live widget before any visible, tool-isolation, or prompt side effect: ${JSON.stringify(actions)}`);
+  }
   const feedbackIndex = actions.findIndex(action => action[0] === "notify");
   if (feedbackIndex === -1) fail("/commit command did not show immediate visible feedback");
   assertConciseNotification(actions[feedbackIndex], "/commit immediate feedback");
@@ -526,20 +546,21 @@ try {
   if (actions[workingIndex][1] !== "Planning commit…") {
     fail(`/commit command set unexpected working message: ${JSON.stringify(actions[workingIndex])}`);
   }
-  const isolated = actions.find(action => action[0] === "setActiveTools");
+  const toolIsolationIndex = actions.findIndex(action => action[0] === "setActiveTools");
+  const isolated = toolIsolationIndex === -1 ? undefined : actions[toolIsolationIndex];
   if (!isolated || isolated[1].join(",") !== "omp_commit") {
     fail(`commit command did not isolate active tools: ${JSON.stringify(actions)}`);
   }
-  const widgetIndex = actions.findIndex(action => action[0] === "setWidget" && action[1] === COMMIT_WIDGET_KEY && typeof action[2] === "function");
-  if (widgetIndex === -1) fail(`/commit command did not set an immediate ${COMMIT_WIDGET_KEY} widget: ${JSON.stringify(actions)}`);
-  const widgetAction = actions[widgetIndex];
-  assertCommitWidgetSetAction(widgetAction, "/commit immediate widget");
   const sentIndex = actions.findIndex(action => action[0] === "sendMessage");
   const sent = sentIndex === -1 ? undefined : actions[sentIndex];
   if (!sent) fail("commit command did not send a hidden prompt");
+  if (widgetIndex > feedbackIndex) fail("/commit command showed visible feedback before the live widget");
+  if (widgetIndex > workingIndex) fail("/commit command set the working message before the live widget");
+  if (widgetIndex > toolIsolationIndex) fail("/commit command isolated active tools before the live widget");
+  if (widgetIndex > sentIndex) fail(`/commit command set the live widget after the hidden prompt: ${JSON.stringify(actions)}`);
   if (feedbackIndex > sentIndex) fail("/commit command showed visible feedback after the hidden prompt");
   if (workingIndex > sentIndex) fail("/commit command set the working message after the hidden prompt");
-  if (widgetIndex > sentIndex) fail(`/commit command set the live widget after the hidden prompt: ${JSON.stringify(actions)}`);
+  if (toolIsolationIndex > sentIndex) fail("/commit command isolated active tools after the hidden prompt");
   await assertImmediateCommitWidget(widgetAction, "/commit immediate widget");
   const prompt = sent[1] ?? {};
   const promptText = String(prompt.content ?? prompt.text ?? "");
@@ -562,6 +583,7 @@ try {
   actions.length = 0;
   await turnEndHandler();
   assertWidgetCleared(actions, "/commit turn_end cleanup");
+  assertWorkingMessageCleared(actions, "/commit turn_end cleanup");
   const restored = actions.find(action => action[0] === "setActiveTools");
   if (!restored || restored[1].join(",") !== "read,bash") {
     fail(`commit command did not restore previous active tools: ${JSON.stringify(actions)}`);
@@ -573,6 +595,7 @@ try {
   actions.length = 0;
   await agentEndHandler();
   assertWidgetCleared(actions, "/commit agent_end cleanup");
+  assertWorkingMessageCleared(actions, "/commit agent_end cleanup");
   const agentRestored = actions.find(action => action[0] === "setActiveTools");
   if (!agentRestored || agentRestored[1].join(",") !== "read,bash") {
     fail(`commit command did not restore previous active tools on agent_end: ${JSON.stringify(actions)}`);
@@ -591,8 +614,20 @@ try {
   });
   assertError(completion, /No working tree changes to commit/i, "tool completion widget cleanup fixture");
   assertWidgetCleared(actions, "/commit tool completion cleanup");
+  assertWorkingMessageCleared(actions, "/commit tool completion cleanup");
+  const prematureRestore = actions.find(action => action[0] === "setActiveTools");
+  if (prematureRestore) {
+    fail(`/commit tool completion restored active tools before turn_end: ${JSON.stringify(actions)}`);
+  }
+  if (activeTools.join(",") !== "omp_commit") {
+    fail(`/commit tool completion exposed previous active tools mid-turn: ${JSON.stringify(activeTools)}`);
+  }
   actions.length = 0;
   await turnEndHandler();
+  const restoredAfterCompletion = actions.find(action => action[0] === "setActiveTools");
+  if (!restoredAfterCompletion || restoredAfterCompletion[1].join(",") !== "read,bash") {
+    fail(`commit command did not restore previous active tools after tool completion turn_end: ${JSON.stringify(actions)}`);
+  }
 
   if (inputHandler) {
     actions.length = 0;

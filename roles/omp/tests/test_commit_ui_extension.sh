@@ -572,10 +572,17 @@ try {
   assertMatches(promptEnvelope, /current (conversation|session|context)|existing conversation context/i, "hidden prompt current context");
   assertMatches(promptEnvelope, /no other tools|do not (?:call|use) any other tools|do not use other tools|only tool/i, "hidden prompt tool isolation");
   assertIncludes(promptEnvelope, commandContext, "hidden prompt context text");
+  assertMatches(promptEnvelope, /type\(scope\):\s*summary/i, "hidden prompt conventional commit shape");
+  for (const preferredType of ["fix", "feat", "refactor", "docs", "test", "chore", "ci"]) {
+    assertMatches(promptEnvelope, new RegExp(`\\b${preferredType}\\b`, "i"), `hidden prompt preferred type ${preferredType}`);
+  }
+  assertMatches(promptEnvelope, /(?:subject|summary|first line)[^.\n]{0,120}50[-\s]*(?:characters?|chars?|columns?)|50[-\s]*(?:characters?|chars?|columns?)[^.\n]{0,120}(?:subject|summary|first line)/i, "hidden prompt subject length");
+  assertMatches(promptEnvelope, /(?:body|non-blank|line)[^.\n]{0,120}72[-\s]*(?:characters?|chars?|columns?)|72[-\s]*(?:characters?|chars?|columns?)[^.\n]{0,120}(?:body|non-blank|line)/i, "hidden prompt body wrapping");
+  assertNotMatches(promptEnvelope, /(?:messages?|commit messages?)[^.\n]{0,80}(?:only|just)[^.\n]{0,80}(?:non[-\s]?empty|not\s+empty)|(?:any|arbitrary)[^.\n]{0,80}(?:non[-\s]?empty|not\s+empty)[^.\n]{0,80}(?:messages?|commit messages?|strings?)|arbitrary[^.\n]{0,80}(?:messages?|commit messages?)/i, "hidden prompt arbitrary message guidance");
   if (prompt.details?.dryRun !== true || prompt.details?.push !== true || prompt.details?.multiCommit !== true) {
     fail(`commit command did not parse dry-run/push/split details: ${JSON.stringify(prompt.details)}`);
   }
-  for (const forbidden of ["HOME_SKILL_SENTINEL", "verificationEvidence", "acceptRisk", "50 characters", "72 characters", "./scripts/check.sh"]) {
+  for (const forbidden of ["HOME_SKILL_SENTINEL", "verificationEvidence", "acceptRisk", "./scripts/check.sh"]) {
     assertExcludes(promptEnvelope, forbidden, "hidden prompt");
   }
 
@@ -948,22 +955,53 @@ try {
   }
   await assertCommittedFiles(pushRepo, ["HEAD^", "HEAD"], ["push-fail.txt"], "push failure local commit");
 
-  const longRepo = await makeRepo("long-message-");
-  await writeFile(join(longRepo, "long-message.txt"), "long message\n");
-  const longMessage = [
+  const invalidMessageRepo = await makeRepo("invalid-message-");
+  await writeFile(join(invalidMessageRepo, "invalid-message.txt"), "invalid message\n");
+  const invalidMessage = [
     "this is not conventional and it is intentionally much longer than fifty characters",
     "",
-    "This body line is intentionally much longer than seventy-two characters and must be preserved exactly as supplied by the current session agent.",
+    "This body line is intentionally much longer than seventy-two characters and should be rejected before staging.",
   ].join("\n");
-  const long = await execute(longRepo, "long-non-conventional-message", {
-    files: ["long-message.txt"],
-    message: longMessage,
+  const invalidMessageHead = (await git(invalidMessageRepo, ["rev-parse", "HEAD"])).stdout.trim();
+  const invalid = await execute(invalidMessageRepo, "reject-non-conventional-message", {
+    files: ["invalid-message.txt"],
+    message: invalidMessage,
     dryRun: false,
     push: false,
   });
-  assertSucceeded(long, "long non-conventional message");
-  const loggedLongMessage = (await git(longRepo, ["log", "-1", "--pretty=%B"])).stdout.trimEnd();
-  if (loggedLongMessage !== longMessage) fail(`long non-conventional message was not preserved: ${JSON.stringify({ loggedLongMessage, longMessage, details: long.details })}`);
+  assertError(invalid, /commit message|conventional|type\(scope\)|subject|body|50|72/i, "non-conforming message");
+  const invalidMessageHeadAfter = (await git(invalidMessageRepo, ["rev-parse", "HEAD"])).stdout.trim();
+  if (invalidMessageHeadAfter !== invalidMessageHead) fail("non-conforming message created a commit");
+  const invalidMessageStatus = (await git(invalidMessageRepo, ["status", "--porcelain"])).stdout.trim();
+  if (invalidMessageStatus !== "?? invalid-message.txt") {
+    fail(`non-conforming message should be rejected before staging: ${invalidMessageStatus}`);
+  }
+
+  const formattedBodyRepo = await makeRepo("formatted-body-");
+  await writeFile(join(formattedBodyRepo, "formatted-body.txt"), "formatted body\n");
+  const formattedBodyMessage = [
+    "fix(test): preserve commit body",
+    "",
+    "Body lines stay wrapped at seventy-two chars and remain untouched today.",
+    "Formatting remains exactly as supplied by the direct tool call.",
+  ].join("\n");
+  if (
+    formattedBodyMessage.split("\n")[0].length > 50 ||
+    formattedBodyMessage.split("\n").slice(2).some(line => line.length > 72)
+  ) {
+    fail("valid conventional body fixture exceeds commit convention");
+  }
+  const formattedBody = await execute(formattedBodyRepo, "valid-conventional-body", {
+    files: ["formatted-body.txt"],
+    message: formattedBodyMessage,
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(formattedBody, "valid conventional body message");
+  const loggedFormattedBodyMessage = (await git(formattedBodyRepo, ["log", "-1", "--pretty=%B"])).stdout.trimEnd();
+  if (loggedFormattedBodyMessage !== formattedBodyMessage) {
+    fail(`valid conventional body message was not preserved: ${JSON.stringify({ loggedFormattedBodyMessage, formattedBodyMessage, details: formattedBody.details })}`);
+  }
 
   const legacyRepo = await makeRepo("legacy-metadata-");
   await mkdir(join(legacyRepo, "scripts"), { recursive: true });
@@ -973,7 +1011,7 @@ try {
   await writeFile(join(legacyRepo, "legacy.txt"), "legacy metadata\n");
   const legacy = await execute(legacyRepo, "legacy-metadata-ignored", {
     files: ["legacy.txt"],
-    commitMessage: "legacy metadata is ignored without checks",
+    commitMessage: "chore(test): ignore legacy metadata",
     rationale: "old metadata should be accepted as inert compatibility input",
     verification: [{ command: "./scripts/should-not-run.sh", args: [], description: "must not run", required: true }],
     verificationEvidence: [{ description: "pretend evidence", source: "observed" }],

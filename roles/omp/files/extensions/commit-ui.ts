@@ -9,6 +9,11 @@ const MAX_EXPANDED_CARD_FIELD_LINES = 8;
 const MAX_RESULT_WARNINGS = 4;
 const MAX_RESULT_FILES = 8;
 const MAX_OUTPUT_CHARS = 1_600;
+const COMMIT_SUBJECT_MAX_CHARS = 50;
+const COMMIT_BODY_LINE_MAX_CHARS = 72;
+const PREFERRED_COMMIT_TYPES = ["fix", "feat", "refactor", "docs", "test", "chore", "ci"] as const;
+const COMMIT_MESSAGE_DESCRIPTION = `Conventional commit message preserved verbatim: subject must be type(scope): summary, preferably using ${PREFERRED_COMMIT_TYPES.join(", ")}, with a ${COMMIT_SUBJECT_MAX_CHARS}-character maximum; optional body starts after a blank second line and every non-blank body line is at most ${COMMIT_BODY_LINE_MAX_CHARS} characters.`;
+const COMMIT_MESSAGE_ALIAS_DESCRIPTION = `Compatibility alias for commitMessage. ${COMMIT_MESSAGE_DESCRIPTION}`;
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const PULSE_COLORS = ["accent", "success", "warning", "accent", "muted", "accent"] as const;
 const PULSE_BAR_WIDTH = 22;
@@ -200,8 +205,8 @@ export default function commitUi(pi: ExtensionAPI): void {
 
 	const commitParam = z.object({
 		files: z.array(z.string()).optional().describe("Repo-relative files or directories for this commit. Split commits must name the changed files they own."),
-		commitMessage: z.string().optional().describe("Exact non-empty commit message. Multi-paragraph messages are preserved."),
-		message: z.string().optional().describe("Compatibility alias for commitMessage."),
+		commitMessage: z.string().optional().describe(COMMIT_MESSAGE_DESCRIPTION),
+		message: z.string().optional().describe(COMMIT_MESSAGE_ALIAS_DESCRIPTION),
 		rationale: z.string().optional().describe("Short reason for grouping these files."),
 		verification: z.unknown().optional().describe("Legacy metadata accepted for compatibility and ignored."),
 		verificationEvidence: z.unknown().optional().describe("Legacy metadata accepted for compatibility and ignored."),
@@ -215,8 +220,8 @@ export default function commitUi(pi: ExtensionAPI): void {
 		defaultInactive: true,
 		parameters: z.object({
 			files: z.array(z.string()).optional().describe("Repo-relative files or directories. Omit or pass [] for a single status-derived commit."),
-			commitMessage: z.string().optional().describe("Exact non-empty commit message. Multi-paragraph messages are preserved."),
-			message: z.string().optional().describe("Compatibility alias for commitMessage."),
+			commitMessage: z.string().optional().describe(COMMIT_MESSAGE_DESCRIPTION),
+			message: z.string().optional().describe(COMMIT_MESSAGE_ALIAS_DESCRIPTION),
 			rationale: z.string().optional().describe("Short reason for this commit."),
 			commits: z.array(commitParam).optional().describe("Split commit plans. Each entry must name its files."),
 			context: z.string().optional().describe("Additional /commit context."),
@@ -796,10 +801,43 @@ function validateCommitPlan(plan: CommitPlan): void {
 	}
 }
 
+function validateCommitMessage(message: string, prefix: string): void {
+	if (!message.trim()) throw new WorkflowError(`${prefix}commit message is required.`);
+	if (message.includes("\0")) throw new WorkflowError(`${prefix}commit message contains a NUL byte.`);
+
+	const lines = message.split(/\r?\n/);
+	const subject = lines[0] ?? "";
+	if (!parseConventionalCommitSubject(subject)) {
+		throw new WorkflowError(`${prefix}commit message subject must match "type(scope): summary" (preferred types: ${PREFERRED_COMMIT_TYPES.join(", ")}).`);
+	}
+	if (subject.length > COMMIT_SUBJECT_MAX_CHARS) {
+		throw new WorkflowError(`${prefix}commit message subject must be ${COMMIT_SUBJECT_MAX_CHARS} characters or fewer.`);
+	}
+
+	const bodyLines = lines.slice(1);
+	const hasBody = bodyLines.some(line => line.trim().length > 0);
+	if (hasBody && lines[1] !== "") {
+		throw new WorkflowError(`${prefix}commit message body must start after a blank second line.`);
+	}
+
+	for (const [offset, line] of bodyLines.entries()) {
+		if (line.trim().length > 0 && line.length > COMMIT_BODY_LINE_MAX_CHARS) {
+			throw new WorkflowError(`${prefix}commit message body line ${offset + 2} must be ${COMMIT_BODY_LINE_MAX_CHARS} characters or fewer.`);
+		}
+	}
+}
+
+function parseConventionalCommitSubject(subject: string): { type: string; scope: string; summary: string } | undefined {
+	const match = subject.match(/^([a-z][a-z0-9-]*)\(([a-z0-9][a-z0-9._/-]*)\): (.+)$/);
+	if (!match) return undefined;
+	const [, type, scope, summary] = match;
+	if (!type || !scope || !summary.trim()) return undefined;
+	return { type, scope, summary };
+}
+
 function validateCommitSpec(commit: CommitSpec, label: string): void {
 	const prefix = label === "Commit" ? "" : `${label}: `;
-	if (!commit.commitMessage.trim()) throw new WorkflowError(`${prefix}commit message is required.`);
-	if (commit.commitMessage.includes("\0")) throw new WorkflowError(`${prefix}commit message contains a NUL byte.`);
+	validateCommitMessage(commit.commitMessage, prefix);
 	if (commit.rationale.includes("\0")) throw new WorkflowError(`${prefix}rationale contains a NUL byte.`);
 	commit.files = dedupe(commit.files.map(file => validateRepoPath(file, prefix)));
 	commit.deriveFilesFromStatus = commit.files.length === 0;
@@ -1051,7 +1089,7 @@ function buildToolInvocationPrompt(parsed: ParsedArgs): string {
 	};
 	const singleExample = {
 		files: ["repo-relative file or directory, or omit/pass [] to include every changed status path"],
-		commitMessage: "Short exact commit message\n\nOptional body paragraph.",
+		commitMessage: "fix(omp): Tune OMP advisor model defaults\n\nExplain the behavior change and any operator impact.",
 		rationale: "why this commit matches the current conversation",
 		dryRun: parsed.dryRun || undefined,
 		push: parsed.push || undefined,
@@ -1060,7 +1098,7 @@ function buildToolInvocationPrompt(parsed: ParsedArgs): string {
 	const splitExample = {
 		commits: [{
 			files: ["exact repo-relative file or directory for this split"],
-			commitMessage: "Short exact message for this split",
+			commitMessage: "docs(omp): Clarify commit workflow rules",
 			rationale: "why these files belong together",
 		}],
 		dryRun: parsed.dryRun || undefined,
@@ -1081,7 +1119,10 @@ function buildToolInvocationPrompt(parsed: ParsedArgs): string {
 		"Rules:",
 		"- For one commit, use top-level files/commitMessage/rationale and omit commits[]. Omit files or pass [] only when all current git status paths should be committed.",
 		"- For split mode, pass one non-empty commits[] array. Each entry must name the changed files for that split.",
-		"- Commit messages only need to be non-empty; preserve the exact wording and paragraphs that belong in git history.",
+		"- Commit message subjects must use `type(scope): summary`; preferred types are fix, feat, refactor, docs, test, chore, and ci.",
+		"- Keep the subject line at 50 characters or fewer.",
+		"- If a body is needed, line 2 must be blank; keep every non-blank body line at 72 characters or fewer.",
+		"- Preserve the exact valid message wording and paragraphs that belong in git history.",
 		"- Preserve unrelated user changes. Include only files supported by the conversation context.",
 		"- After the tool returns, summarize the outcome, any blocker, warnings, ignored files, and push result.",
 		parsed.ignoredModel ? `Note: --model ${parsed.ignoredModel} was provided but /commit uses the current session model.` : "",

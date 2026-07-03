@@ -16,6 +16,13 @@ bun_global_packages:
   - "@astrojs/language-server"
   - graphql-language-service-cli
   - svelte-language-server
+  - vscode-langservers-extracted
+  - "@biomejs/biome"
+  - "@vue/language-server"
+  - "@prisma/language-server"
+  - vim-language-server
+  - "@olrtg/emmet-language-server"
+  - intelephense
 
 # Additional packages can be added in group_vars/all.yml like:
 # bun_extra_packages:

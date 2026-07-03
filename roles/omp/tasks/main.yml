@@ -197,6 +197,130 @@
     dest: "{{ omp_agent_dir }}/AGENTS.md"
     mode: "0644"
 
+
+- name: "{{ role_name }} | Check repo global OMP rules"
+  ansible.builtin.stat:
+    path: "{{ omp_rules_source }}"
+    checksum_algorithm: sha256
+  register: omp_repo_rules
+  failed_when: not omp_repo_rules.stat.exists
+
+- name: "{{ role_name }} | Check installed global OMP rules"
+  ansible.builtin.stat:
+    path: "{{ omp_rules_dest }}"
+    follow: false
+    checksum_algorithm: sha256
+  register: omp_installed_rules
+
+- name: "{{ role_name }} | Refuse to overwrite unmanaged global OMP rules"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_rules_dest }} is a regular file and differs from
+      {{ omp_rules_source }}. Copy the live changes into the repo file before
+      re-running the role, or remove the file to allow the managed symlink.
+  when:
+    - omp_installed_rules.stat.exists
+    - omp_installed_rules.stat.isreg | default(false)
+    - omp_installed_rules.stat.checksum != omp_repo_rules.stat.checksum
+
+- name: "{{ role_name }} | Link global OMP rules"
+  ansible.builtin.file:
+    src: "{{ omp_rules_source }}"
+    dest: "{{ omp_rules_dest }}"
+    state: link
+    force: true
+
+- name: "{{ role_name }} | Agents | Ensure global OMP agents directory exists"
+  ansible.builtin.file:
+    path: "{{ omp_agents_dest }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Agents | Check repo-managed OMP agents source"
+  ansible.builtin.stat:
+    path: "{{ omp_agents_source }}"
+  register: omp_agents_source_dir
+
+- name: "{{ role_name }} | Agents | Find repo-managed OMP agents"
+  ansible.builtin.find:
+    paths: "{{ omp_agents_source }}"
+    file_type: file
+    patterns: "*.md"
+    recurse: false
+  register: omp_agent_source_files
+  when: omp_agents_source_dir.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Agents | Find installed OMP agent symlinks"
+  ansible.builtin.find:
+    paths: "{{ omp_agents_dest }}"
+    file_type: link
+    recurse: false
+  register: omp_installed_agent_symlinks
+
+- name: "{{ role_name }} | Agents | Inspect installed OMP agent symlinks"
+  ansible.builtin.stat:
+    path: "{{ omp_installed_agent_symlink.path }}"
+    follow: false
+  loop: "{{ omp_installed_agent_symlinks.files | default([]) }}"
+  loop_control:
+    loop_var: omp_installed_agent_symlink
+    label: "{{ omp_installed_agent_symlink.path | basename }}"
+  register: omp_installed_agent_symlink_stats
+
+- name: "{{ role_name }} | Agents | Remove stale repo-managed OMP agent symlinks"
+  ansible.builtin.file:
+    path: "{{ item.omp_installed_agent_symlink.path }}"
+    state: absent
+  loop: "{{ omp_installed_agent_symlink_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_installed_agent_symlink.path | basename }}"
+  when:
+    - item.stat.islnk | default(false)
+    - >-
+      (item.stat.lnk_source | default('')).startswith((omp_agents_source | realpath) ~ '/')
+      or (item.stat.lnk_source | default('')).startswith(omp_agents_source ~ '/')
+    - >-
+      (item.omp_installed_agent_symlink.path | basename) not in
+      (omp_agent_source_files.files | default([]) | map(attribute='path')
+      | map('basename') | list)
+
+- name: "{{ role_name }} | Agents | Check repo-managed OMP agent destinations"
+  ansible.builtin.stat:
+    path: "{{ omp_agents_dest }}/{{ omp_agent_source_file.path | basename }}"
+    follow: false
+  loop: "{{ omp_agent_source_files.files | default([]) }}"
+  loop_control:
+    loop_var: omp_agent_source_file
+    label: "{{ omp_agent_source_file.path | basename }}"
+  register: omp_agent_destinations
+
+- name: "{{ role_name }} | Agents | Remove copied OMP agent destinations before symlinking"
+  ansible.builtin.file:
+    path: "{{ omp_agents_dest }}/{{ item.omp_agent_source_file.path | basename }}"
+    state: absent
+  loop: "{{ omp_agent_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_agent_source_file.path | basename }}"
+  when:
+    - item.stat.exists
+    - not (item.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Agents | Symlink repo-managed OMP agents"
+  ansible.builtin.file:
+    src: "{{ item.omp_agent_source_file.path }}"
+    dest: "{{ omp_agents_dest }}/{{ item.omp_agent_source_file.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ omp_agent_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_agent_source_file.path | basename }}"
+  when: >-
+    not (
+      ansible_check_mode
+      and item.stat.exists
+      and not (item.stat.islnk | default(false))
+    )
+
 - name: "{{ role_name }} | Skills | Ensure global OMP skills directory exists"
   ansible.builtin.file:
     path: "{{ omp_skills_dest }}"
@@ -251,12 +375,165 @@
   ansible.builtin.include_tasks: skill_worktrunk.yml
   when: omp_worktrunk_skill_enabled | bool
 
-- name: "{{ role_name }} | Deploy global OMP extensions"
-  ansible.builtin.copy:
-    src: "{{ omp_extensions_source }}/"
-    dest: "{{ omp_extensions_dest }}/"
-    mode: "0644"
-    directory_mode: "0755"
+- name: "{{ role_name }} | Extensions | Ensure global OMP extensions directory exists"
+  ansible.builtin.file:
+    path: "{{ omp_extensions_dest }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Extensions | Check repo-managed OMP extensions source"
+  ansible.builtin.stat:
+    path: "{{ omp_extensions_source }}"
+  register: omp_extensions_source_dir
+
+- name: "{{ role_name }} | Extensions | Find repo-managed OMP extensions"
+  ansible.builtin.find:
+    paths: "{{ omp_extensions_source }}"
+    file_type: file
+    recurse: false
+  register: omp_extension_source_files
+  when: omp_extensions_source_dir.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Extensions | Find installed OMP extension symlinks"
+  ansible.builtin.find:
+    paths: "{{ omp_extensions_dest }}"
+    file_type: link
+    recurse: false
+  register: omp_installed_extension_symlinks
+
+- name: "{{ role_name }} | Extensions | Inspect installed OMP extension symlinks"
+  ansible.builtin.stat:
+    path: "{{ omp_installed_extension_symlink.path }}"
+    follow: false
+  loop: "{{ omp_installed_extension_symlinks.files | default([]) }}"
+  loop_control:
+    loop_var: omp_installed_extension_symlink
+    label: "{{ omp_installed_extension_symlink.path | basename }}"
+  register: omp_installed_extension_symlink_stats
+
+- name: "{{ role_name }} | Extensions | Remove stale repo-managed OMP extension symlinks"
+  ansible.builtin.file:
+    path: "{{ item.omp_installed_extension_symlink.path }}"
+    state: absent
+  loop: "{{ omp_installed_extension_symlink_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_installed_extension_symlink.path | basename }}"
+  when:
+    - item.stat.islnk | default(false)
+    - >-
+      (item.stat.lnk_source | default('')).startswith((omp_extensions_source | realpath) ~ '/')
+      or (item.stat.lnk_source | default('')).startswith(omp_extensions_source ~ '/')
+    - >-
+      (item.omp_installed_extension_symlink.path | basename) not in
+      (omp_extension_source_files.files | default([]) | map(attribute='path')
+      | map('basename') | list)
+
+- name: "{{ role_name }} | Extensions | Check repo-managed OMP extension sources"
+  ansible.builtin.stat:
+    path: "{{ omp_extension_source_file.path }}"
+    checksum_algorithm: sha256
+  loop: "{{ omp_extension_source_files.files | default([]) }}"
+  loop_control:
+    loop_var: omp_extension_source_file
+    label: "{{ omp_extension_source_file.path | basename }}"
+  register: omp_extension_source_stats
+
+- name: "{{ role_name }} | Extensions | Check repo-managed OMP extension destinations"
+  ansible.builtin.stat:
+    path: "{{ omp_extensions_dest }}/{{ omp_extension_source.omp_extension_source_file.path | basename }}"
+    follow: false
+    checksum_algorithm: sha256
+  loop: "{{ omp_extension_source_stats.results | default([]) }}"
+  loop_control:
+    loop_var: omp_extension_source
+    label: "{{ omp_extension_source.omp_extension_source_file.path | basename }}"
+  register: omp_extension_destinations
+
+- name: "{{ role_name }} | Extensions | Refuse to overwrite unmanaged OMP extensions"
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.stat.path }} is a regular file and differs from
+      {{ item.omp_extension_source.omp_extension_source_file.path }}. Copy the
+      live changes into the repo-managed extension source before re-running the
+      role, or remove the file to allow the managed symlink.
+  loop: "{{ omp_extension_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_extension_source.omp_extension_source_file.path | basename }}"
+  when:
+    - item.stat.exists
+    - item.stat.isreg | default(false)
+    - item.stat.checksum != item.omp_extension_source.stat.checksum
+
+- name: "{{ role_name }} | Extensions | Remove copied OMP extension files before symlinking"
+  ansible.builtin.file:
+    path: "{{ omp_extensions_dest }}/{{ item.omp_extension_source.omp_extension_source_file.path | basename }}"
+    state: absent
+  loop: "{{ omp_extension_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_extension_source.omp_extension_source_file.path | basename }}"
+  when:
+    - item.stat.exists
+    - item.stat.isreg | default(false)
+    - item.stat.checksum == item.omp_extension_source.stat.checksum
+
+- name: "{{ role_name }} | Extensions | Symlink repo-managed OMP extensions"
+  ansible.builtin.file:
+    src: "{{ item.omp_extension_source_file.path }}"
+    dest: "{{ omp_extensions_dest }}/{{ item.omp_extension_source_file.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ omp_extension_source_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_extension_source_file.path | basename }}"
+
+- name: "{{ role_name }} | Profiles | Ensure global OMP profiles directory exists"
+  ansible.builtin.file:
+    path: "{{ omp_profiles_dest }}"
+    state: directory
+    mode: "0700"
+
+- name: "{{ role_name }} | Profiles | Check repo-managed OMP profiles source"
+  ansible.builtin.stat:
+    path: "{{ omp_profiles_source }}"
+  register: omp_profiles_source_dir
+
+- name: "{{ role_name }} | Profiles | Find repo-managed OMP profiles"
+  ansible.builtin.find:
+    paths: "{{ omp_profiles_source }}"
+    file_type: directory
+    recurse: false
+  register: omp_profile_source_directories
+  when: omp_profiles_source_dir.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Profiles | Check repo-managed OMP profile configs"
+  ansible.builtin.stat:
+    path: "{{ omp_profile_source_directory.path }}/agent/config.yml"
+  loop: "{{ omp_profile_source_directories.files | default([]) }}"
+  loop_control:
+    loop_var: omp_profile_source_directory
+    label: "{{ omp_profile_source_directory.path | basename }}"
+  register: omp_profile_config_sources
+
+- name: "{{ role_name }} | Profiles | Ensure repo-managed OMP profile agent directories exist"
+  ansible.builtin.file:
+    path: "{{ omp_profiles_dest }}/{{ item.omp_profile_source_directory.path | basename }}/agent"
+    state: directory
+    mode: "0700"
+  loop: "{{ omp_profile_config_sources.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_profile_source_directory.path | basename }}"
+  when: item.stat.exists
+
+- name: "{{ role_name }} | Profiles | Symlink repo-managed OMP profile configs"
+  ansible.builtin.file:
+    src: "{{ item.omp_profile_source_directory.path }}/agent/config.yml"
+    dest: "{{ omp_profiles_dest }}/{{ item.omp_profile_source_directory.path | basename }}/agent/config.yml"
+    state: link
+    force: true
+  loop: "{{ omp_profile_config_sources.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_profile_source_directory.path | basename }}"
+  when: item.stat.exists
 
 - name: "{{ role_name }} | Validate default omp config"
   ansible.builtin.command:

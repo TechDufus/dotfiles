@@ -16,6 +16,12 @@ const COMMIT_WIDGET_FRAME_MS = 120;
 const COMMIT_PARTIAL_UPDATE_MS = 120;
 const COMMIT_UI_PAINT_YIELD_MS = 16;
 const COMMIT_WORKING_MESSAGE = "Planning commit…";
+const PRIVATE_KEY_BLOCK_PATTERN = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----/;
+const TOKEN_WARNING_PATTERNS: readonly { label: string; pattern: RegExp }[] = [
+	{ label: "GitHub-looking token", pattern: /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/ },
+	{ label: "GitLab-looking token", pattern: /\bglpat-[A-Za-z0-9_-]{20,}\b/ },
+	{ label: "OpenAI-looking token", pattern: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b/ },
+];
 
 type IntervalHandle = Parameters<typeof clearInterval>[0];
 
@@ -565,6 +571,9 @@ async function executeCommitPlan(
 		if (entries.length === 0) throw new WorkflowError("No working tree changes to commit.");
 		resolveSelections(plan, details, entries);
 		await guardUnrelatedStagedChanges(cwd, details, signal);
+		details.phase = "Checking selected changes";
+		onUpdate();
+		await inspectSelectedChangeSafety(cwd, details, entries, signal);
 		return entries;
 	});
 
@@ -900,6 +909,58 @@ async function guardUnrelatedStagedChanges(cwd: string, details: CommitRunDetail
 	if (unrelated.length > 0) {
 		throw new WorkflowError(`Unrelated staged changes would be at risk: ${unrelated.join(", ")}. Unstage or include them explicitly.`);
 	}
+}
+
+async function inspectSelectedChangeSafety(
+	cwd: string,
+	details: CommitRunDetails,
+	status: GitStatusEntry[],
+	signal: AbortSignal | undefined,
+): Promise<void> {
+	const selectedFiles = dedupe(details.commits.flatMap(commit => commit.selectedFiles));
+	if (selectedFiles.length === 0) return;
+	const changedContent = await readSelectedChangedContent(cwd, selectedFiles, status, signal, details);
+	if (PRIVATE_KEY_BLOCK_PATTERN.test(changedContent)) {
+		throw new WorkflowError("Selected changes contain a private key block. Remove it before committing.");
+	}
+	for (const { label, pattern } of TOKEN_WARNING_PATTERNS) {
+		if (pattern.test(changedContent)) addWarning(details, `${label} found in selected changes; review before pushing.`);
+	}
+}
+
+async function readSelectedChangedContent(
+	cwd: string,
+	selectedFiles: string[],
+	status: GitStatusEntry[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<string> {
+	const parts = [
+		extractAddedDiffLines((await runGit(cwd, ["diff", "--no-ext-diff", "--no-color", "--unified=0", "--", ...selectedFiles], signal, details)).stdout),
+		extractAddedDiffLines((await runGit(cwd, ["diff", "--cached", "--no-ext-diff", "--no-color", "--unified=0", "--", ...selectedFiles], signal, details)).stdout),
+	];
+	const statusByPath = new Map(status.map(entry => [entry.path, entry]));
+	for (const file of selectedFiles) {
+		if (statusByPath.get(file)?.code === "??") parts.push(await readUntrackedChangedContent(cwd, file, signal, details));
+	}
+	return parts.filter(Boolean).join("\n");
+}
+
+async function readUntrackedChangedContent(cwd: string, file: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string> {
+	const result = await runCommand(cwd, "git", ["diff", "--no-index", "--no-ext-diff", "--no-color", "--unified=0", "--", "/dev/null", file], signal, details);
+	if (result.exitCode > 1) {
+		details.failedToolCount += 1;
+		throw new CommandError(`git diff failed: ${trimOutput(result.stderr || result.stdout)}`, result);
+	}
+	return extractAddedDiffLines(result.stdout);
+}
+
+function extractAddedDiffLines(rawDiff: string): string {
+	return rawDiff
+		.split("\n")
+		.filter(line => line.startsWith("+") && !line.startsWith("+++"))
+		.map(line => line.slice(1))
+		.join("\n");
 }
 
 async function commitSelectedFiles(
@@ -1593,7 +1654,7 @@ function trimOutput(text: string): string {
 }
 
 function redactSuspiciousTokens(text: string): string {
-	return text.replace(/(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-)?)\S{8,}/g, "<redacted>");
+	return text.replace(/(?:gh[pousr]_|github_pat_|glpat-|xox[baprs]-|sk-(?:proj-)?)\S{8,}/g, "<redacted>");
 }
 
 function cardBorder(theme: unknown, width: number, left: string, right: string, label?: string): string {

@@ -988,22 +988,50 @@ try {
     fail(`legacy metadata leaked into result/render: ${JSON.stringify({ text: textOf(legacy), legacyRendered })}`);
   }
 
-  const secretRepo = await makeRepo("secret-looking-");
-  const rawSecret = ["sk", "proj", "test", "x".repeat(32)].join("-");
-  await writeFile(join(secretRepo, "secretish.txt"), `export const apiKey = "${rawSecret}";\n`);
-  const secret = await execute(secretRepo, "secret-looking-fixture", {
-    files: ["secretish.txt"],
-    commitMessage: "secret-looking fixture text is allowed",
-    dryRun: true,
+  const privateKeyRepo = await makeRepo("private-key-");
+  const privateKeyBlock = [
+    "-----BEGIN OPENSSH PRIVATE KEY-----",
+    "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW",
+    "QyNTUxOQAAACBfakeFixturePrivateKeyMaterialOnlyForPatternCoverage",
+    "-----END OPENSSH PRIVATE KEY-----",
+  ].join("\n");
+  await writeFile(join(privateKeyRepo, "id_ed25519"), `${privateKeyBlock}\n`);
+  const privateKeyHead = (await git(privateKeyRepo, ["rev-parse", "HEAD"])).stdout.trim();
+  const privateKey = await execute(privateKeyRepo, "selected-private-key-block", {
+    files: ["id_ed25519"],
+    commitMessage: "chore(test): block selected private key",
+    dryRun: false,
     push: false,
   });
-  assertSucceeded(secret, "secret-looking fixture");
-  const secretRendered = renderResult(secret, 90, "secret-looking result", { expanded: true });
-  const secretOutput = `${JSON.stringify(secret)}\n${secretRendered}`;
-  assertExcludes(secretOutput, rawSecret, "secret-looking fixture output");
-  if (/secret findings/i.test(secretOutput)) fail(`secret-looking fixture used old secret findings UI: ${secretOutput}`);
-  if (Array.isArray(secret.details?.secretFindings) && secret.details.secretFindings.length > 0) {
-    fail(`secret-looking fixture should not report blocking secret findings: ${JSON.stringify(secret.details.secretFindings)}`);
+  if (!privateKey?.isError) fail(`selected private key content should block the commit: ${JSON.stringify(privateKey)}`);
+  const privateKeyHeadAfter = (await git(privateKeyRepo, ["rev-parse", "HEAD"])).stdout.trim();
+  if (privateKeyHeadAfter !== privateKeyHead) fail("selected private key content created a commit");
+  const privateKeyOutput = `${textOf(privateKey)}\n${JSON.stringify(privateKey.details ?? {})}`;
+  assertMatches(privateKeyOutput, /private key|secret|credential|sensitive/i, "selected private key block error");
+  assertExcludes(privateKeyOutput, "fakeFixturePrivateKeyMaterialOnlyForPatternCoverage", "selected private key block output");
+
+  const tokenRepo = await makeRepo("token-warning-");
+  const tokenValue = ["sk", "proj", "test", "x".repeat(32)].join("-");
+  await writeFile(join(tokenRepo, "token-warning.ts"), `export const apiKey = "${tokenValue}";\n`);
+  const tokenWarning = await execute(tokenRepo, "selected-token-warning", {
+    files: ["token-warning.ts"],
+    commitMessage: "chore(test): allow selected token-shaped fixture",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(tokenWarning, "selected token-shaped content");
+  if (!hashOf(tokenWarning)) fail(`selected token-shaped content did not create a commit: ${JSON.stringify(tokenWarning.details)}`);
+  await assertCommittedFiles(tokenRepo, ["HEAD^", "HEAD"], ["token-warning.ts"], "selected token-shaped content commit");
+  const tokenWarnings = warningsOf(tokenWarning);
+  if (!tokenWarnings.some(warning => /token|secret|credential|sensitive/i.test(warning))) {
+    fail(`selected token-shaped content warning missing: ${JSON.stringify(tokenWarnings)}`);
+  }
+  const tokenRendered = renderResult(tokenWarning, 90, "selected token-shaped result", { expanded: true });
+  const tokenOutput = `${JSON.stringify(tokenWarning)}\n${tokenRendered}`;
+  assertExcludes(tokenOutput, tokenValue, "selected token-shaped content output");
+  if (/secret findings/i.test(tokenOutput)) fail(`selected token-shaped content used old secret findings UI: ${tokenOutput}`);
+  if (Array.isArray(tokenWarning.details?.secretFindings) && tokenWarning.details.secretFindings.length > 0) {
+    fail(`selected token-shaped content should not report blocking secret findings: ${JSON.stringify(tokenWarning.details.secretFindings)}`);
   }
 } finally {
   await Promise.all(tempPaths.map(path => rm(path, { recursive: true, force: true })));

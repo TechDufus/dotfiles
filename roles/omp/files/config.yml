@@ -1,4 +1,4 @@
-modelRoles:
+modelRoles: 
   default: openai-codex/gpt-5.5:xhigh
   smol: openai-codex/gpt-5.4-mini:xhigh
   task: openai-codex/gpt-5.5:xhigh
@@ -8,27 +8,27 @@ modelRoles:
   vision: openai-codex/gpt-5.5:xhigh
   commit: openai-codex/gpt-5.4-mini:xhigh
   advisor: openai-codex/gpt-5.5:low
-cycleOrder:
+cycleOrder: 
   - smol
   - default
-theme:
+theme: 
   dark: dark-catppuccin
 symbolPreset: nerd
-display:
+display: 
   shimmer: kitt
 defaultThinkingLevel: xhigh
-contextPromotion:
+contextPromotion: 
   enabled: true
-advisor:
+advisor: 
   enabled: false
   subagents: false
   syncBacklog: 1
   immuneTurns: 3
-compaction:
+compaction: 
   strategy: snapcompact
   autoContinue: true
 hideThinkingBlock: true
-disabledProviders:
+disabledProviders: 
   - claude
   - claude-plugins
   - codex
@@ -40,50 +40,50 @@ disabledProviders:
   - vscode
   - github
   - amazon-bedrock
-marketplace:
+marketplace: 
   autoUpdate: auto
-bashInterceptor:
+bashInterceptor: 
   enabled: true
-edit:
+edit: 
   streamingAbort: true
-lsp:
+lsp: 
   diagnosticsOnEdit: true
 collapseChangelog: true
-memory:
+memory: 
   backend: mnemopi
-mnemopi:
+mnemopi: 
   scoping: per-project-tagged
   proactiveLinking: true
-github:
+github: 
   enabled: true
-renderMermaid:
+renderMermaid: 
   enabled: true
-inspect_image:
+inspect_image: 
   enabled: true
-task:
+task: 
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
-  isolation:
+  isolation: 
     mode: auto
-skills:
+skills: 
   enableCodexUser: false
   enableClaudeUser: false
   enableClaudeProject: false
-commands:
+commands: 
   enableClaudeUser: false
   enableClaudeProject: false
   enableOpencodeUser: false
   enableOpencodeProject: false
-mcp:
+mcp: 
   enableProjectConfig: false
 setupVersion: 1
-vault:
+vault: 
   enabled: true
-dev:
-  autoqa:
+dev: 
+  autoqa: 
     consent: granted
-tier:
+tier: 
   openai: default
-browser:
+browser: 
   headless: false

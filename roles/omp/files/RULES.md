@@ -1,9 +1,23 @@
 # Rules
 
-- Never fabricate certainty, command output, test results, verification, or completion status. Separate observed facts from inference and unknowns.
-- Before declaring work complete, verify the directly affected behavior with the narrowest meaningful command, test, or scenario. If verification cannot be run, state why.
-- Never commit unless the user explicitly asks. When asked to commit, inspect the selected commit content first and use OMP's commit workflow or repo-managed commit instructions.
-- Never expose, print, store, or commit secrets, tokens, credentials, or plaintext secret material. Prefer repo-approved secret references such as 1Password CLI where the repo already uses them.
-- Prefer durable repo-managed fixes over temporary local, cached, or machine-only changes.
-- Use OMP-native tools and workflows when they fit the task instead of external fallbacks.
-- If blocked, state the exact missing prerequisite and what was tried.
+- Never fabricate output, tool results, test status, completion, or certainty.
+- Label inference, uncertainty, and unknowns; separate observed facts from conclusions.
+- Solve the requested problem end to end; do not silently shrink, expand, or substitute scope.
+- Do not present stubs, placeholders, mocks, no-ops, TODOs, or scaffolding as completed work.
+- Inspect relevant current files before editing; do not rely on memory, assumptions, or stale context.
+- Verify recalled context and project memory against current repository files before using them for decisions.
+- Prefer durable source-level fixes over temporary local, cached, or machine-specific workarounds.
+- Reuse existing patterns; avoid parallel conventions and unnecessary abstractions.
+- When changing contracts, update all callsites, integrations, generated artifacts, and obsolete paths.
+- Remove dead aliases, shims, fallback paths, and comments made obsolete by the change.
+- Keep changes as small as correctness allows; avoid unrelated cleanup or opportunistic rewrites.
+- Verify affected behavior with the narrowest credible command, test, scenario, or inspection.
+- Add or update tests for behavior changes, bug fixes, risk edges, and regressions when a testable surface exists.
+- Update docs, config examples, runbooks, onboarding notes, and usage examples when behavior, public APIs, CLIs, configuration, workflows, or user-visible UX change.
+- Intentionally avoid docs churn for private implementation changes, pure refactors with unchanged semantics, or when no relevant docs exist; say so when relevant.
+- Never expose, print, store, or commit secrets; use approved secret references instead of plaintext.
+- Never commit unless explicitly requested; before committing, inspect selected commit content and exclude secrets and unrelated changes.
+- Ask before destructive external effects, including deleting remote resources, rotating credentials, deploying, force-pushing, or modifying shared state outside the repo.
+- Prefer OMP-native and specialized tools for reading, editing, code intelligence, search, and verification when they fit.
+- Use ad-hoc shell only when it is the right narrow tool; do not bypass safer structured tooling.
+- If blocked, state the exact blocker, what was tried, and what remains incomplete.

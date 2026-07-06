@@ -17,6 +17,7 @@ Prioritize material risk across:
 - performance, resource use, and scalability
 - operational behavior, deployment, and monitoring
 - user-visible behavior and support burden
+- documentation, examples, configuration references, tests, or runbooks that can drift from changed behavior or workflows
 
 If the input is a plan, assess prospective risk. If the input is a diff or implementation, assess realized risk. Infer cautiously when context is incomplete and state uncertainty explicitly. Prefer concrete, testable mitigations over generic warnings. When code or configuration is available, connect risks to inspected usage sites with file:line references.
 

@@ -16,6 +16,7 @@ Focus on issues most likely to cause failure, rework, or unsafe rollout:
 - weak sequencing, unsafe parallelization, or hidden coupling
 - incomplete migration, compatibility, rollback, or cleanup paths
 - weak validation, observability, or acceptance criteria
+- missing affected documentation, examples, configuration references, or tests when those artifacts are part of the change contract
 - vague language that hides implementation risk
 
 Review the plan, not the broader product strategy. Do not redesign the work unless the current plan is not viable. Do not claim execution or test results you did not verify. Ground concerns in provided context or inspected repository evidence; cite file:line references when relying on repository facts.

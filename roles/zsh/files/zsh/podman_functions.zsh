@@ -51,12 +51,17 @@ function __pm_resolve_machine_name() {
   esac
 }
 
-function __pm_running_machine() {
-  podman machine list --format '{{range .}}{{if .Running}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null | head -n 1
+function __pm_running_machines() {
+  emulate -L zsh
+
+  local -a running_machines
+  running_machines=(${(f)"$(podman machine list --format '{{range .}}{{if .Running}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null)"})
+  running_machines=(${running_machines/%\*/})
+  print -r -- ${(F)running_machines}
 }
 
-function __pm_running_machines() {
-  podman machine list --format '{{range .}}{{if .Running}}{{.Name}}{{"\n"}}{{end}}{{end}}' 2>/dev/null
+function __pm_running_machine() {
+  __pm_running_machines | head -n 1
 }
 
 function __pm_machine_exists() {
@@ -285,7 +290,7 @@ function p.use() {
 
   if (( ! target_running )); then
     echo -e "${ARROW} ${GREEN}Starting Podman machine:${NC} ${YELLOW}${target}${NC}"
-    podman machine start --no-info "$target" || return 1
+    podman machine start --no-info --update-connection "$target" || return 1
   else
     echo -e "${ARROW} ${GREEN}Podman machine already running:${NC} ${YELLOW}${target}${NC}"
   fi

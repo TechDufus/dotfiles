@@ -74,7 +74,11 @@ if [ "$1" = "machine" ]; then
       exit 0
       ;;
     start)
-      add_running_machine "${4:-}"
+      target=
+      for arg do
+        target="$arg"
+      done
+      add_running_machine "$target"
       exit 0
       ;;
   esac
@@ -158,7 +162,7 @@ assert_stops_before_start() {
     case "$call" in
       'machine stop podman-high') stopped_high=1 ;;
       'machine stop stray-machine') stopped_stray=1 ;;
-      'machine start --no-info podman-low')
+      'machine start --no-info --update-connection podman-low')
         if (( ! stopped_high || ! stopped_stray )); then
           printf '%s\n' 'podman-low started before all non-target machines stopped' >&2
           cat "$calls_file" >&2
@@ -181,7 +185,7 @@ fi
 if (( $(count_call "$success_dir/calls" 'machine stop podman-high') != 1 || \
       $(count_call "$success_dir/calls" 'machine stop stray-machine') != 1 || \
       $(count_call "$success_dir/calls" 'machine stop podman-low') != 0 || \
-      $(count_call "$success_dir/calls" 'machine start --no-info podman-low') != 1 || \
+      $(count_call "$success_dir/calls" 'machine start --no-info --update-connection podman-low') != 1 || \
       $(count_call "$success_dir/calls" 'system connection default podman-low') != 1 )); then
   printf 'unexpected successful scenario calls:\n' >&2
   cat "$success_dir/calls" >&2
@@ -210,10 +214,30 @@ fi
 
 if (( $(count_call "$failed_dir/calls" 'machine stop podman-high') != 1 || \
       $(count_call "$failed_dir/calls" 'machine stop stray-machine') != 1 || \
-      $(count_call "$failed_dir/calls" 'machine start --no-info podman-low') != 0 || \
+      $(count_call "$failed_dir/calls" 'machine start --no-info --update-connection podman-low') != 0 || \
       $(count_call "$failed_dir/calls" 'system connection default podman-low') != 0 )); then
   printf 'unexpected failed-stop scenario calls:\n' >&2
   cat "$failed_dir/calls" >&2
+  exit 1
+fi
+
+default_marker_dir="$tmp_dir/default-marker"
+run_p_use "$default_marker_dir" "" "" $'podman-low*\npodman-high\n'
+
+if (( $(<"$default_marker_dir/status") != 0 )); then
+  printf '%s\n' 'p.use failed when running target name included Podman default marker' >&2
+  cat "$default_marker_dir/output" >&2
+  cat "$default_marker_dir/calls" >&2
+  exit 1
+fi
+
+if (( $(count_call "$default_marker_dir/calls" 'machine stop podman-low*') != 0 || \
+      $(count_call "$default_marker_dir/calls" 'machine stop podman-low') != 0 || \
+      $(count_call "$default_marker_dir/calls" 'machine stop podman-high') != 1 || \
+      $(count_call "$default_marker_dir/calls" 'machine start --no-info --update-connection podman-low') != 0 || \
+      $(count_call "$default_marker_dir/calls" 'system connection default podman-low') != 1 )); then
+  printf 'unexpected default-marker scenario calls:\n' >&2
+  cat "$default_marker_dir/calls" >&2
   exit 1
 fi
 
@@ -238,7 +262,7 @@ esac
 
 if (( $(count_call "$libkrun_missing_dir/calls" 'machine stop podman-high') != 0 || \
       $(count_call "$libkrun_missing_dir/calls" 'machine stop stray-machine') != 0 || \
-      $(count_call "$libkrun_missing_dir/calls" 'machine start --no-info podman-low') != 0 || \
+      $(count_call "$libkrun_missing_dir/calls" 'machine start --no-info --update-connection podman-low') != 0 || \
       $(count_call "$libkrun_missing_dir/calls" 'system connection default podman-low') != 0 )); then
   printf 'unexpected libkrun missing calls:\n' >&2
   cat "$libkrun_missing_dir/calls" >&2
@@ -267,7 +291,7 @@ esac
 if (( $(count_call "$running_libkrun_dir/calls" 'machine stop podman-low') != 0 || \
       $(count_call "$running_libkrun_dir/calls" 'machine stop podman-high') != 0 || \
       $(count_call "$running_libkrun_dir/calls" 'machine stop stray-machine') != 0 || \
-      $(count_call "$running_libkrun_dir/calls" 'machine start --no-info podman-low') != 0 || \
+      $(count_call "$running_libkrun_dir/calls" 'machine start --no-info --update-connection podman-low') != 0 || \
       $(count_call "$running_libkrun_dir/calls" 'system connection default podman-low') != 1 )); then
   printf 'unexpected running libkrun calls:\n' >&2
   cat "$running_libkrun_dir/calls" >&2

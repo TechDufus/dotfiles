@@ -18,7 +18,7 @@ display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
 contextPromotion:
-  enabled: true
+  enabled: false
 advisor:
   enabled: true
   subagents: true
@@ -27,6 +27,9 @@ advisor:
 compaction:
   strategy: snapcompact
   autoContinue: true
+  midTurnEnabled: true
+  thresholdTokens: 180000
+  thresholdPercent: -1
 hideThinkingBlock: true
 disabledProviders:
   - claude

@@ -1,12 +1,12 @@
 modelRoles: 
   default: openai-codex/gpt-5.5:xhigh
-  smol: openai-codex/gpt-5.5:low
+  smol: openai-codex/gpt-5.4-mini:xhigh
   task: openai-codex/gpt-5.5:xhigh
   slow: openai-codex/gpt-5.5:xhigh
   plan: openai-codex/gpt-5.5:xhigh
   designer: openai-codex/gpt-5.5:xhigh
   vision: openai-codex/gpt-5.5:xhigh
-  commit: openai-codex/gpt-5.5:low
+  commit: openai-codex/gpt-5.4-mini:xhigh
   advisor: openai-codex/gpt-5.5:low
 cycleOrder: 
   - smol
@@ -18,7 +18,7 @@ display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
 contextPromotion: 
-  enabled: true
+  enabled: false
 advisor: 
   enabled: false
   subagents: false
@@ -27,6 +27,9 @@ advisor:
 compaction: 
   strategy: snapcompact
   autoContinue: true
+  midTurnEnabled: true
+  thresholdTokens: 180000
+  thresholdPercent: -1
 hideThinkingBlock: true
 disabledProviders: 
   - claude

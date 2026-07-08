@@ -11,7 +11,7 @@
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter only: `name`, `description`, optional `tools`, optional `thinkingLevel`, optional `read-summarize`, then the system prompt body.
 - `extensions/*` is deployed as per-file symlinks into `~/.omp/agent/extensions/`; never symlink the whole directory. Unrelated user-installed extension files are preserved, and cleanup removes only stale repo-owned symlinks whose managed source no longer exists. Regular files at repo-managed extension names are migrated safely: identical copies are removed, while differing files are backed up outside the extensions directory before being replaced by the repo symlink.
 - `profiles/deep-review/agent/config.yml` is a deep-review profile candidate. OMP profiles are full user-base relocations, not overlays: a profile does not inherit the default base's config, agents, rules, extensions, or skills unless that profile explicitly deploys them. Treat profile content as a complete alternate base, not a small patch on `~/.omp/agent`.
-- `contextPromotion.enabled` is on globally because it preserves useful earlier-session context across long conversations and compaction without enabling advisor review or external provider discovery.
+- Repo-managed OMP configs use compact-first long-task handling: `contextPromotion.enabled: false` keeps GPT-5.5 threshold maintenance from promoting to GPT-5.4 before compaction, and compaction stays on `snapcompact` with an explicit fixed token threshold.
 
 ## Agents
 

@@ -198,6 +198,38 @@
     mode: "0644"
 
 
+- name: "{{ role_name }} | Check repo global OMP watchdog guidance"
+  ansible.builtin.stat:
+    path: "{{ omp_watchdog_source }}"
+    checksum_algorithm: sha256
+  register: omp_repo_watchdog
+  failed_when: not omp_repo_watchdog.stat.exists
+
+- name: "{{ role_name }} | Check installed global OMP watchdog guidance"
+  ansible.builtin.stat:
+    path: "{{ omp_watchdog_dest }}"
+    follow: false
+    checksum_algorithm: sha256
+  register: omp_installed_watchdog
+
+- name: "{{ role_name }} | Refuse to overwrite unmanaged global OMP watchdog guidance"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_watchdog_dest }} is a regular file and differs from
+      {{ omp_watchdog_source }}. Copy the live changes into the repo file before
+      re-running the role, or remove the file to allow the managed symlink.
+  when:
+    - omp_installed_watchdog.stat.exists
+    - omp_installed_watchdog.stat.isreg | default(false)
+    - omp_installed_watchdog.stat.checksum != omp_repo_watchdog.stat.checksum
+
+- name: "{{ role_name }} | Link global OMP watchdog guidance"
+  ansible.builtin.file:
+    src: "{{ omp_watchdog_source }}"
+    dest: "{{ omp_watchdog_dest }}"
+    state: link
+    force: true
+
 - name: "{{ role_name }} | Check repo global OMP rules"
   ansible.builtin.stat:
     path: "{{ omp_rules_source }}"

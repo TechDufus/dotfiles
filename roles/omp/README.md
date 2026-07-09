@@ -5,7 +5,7 @@
 ## Managed files
 
 - `config.yml` and `lsp.json` are repo-managed symlinks into `~/.omp/agent/`. If a destination regular file exists and differs, the role fails; copy live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` should use OMP's default home; do not relocate it with `PI_CONFIG_DIR` or `PI_CODING_AGENT_DIR` for the default profile.
-- Default `config.yml` keeps the advisor always on but lightweight and main-session-only: `modelRoles.advisor: openai-codex/gpt-5.5:low`, `advisor.enabled: true`, `advisor.subagents: false`, `advisor.syncBacklog: "3"`, `advisor.immuneTurns: 5`, and `tier.advisor: none` while `tier.openai` stays `default`.
+- Repo-managed `modelRoles` in the default and deep-review configs use `openai-codex/gpt-5.6-terra:xhigh` for `default`, `task`, `slow`, `plan`, `designer`, and `vision`; `openai-codex/gpt-5.6-luna:xhigh` for `smol` and `commit`; and `openai-codex/gpt-5.6-luna:low` for the lightweight advisor. The default `config.yml` keeps that advisor always on and main-session-only: `advisor.enabled: true`, `advisor.subagents: false`, `advisor.syncBacklog: "3"`, `advisor.immuneTurns: 5`, and `tier.advisor: none` while `tier.openai` stays `default`. `openai-codex/gpt-5.6-sol` is unsupported for this account and intentionally unconfigured.
 - `mcp.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges managed servers into existing `mcpServers`, preserves unowned entries, and writes mode `0600` because OAuth and per-user credentials may land there.
 - `AGENTS.md` is global OMP guidance: stance, style, evidence expectations, review posture.
 - `RULES.md` is global hard policy: durable MUST/NEVER requirements agents should obey without explanation-heavy prose. When extracting rules from `AGENTS.md`, avoid duplicate or divergent wording; guidance explains, rules bind.
@@ -13,7 +13,7 @@
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter only: `name`, `description`, optional `tools`, optional `thinkingLevel`, optional `read-summarize`, then the system prompt body.
 - `extensions/*` is deployed as per-file symlinks into `~/.omp/agent/extensions/`; never symlink the whole directory. Unrelated user-installed extension files are preserved, and cleanup removes only stale repo-owned symlinks whose managed source no longer exists. Regular files at repo-managed extension names are migrated safely: identical copies are removed, while differing files are backed up outside the extensions directory before being replaced by the repo symlink.
 - `profiles/deep-review/agent/config.yml` is a heavier deep-review profile candidate. OMP profiles are full user-base relocations, not overlays: a profile does not inherit the default base's config, agents, rules, extensions, or skills unless that profile explicitly deploys them. Treat profile content as a complete alternate base, so the full deep-review advisor policy applies only when that profile is selected.
-- Repo-managed OMP configs use compact-first long-task handling: `contextPromotion.enabled: false` keeps GPT-5.5 threshold maintenance from promoting to GPT-5.4 before compaction, and compaction stays on `snapcompact` with an explicit fixed token threshold.
+- Repo-managed OMP configs use compact-first long-task handling: `contextPromotion.enabled: false` keeps threshold maintenance from switching Terra work to Luna before compaction, and compaction stays on `snapcompact` while threshold maintenance uses a percentage-based 65% threshold.
 
 ## Agents
 

@@ -1,37 +1,37 @@
-modelRoles:
-  default: openai-codex/gpt-5.5:xhigh
-  smol: openai-codex/gpt-5.4-mini:xhigh
-  task: openai-codex/gpt-5.5:xhigh
-  slow: openai-codex/gpt-5.5:xhigh
-  plan: openai-codex/gpt-5.5:xhigh
-  designer: openai-codex/gpt-5.5:xhigh
-  vision: openai-codex/gpt-5.5:xhigh
-  commit: openai-codex/gpt-5.4-mini:xhigh
-  advisor: openai-codex/gpt-5.5:low
-cycleOrder:
+modelRoles: 
+  default: openai-codex/gpt-5.6-terra:xhigh
+  smol: openai-codex/gpt-5.6-luna:xhigh
+  task: openai-codex/gpt-5.6-terra:xhigh
+  slow: openai-codex/gpt-5.6-terra:xhigh
+  plan: openai-codex/gpt-5.6-terra:xhigh
+  designer: openai-codex/gpt-5.6-terra:xhigh
+  vision: openai-codex/gpt-5.6-terra:xhigh
+  commit: openai-codex/gpt-5.6-luna:xhigh
+  advisor: openai-codex/gpt-5.6-luna:low
+cycleOrder: 
   - smol
   - default
-theme:
+theme: 
   dark: dark-catppuccin
 symbolPreset: nerd
-display:
+display: 
   shimmer: kitt
 defaultThinkingLevel: xhigh
-contextPromotion:
+contextPromotion: 
   enabled: false
-advisor:
+advisor: 
   enabled: true
   subagents: false
   syncBacklog: "3"
   immuneTurns: 5
-compaction:
+compaction: 
   strategy: snapcompact
   autoContinue: true
   midTurnEnabled: true
-  thresholdTokens: 180000
-  thresholdPercent: -1
+  thresholdTokens: -1
+  thresholdPercent: 65
 hideThinkingBlock: true
-disabledProviders:
+disabledProviders: 
   - claude
   - claude-plugins
   - codex
@@ -43,51 +43,51 @@ disabledProviders:
   - vscode
   - github
   - amazon-bedrock
-marketplace:
+marketplace: 
   autoUpdate: auto
-bashInterceptor:
+bashInterceptor: 
   enabled: true
-edit:
+edit: 
   streamingAbort: true
-lsp:
+lsp: 
   diagnosticsOnEdit: true
 collapseChangelog: true
-memory:
+memory: 
   backend: mnemopi
-mnemopi:
+mnemopi: 
   scoping: per-project-tagged
   proactiveLinking: true
-github:
+github: 
   enabled: true
-renderMermaid:
+renderMermaid: 
   enabled: true
-inspect_image:
+inspect_image: 
   enabled: true
-task:
+task: 
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
-  isolation:
+  isolation: 
     mode: auto
-skills:
+skills: 
   enableCodexUser: false
   enableClaudeUser: false
   enableClaudeProject: false
-commands:
+commands: 
   enableClaudeUser: false
   enableClaudeProject: false
   enableOpencodeUser: false
   enableOpencodeProject: false
-mcp:
+mcp: 
   enableProjectConfig: false
 setupVersion: 1
-vault:
+vault: 
   enabled: true
-dev:
-  autoqa:
+dev: 
+  autoqa: 
     consent: granted
-tier:
+tier: 
   openai: default
   advisor: none
-browser:
+browser: 
   headless: false

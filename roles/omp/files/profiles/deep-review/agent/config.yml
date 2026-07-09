@@ -1,13 +1,13 @@
 modelRoles:
-  default: openai-codex/gpt-5.5:xhigh
-  smol: openai-codex/gpt-5.4-mini:xhigh
-  task: openai-codex/gpt-5.5:xhigh
-  slow: openai-codex/gpt-5.5:xhigh
-  plan: openai-codex/gpt-5.5:xhigh
-  designer: openai-codex/gpt-5.5:xhigh
-  vision: openai-codex/gpt-5.5:xhigh
-  commit: openai-codex/gpt-5.4-mini:xhigh
-  advisor: openai-codex/gpt-5.5:high
+  default: openai-codex/gpt-5.6-terra:xhigh
+  smol: openai-codex/gpt-5.6-luna:xhigh
+  task: openai-codex/gpt-5.6-terra:xhigh
+  slow: openai-codex/gpt-5.6-terra:xhigh
+  plan: openai-codex/gpt-5.6-terra:xhigh
+  designer: openai-codex/gpt-5.6-terra:xhigh
+  vision: openai-codex/gpt-5.6-terra:xhigh
+  commit: openai-codex/gpt-5.6-luna:xhigh
+  advisor: openai-codex/gpt-5.6-luna:low
 cycleOrder:
   - smol
   - default
@@ -28,8 +28,8 @@ compaction:
   strategy: snapcompact
   autoContinue: true
   midTurnEnabled: true
-  thresholdTokens: 180000
-  thresholdPercent: -1
+  thresholdTokens: -1
+  thresholdPercent: 65
 hideThinkingBlock: true
 disabledProviders:
   - claude

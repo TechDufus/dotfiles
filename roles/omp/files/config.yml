@@ -1,10 +1,10 @@
 modelRoles: 
   default: openai-codex/gpt-5.6-sol:xhigh
   smol: openai-codex/gpt-5.6-luna:xhigh
-  task: openai-codex/gpt-5.6-terra:xhigh
+  task: openai-codex/gpt-5.6-sol:medium
   slow: openai-codex/gpt-5.6-terra:xhigh
-  plan: openai-codex/gpt-5.6-terra:xhigh
-  designer: openai-codex/gpt-5.6-terra:xhigh
+  plan: openai-codex/gpt-5.6-sol:high
+  designer: openai-codex/gpt-5.6-sol:medium
   vision: openai-codex/gpt-5.6-terra:xhigh
   commit: openai-codex/gpt-5.6-luna:xhigh
   advisor: openai-codex/gpt-5.6-terra:low
@@ -30,6 +30,7 @@ compaction:
   midTurnEnabled: true
   thresholdTokens: -1
   thresholdPercent: 65
+  idleEnabled: false
 hideThinkingBlock: true
 disabledProviders: 
   - claude
@@ -49,6 +50,7 @@ bashInterceptor:
   enabled: true
 edit: 
   streamingAbort: true
+  mode: hashline
 lsp: 
   diagnosticsOnEdit: true
 collapseChangelog: true
@@ -90,4 +92,28 @@ tier:
   openai: default
   advisor: none
 browser: 
-  headless: false
+  headless: true
+statusLine: 
+  transparent: true
+  compactThinkingLevel: true
+  showHookStatus: true
+doubleEscapeAction: tree
+stt: 
+  enabled: false
+startup: 
+  showSplash: true
+  quiet: true
+autolearn: 
+  enabled: true
+  autoContinue: true
+readLineNumbers: true
+bash: 
+  autoBackground: 
+    enabled: true
+eval: 
+  rb: true
+  jl: true
+todo: 
+  eager: preferred
+secrets: 
+  enabled: true

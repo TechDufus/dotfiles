@@ -2287,6 +2287,41 @@ try {
     fail(`push success did not update remote and record hash: ${JSON.stringify({ remotePushedHead, localPushedHead, details: pushed.details })}`);
   }
 
+  const noUpstreamPushRepo = await makeRepo("push-no-upstream-");
+  const noUpstreamRemote = await tempDir("omp-commit-ui-no-upstream-remote-");
+  const noUpstreamBranch = "test/no-upstream-push";
+  await git(noUpstreamRemote, ["init", "--bare"]);
+  await git(noUpstreamPushRepo, ["switch", "-c", noUpstreamBranch]);
+  await git(noUpstreamPushRepo, ["remote", "add", "origin", noUpstreamRemote]);
+  await git(noUpstreamPushRepo, ["config", "--local", "push.autoSetupRemote", "false"]);
+  await writeFile(join(noUpstreamPushRepo, "push-no-upstream.txt"), "push and establish upstream\n");
+  const noUpstreamPush = await execute(noUpstreamPushRepo, "push-no-upstream", {
+    files: ["push-no-upstream.txt"],
+    commitMessage: "chore(test): push branch without upstream",
+    dryRun: false,
+    push: true,
+  });
+  assertSucceeded(noUpstreamPush, "push without upstream");
+  const noUpstreamLocalHead = (await git(noUpstreamPushRepo, ["rev-parse", "HEAD"])).stdout.trim();
+  const noUpstreamRemoteHead = (
+    await git(noUpstreamRemote, ["rev-parse", `refs/heads/${noUpstreamBranch}`])
+  ).stdout.trim();
+  if (noUpstreamRemoteHead !== noUpstreamLocalHead) {
+    fail(`push without upstream did not update the remote branch: ${JSON.stringify({ noUpstreamRemoteHead, noUpstreamLocalHead })}`);
+  }
+  const establishedUpstream = (
+    await git(noUpstreamPushRepo, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"])
+  ).stdout.trim();
+  if (establishedUpstream !== `origin/${noUpstreamBranch}`) {
+    fail(`push without upstream established the wrong upstream: ${JSON.stringify(establishedUpstream)}`);
+  }
+  if (noUpstreamPush.details?.pushSucceeded !== true) {
+    fail(`push without upstream did not report pushSucceeded: ${JSON.stringify(noUpstreamPush.details)}`);
+  }
+  if (warningsOf(noUpstreamPush).length !== 0) {
+    fail(`push without upstream emitted warnings: ${JSON.stringify(warningsOf(noUpstreamPush))}`);
+  }
+
   await git(pushRepo, ["remote", "set-url", "origin", join(pushRepo, "missing-remote.git")]);
   await writeFile(join(pushRepo, "push-fail.txt"), "push failure leaves local commit\n");
   const pushFailed = await execute(pushRepo, "push-failure", {

@@ -673,7 +673,7 @@ async function executeCommitPlan(
 		details.phase = "Pushing branch";
 		onUpdate();
 		try {
-			await runStep(details, "push", "Push", onUpdate, () => runGit(cwd, ["push"], signal, details));
+			await runStep(details, "push", "Push", onUpdate, () => pushCurrentBranch(cwd, signal, details));
 			details.pushSucceeded = true;
 		} catch (error) {
 			if (signal?.aborted) throw error;
@@ -1150,9 +1150,71 @@ async function stageCommitCandidate(
 	await ensurePrivateRegularFile(transaction.candidateIndexPath, 0o600);
 }
 
+async function pushCurrentBranch(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<CommandResult> {
+	const headRef = await symbolicHead(cwd, signal, details);
+	if (!headRef?.startsWith("refs/heads/")) {
+		throw new WorkflowError("Unable to push because HEAD is detached from a local branch.");
+	}
+	const branch = headRef.slice("refs/heads/".length);
+	const branchRemote = await optionalGitConfig(cwd, `branch.${branch}.remote`, signal, details);
+	const mergeRef = await optionalGitConfig(cwd, `branch.${branch}.merge`, signal, details);
+	if (branchRemote !== undefined && mergeRef !== undefined) {
+		return runGit(cwd, ["push"], signal, details);
+	}
+
+	const pushRemote = await optionalGitConfig(cwd, `branch.${branch}.pushRemote`, signal, details);
+	const pushDefault = await optionalGitConfig(cwd, "remote.pushDefault", signal, details);
+	const remotes = await gitRemotes(cwd, signal, details);
+	const configuredRemote = pushRemote ?? pushDefault ?? branchRemote;
+	let remote: string;
+	if (configuredRemote !== undefined) {
+		if (!remotes.includes(configuredRemote)) {
+			throw new WorkflowError(`Unable to push because configured remote "${configuredRemote}" does not exist.`);
+		}
+		remote = configuredRemote;
+	} else if (remotes.includes("origin")) {
+		remote = "origin";
+	} else if (remotes.length === 1) {
+		remote = remotes[0]!;
+	} else if (remotes.length === 0) {
+		throw new WorkflowError("Unable to push because this repository has no configured remote.");
+	} else {
+		throw new WorkflowError("Unable to push because multiple remotes are configured and none is selected for this branch.");
+	}
+	return runGit(cwd, ["push", "--set-upstream", "--", remote, "HEAD"], signal, details);
+}
+
+async function optionalGitConfig(
+	cwd: string,
+	key: string,
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<string | undefined> {
+	const result = await runCommand(cwd, "git", ["config", "--get", key], signal, details);
+	if (result.exitCode === 1 && result.stdout.length === 0) return undefined;
+	const value = result.stdout.trim();
+	if (result.exitCode !== 0 || !value || value.includes("\n")) {
+		details.failedToolCount += 1;
+		throw new WorkflowError(`Unable to read Git configuration "${key}".`);
+	}
+	return value;
+}
+
+async function gitRemotes(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string[]> {
+	const result = await runGit(cwd, ["remote"], signal, details);
+	const output = result.stdout.trim();
+	if (!output) return [];
+	const remotes = output.split("\n");
+	if (remotes.some(remote => !remote || remote !== remote.trim()) || new Set(remotes).size !== remotes.length) {
+		details.failedToolCount += 1;
+		throw new WorkflowError("Unable to determine the configured Git remotes.");
+	}
+	return remotes;
+}
+
 async function symbolicHead(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string | undefined> {
 	const result = await runCommand(cwd, "git", ["symbolic-ref", "-q", "HEAD"], signal, details);
-	if (result.exitCode === 1) return undefined;
+	if (result.exitCode === 1 && result.stdout.length === 0) return undefined;
 	const ref = result.stdout.trim();
 	if (result.exitCode !== 0 || !ref.startsWith("refs/") || ref.includes("\n")) {
 		details.failedToolCount += 1;

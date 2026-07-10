@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { Component } from "@oh-my-pi/pi-tui";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
@@ -27,13 +29,15 @@ const TOKEN_WARNING_PATTERNS: readonly { label: string; pattern: RegExp }[] = [
 	{ label: "GitLab-looking token", pattern: /\bglpat-[A-Za-z0-9_-]{20,}\b/ },
 	{ label: "OpenAI-looking token", pattern: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b/ },
 ];
+const GITLEAKS_SCAN_TIMEOUT_SECONDS = 60;
+const GITLEAKS_SCAN_TIMEOUT_MS = GITLEAKS_SCAN_TIMEOUT_SECONDS * 1_000;
 
 type IntervalHandle = Parameters<typeof clearInterval>[0];
 
 type RunStatus = "pending" | "running" | "succeeded" | "failed";
 type StepStatus = "pending" | "running" | "done" | "failed";
 type CommitStatus = "pending" | "running" | "succeeded" | "failed";
-type StepKey = "plan" | "tree" | "stage" | "commit" | "push";
+type StepKey = "plan" | "tree" | "stage" | "scan" | "commit" | "push";
 
 
 interface CommitSpec {
@@ -69,6 +73,29 @@ interface CommandResult {
 	stdout: string;
 	stderr: string;
 	exitCode: number;
+}
+
+interface CommitTransaction {
+	workspacePath: string;
+	candidateIndexPath: string;
+	scanTreePath: string;
+	rawInputPath: string;
+	realIndexPath: string;
+	realIndexFingerprint: string;
+	expectedBase?: string;
+	expectedRef?: string;
+	configPath: string;
+	ignorePath: string;
+	dirReportPath: string;
+	stdinReportPath: string;
+	reportMarker: string;
+	receiptPath: string;
+	receiptMarker: string;
+	referenceInputPath: string;
+	commitProcessPath: string;
+	hooksPath: string;
+	originalHooksPath: string;
+	messagePath: string;
 }
 
 interface CommitStep {
@@ -596,21 +623,40 @@ async function executeCommitPlan(
 		if (!result) continue;
 		const label = formatCommitLabel(index, plan.commits.length);
 		try {
-			setCommitState(result, "running", "Staging selected files");
-			details.phase = `${label}: staging selected files`;
-			onUpdate();
-			await runStep(details, "stage", "Stage", onUpdate, () => runGit(cwd, ["add", "-A", "--", ...result.selectedFiles], signal, details));
+			const createdOid = await withCommitTransaction(cwd, signal, details, async transaction => {
+				setCommitState(result, "running", "Staging selected files");
+				details.phase = `${label}: staging selected files`;
+				onUpdate();
+				await runStep(details, "stage", "Stage", onUpdate, () => stageCommitCandidate(cwd, transaction, result.commitFiles, signal, details));
 
-			setCommitState(result, "running", "Creating commit");
-			details.phase = `${label}: creating commit`;
-			onUpdate();
-			await runStep(details, "commit", "Commit", onUpdate, () => commitSelectedFiles(cwd, commit.commitMessage, result.commitFiles, signal, details));
+				const scannedTree = await writeCandidateTree(cwd, transaction, signal, details);
+
+				setCommitState(result, "running", "Scanning staged files");
+				details.phase = `${label}: scanning staged files`;
+				onUpdate();
+				await runStep(details, "scan", "Scan", onUpdate, () => scanStagedChanges(cwd, transaction, result.commitFiles, signal, details));
+
+				setCommitState(result, "running", "Creating commit");
+				details.phase = `${label}: creating commit`;
+				onUpdate();
+				const oid = await runStep(details, "commit", "Commit", onUpdate, () =>
+					commitCandidate(cwd, transaction, commit.commitMessage, scannedTree, signal, details),
+				);
+
+				try {
+					const reconciled = await reconcileCommittedPaths(cwd, transaction, result.commitFiles, oid, details);
+					if (!reconciled) addWarning(details, "Committed paths were not reconciled because newer staged changes were preserved.");
+				} catch {
+					addWarning(details, "Committed paths were not reconciled because newer staged changes were preserved.");
+				}
+				return oid;
+			});
 
 			setCommitState(result, "running", "Reading commit hash");
 			details.phase = `${label}: reading commit hash`;
 			onUpdate();
 			await waitForUiPaint();
-			const hash = (await runGit(cwd, ["rev-parse", "--short", "HEAD"], signal, details)).stdout.trim();
+			const hash = (await runGit(cwd, ["rev-parse", "--short", createdOid], undefined, details)).stdout.trim();
 			result.commitHash = hash;
 			details.commitHash = hash;
 			setCommitState(result, "succeeded", "Created");
@@ -712,7 +758,7 @@ function normalizeCommitPlan(params: unknown): CommitPlan {
 
 function normalizeCommitSpec(value: unknown): CommitSpec {
 	const record = isRecord(value) ? value : {};
-	const files = dedupe(stringArrayValue(record.files).map(file => file.trim()).filter(Boolean));
+	const files = dedupe(stringArrayValue(record.files));
 	const commitMessage = stringValue(record.commitMessage) ?? stringValue(record.message) ?? "";
 	return {
 		files,
@@ -845,17 +891,14 @@ function validateCommitSpec(commit: CommitSpec, label: string): void {
 
 function validateRepoPath(input: string, prefix: string): string {
 	if (input.includes("\0")) throw new WorkflowError(`${prefix}file path contains a NUL byte.`);
-	const normalizedSeparators = input.trim().replace(/\\/g, "/");
-	if (!normalizedSeparators) throw new WorkflowError(`${prefix}file path is empty.`);
-	if (normalizedSeparators.startsWith("/") || /^[A-Za-z]:/.test(normalizedSeparators)) {
-		throw new WorkflowError(`${prefix}file path must be repo-relative: ${redactSuspiciousTokens(normalizedSeparators)}`);
+	if (input === "") throw new WorkflowError(`${prefix}file path is empty.`);
+	if (path.isAbsolute(input)) {
+		throw new WorkflowError(`${prefix}file path must be repo-relative: ${redactSuspiciousTokens(input)}`);
 	}
-	const parts = normalizedSeparators.split("/");
-	if (parts.includes("..")) {
-		throw new WorkflowError(`${prefix}file path must not contain '..': ${redactSuspiciousTokens(normalizedSeparators)}`);
+	if (input.split("/").includes("..")) {
+		throw new WorkflowError(`${prefix}file path must not contain '..': ${redactSuspiciousTokens(input)}`);
 	}
-	const cleaned = parts.filter(part => part && part !== ".").join("/");
-	return cleaned || ".";
+	return input;
 }
 
 function syncDetailsFromPlan(plan: CommitPlan, details: CommitRunDetails): void {
@@ -973,9 +1016,14 @@ async function readSelectedChangedContent(
 	signal: AbortSignal | undefined,
 	details: CommitRunDetails,
 ): Promise<string> {
+	const literalPathEnvironment = { GIT_LITERAL_PATHSPECS: "1" };
 	const parts = [
-		extractAddedDiffLines((await runGit(cwd, ["diff", "--no-ext-diff", "--no-color", "--unified=0", "--", ...selectedFiles], signal, details)).stdout),
-		extractAddedDiffLines((await runGit(cwd, ["diff", "--cached", "--no-ext-diff", "--no-color", "--unified=0", "--", ...selectedFiles], signal, details)).stdout),
+		extractAddedDiffLines(
+			(await runGit(cwd, ["diff", "--no-ext-diff", "--no-color", "--unified=0", "--", ...selectedFiles], signal, details, literalPathEnvironment)).stdout,
+		),
+		extractAddedDiffLines(
+			(await runGit(cwd, ["diff", "--cached", "--no-ext-diff", "--no-color", "--unified=0", "--", ...selectedFiles], signal, details, literalPathEnvironment)).stdout,
+		),
 	];
 	const statusByPath = new Map(status.map(entry => [entry.path, entry]));
 	for (const file of selectedFiles) {
@@ -1001,33 +1049,832 @@ function extractAddedDiffLines(rawDiff: string): string {
 		.join("\n");
 }
 
-async function commitSelectedFiles(
+async function withCommitTransaction<T>(
 	cwd: string,
-	message: string,
-	selectedFiles: string[],
 	signal: AbortSignal | undefined,
 	details: CommitRunDetails,
-): Promise<void> {
-	await withMessageFile(message, messageFile => runGit(cwd, ["commit", "--only", "--cleanup=verbatim", "-F", messageFile, "--", ...selectedFiles], signal, details));
-}
-
-async function withMessageFile<T>(message: string, fn: (messageFile: string) => Promise<T>): Promise<T> {
-	const tmpBase = (Bun.env.TMPDIR || "/tmp/").replace(/\/?$/, "/");
-	const file = `${tmpBase}omp-commit-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}.txt`;
+	fn: (transaction: CommitTransaction) => Promise<T>,
+): Promise<T> {
+	const transaction = await createCommitTransaction(cwd, signal, details);
 	try {
-		await Bun.write(file, message);
-		return await fn(file);
+		return await fn(transaction);
 	} finally {
 		try {
-			await Bun.file(file).delete();
+			await fs.promises.rm(transaction.workspacePath, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
 		} catch {
-			// Best-effort cleanup; the file lives in the OS temp directory.
+			addWarning(details, "Private commit workspace cleanup could not be completed.");
 		}
 	}
 }
 
-async function runGit(cwd: string, args: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<CommandResult> {
-	const result = await runCommand(cwd, "git", args, signal, details);
+async function createCommitTransaction(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<CommitTransaction> {
+	let workspacePath: string | undefined;
+	try {
+		const privateWorkspace = await fs.promises.mkdtemp(path.join(Bun.env.TMPDIR || "/tmp", "omp-commit-"));
+		workspacePath = privateWorkspace;
+		await fs.promises.chmod(privateWorkspace, 0o700);
+
+		const realIndexPath = parseGitPathOutput(
+			(await runGit(cwd, ["rev-parse", "--path-format=absolute", "--git-path", "index"], signal, details)).stdout,
+			"Unable to resolve Git index path.",
+		);
+		const realIndexFingerprint = await indexFingerprint(cwd, realIndexPath, details);
+		const originalHooksPath = await resolveEffectiveHooksPath(cwd, signal, details);
+		const configPath = path.join(privateWorkspace, "gitleaks.toml");
+		const ignorePath = path.join(privateWorkspace, "gitleaks.ignore");
+		const dirReportPath = path.join(privateWorkspace, "gitleaks-dir-report.json");
+		const stdinReportPath = path.join(privateWorkspace, "gitleaks-stdin-report.json");
+		const reportMarker = "omp-gitleaks-report-pending\n";
+		const rawInputPath = path.join(privateWorkspace, "gitleaks-stdin.input");
+		const receiptPath = path.join(privateWorkspace, "reference-transaction.receipt");
+		const receiptMarker = "pending\n";
+		const referenceInputPath = path.join(privateWorkspace, "reference-transaction.input");
+		const commitProcessPath = path.join(privateWorkspace, "commit-process.marker");
+		const scanTreePath = path.join(privateWorkspace, "scan-tree");
+		await fs.promises.mkdir(scanTreePath, { mode: 0o700 });
+		await writePrivateFile(configPath, "[extend]\nuseDefault = true\n");
+		await writePrivateFile(ignorePath, "");
+		await writePrivateFile(dirReportPath, reportMarker);
+		await writePrivateFile(stdinReportPath, reportMarker);
+		await writePrivateFile(rawInputPath, `${"A".repeat(512)}\n`);
+		await writePrivateFile(receiptPath, receiptMarker);
+		await writePrivateFile(referenceInputPath, "");
+		await writePrivateFile(commitProcessPath, "pending\n");
+
+		return {
+			workspacePath: privateWorkspace,
+			candidateIndexPath: path.join(privateWorkspace, "candidate.index"),
+			scanTreePath,
+			rawInputPath,
+			realIndexPath,
+			realIndexFingerprint,
+			configPath,
+			ignorePath,
+			dirReportPath,
+			stdinReportPath,
+			reportMarker,
+			receiptPath,
+			receiptMarker,
+			referenceInputPath,
+			commitProcessPath,
+			hooksPath: path.join(privateWorkspace, "hooks"),
+			originalHooksPath,
+			messagePath: path.join(privateWorkspace, "message"),
+		};
+	} catch (error) {
+		if (workspacePath) {
+			try {
+				await fs.promises.rm(workspacePath, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+			} catch {
+				addWarning(details, "Private commit workspace cleanup could not be completed.");
+			}
+		}
+		if (signal?.aborted) throw error;
+		throw new WorkflowError("Unable to initialize a private commit transaction.");
+	}
+}
+
+async function stageCommitCandidate(
+	cwd: string,
+	transaction: CommitTransaction,
+	commitFiles: string[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<void> {
+	transaction.expectedRef = await symbolicHead(cwd, signal, details);
+	transaction.expectedBase = await verifiedHead(cwd, signal, details);
+	if (transaction.expectedBase) {
+		await runGit(cwd, ["read-tree", transaction.expectedBase], signal, details, candidateIndexEnvironment(transaction));
+	}
+	await runGit(cwd, ["add", "-A", "--", ...commitFiles], signal, details, candidatePathEnvironment(transaction));
+	await ensurePrivateRegularFile(transaction.candidateIndexPath, 0o600);
+}
+
+async function symbolicHead(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string | undefined> {
+	const result = await runCommand(cwd, "git", ["symbolic-ref", "-q", "HEAD"], signal, details);
+	if (result.exitCode === 1) return undefined;
+	const ref = result.stdout.trim();
+	if (result.exitCode !== 0 || !ref.startsWith("refs/") || ref.includes("\n")) {
+		details.failedToolCount += 1;
+		throw new WorkflowError("Unable to verify the current Git reference.");
+	}
+	return ref;
+}
+
+async function verifiedHead(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string | undefined> {
+	const result = await runCommand(cwd, "git", ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], signal, details);
+	if (result.exitCode === 1) return undefined;
+	if (result.exitCode !== 0 || !isGitObjectId(result.stdout.trim())) {
+		details.failedToolCount += 1;
+		throw new WorkflowError("Unable to verify the current commit base.");
+	}
+	return result.stdout.trim();
+}
+
+async function writeCandidateTree(
+	cwd: string,
+	transaction: CommitTransaction,
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<string> {
+	const tree = (await runGit(cwd, ["write-tree"], signal, details, candidateIndexEnvironment(transaction))).stdout.trim();
+	if (!isGitObjectId(tree)) throw new WorkflowError("Unable to record the scanned candidate tree.");
+	return tree;
+}
+async function materializeCandidateBlobs(
+	cwd: string,
+	transaction: CommitTransaction,
+	commitFiles: string[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<void> {
+	const listed = await runGit(
+		cwd,
+		["ls-files", "--stage", "-z", "--", ...commitFiles],
+		signal,
+		details,
+		candidatePathEnvironment(transaction),
+	);
+	const rawInput = await fs.promises.open(transaction.rawInputPath, "r+");
+	try {
+		await rawInput.truncate(0);
+		await rawInput.write(`${"A".repeat(512)}\n`);
+		const scanRootPrefix = `${path.resolve(transaction.scanTreePath)}${path.sep}`;
+		for (const record of listed.stdout.split("\0")) {
+			if (!record) continue;
+			const separator = record.indexOf("\t");
+			const metadata = separator >= 0 ? /^([0-7]{6}) ([0-9a-f]{40,128}) ([0-3])$/.exec(record.slice(0, separator)) : null;
+			const file = separator >= 0 ? record.slice(separator + 1) : "";
+			if (!metadata || !file || metadata[3] !== "0") {
+				throw new WorkflowError("Unable to enumerate exact candidate blobs for scanning.");
+			}
+			const mode = metadata[1];
+			const objectId = metadata[2];
+			if (mode === "160000") continue;
+			if (mode !== "100644" && mode !== "100755" && mode !== "120000") {
+				throw new WorkflowError("Candidate contained an unsupported index entry.");
+			}
+			const destination = path.resolve(transaction.scanTreePath, file);
+			if (!destination.startsWith(scanRootPrefix)) throw new WorkflowError("Candidate contained an unsafe scan path.");
+			await fs.promises.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+			const output = await fs.promises.open(destination, "wx", 0o600);
+			try {
+				const result = await runCommand(
+					cwd,
+					"git",
+					["cat-file", "blob", objectId],
+					signal,
+					details,
+					{ GIT_NO_REPLACE_OBJECTS: "1" },
+					output,
+				);
+				if (result.exitCode !== 0) {
+					details.failedToolCount += 1;
+					throw new WorkflowError("Unable to materialize an exact candidate blob for scanning.");
+				}
+				await output.sync();
+			} finally {
+				await output.close();
+			}
+			await ensurePrivateRegularFile(destination, 0o600);
+			for await (const chunk of fs.createReadStream(destination)) await rawInput.write(chunk);
+			await rawInput.write("\n");
+		}
+		await rawInput.sync();
+	} finally {
+		await rawInput.close();
+	}
+	await ensurePrivateRegularFile(transaction.rawInputPath, 0o600);
+}
+
+async function scanStagedChanges(
+	cwd: string,
+	transaction: CommitTransaction,
+	commitFiles: string[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<void> {
+	await materializeCandidateBlobs(cwd, transaction, commitFiles, signal, details);
+	const environment: Record<string, string | undefined> = {};
+	for (const name of Object.keys(Bun.env)) {
+		if (name.startsWith("GITLEAKS")) environment[name] = undefined;
+	}
+	const gitleaksCommand = await detectGitleaksCommand(cwd, signal, details, environment);
+	await runGitleaksPass(
+		cwd,
+		transaction,
+		gitleaksCommand,
+		["dir", transaction.scanTreePath],
+		transaction.dirReportPath,
+		signal,
+		details,
+		environment,
+	);
+	const rawInput = await fs.promises.open(transaction.rawInputPath, "r");
+	try {
+		await runGitleaksPass(
+			cwd,
+			transaction,
+			gitleaksCommand,
+			["stdin"],
+			transaction.stdinReportPath,
+			signal,
+			details,
+			environment,
+			rawInput,
+		);
+	} finally {
+		await rawInput.close();
+	}
+}
+
+async function runGitleaksPass(
+	cwd: string,
+	transaction: CommitTransaction,
+	gitleaksCommand: string,
+	commandArgs: string[],
+	reportPath: string,
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+	environment: Record<string, string | undefined>,
+	stdinFile?: fs.promises.FileHandle,
+): Promise<void> {
+	let result: CommandResult;
+	try {
+		result = await runGitleaksWithTimeout(
+			cwd,
+			gitleaksCommand,
+			[
+				...commandArgs,
+				"--redact",
+				"--no-banner",
+				"--no-color",
+				"--timeout",
+				String(GITLEAKS_SCAN_TIMEOUT_SECONDS),
+				"--config",
+				transaction.configPath,
+				"--gitleaks-ignore-path",
+				transaction.ignorePath,
+				"--ignore-gitleaks-allow",
+				"--report-format",
+				"json",
+				"--report-path",
+				reportPath,
+			],
+			signal,
+			details,
+			environment,
+			stdinFile,
+		);
+	} catch (error) {
+		if (signal?.aborted) throw error;
+		details.failedToolCount += 1;
+		throw error;
+	}
+	let findings: boolean;
+	try {
+		findings = await gitleaksReportHasFindings(reportPath, transaction.reportMarker);
+	} catch (error) {
+		if (signal?.aborted) throw error;
+		details.failedToolCount += 1;
+		throw new WorkflowError("Gitleaks scan failed; commit was not created.");
+	}
+	if (findings) {
+		if (result.exitCode !== 0) details.failedToolCount += 1;
+		throw new WorkflowError("Gitleaks detected potential secrets; commit was not created.");
+	}
+	if (result.exitCode !== 0) {
+		details.failedToolCount += 1;
+		throw new WorkflowError("Gitleaks scan failed; commit was not created.");
+	}
+}
+
+async function detectGitleaksCommand(
+	cwd: string,
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+	environment: Record<string, string | undefined>,
+): Promise<string> {
+	const requiredFlags = [
+		"--redact",
+		"--no-banner",
+		"--no-color",
+		"--timeout",
+		"--config",
+		"--gitleaks-ignore-path",
+		"--ignore-gitleaks-allow",
+		"--report-format",
+		"--report-path",
+	];
+	const candidates = ["gitleaks"];
+	const home = Bun.env.HOME;
+	if (home) candidates.push(path.join(home, ".local", "bin", "gitleaks"));
+	for (const candidate of candidates) {
+		let compatible = true;
+		for (const subcommand of ["dir", "stdin"]) {
+			try {
+				const result = await runGitleaksWithTimeout(
+					cwd,
+					candidate,
+					[subcommand, "--help"],
+					signal,
+					details,
+					environment,
+				);
+				const help = `${result.stdout}\n${result.stderr}`;
+				if (result.exitCode !== 0 || requiredFlags.some(flag => !help.includes(flag))) compatible = false;
+			} catch (error) {
+				if (signal?.aborted) throw error;
+				compatible = false;
+			}
+		}
+		if (compatible) return candidate;
+	}
+	details.failedToolCount += 1;
+	throw new WorkflowError("Gitleaks is unavailable or incompatible; commit was not created.");
+}
+
+async function runGitleaksWithTimeout(
+	cwd: string,
+	command: string,
+	args: string[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+	environment: Record<string, string | undefined>,
+	stdinFile?: fs.promises.FileHandle,
+): Promise<CommandResult> {
+	const controller = new AbortController();
+	let timedOut = false;
+	const timeout = setTimeout(() => {
+		timedOut = true;
+		controller.abort();
+	}, GITLEAKS_SCAN_TIMEOUT_MS);
+	const abort = () => controller.abort();
+	if (signal?.aborted) controller.abort();
+	else signal?.addEventListener("abort", abort, { once: true });
+	try {
+		return await runCommand(cwd, command, args, controller.signal, details, environment, undefined, stdinFile);
+	} catch (error) {
+		if (timedOut) throw new WorkflowError("Gitleaks scan timed out; commit was not created.");
+		if (signal?.aborted) throw error;
+		throw new WorkflowError("Gitleaks scan failed; commit was not created.");
+	} finally {
+		clearTimeout(timeout);
+		signal?.removeEventListener("abort", abort);
+	}
+}
+
+async function gitleaksReportHasFindings(reportPath: string, reportMarker: string): Promise<boolean> {
+	const metadata = await fs.promises.lstat(reportPath);
+	if (!metadata.isFile()) throw new WorkflowError("Gitleaks report was not a regular file.");
+	await fs.promises.chmod(reportPath, 0o600);
+	const rawReport = await fs.promises.readFile(reportPath, "utf8");
+	if (!rawReport.trim() || rawReport === reportMarker) {
+		throw new WorkflowError("Gitleaks report was not freshly written.");
+	}
+	const parsed: unknown = JSON.parse(rawReport);
+	if (!Array.isArray(parsed)) throw new WorkflowError("Gitleaks report had an invalid format.");
+	return parsed.length > 0;
+}
+
+async function commitCandidate(
+	cwd: string,
+	transaction: CommitTransaction,
+	message: string,
+	scannedTree: string,
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+): Promise<string> {
+	await preparePrivateHooks(transaction, scannedTree);
+	await writePrivateFile(transaction.messagePath, message);
+	try {
+		await runGit(
+			cwd,
+			["-c", `core.hooksPath=${transaction.hooksPath}`, "commit", "--cleanup=verbatim", "-F", transaction.messagePath],
+			signal,
+			details,
+			candidateIndexEnvironment(transaction),
+		);
+	} catch (error) {
+		const createdOid = await committedCandidateFromReceipt(cwd, transaction, scannedTree, details);
+		if (createdOid) return createdOid;
+		throw error;
+	}
+	const createdOid = await committedCandidateFromReceipt(cwd, transaction, scannedTree, details);
+	if (!createdOid) throw new WorkflowError("Created commit did not match the scanned candidate transaction.");
+	return createdOid;
+}
+async function committedCandidateFromReceipt(
+	cwd: string,
+	transaction: CommitTransaction,
+	scannedTree: string,
+	details: CommitRunDetails,
+): Promise<string | undefined> {
+	try {
+		const metadata = await fs.promises.lstat(transaction.receiptPath);
+		if (!metadata.isFile()) return undefined;
+		await fs.promises.chmod(transaction.receiptPath, 0o600);
+		const receipt = await fs.promises.readFile(transaction.receiptPath, "utf8");
+		const match = /^committed:([0-9a-f]{40,128})\n$/.exec(receipt);
+		if (!match) return undefined;
+		const createdOid = match[1];
+		const expectedTarget = transaction.expectedRef ?? "HEAD";
+		const target = await runCommand(cwd, "git", ["--no-replace-objects", "rev-parse", "--verify", expectedTarget], undefined, details);
+		if (target.exitCode !== 0 || target.stdout.trim() !== createdOid) return undefined;
+		const tree = await runCommand(cwd, "git", ["--no-replace-objects", "rev-parse", "--verify", `${createdOid}^{tree}`], undefined, details);
+		if (tree.exitCode !== 0 || tree.stdout.trim() !== scannedTree) return undefined;
+		const ancestry = await runCommand(cwd, "git", ["--no-replace-objects", "rev-list", "--parents", "-n", "1", createdOid], undefined, details);
+		if (ancestry.exitCode !== 0) return undefined;
+		const commitAndParents = ancestry.stdout.trim().split(/\s+/);
+		const expectedParents = transaction.expectedBase ? [createdOid, transaction.expectedBase] : [createdOid];
+		if (commitAndParents.length !== expectedParents.length || commitAndParents.some((oid, index) => oid !== expectedParents[index])) {
+			return undefined;
+		}
+		return createdOid;
+	} catch {
+		return undefined;
+	}
+}
+
+function parseGitPathOutput(output: string, errorMessage: string): string {
+	const terminatorLength = output.endsWith("\r\n") ? 2 : output.endsWith("\n") ? 1 : 0;
+	if (terminatorLength === 0) throw new WorkflowError(errorMessage);
+	const value = output.slice(0, -terminatorLength);
+	if (!value || /[\0\r\n]/.test(value)) throw new WorkflowError(errorMessage);
+	return value;
+}
+
+async function resolveEffectiveHooksPath(cwd: string, signal: AbortSignal | undefined, details: CommitRunDetails): Promise<string> {
+	const configured = await runCommand(cwd, "git", ["config", "--null", "--path", "--get", "core.hooksPath"], signal, details);
+	if (configured.exitCode === 0) {
+		if (!configured.stdout.endsWith("\0") || configured.stdout.indexOf("\0") !== configured.stdout.length - 1) {
+			throw new WorkflowError("Configured hooks path is invalid.");
+		}
+		const value = configured.stdout.slice(0, -1);
+		if (value === "") throw new WorkflowError("Configured hooks path is invalid.");
+		if (path.isAbsolute(value)) return value;
+		const topLevel = await runCommand(cwd, "git", ["rev-parse", "--show-toplevel"], signal, details);
+		if (topLevel.exitCode === 0) {
+			return path.resolve(parseGitPathOutput(topLevel.stdout, "Configured hooks path is invalid."), value);
+		}
+		const gitDirectory = parseGitPathOutput(
+			(await runGit(cwd, ["rev-parse", "--path-format=absolute", "--git-dir"], signal, details)).stdout,
+			"Configured hooks path is invalid.",
+		);
+		return path.resolve(gitDirectory, value);
+	}
+	if (configured.exitCode !== 1) {
+		details.failedToolCount += 1;
+		throw new WorkflowError("Unable to resolve configured Git hooks.");
+	}
+	return parseGitPathOutput(
+		(await runGit(cwd, ["rev-parse", "--path-format=absolute", "--git-path", "hooks"], signal, details)).stdout,
+		"Unable to resolve Git hooks path.",
+	);
+}
+
+async function preparePrivateHooks(transaction: CommitTransaction, scannedTree: string): Promise<void> {
+	if (!isGitObjectId(scannedTree)) throw new WorkflowError("Unable to secure the scanned candidate tree.");
+	await fs.promises.mkdir(transaction.hooksPath, { mode: 0o700 });
+	await fs.promises.chmod(transaction.hooksPath, 0o700);
+	let hookNames: string[];
+	try {
+		hookNames = await fs.promises.readdir(transaction.originalHooksPath);
+	} catch (error) {
+		if (isFileNotFound(error) || (isRecord(error) && error.code === "ENOTDIR")) hookNames = [];
+		else throw new WorkflowError("Unable to prepare configured Git hooks.");
+	}
+	for (const hookName of hookNames) {
+		if (hookName === "commit-msg" || hookName === "reference-transaction") continue;
+		const originalHook = path.join(transaction.originalHooksPath, hookName);
+		try {
+			await fs.promises.access(originalHook, fs.constants.X_OK);
+		} catch {
+			continue;
+		}
+		const privateHook = path.join(transaction.hooksPath, hookName);
+		await writePrivateFile(privateHook, ["#!/bin/sh", "exec " + shellQuote(originalHook) + ' "$@"', ""].join("\n"));
+		await fs.promises.chmod(privateHook, 0o700);
+	}
+	const commitMessageHook = path.join(transaction.hooksPath, "commit-msg");
+	await writePrivateFile(
+		commitMessageHook,
+		commitMessageHookScript(
+			path.join(transaction.originalHooksPath, "commit-msg"),
+			transaction.commitProcessPath,
+			transaction.expectedRef,
+			transaction.expectedBase,
+			scannedTree,
+		),
+	);
+	await fs.promises.chmod(commitMessageHook, 0o700);
+	const referenceTransactionHook = path.join(transaction.hooksPath, "reference-transaction");
+	await writePrivateFile(
+		referenceTransactionHook,
+		referenceTransactionHookScript(
+			path.join(transaction.originalHooksPath, "reference-transaction"),
+			transaction.commitProcessPath,
+			transaction.expectedRef ?? "HEAD",
+			transaction.expectedBase,
+			scannedTree,
+			transaction.referenceInputPath,
+			transaction.receiptPath,
+		),
+	);
+	await fs.promises.chmod(referenceTransactionHook, 0o700);
+}
+
+
+function commitMessageHookScript(
+	originalHook: string,
+	commitProcessPath: string,
+	expectedRef: string | undefined,
+	expectedBase: string | undefined,
+	scannedTree: string,
+): string {
+	const refGuard = expectedRef
+		? [
+				'current_ref=$(git symbolic-ref -q HEAD 2>/dev/null)',
+				'if [ $? -ne 0 ] || [ "$current_ref" != ' + shellQuote(expectedRef) + " ]; then",
+			]
+		: [
+				"git symbolic-ref -q HEAD >/dev/null 2>&1",
+				"if [ $? -ne 1 ]; then",
+			];
+	const baseGuard = expectedBase
+		? [
+				'current_base=$(git rev-parse --verify --quiet HEAD^{commit} 2>/dev/null)',
+				'if [ $? -ne 0 ] || [ "$current_base" != ' + shellQuote(expectedBase) + " ]; then",
+			]
+		: [
+				"git rev-parse --verify --quiet HEAD^{commit} >/dev/null 2>&1",
+				"if [ $? -ne 1 ]; then",
+			];
+	return [
+		"#!/bin/sh",
+		"umask 077",
+		"commit_process_path=" + shellQuote(commitProcessPath),
+		'case "$PPID" in ""|*[!0-9]*) exit 1 ;; esac',
+		'commit_process_tmp="$commit_process_path.tmp.$$"',
+		'if ! printf "%s\\n" "$PPID" > "$commit_process_tmp" || ! chmod 600 "$commit_process_tmp" || ! mv -f "$commit_process_tmp" "$commit_process_path"; then',
+		'\trm -f "$commit_process_tmp"',
+		"\texit 1",
+		"fi",
+		"original_hook=" + shellQuote(originalHook),
+		'if [ -x "$original_hook" ]; then',
+		'\t"$original_hook" "$@"',
+		"\thook_status=$?",
+		'\tif [ "$hook_status" -ne 0 ]; then exit "$hook_status"; fi',
+		"fi",
+		...refGuard,
+		"\tprintf '%s\\n' 'Commit blocked because the repository reference changed after scanning.' >&2",
+		"\texit 1",
+		"fi",
+		...baseGuard,
+		"\tprintf '%s\\n' 'Commit blocked because the repository base changed after scanning.' >&2",
+		"\texit 1",
+		"fi",
+		'current_tree=$(git write-tree 2>/dev/null)',
+		'if [ $? -ne 0 ] || [ "$current_tree" != ' + shellQuote(scannedTree) + " ]; then",
+		"\tprintf '%s\\n' 'Commit blocked because a hook changed the scanned candidate.' >&2",
+		"\texit 1",
+		"fi",
+		"",
+	].join("\n");
+}
+
+function referenceTransactionHookScript(
+	originalHook: string,
+	commitProcessPath: string,
+	expectedTarget: string,
+	expectedBase: string | undefined,
+	scannedTree: string,
+	inputPath: string,
+	receiptPath: string,
+): string {
+	const oldGuard = expectedBase
+		? ['[ "$old_oid" = ' + shellQuote(expectedBase) + " ] || valid_update=false"]
+		: [
+				'case "$old_oid" in',
+				'\t*[!0]*) valid_update=false ;;',
+				"esac",
+				'[ "${#old_oid}" -eq "${#new_oid}" ] || valid_update=false',
+			];
+	const parentGuard = expectedBase
+		? ['[ "$commit_line" = "$new_oid ' + expectedBase + '" ] || valid_commit=false']
+		: ['[ "$commit_line" = "$new_oid" ] || valid_commit=false'];
+	return [
+		"#!/bin/sh",
+		"umask 077",
+		"original_hook=" + shellQuote(originalHook),
+		"commit_process_path=" + shellQuote(commitProcessPath),
+		"input_path=" + shellQuote(inputPath),
+		"receipt_path=" + shellQuote(receiptPath),
+		"phase=${1-}",
+		'if ! cat > "$input_path"; then exit 1; fi',
+		'chmod 600 "$input_path" || exit 1',
+		"line_count=0",
+		"contains_target=false",
+		'while IFS= read -r input_line || [ -n "$input_line" ]; do',
+		"\tline_count=$((line_count + 1))",
+		"\tinput_ref=${input_line##* }",
+		'\tif [ "$input_ref" = ' + shellQuote(expectedTarget) + " ]; then contains_target=true; fi",
+		'done < "$input_path"',
+		"old_oid= new_oid= updated_ref= extra=",
+		'if [ "$line_count" -eq 1 ]; then',
+		'\tIFS=" " read -r old_oid new_oid updated_ref extra < "$input_path"',
+		"fi",
+		"target_update=true",
+		'[ "$line_count" -eq 1 ] || target_update=false',
+		'[ -z "$extra" ] || target_update=false',
+		'[ "$updated_ref" = ' + shellQuote(expectedTarget) + " ] || target_update=false",
+		"valid_update=$target_update",
+		'case "$new_oid" in',
+		'\t""|*[!0-9a-f]*) valid_update=false ;;',
+		"esac",
+		'case "${#new_oid}" in',
+		"\t40|64) ;;",
+		"\t*) valid_update=false ;;",
+		"esac",
+		...oldGuard,
+		'run_original () {',
+		'\tif [ -x "$original_hook" ]; then',
+		'\t\t"$original_hook" "$@" < "$input_path"',
+		"\t\treturn $?",
+		"\tfi",
+		"\treturn 0",
+		"}",
+		'commit_process=$(cat "$commit_process_path" 2>/dev/null)',
+		'if [ "$commit_process" != "$PPID" ]; then',
+		'\trun_original "$@"',
+		"\texit $?",
+		"fi",
+		'if [ "$phase" = prepared ]; then',
+		'\trun_original "$@"',
+		"\thook_status=$?",
+		'\tif [ "$hook_status" -ne 0 ]; then exit "$hook_status"; fi',
+		'\tif [ "$target_update" != true ] && [ "$contains_target" != true ]; then exit 0; fi',
+		'\tif [ "$valid_update" != true ]; then',
+		"\t\tprintf '%s\\n' 'Commit blocked because the reference transaction base did not match the scanned candidate.' >&2",
+		"\t\texit 1",
+		"\tfi",
+		"\tvalid_commit=true",
+		'\tcurrent_tree=$(git --no-replace-objects rev-parse --verify "$new_oid^{tree}" 2>/dev/null) || valid_commit=false',
+		'\t[ "$current_tree" = ' + shellQuote(scannedTree) + " ] || valid_commit=false",
+		'\tcommit_line=$(git --no-replace-objects rev-list --parents -n 1 "$new_oid" 2>/dev/null) || valid_commit=false',
+		...parentGuard.map(line => `\t${line}`),
+		'\tif [ "$valid_commit" != true ]; then',
+		"\t\tprintf '%s\\n' 'Commit blocked because the reference transaction did not match the scanned candidate.' >&2",
+		"\t\texit 1",
+		"\tfi",
+		'\treceipt_tmp="$receipt_path.tmp.$$"',
+		'\tif ! printf "prepared:%s\\n" "$new_oid" > "$receipt_tmp" || ! chmod 600 "$receipt_tmp" || ! mv -f "$receipt_tmp" "$receipt_path"; then',
+		'\t\trm -f "$receipt_tmp"',
+		"\t\texit 1",
+		"\tfi",
+		"\texit 0",
+		"fi",
+		'if [ "$phase" = committed ] && [ "$target_update" = true ]; then',
+		'\tprepared=$(cat "$receipt_path" 2>/dev/null)',
+		'\tif [ "$valid_update" != true ] || [ "$prepared" != "prepared:$new_oid" ]; then exit 1; fi',
+		'\treceipt_tmp="$receipt_path.tmp.$$"',
+		'\tif ! printf "committed:%s\\n" "$new_oid" > "$receipt_tmp" || ! chmod 600 "$receipt_tmp" || ! mv -f "$receipt_tmp" "$receipt_path"; then',
+		'\t\trm -f "$receipt_tmp"',
+		"\t\texit 1",
+		"\tfi",
+		'\trun_original "$@"',
+		"\texit $?",
+		"fi",
+		'if [ "$phase" = aborted ] && [ "$target_update" = true ]; then',
+		'\tprepared=$(cat "$receipt_path" 2>/dev/null)',
+		'\tif [ "$valid_update" = true ] && [ "$prepared" = "prepared:$new_oid" ]; then rm -f "$receipt_path"; fi',
+		'\trun_original "$@"',
+		"\texit $?",
+		"fi",
+		'run_original "$@"',
+		"exit $?",
+		"",
+	].join("\n");
+}
+function shellQuote(value: string): string {
+	return `'${value.replaceAll("'", "'\"'\"'")}'`;
+}
+
+async function reconcileCommittedPaths(
+	cwd: string,
+	transaction: CommitTransaction,
+	commitFiles: string[],
+	createdOid: string,
+	details: CommitRunDetails,
+): Promise<boolean> {
+	const lockPath = `${transaction.realIndexPath}.lock`;
+	const nestedLockPath = `${lockPath}.lock`;
+	let lock: fs.promises.FileHandle | undefined;
+	let lockPresent = false;
+	try {
+		try {
+			lock = await fs.promises.open(lockPath, "wx", 0o600);
+			lockPresent = true;
+		} catch (error) {
+			if (isRecord(error) && error.code === "EEXIST") return false;
+			throw error;
+		}
+		if (await indexFingerprint(cwd, transaction.realIndexPath, details) !== transaction.realIndexFingerprint) return false;
+		if (transaction.realIndexFingerprint === "missing") {
+			await lock.close();
+			lock = undefined;
+			await runGit(cwd, ["read-tree", createdOid], undefined, details, { GIT_INDEX_FILE: lockPath });
+		} else {
+			await lock.writeFile(await fs.promises.readFile(transaction.realIndexPath));
+			await lock.sync();
+			await lock.close();
+			lock = undefined;
+		}
+		await runGit(cwd, ["update-index", "--no-split-index"], undefined, details, { GIT_INDEX_FILE: lockPath });
+		await runGit(
+			cwd,
+			["restore", "--staged", `--source=${createdOid}`, "--", ...commitFiles],
+			undefined,
+			details,
+			{ GIT_INDEX_FILE: lockPath, GIT_LITERAL_PATHSPECS: "1" },
+		);
+		await ensurePrivateRegularFile(lockPath, 0o600);
+		const completedLock = await fs.promises.open(lockPath, "r+");
+		try {
+			await completedLock.sync();
+		} finally {
+			await completedLock.close();
+		}
+		await fs.promises.rename(lockPath, transaction.realIndexPath);
+		lockPresent = false;
+		return true;
+	} finally {
+		try {
+			if (lock) await lock.close();
+		} finally {
+			await fs.promises.rm(nestedLockPath, { force: true });
+			if (lockPresent) await fs.promises.rm(lockPath, { force: true });
+		}
+	}
+}
+
+
+async function indexFingerprint(cwd: string, indexPath: string, details: CommitRunDetails): Promise<string> {
+	try {
+		const metadata = await fs.promises.lstat(indexPath);
+		if (!metadata.isFile()) throw new WorkflowError("Git index is not a regular file.");
+	} catch (error) {
+		if (isFileNotFound(error)) return "missing";
+		throw error;
+	}
+	const objectId = (await runGit(cwd, ["hash-object", "--no-filters", "--", indexPath], undefined, details)).stdout.trim();
+	if (!isGitObjectId(objectId)) throw new WorkflowError("Unable to fingerprint the Git index.");
+	return `present:${objectId}`;
+}
+
+function candidateIndexEnvironment(transaction: CommitTransaction): Record<string, string | undefined> {
+	return { GIT_INDEX_FILE: transaction.candidateIndexPath };
+}
+
+function candidatePathEnvironment(transaction: CommitTransaction): Record<string, string | undefined> {
+	return { GIT_INDEX_FILE: transaction.candidateIndexPath, GIT_LITERAL_PATHSPECS: "1" };
+}
+
+
+async function writePrivateFile(file: string, contents: string): Promise<void> {
+	const handle = await fs.promises.open(file, "wx", 0o600);
+	try {
+		await handle.writeFile(contents);
+		await handle.sync();
+	} finally {
+		await handle.close();
+	}
+	await fs.promises.chmod(file, 0o600);
+}
+
+async function ensurePrivateRegularFile(file: string, mode: number): Promise<void> {
+	const metadata = await fs.promises.lstat(file);
+	if (!metadata.isFile()) throw new WorkflowError("Private commit data was not a regular file.");
+	await fs.promises.chmod(file, mode);
+}
+
+
+function isFileNotFound(error: unknown): boolean {
+	return isRecord(error) && error.code === "ENOENT";
+}
+
+function isGitObjectId(value: string): boolean {
+	return /^[0-9a-f]{40,128}$/i.test(value);
+}
+
+async function runGit(
+	cwd: string,
+	args: string[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+	environment?: Record<string, string | undefined>,
+): Promise<CommandResult> {
+	const result = await runCommand(cwd, "git", args, signal, details, environment);
 	if (result.exitCode !== 0) {
 		details.failedToolCount += 1;
 		throw new CommandError(`git ${args[0] ?? ""} failed: ${trimOutput(result.stderr || result.stdout)}`, result);
@@ -1035,24 +1882,71 @@ async function runGit(cwd: string, args: string[], signal: AbortSignal | undefin
 	return result;
 }
 
-async function runCommand(cwd: string, command: string, args: string[], signal: AbortSignal | undefined, details: CommitRunDetails): Promise<CommandResult> {
+async function runCommand(
+	cwd: string,
+	command: string,
+	args: string[],
+	signal: AbortSignal | undefined,
+	details: CommitRunDetails,
+	environment?: Record<string, string | undefined>,
+	stdoutFile?: fs.promises.FileHandle,
+	stdinFile?: fs.promises.FileHandle,
+): Promise<CommandResult> {
 	throwIfAborted(signal);
 	details.toolCount += 1;
+	const env = environment ? { ...Bun.env, ...environment } : undefined;
+	if (env) {
+		for (const [name, value] of Object.entries(env)) {
+			if (value === undefined) delete env[name];
+		}
+	}
 	const child = Bun.spawn({
 		cmd: [command, ...args],
 		cwd,
-		stdin: "ignore",
-		stdout: "pipe",
+		env,
+		stdin: stdinFile ? stdinFile.fd : "ignore",
+		stdout: stdoutFile ? stdoutFile.fd : "pipe",
 		stderr: "pipe",
+		detached: true,
 	});
-	const abortChild = () => child.kill();
+	let abortTimer: Parameters<typeof clearTimeout>[0] | undefined;
+	let rejectAbort: ((error: Error) => void) | undefined;
+	let abortRequested = false;
+	const abortCompletion = new Promise<never>((_resolve, reject) => {
+		rejectAbort = reject;
+	});
+	const abortChild = () => {
+		if (abortRequested) return;
+		abortRequested = true;
+		signalCommandGroup(child, "SIGTERM");
+		abortTimer = setTimeout(() => {
+			signalCommandGroup(child, "SIGKILL");
+			rejectAbort?.(new WorkflowError("Commit workflow cancelled."));
+		}, 1_000);
+	};
 	signal?.addEventListener("abort", abortChild, { once: true });
+	if (signal?.aborted) abortChild();
 	try {
-		const [stdout, stderr, exitCode] = await Promise.all([readStream(child.stdout), readStream(child.stderr), child.exited]);
+		const stdout = stdoutFile ? Promise.resolve("") : readStream(child.stdout);
+		const [stdoutText, stderr, exitCode] = await Promise.race([
+			Promise.all([stdout, readStream(child.stderr), child.exited]) as Promise<[string, string, number]>,
+			abortCompletion,
+		]);
 		throwIfAborted(signal);
-		return { stdout, stderr, exitCode };
+		return { stdout: stdoutText, stderr, exitCode };
 	} finally {
+		clearTimeout(abortTimer);
 		signal?.removeEventListener("abort", abortChild);
+	}
+}
+function signalCommandGroup(
+	child: { pid: number; kill(signal?: "SIGTERM" | "SIGKILL"): void },
+	signal: "SIGTERM" | "SIGKILL",
+): void {
+	try {
+		process.kill(-child.pid, signal);
+	} catch {
+		child.kill(signal);
 	}
 }
 
@@ -1388,6 +2282,7 @@ function defaultRail(includePush: boolean): CommitStep[] {
 		{ key: "plan", label: "Plan", status: "pending" },
 		{ key: "tree", label: "Tree", status: "pending" },
 		{ key: "stage", label: "Stage", status: "pending" },
+		{ key: "scan", label: "Scan", status: "pending" },
 		{ key: "commit", label: "Commit", status: "pending" },
 	];
 	if (includePush) steps.push({ key: "push", label: "Push", status: "pending" });

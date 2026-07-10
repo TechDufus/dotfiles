@@ -19,6 +19,30 @@
     - git_check.rc != 0
   register: git_system_install
 
+- name: "Git | {{ ansible_facts['distribution'] }} | Check if gitleaks is already installed"
+  ansible.builtin.command: which gitleaks
+  register: git_gitleaks_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: "Git | {{ ansible_facts['distribution'] }} | Install gitleaks (system package)"
+  ansible.builtin.dnf:
+    name:
+      - gitleaks
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - git_gitleaks_check.rc != 0
+
+- name: "Git | {{ ansible_facts['distribution'] }} | Gitleaks package skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: gitleaks"
+  when:
+    - not (can_install_packages | default(false))
+    - git_gitleaks_check.rc != 0
+
 - name: "Git | {{ ansible_facts['distribution'] }} | Alternative git installation (no sudo)"
   when:
     - not (can_install_packages | default(false))

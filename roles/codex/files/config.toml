@@ -15,8 +15,12 @@ service_tier = "default"
 suppress_unstable_features_warning = true
 personality = "pragmatic"
 
+notify = ["/Users/MDegarmo/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
+
 [features]
+hooks = true
 memories = true
+js_repl = false
 
 [agents]
 max_threads = 12
@@ -38,6 +42,33 @@ insert_newline = "alt-enter"
 [mcp_servers.playwright]
 command = "bunx"
 args = ["@playwright/mcp@latest"]
+
+[mcp_servers.node_repl]
+args = []
+command = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/MDegarmo/.codex"
+CODEX_HOME = "/Users/MDegarmo/.codex"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "2b020a2faded171bf620563ce51864b7c3ff320f1834f0044b73fcbeabb29a76,6d25aa7656feac858f3a3bdaea5bcbab0dbfd426c9de8e6931ce90c399ee8e4f"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
+NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE = "Control desktop apps on macOS through Computer Use."
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.707.30751"
+SKY_CUA_SERVICE_PATH = "/Users/MDegarmo/.codex/plugins/cache/openai-bundled/computer-use/1.0.1000362/Codex Computer Use.app"
+CODEX_CLI_PATH = "/Applications/ChatGPT.app/Contents/Resources/codex"
+
+[mcp_servers.computer-use]
+command = "./Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient"
+args = ["mcp"]
+cwd = "."
+enabled = false
 
 # Export Codex telemetry to OpenMonitor.
 # NOTE: Codex v0.106.0 does not interpolate env vars in [otel] fields.
@@ -95,6 +126,9 @@ enabled = true
 [plugins."template-creator@openai-primary-runtime"]
 enabled = true
 
+[plugins."visualize@openai-bundled"]
+enabled = true
+
 [apps._default]
 default_tools_approval_mode = "approve"
 
@@ -111,3 +145,13 @@ trust_level = "trusted"
 last_updated = "2026-07-01T06:26:14Z"
 source_type = "local"
 source = "/Users/MDegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[marketplaces.openai-bundled]
+last_updated = "2026-07-09T20:33:27Z"
+source_type = "local"
+source = "/Users/MDegarmo/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[desktop]
+followUpQueueMode = "queue"
+dock-icon-preference = "app-default"
+conversationDetailMode = "STEPS_COMMANDS"

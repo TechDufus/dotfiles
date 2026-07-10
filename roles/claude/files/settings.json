@@ -84,6 +84,16 @@
             "command": "/home/techdufus/.openmonitor/hook.sh SessionStart"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/MDegarmo/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ],
+        "matcher": "*"
       }
     ],
     "Stop": [

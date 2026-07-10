@@ -4,10 +4,263 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 extension_path="$repo_root/roles/omp/files/extensions/commit-ui.ts"
 
+real_gitleaks_path="$(command -v gitleaks || true)"
+export OMP_TEST_REAL_GITLEAKS="$real_gitleaks_path"
+fake_gitleaks_dir="$(mktemp -d "${TMPDIR:-/tmp}/omp-commit-ui-gitleaks.XXXXXX")"
+fake_gitleaks_control_dir="$fake_gitleaks_dir/control"
+mkdir "$fake_gitleaks_control_dir"
+printf '%s\n' success > "$fake_gitleaks_control_dir/mode"
+: > "$fake_gitleaks_control_dir/mutation-file"
+: > "$fake_gitleaks_control_dir/scan-log"
+export OMP_TEST_GITLEAKS_CONTROL_DIR="$fake_gitleaks_control_dir"
+export OMP_TEST_FAKE_GITLEAKS="$fake_gitleaks_dir/gitleaks"
+export PATH="$fake_gitleaks_dir:$PATH"
+trap 'rm -rf "$fake_gitleaks_dir"' EXIT
+cat > "$fake_gitleaks_dir/gitleaks" <<'SH'
+#!/bin/sh
+set -eu
+
+control_dir="${OMP_TEST_GITLEAKS_CONTROL_DIR:?}"
+mode="$(cat "$control_dir/mode")"
+log="$control_dir/scan-log"
+subcommand="${1:-}"
+if [ "$#" -eq 2 ] && { [ "$subcommand" = "dir" ] || [ "$subcommand" = "stdin" ]; } && [ "$2" = "--help" ]; then
+  printf 'capability=%s-help\n' "$subcommand" >> "$log"
+  printf 'capability-executable=%s\n' "$0" >> "$log"
+  if [ -f "$control_dir/capability-hang" ]; then
+    sleep 300 &
+    descendant_pid=$!
+    printf '%s\n' "$descendant_pid" > "$control_dir/capability-descendant.pid"
+    wait "$descendant_pid"
+  fi
+  if [ "${OMP_TEST_GITLEAKS_FORCE_COMPATIBLE:-}" = 1 ]; then
+    printf '%s\n' \
+      --redact --no-banner --no-color --timeout --config \
+      --gitleaks-ignore-path --ignore-gitleaks-allow \
+      --report-format --report-path
+    exit 0
+  fi
+  case "$mode" in
+    unavailable) exit 1 ;;
+    legacy-only)
+      [ "$subcommand" = "dir" ] || exit 1
+      exit 0
+      ;;
+    real-gitleaks)
+      [ -n "${OMP_TEST_REAL_GITLEAKS:-}" ] || exit 1
+      exec "$OMP_TEST_REAL_GITLEAKS" "$@"
+      ;;
+    *)
+      printf '%s\n' \
+        --redact --no-banner --no-color --timeout --config \
+        --gitleaks-ignore-path --ignore-gitleaks-allow \
+        --report-format --report-path
+      exit 0
+      ;;
+  esac
+fi
+if [ "$subcommand" = "protect" ] || [ "$subcommand" = "git" ]; then
+  exit 64
+fi
+[ "$subcommand" = "dir" ] || [ "$subcommand" = "stdin" ] || exit 64
+shift
+
+scan_tree=""
+if [ "$subcommand" = "dir" ]; then
+  [ "$#" -ge 1 ] || exit 64
+  scan_tree="$1"
+  [ -d "$scan_tree" ] || exit 64
+  shift
+fi
+
+redact=0
+ignore_allow=0
+report_format=""
+report_path=""
+config_path=""
+ignore_path=""
+printf 'scan-executable=%s\n' "$0" >> "$log"
+printf 'pass=%s\n' "$subcommand" >> "$log"
+printf 'arg=%s\n' "$subcommand" >> "$log"
+[ -z "$scan_tree" ] || printf 'arg=%s\n' "$scan_tree" >> "$log"
+while [ "$#" -gt 0 ]; do
+  printf 'arg=%s\n' "$1" >> "$log"
+  case "$1" in
+    --staged) exit 64 ;;
+    --redact) redact=1; shift ;;
+    --ignore-gitleaks-allow) ignore_allow=1; shift ;;
+    --config)
+      [ "$#" -ge 2 ] || exit 64
+      config_path="$2"
+      printf 'arg=%s\n' "$2" >> "$log"
+      shift 2
+      ;;
+    --gitleaks-ignore-path)
+      [ "$#" -ge 2 ] || exit 64
+      ignore_path="$2"
+      printf 'arg=%s\n' "$2" >> "$log"
+      shift 2
+      ;;
+    --report-format)
+      [ "$#" -ge 2 ] || exit 64
+      report_format="$2"
+      printf 'arg=%s\n' "$2" >> "$log"
+      shift 2
+      ;;
+    --report-path)
+      [ "$#" -ge 2 ] || exit 64
+      report_path="$2"
+      printf 'arg=%s\n' "$2" >> "$log"
+      shift 2
+      ;;
+    --timeout)
+      [ "$#" -ge 2 ] || exit 64
+      printf 'arg=%s\n' "$2" >> "$log"
+      shift 2
+      ;;
+    --no-banner|--no-color) shift ;;
+    *) exit 64 ;;
+  esac
+done
+[ "$redact" -eq 1 ] || exit 64
+[ "$ignore_allow" -eq 1 ] || exit 64
+[ "$report_format" = "json" ] || exit 64
+[ -n "$config_path" ] && [ -f "$config_path" ] || exit 64
+[ "$(cat "$config_path")" = "[extend]
+useDefault = true" ] || exit 64
+[ -n "$ignore_path" ] && [ -f "$ignore_path" ] || exit 64
+[ ! -s "$ignore_path" ] || exit 64
+[ -n "$report_path" ] && [ -f "$report_path" ] || exit 64
+[ "$(cat "$report_path")" = "omp-gitleaks-report-pending" ] || exit 64
+workspace="${report_path%/*}"
+candidate_index="$workspace/candidate.index"
+[ "$config_path" = "$workspace/gitleaks.toml" ] || exit 64
+[ "$ignore_path" = "$workspace/gitleaks.ignore" ] || exit 64
+[ -f "$candidate_index" ] || exit 64
+[ -z "${GIT_INDEX_FILE:-}" ] || exit 64
+[ -z "${GITLEAKS_CONFIG:-}" ] || exit 64
+[ -z "${GITLEAKS_CONFIG_TOML:-}" ] || exit 64
+case "$subcommand" in
+  dir)
+    [ "$scan_tree" = "$workspace/scan-tree" ] || exit 64
+    [ "$report_path" = "$workspace/gitleaks-dir-report.json" ] || exit 64
+    ;;
+  stdin)
+    [ "$report_path" = "$workspace/gitleaks-stdin-report.json" ] || exit 64
+    ;;
+esac
+
+tree="$(GIT_INDEX_FILE="$candidate_index" git write-tree)"
+{
+  printf 'env.GIT_INDEX_FILE=unset\n'
+  printf 'env.GITLEAKS_CONFIG=unset\n'
+  printf 'env.GITLEAKS_CONFIG_TOML=unset\n'
+  printf 'tree=%s\n' "$tree"
+  printf 'report.%s=%s\nworkspace=%s\n' "$subcommand" "$report_path" "$workspace"
+} >> "$log"
+
+if [ "$subcommand" = "dir" ]; then
+  expected_stdin="$control_dir/expected-stdin"
+  printf '%0512d\n' 0 | tr 0 A > "$expected_stdin"
+  GIT_INDEX_FILE="$candidate_index" git ls-files --stage |
+  while IFS="$(printf '\t')" read -r metadata path; do
+    [ -n "$path" ] || continue
+    case "$path" in
+      \"*\")
+        path="${path#\"}"
+        path="${path%\"}"
+        path="$(printf '%b' "$path")"
+        ;;
+    esac
+    set -- $metadata
+    mode_bits="$1"
+    expected_hash="$2"
+    [ "$mode_bits" != "160000" ] || continue
+    [ -f "$scan_tree/$path" ] || continue
+    actual_hash="$(git hash-object "$scan_tree/$path")"
+    [ "$actual_hash" = "$expected_hash" ] || exit 65
+    printf 'blob=%s|%s|%s\n' "$path" "$expected_hash" "$actual_hash" >> "$log"
+    cat "$scan_tree/$path" >> "$expected_stdin"
+    printf '\n' >> "$expected_stdin"
+  done
+else
+  received="$control_dir/received-stdin"
+  cat > "$received"
+  cmp -s "$control_dir/expected-stdin" "$received" || exit 66
+  printf 'stdin.sha=%s\n' "$(git hash-object "$received")" >> "$log"
+fi
+
+if [ "$mode" = "real-gitleaks" ]; then
+  [ -n "${OMP_TEST_REAL_GITLEAKS:-}" ] || exit 69
+  if [ "$subcommand" = "stdin" ]; then
+    exec "$OMP_TEST_REAL_GITLEAKS" stdin \
+      --redact --no-banner --no-color --timeout 60 \
+      --config "$config_path" --gitleaks-ignore-path "$ignore_path" \
+      --ignore-gitleaks-allow --report-format json --report-path "$report_path" \
+      < "$control_dir/received-stdin"
+  fi
+  exec "$OMP_TEST_REAL_GITLEAKS" dir "$scan_tree" \
+    --redact --no-banner --no-color --timeout 60 \
+    --config "$config_path" --gitleaks-ignore-path "$ignore_path" \
+    --ignore-gitleaks-allow --report-format json --report-path "$report_path"
+fi
+
+if [ "$subcommand" = "dir" ]; then
+  case "$mode" in
+    mutate-worktree)
+      printf '%s\n' 'changed after scan' > "$(cat "$control_dir/mutation-file")"
+      ;;
+    mutate-real-index)
+      real_index="$(git rev-parse --absolute-git-dir)/index"
+      GIT_INDEX_FILE="$real_index" git add -- "$(cat "$control_dir/mutation-file")"
+      ;;
+    advance-head)
+      real_index="$(git rev-parse --absolute-git-dir)/index"
+      GIT_INDEX_FILE="$real_index" git add -- "$(cat "$control_dir/mutation-file")"
+      GIT_INDEX_FILE="$real_index" git commit --no-verify -m "chore(test): concurrent external commit" >/dev/null
+      ;;
+    abort-descendant)
+      sleep 300 &
+      descendant_pid=$!
+      printf '%s\n' "$descendant_pid" > "$control_dir/descendant.pid"
+      wait "$descendant_pid"
+      ;;
+  esac
+  printf '%s\n' '[]' > "$report_path"
+  exit 0
+fi
+
+case "$mode" in
+  success|mutate-worktree|mutate-real-index|advance-head|unavailable)
+    printf '%s\n' '[]' > "$report_path"
+    ;;
+  findings)
+    printf '%s\n' '[{"RuleID":"synthetic-fixture","Secret":"REDACTED"}]' > "$report_path"
+    exit 1
+    ;;
+  missing-report)
+    ;;
+  empty-report)
+    : > "$report_path"
+    ;;
+  malformed-report)
+    printf '%s\n' '{' > "$report_path"
+    ;;
+  wrong-shape-report)
+    printf '%s\n' '{"findings":[]}' > "$report_path"
+    ;;
+  *)
+    exit 64
+    ;;
+esac
+exit 0
+SH
+chmod +x "$fake_gitleaks_dir/gitleaks"
+
 bun --check "$extension_path"
 
 bun - "$extension_path" <<'TS'
-import { access, chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -501,8 +754,113 @@ async function execute(cwd, id, args, updates = []) {
 }
 
 async function assertCommittedFiles(repo, revisionRange, expected, label) {
-  const actual = (await git(repo, ["diff", "--name-only", ...revisionRange])).stdout.trim().split("\n").filter(Boolean);
+  const actual = (await git(repo, ["diff", "--name-only", "-z", ...revisionRange])).stdout.split("\0").filter(Boolean);
   assertSameSet(actual, expected, label);
+}
+
+async function headOf(repo) {
+  return (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
+}
+
+async function commitCountOf(repo) {
+  return Number((await git(repo, ["rev-list", "--count", "HEAD"])).stdout.trim());
+}
+
+async function stagedPathsOf(repo) {
+  return (await git(repo, ["diff", "--cached", "--name-only", "-z"])).stdout.split("\0").filter(Boolean);
+}
+
+async function stagedTreeOf(repo) {
+  return (await git(repo, ["write-tree"])).stdout.trim();
+}
+
+type GitleaksMode =
+  | "success"
+  | "mutate-worktree"
+  | "mutate-real-index"
+  | "advance-head"
+  | "abort-descendant"
+  | "findings"
+  | "missing-report"
+  | "empty-report"
+  | "malformed-report"
+  | "wrong-shape-report"
+  | "legacy-only"
+  | "real-gitleaks"
+  | "unavailable";
+const gitleaksControlDir = process.env.OMP_TEST_GITLEAKS_CONTROL_DIR;
+if (!gitleaksControlDir) fail("gitleaks fake control directory was not configured");
+
+async function setFakeGitleaksMode(mode: GitleaksMode, mutationFile = "") {
+  await writeFile(join(gitleaksControlDir, "mode"), `${mode}\n`);
+  await writeFile(join(gitleaksControlDir, "mutation-file"), `${mutationFile}\n`);
+  await writeFile(join(gitleaksControlDir, "scan-log"), "");
+  await rm(join(gitleaksControlDir, "descendant.pid"), { force: true });
+  await rm(join(gitleaksControlDir, "capability-descendant.pid"), { force: true });
+  await rm(join(gitleaksControlDir, "capability-hang"), { force: true });
+}
+
+async function assertScanContractAndCleanup(expectedPaths, label, requireStdin = true) {
+  const log = await readFile(join(gitleaksControlDir, "scan-log"), "utf8");
+  const required = [
+    "capability=dir-help",
+    "capability=stdin-help",
+    "pass=dir",
+    "arg=dir",
+    "arg=--redact",
+    "arg=--config",
+    "arg=--gitleaks-ignore-path",
+    "arg=--ignore-gitleaks-allow",
+    "arg=--report-format",
+    "arg=json",
+    "arg=--report-path",
+    "env.GIT_INDEX_FILE=unset",
+    "env.GITLEAKS_CONFIG=unset",
+    "env.GITLEAKS_CONFIG_TOML=unset",
+  ];
+  if (requireStdin) required.push("pass=stdin", "arg=stdin", "stdin.sha=");
+  for (const item of required) {
+    assertIncludes(log, item, `${label} scanner invocation`);
+  }
+  if (log.split("\n").filter(line => line === "pass=dir").length !== 1) {
+    fail(`${label} did not run exactly one path-aware directory pass`);
+  }
+  if (log.split("\n").filter(line => line === "pass=stdin").length !== (requireStdin ? 1 : 0)) {
+    fail(`${label} ran an unexpected number of raw-byte stdin passes`);
+  }
+  assertExcludes(log, "arg=git", `${label} stale git scanner invocation`);
+  assertExcludes(log, "arg=protect", `${label} stale protect scanner invocation`);
+  assertExcludes(log, "arg=--staged", `${label} stale staged scanner invocation`);
+  const values = key => log.split("\n").filter(line => line.startsWith(`${key}=`)).map(line => line.slice(key.length + 1));
+  const value = key => values(key)[0] ?? "";
+  const workspaces = values("workspace");
+  const expectedWorkspaceCount = requireStdin ? 2 : 1;
+  if (workspaces.length !== expectedWorkspaceCount || workspaces.some(workspace => workspace !== workspaces[0])) {
+    fail(`${label} scanner passes did not share one private workspace`);
+  }
+  const workspace = workspaces[0];
+  const scanTree = join(workspace, "scan-tree");
+  const candidateIndex = join(workspace, "candidate.index");
+  const dirReport = value("report.dir");
+  const stdinReport = join(workspace, "gitleaks-stdin-report.json");
+  if (!workspace || !dirReport || (requireStdin && value("report.stdin") !== stdinReport)) {
+    fail(`${label} scanner audit log was incomplete`);
+  }
+  const blobs = log.split("\n").filter(line => line.startsWith("blob=")).map(line => {
+    const [path, candidateHash, scanHash] = line.slice("blob=".length).split("|");
+    if (!path || !/^[0-9a-f]{40,64}$/.test(candidateHash) || candidateHash !== scanHash) {
+      fail(`${label} materialized scan blob differed from the candidate index`);
+    }
+    return path;
+  });
+  assertSameSet(blobs, expectedPaths, `${label} materialized scan paths`);
+  if (!/^[0-9a-f]{40,64}$/.test(value("tree"))) fail(`${label} did not log a candidate tree`);
+  if (dirReport !== join(workspace, "gitleaks-dir-report.json")) fail(`${label} directory report escaped private workspace`);
+  if (stdinReport !== join(workspace, "gitleaks-stdin-report.json")) fail(`${label} stdin report escaped private workspace`);
+  for (const privatePath of [candidateIndex, scanTree, dirReport, stdinReport, join(workspace, "gitleaks-stdin.input"), workspace]) {
+    if (await exists(privatePath)) fail(`${label} left private scanner artifact behind: ${privatePath}`);
+  }
+  return { tree: value("tree"), workspace };
 }
 
 const promptHome = await tempDir("omp-commit-ui-home-");
@@ -802,6 +1160,34 @@ assertBoxed(collapsedLeftOutRendered, "collapsed left out result");
 assertCollapsedLeftOut(collapsedLeftOutRendered, 54, "collapsed left out result");
 assertNoLegacyUi(collapsedLeftOutRendered, "collapsed left out result");
 
+await setFakeGitleaksMode("success");
+
+function assertErrorMessage(result, expected, label) {
+  if (!result?.isError) fail(`${label} should have failed`);
+  if (!textOf(result).includes(expected)) fail(`${label} omitted the expected user-facing error`);
+}
+
+function assertTokenIsRedacted(value, token, label) {
+  if (String(value).includes(token)) fail(`${label} exposed fixture token content`);
+}
+
+async function assertUnchangedHeadAndCommitCount(repo, expectedHead, expectedCount, label) {
+  if (await headOf(repo) !== expectedHead) fail(`${label} changed HEAD`);
+  if (await commitCountOf(repo) !== expectedCount) fail(`${label} changed commit count`);
+}
+
+async function assertReturnedHashMatchesHead(repo, result, label) {
+  const expected = (await git(repo, ["rev-parse", "--short", "HEAD"])).stdout.trim();
+  if (hashOf(result) !== expected) {
+    fail(`${label} returned hash did not identify the created candidate commit`);
+  }
+}
+
+async function withFakeGitleaksMode(mode: GitleaksMode, mutationFile = "") {
+  await setFakeGitleaksMode(mode, mutationFile);
+  return async () => await setFakeGitleaksMode("success");
+}
+
 try {
   const emptyRepo = await makeRepo("empty-");
   const empty = await execute(emptyRepo, "empty-tree", {
@@ -832,7 +1218,963 @@ try {
   const selectedStatus = (await git(selectedRepo, ["status", "--porcelain"])).stdout;
   assertIncludes(selectedStatus, "?? unrelated.txt", "selected-file preserved unrelated change");
   if (commitsOf(selected)[0]?.status !== "succeeded") fail(`selected-file normalized commit did not succeed: ${JSON.stringify(selected.details)}`);
+  const selectedScan = await assertScanContractAndCleanup(["included.txt"], "selected-file commit");
+  const selectedCommitTree = (await git(selectedRepo, ["rev-parse", "HEAD^{tree}"])).stdout.trim();
+  if (selectedCommitTree !== selectedScan.tree) fail("selected-file commit tree differed from scanned candidate");
+  await assertReturnedHashMatchesHead(selectedRepo, selected, "selected-file commit");
 
+  const mutationRepo = await makeRepo("candidate-worktree-mutation-");
+  const mutationPath = join(mutationRepo, "selected.txt");
+  await writeFile(mutationPath, "scanned candidate\n");
+  await setFakeGitleaksMode("mutate-worktree", mutationPath);
+  const mutationResult = await execute(mutationRepo, "candidate-worktree-mutation", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): commit scanned candidate",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(mutationResult, "candidate worktree mutation");
+  const mutationScan = await assertScanContractAndCleanup(["selected.txt"], "candidate worktree mutation");
+  if ((await git(mutationRepo, ["rev-parse", "HEAD^{tree}"])).stdout.trim() !== mutationScan.tree) {
+    fail("candidate worktree mutation did not commit the exact scanned tree");
+  }
+  if ((await git(mutationRepo, ["show", "HEAD:selected.txt"])).stdout !== "scanned candidate\n") {
+    fail("candidate worktree mutation committed post-scan worktree content");
+  }
+  if ((await readFile(mutationPath, "utf8")) !== "changed after scan\n") {
+    fail("candidate worktree mutation fixture did not mutate after scanning");
+  }
+
+  for (const reportCase of [
+    { mode: "findings", expected: "Gitleaks detected potential secrets; commit was not created." },
+    { mode: "missing-report", expected: "Gitleaks scan failed; commit was not created." },
+    { mode: "empty-report", expected: "Gitleaks scan failed; commit was not created." },
+    { mode: "malformed-report", expected: "Gitleaks scan failed; commit was not created." },
+    { mode: "wrong-shape-report", expected: "Gitleaks scan failed; commit was not created." },
+  ] as const) {
+    const repo = await makeRepo(`gitleaks-${reportCase.mode}-`);
+    const blockedToken = ["sk", "fixture", reportCase.mode, "q".repeat(32)].join("-");
+    await writeFile(join(repo, "selected.ts"), `export const credential = "${blockedToken}";\n`);
+    const beforeHead = await headOf(repo);
+    const beforeCount = await commitCountOf(repo);
+    const beforeIndex = await stagedTreeOf(repo);
+    await setFakeGitleaksMode(reportCase.mode);
+    const result = await execute(repo, `gitleaks-${reportCase.mode}`, {
+      files: ["selected.ts"],
+      commitMessage: `chore(test): block ${reportCase.mode}`,
+      dryRun: false,
+      push: false,
+    });
+    assertErrorMessage(result, reportCase.expected, `gitleaks ${reportCase.mode}`);
+    await assertUnchangedHeadAndCommitCount(repo, beforeHead, beforeCount, `gitleaks ${reportCase.mode}`);
+    if (await stagedTreeOf(repo) !== beforeIndex) fail(`gitleaks ${reportCase.mode} changed the real index`);
+    assertSameSet(await stagedPathsOf(repo), [], `gitleaks ${reportCase.mode} real index`);
+    assertTokenIsRedacted(`${textOf(result)}\n${JSON.stringify(result.details ?? {})}`, blockedToken, `gitleaks ${reportCase.mode}`);
+    await assertScanContractAndCleanup(["selected.ts"], `gitleaks ${reportCase.mode}`);
+  }
+
+  const capabilityRepo = await makeRepo("gitleaks-capability-abort-descendant-");
+  await writeFile(join(capabilityRepo, "selected.txt"), "capability abort fixture\n");
+  const capabilityHead = await headOf(capabilityRepo);
+  const capabilityCount = await commitCountOf(capabilityRepo);
+  const capabilityIndex = await stagedTreeOf(capabilityRepo);
+  await setFakeGitleaksMode("success");
+  await writeFile(join(gitleaksControlDir, "capability-hang"), "");
+  const capabilityController = new AbortController();
+  const capabilityPromise = tool.execute(
+    "gitleaks-capability-abort-descendant",
+    {
+      files: ["selected.txt"],
+      commitMessage: "chore(test): abort capability probe",
+      dryRun: false,
+      push: false,
+    },
+    capabilityController.signal,
+    () => {},
+    { cwd: capabilityRepo },
+  );
+  const capabilityPidPath = join(gitleaksControlDir, "capability-descendant.pid");
+  const capabilityStartDeadline = Date.now() + 5_000;
+  while (!(await exists(capabilityPidPath)) && Date.now() < capabilityStartDeadline) await Bun.sleep(20);
+  if (!(await exists(capabilityPidPath))) {
+    fail("scanner capability descendant fixture did not start");
+  }
+  const capabilityPid = (await readFile(capabilityPidPath, "utf8")).trim();
+  if (!/^[1-9][0-9]*$/.test(capabilityPid)) fail("scanner capability fixture recorded an invalid PID");
+  const capabilityAbortStartedAt = Date.now();
+  capabilityController.abort();
+  const capabilityResult = await capabilityPromise;
+  assertError(capabilityResult, /cancelled|aborted/i, "scanner capability descendant abort");
+  if (Date.now() - capabilityAbortStartedAt >= 3_000) fail("scanner capability cancellation exceeded its bounded deadline");
+  await assertUnchangedHeadAndCommitCount(capabilityRepo, capabilityHead, capabilityCount, "scanner capability abort");
+  if (await stagedTreeOf(capabilityRepo) !== capabilityIndex) fail("scanner capability abort changed the real index");
+  const capabilityCleanupDeadline = Date.now() + 3_000;
+  let capabilityDescendantRunning = true;
+  while (capabilityDescendantRunning && Date.now() < capabilityCleanupDeadline) {
+    const processState = await run(capabilityRepo, "ps", ["-o", "stat=", "-p", capabilityPid], { allowFailure: true });
+    capabilityDescendantRunning = processState.exitCode === 0 && !processState.stdout.trim().startsWith("Z");
+    if (capabilityDescendantRunning) await Bun.sleep(25);
+  }
+  if (capabilityDescendantRunning) fail("scanner capability abort left a running descendant process");
+
+  const abortScannerRepo = await makeRepo("gitleaks-abort-descendant-");
+  await writeFile(join(abortScannerRepo, "selected.txt"), "abort scanner fixture\n");
+  const abortScannerHead = await headOf(abortScannerRepo);
+  const abortScannerCount = await commitCountOf(abortScannerRepo);
+  await setFakeGitleaksMode("abort-descendant");
+  const scannerController = new AbortController();
+  const abortScannerPromise = tool.execute(
+    "gitleaks-abort-descendant",
+    {
+      files: ["selected.txt"],
+      commitMessage: "chore(test): abort scanner process group",
+      dryRun: false,
+      push: false,
+    },
+    scannerController.signal,
+    () => {},
+    { cwd: abortScannerRepo },
+  );
+  const descendantPidPath = join(gitleaksControlDir, "descendant.pid");
+  const descendantDeadline = Date.now() + 5_000;
+  while (!(await exists(descendantPidPath)) && Date.now() < descendantDeadline) await Bun.sleep(20);
+  if (!(await exists(descendantPidPath))) fail("scanner descendant fixture did not start");
+  const descendantPid = (await readFile(descendantPidPath, "utf8")).trim();
+  if (!/^[1-9][0-9]*$/.test(descendantPid)) fail("scanner descendant fixture recorded an invalid PID");
+  scannerController.abort();
+  const abortScannerResult = await abortScannerPromise;
+  assertError(abortScannerResult, /cancelled|aborted/i, "scanner descendant abort");
+  await assertUnchangedHeadAndCommitCount(
+    abortScannerRepo,
+    abortScannerHead,
+    abortScannerCount,
+    "scanner descendant abort",
+  );
+  const cleanupDeadline = Date.now() + 3_000;
+  let descendantRunning = true;
+  while (descendantRunning && Date.now() < cleanupDeadline) {
+    const processState = await run(abortScannerRepo, "ps", ["-o", "stat=", "-p", descendantPid], { allowFailure: true });
+    descendantRunning = processState.exitCode === 0 && !processState.stdout.trim().startsWith("Z");
+    if (descendantRunning) await Bun.sleep(25);
+  }
+  if (descendantRunning) fail("scanner abort left a running descendant process");
+  await assertScanContractAndCleanup(["selected.txt"], "scanner descendant abort", false);
+
+
+  const fallbackRepo = await makeRepo("gitleaks-compatible-home-fallback-");
+  await writeFile(join(fallbackRepo, "selected.txt"), "compatible fallback fixture\n");
+  const fallbackHome = await tempDir("omp-commit-ui-gitleaks-home-");
+  const fallbackBin = join(fallbackHome, ".local", "bin");
+  const fallbackGitleaks = join(fallbackBin, "gitleaks");
+  const fakeGitleaksPath = process.env.OMP_TEST_FAKE_GITLEAKS;
+  if (!fakeGitleaksPath) fail("gitleaks fake executable path was not configured");
+  await mkdir(fallbackBin, { recursive: true });
+  const fallbackScript = (await readFile(fakeGitleaksPath, "utf8")).replace(
+    "#!/bin/sh\n",
+    "#!/bin/sh\nexport OMP_TEST_GITLEAKS_FORCE_COMPATIBLE=1\n",
+  );
+  await writeFile(fallbackGitleaks, fallbackScript);
+  await chmod(fallbackGitleaks, 0o755);
+  const fallbackPreviousHome = process.env.HOME;
+  try {
+    process.env.HOME = fallbackHome;
+    await setFakeGitleaksMode("unavailable");
+    const fallbackResult = await execute(fallbackRepo, "gitleaks-compatible-home-fallback", {
+      files: ["selected.txt"],
+      commitMessage: "chore(test): use compatible home scanner",
+      dryRun: false,
+      push: false,
+    });
+    assertSucceeded(fallbackResult, "compatible HOME scanner fallback");
+    await assertReturnedHashMatchesHead(fallbackRepo, fallbackResult, "compatible HOME scanner fallback");
+    await assertCommittedFiles(fallbackRepo, ["HEAD^", "HEAD"], ["selected.txt"], "compatible HOME scanner fallback files");
+    const fallbackLog = await readFile(join(gitleaksControlDir, "scan-log"), "utf8");
+    const scanExecutables = fallbackLog.split("\n")
+      .filter(line => line.startsWith("scan-executable="))
+      .map(line => line.slice("scan-executable=".length));
+    if (scanExecutables.length !== 2 || scanExecutables.some(path => path !== fallbackGitleaks)) {
+      fail(`compatible HOME scanner fallback did not run the selected executable: ${JSON.stringify(scanExecutables)}`);
+    }
+    assertIncludes(fallbackLog, `capability-executable=${fakeGitleaksPath}`, "incompatible bare scanner probe");
+    assertIncludes(fallbackLog, `capability-executable=${fallbackGitleaks}`, "compatible HOME scanner probe");
+    await assertScanContractAndCleanup(["selected.txt"], "compatible HOME scanner fallback");
+  } finally {
+    if (fallbackPreviousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = fallbackPreviousHome;
+  }
+
+  if (process.env.OMP_TEST_REAL_GITLEAKS) {
+    const attributesRepo = await makeRepo("gitleaks-attributes-");
+    await writeFile(join(attributesRepo, ".gitattributes"), "selected.ts -diff\n");
+    await git(attributesRepo, ["add", "--", ".gitattributes"]);
+    await git(attributesRepo, ["commit", "-m", "chore(test): add diff suppression fixture"]);
+    const suppressedToken = `github_pat_${"A1b2C3d4E5f6G7h8I9j0K".repeat(5).slice(0, 82)}`;
+    await writeFile(join(attributesRepo, "selected.ts"), `export const credential = "${suppressedToken}";\n`);
+    const attributesHead = await headOf(attributesRepo);
+    const attributesCount = await commitCountOf(attributesRepo);
+    await setFakeGitleaksMode("real-gitleaks");
+    const attributesResult = await execute(attributesRepo, "gitleaks-attributes", {
+      files: ["selected.ts"],
+      commitMessage: "chore(test): block diff-suppressed secret",
+      dryRun: false,
+      push: false,
+    });
+    assertErrorMessage(
+      attributesResult,
+      "Gitleaks detected potential secrets; commit was not created.",
+      "gitattributes diff suppression",
+    );
+    await assertUnchangedHeadAndCommitCount(
+      attributesRepo,
+      attributesHead,
+      attributesCount,
+      "gitattributes diff suppression",
+    );
+    assertTokenIsRedacted(
+      `${textOf(attributesResult)}\n${JSON.stringify(attributesResult.details ?? {})}`,
+      suppressedToken,
+      "gitattributes diff suppression",
+    );
+    await assertScanContractAndCleanup(["selected.ts"], "gitattributes diff suppression", false);
+
+    const rawBypassCases = [
+      {
+        label: "binary-extension",
+        path: "secret.bin",
+        bytes: token => Buffer.from(`binary extension fixture\n${token}\n`),
+      },
+      {
+        label: "ignored-directory",
+        path: "node_modules/secret",
+        bytes: token => Buffer.from(`ignored directory fixture\n${token}\n`),
+      },
+      {
+        label: "elf-magic",
+        path: "fixture.elf",
+        bytes: token => Buffer.concat([Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x00]), Buffer.from(token)]),
+      },
+      {
+        label: "image-magic",
+        path: "fixture.png",
+        bytes: token => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]), Buffer.from(token)]),
+      },
+      {
+        label: "archive-magic",
+        path: "fixture.zip",
+        bytes: token => Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00]), Buffer.from(token)]),
+      },
+    ];
+    for (const [caseIndex, bypassCase] of rawBypassCases.entries()) {
+      const repo = await makeRepo(`gitleaks-raw-${bypassCase.label}-`);
+      const tokenAlphabet = `A1b2C3d4E5f6G7h8I9j0K${caseIndex}`;
+      const generatedToken = `github_pat_${tokenAlphabet.repeat(5).slice(0, 82)}`;
+      await mkdir(join(repo, bypassCase.path, ".."), { recursive: true });
+      await writeFile(join(repo, bypassCase.path), bypassCase.bytes(generatedToken));
+      const beforeHead = await headOf(repo);
+      const beforeCount = await commitCountOf(repo);
+      await setFakeGitleaksMode("real-gitleaks");
+      const result = await execute(repo, `gitleaks-raw-${bypassCase.label}`, {
+        files: [bypassCase.path],
+        commitMessage: `chore(test): block ${bypassCase.label} fixture`,
+        dryRun: false,
+        push: false,
+      });
+      assertErrorMessage(result, "Gitleaks detected potential secrets; commit was not created.", `raw ${bypassCase.label}`);
+      await assertUnchangedHeadAndCommitCount(repo, beforeHead, beforeCount, `raw ${bypassCase.label}`);
+      assertTokenIsRedacted(
+        `${textOf(result)}\n${JSON.stringify(result.details ?? {})}`,
+        generatedToken,
+        `raw ${bypassCase.label}`,
+      );
+      await assertScanContractAndCleanup([bypassCase.path], `raw ${bypassCase.label}`);
+    }
+
+    const symlinkRepo = await makeRepo("gitleaks-raw-symlink-");
+    const symlinkToken = `github_pat_${"Z9y8X7w6V5u4T3s2R1q0P".repeat(5).slice(0, 82)}`;
+    await symlink(symlinkToken, join(symlinkRepo, "secret-link"));
+    const symlinkHead = await headOf(symlinkRepo);
+    const symlinkCount = await commitCountOf(symlinkRepo);
+    await setFakeGitleaksMode("real-gitleaks");
+    const symlinkResult = await execute(symlinkRepo, "gitleaks-raw-symlink", {
+      files: ["secret-link"],
+      commitMessage: "chore(test): block symlink target fixture",
+      dryRun: false,
+      push: false,
+    });
+    assertErrorMessage(symlinkResult, "Gitleaks detected potential secrets; commit was not created.", "raw symlink target");
+    await assertUnchangedHeadAndCommitCount(symlinkRepo, symlinkHead, symlinkCount, "raw symlink target");
+    assertTokenIsRedacted(
+      `${textOf(symlinkResult)}\n${JSON.stringify(symlinkResult.details ?? {})}`,
+      symlinkToken,
+      "raw symlink target",
+    );
+    await assertScanContractAndCleanup(["secret-link"], "raw symlink target", false);
+  }
+
+  const advancedBaseRepo = await makeRepo("advanced-base-");
+  await writeFile(join(advancedBaseRepo, "candidate.txt"), "candidate content\n");
+  await writeFile(join(advancedBaseRepo, "external.txt"), "external content\n");
+  const advancedBaseInitialHead = await headOf(advancedBaseRepo);
+  const advancedBaseInitialCount = await commitCountOf(advancedBaseRepo);
+  await setFakeGitleaksMode("advance-head", "external.txt");
+  const advancedBaseResult = await execute(advancedBaseRepo, "advanced-base", {
+    files: ["candidate.txt"],
+    commitMessage: "chore(test): reject stale candidate base",
+    dryRun: false,
+    push: false,
+  });
+  assertError(
+    advancedBaseResult,
+    /repository base changed after scanning|Git command failed|Created commit did not match/i,
+    "advanced base guard",
+  );
+  if (await commitCountOf(advancedBaseRepo) !== advancedBaseInitialCount + 1) {
+    fail("advanced base guard did not preserve exactly one external commit");
+  }
+  if (await headOf(advancedBaseRepo) === advancedBaseInitialHead) fail("advanced base fixture did not advance HEAD");
+  await assertCommittedFiles(
+    advancedBaseRepo,
+    [advancedBaseInitialHead, "HEAD"],
+    ["external.txt"],
+    "advanced base external commit",
+  );
+  const advancedBaseStatus = (await git(advancedBaseRepo, ["status", "--porcelain"])).stdout;
+  assertIncludes(advancedBaseStatus, "?? candidate.txt", "advanced base preserved candidate worktree file");
+  await assertScanContractAndCleanup(["candidate.txt"], "advanced base guard");
+
+  const literalPathRepo = await makeRepo("literal-pathspec-");
+  const magicPath = ":(glob)*.txt";
+  await writeFile(join(literalPathRepo, magicPath), "literal pathspec candidate\n");
+  await writeFile(join(literalPathRepo, "decoy.txt"), "must remain unselected\n");
+  await setFakeGitleaksMode("success");
+  const literalPathResult = await execute(literalPathRepo, "literal-pathspec", {
+    files: [magicPath],
+    commitMessage: "chore(test): commit literal pathspec filename",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(literalPathResult, "literal pathspec filename");
+  await assertCommittedFiles(literalPathRepo, ["HEAD^", "HEAD"], [magicPath], "literal pathspec committed files");
+  assertIncludes(
+    (await git(literalPathRepo, ["status", "--porcelain"])).stdout,
+    "?? decoy.txt",
+    "literal pathspec preserved glob match",
+  );
+  await assertScanContractAndCleanup([magicPath], "literal pathspec filename");
+
+  if (process.platform !== "win32") {
+    const exactPathRepo = await makeRepo("exact-path-bytes-");
+    const exactPaths = [" leading.txt", "trailing.txt ", "unix\\backslash.txt"];
+    const decoyPaths = ["leading.txt", "trailing.txt", "unix/backslash.txt"];
+    await mkdir(join(exactPathRepo, "unix"));
+    for (const path of exactPaths) await writeFile(join(exactPathRepo, path), `selected ${JSON.stringify(path)}\n`);
+    for (const path of decoyPaths) await writeFile(join(exactPathRepo, path), `decoy ${JSON.stringify(path)}\n`);
+    await setFakeGitleaksMode("success");
+    const exactPathResult = await execute(exactPathRepo, "exact-path-bytes", {
+      files: exactPaths,
+      commitMessage: "chore(test): preserve exact path bytes",
+      dryRun: false,
+      push: false,
+    });
+    assertSucceeded(exactPathResult, "exact path bytes");
+    await assertCommittedFiles(exactPathRepo, ["HEAD^", "HEAD"], exactPaths, "exact path byte committed files");
+    assertSameSet(
+      parseStatusPaths((await git(exactPathRepo, ["status", "--porcelain", "-z", "--untracked-files=all"])).stdout),
+      decoyPaths,
+      "exact path decoys",
+    );
+    await assertScanContractAndCleanup(exactPaths, "exact path bytes");
+  }
+
+  const omissionRepo = await makeRepo("scan-omissions-");
+  await writeFile(join(omissionRepo, "deleted.txt"), "delete candidate\n");
+  await git(omissionRepo, ["add", "--", "deleted.txt"]);
+  await git(omissionRepo, ["commit", "-m", "chore(test): add deletion fixture"]);
+  await rm(join(omissionRepo, "deleted.txt"));
+  await writeFile(join(omissionRepo, "plain.txt"), "materialized candidate\n");
+  const nestedRepo = join(omissionRepo, "module");
+  await mkdir(nestedRepo);
+  await git(nestedRepo, ["init"]);
+  await git(nestedRepo, ["config", "user.email", "commit-ui-test@example.invalid"]);
+  await git(nestedRepo, ["config", "user.name", "Commit UI Test"]);
+  await writeFile(join(nestedRepo, "nested.txt"), "gitlink fixture\n");
+  await git(nestedRepo, ["add", "--", "nested.txt"]);
+  await git(nestedRepo, ["commit", "-m", "chore(test): nested fixture"]);
+  await setFakeGitleaksMode("success");
+  const omissionResult = await execute(omissionRepo, "scan-omissions", {
+    files: ["deleted.txt", "module", "plain.txt"],
+    commitMessage: "chore(test): preserve scanner omissions",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(omissionResult, "scanner omissions");
+  await assertCommittedFiles(
+    omissionRepo,
+    ["HEAD^", "HEAD"],
+    ["deleted.txt", "module", "plain.txt"],
+    "scanner omission committed files",
+  );
+  await assertScanContractAndCleanup(["plain.txt"], "scanner omissions");
+
+  const splitIndexRepo = await makeRepo("real-split-index-");
+  await git(splitIndexRepo, ["update-index", "--split-index"]);
+  const sharedIndexPath = (await git(splitIndexRepo, ["rev-parse", "--path-format=absolute", "--shared-index-path"])).stdout.trim();
+  if (!sharedIndexPath || !(await exists(sharedIndexPath))) fail("real split-index fixture did not create a shared index");
+  await writeFile(join(splitIndexRepo, "selected.txt"), "staged predecessor\n");
+  await git(splitIndexRepo, ["add", "--", "selected.txt"]);
+  await writeFile(join(splitIndexRepo, "selected.txt"), "candidate successor\n");
+  await setFakeGitleaksMode("success");
+  const splitIndexResult = await execute(splitIndexRepo, "real-split-index", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): reconcile real split index",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(splitIndexResult, "real split-index reconciliation");
+  await assertReturnedHashMatchesHead(splitIndexRepo, splitIndexResult, "real split-index reconciliation");
+  assertSameSet(await stagedPathsOf(splitIndexRepo), [], "real split-index reconciled staging");
+  if ((await git(splitIndexRepo, ["status", "--porcelain"])).stdout !== "") {
+    fail("real split-index reconciliation left a stale staged or worktree reversal");
+  }
+  if ((await git(splitIndexRepo, ["show", "HEAD:selected.txt"])).stdout !== "candidate successor\n") {
+    fail("real split-index reconciliation committed the stale staged predecessor");
+  }
+  if (warningsOf(splitIndexResult).length !== 0) {
+    fail(`real split-index reconciliation emitted a warning: ${JSON.stringify(warningsOf(splitIndexResult))}`);
+  }
+  await assertScanContractAndCleanup(["selected.txt"], "real split-index reconciliation");
+
+  const realIndexRepo = await makeRepo("real-index-mutation-");
+  await writeFile(join(realIndexRepo, "selected.txt"), "scanned selection\n");
+  await writeFile(join(realIndexRepo, "concurrent.txt"), "physical index mutation\n");
+  await setFakeGitleaksMode("mutate-real-index", "concurrent.txt");
+  const realIndexResult = await execute(realIndexRepo, "real-index-mutation", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): preserve physical index mutation",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(realIndexResult, "real-index mutation");
+  const realIndexScan = await assertScanContractAndCleanup(["selected.txt"], "real-index mutation");
+  if ((await git(realIndexRepo, ["rev-parse", "HEAD^{tree}"])).stdout.trim() !== realIndexScan.tree) {
+    fail("real-index mutation commit differed from scanned candidate");
+  }
+  assertSameSet(await stagedPathsOf(realIndexRepo), ["concurrent.txt", "selected.txt"], "real-index mutation preserved physical staging");
+  if ((await git(realIndexRepo, ["show", ":concurrent.txt"])).stdout !== "physical index mutation\n") {
+    fail("real-index mutation did not preserve concurrently staged content");
+  }
+  if (!warningsOf(realIndexResult).some(warning => /newer staged changes.*preserved/i.test(warning))) {
+    fail(`real-index mutation omitted preservation warning: ${JSON.stringify(warningsOf(realIndexResult))}`);
+  }
+
+  const hooksRepo = await makeRepo("configured-hooks-");
+  const hooksDir = join(hooksRepo, "configured-hooks");
+  const hooksLog = join(hooksRepo, "hook-order.log");
+  const referenceLog = join(hooksRepo, "reference-transaction.log");
+  await mkdir(hooksDir);
+  await git(hooksRepo, ["config", "core.hooksPath", hooksDir]);
+  for (const hook of ["pre-commit", "prepare-commit-msg", "commit-msg", "post-commit"]) {
+    const hookPath = join(hooksDir, hook);
+    await writeFile(hookPath, `#!/bin/sh\nprintf '%s:%s\\n' '${hook}' "$GIT_INDEX_FILE" >> '${hooksLog}'\n`);
+    await chmod(hookPath, 0o755);
+  }
+  const hooksBase = await headOf(hooksRepo);
+  const hooksRef = (await git(hooksRepo, ["symbolic-ref", "HEAD"])).stdout.trim();
+  const referenceHook = join(hooksDir, "reference-transaction");
+  await writeFile(
+    referenceHook,
+    `#!/bin/sh\nprintf 'phase=%s\\n' "$1" >> '${referenceLog}'\ncat >> '${referenceLog}'\n`,
+  );
+  await chmod(referenceHook, 0o755);
+  await writeFile(join(hooksRepo, "hooked.txt"), "hooked candidate\n");
+  await setFakeGitleaksMode("success");
+  const hooksResult = await execute(hooksRepo, "configured-hooks", {
+    files: ["hooked.txt"],
+    commitMessage: "chore(test): run configured hooks",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(hooksResult, "configured hooks");
+  const hooksScan = await assertScanContractAndCleanup(["hooked.txt"], "configured hooks");
+  const hookLines = (await readFile(hooksLog, "utf8")).trim().split("\n");
+  assertSameSet(hookLines.map(line => line.split(":")[0]), ["pre-commit", "prepare-commit-msg", "commit-msg", "post-commit"], "configured hook count");
+  if (hookLines.map(line => line.split(":")[0]).join(",") !== "pre-commit,prepare-commit-msg,commit-msg,post-commit") {
+    fail(`configured hooks ran out of order: ${JSON.stringify(hookLines)}`);
+  }
+  if (!hookLines.every(line => line.slice(line.indexOf(":") + 1) === join(hooksScan.workspace, "candidate.index"))) {
+    fail(`configured hooks did not receive candidate index: ${JSON.stringify(hookLines)}`);
+  }
+  const hooksCreated = await headOf(hooksRepo);
+  function parseReferenceTransactions(raw, label) {
+    const lines = raw.trimEnd().split("\n");
+    const groups = [];
+    for (const line of lines) {
+      const phase = /^phase=(preparing|prepared|committed|aborted)$/.exec(line)?.[1];
+      if (phase) {
+        groups.push({ phase, updates: [] });
+        continue;
+      }
+      const group = groups.at(-1);
+      const update = /^([0-9a-f]{40,64}) ([0-9a-f]{40,64}) (\S+)$/.exec(line);
+      if (!group || !update || update[1].length !== update[2].length) {
+        fail(`${label} contained a malformed phase/update group: ${JSON.stringify(lines)}`);
+      }
+      group.updates.push(line);
+    }
+    if (groups.length === 0 || groups.some(group => group.updates.length === 0)) {
+      fail(`${label} contained an empty or missing phase/update group: ${JSON.stringify(lines)}`);
+    }
+    return groups;
+  }
+  const referenceGroups = parseReferenceTransactions(await readFile(referenceLog, "utf8"), "reference-transaction hook");
+  const expectedBranchUpdate = `${hooksBase} ${hooksCreated} ${hooksRef}`;
+  const branchGroups = referenceGroups.filter(group => group.updates.some(update => update.endsWith(` ${hooksRef}`)));
+  const requiredBranchGroups = branchGroups.filter(group => group.phase === "prepared" || group.phase === "committed");
+  if (requiredBranchGroups.length !== 2 ||
+    requiredBranchGroups[0].phase !== "prepared" ||
+    requiredBranchGroups[1].phase !== "committed" ||
+    requiredBranchGroups.some(group => group.updates.filter(update => update.endsWith(` ${hooksRef}`)).join("\n") !== expectedBranchUpdate)) {
+    fail(`reference-transaction hook did not preserve the prepared then committed branch update: ${JSON.stringify(referenceGroups)}`);
+  }
+  for (const group of branchGroups.filter(group => group.phase === "preparing")) {
+    if (group.updates.filter(update => update.endsWith(` ${hooksRef}`)).some(update => update !== expectedBranchUpdate)) {
+      fail(`reference-transaction hook changed the preparing branch update: ${JSON.stringify(referenceGroups)}`);
+    }
+  }
+
+  const rejectingReferenceRepo = await makeRepo("rejecting-reference-hook-");
+  const rejectingHooksDir = join(rejectingReferenceRepo, "hooks");
+  const rejectingReferenceLog = join(rejectingReferenceRepo, "reference-transaction.log");
+  await mkdir(rejectingHooksDir);
+  await git(rejectingReferenceRepo, ["config", "core.hooksPath", "hooks"]);
+  const rejectingReferenceHook = join(rejectingHooksDir, "reference-transaction");
+  await writeFile(
+    rejectingReferenceHook,
+    `#!/bin/sh\nprintf 'phase=%s\\n' "$1" >> '${rejectingReferenceLog}'\ncat >> '${rejectingReferenceLog}'\n[ "$1" != prepared ] || exit 23\n`,
+  );
+  await chmod(rejectingReferenceHook, 0o755);
+  await writeFile(join(rejectingReferenceRepo, "selected.txt"), "rejected transaction\n");
+  const rejectingBase = await headOf(rejectingReferenceRepo);
+  const rejectingCount = await commitCountOf(rejectingReferenceRepo);
+  const rejectingRef = (await git(rejectingReferenceRepo, ["symbolic-ref", "HEAD"])).stdout.trim();
+  await setFakeGitleaksMode("success");
+  const rejectingReferenceResult = await execute(rejectingReferenceRepo, "rejecting-reference-hook", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): reject prepared transaction",
+    dryRun: false,
+    push: false,
+  });
+  assertError(rejectingReferenceResult, /git .* failed|reference-transaction/i, "rejecting reference hook");
+  await assertUnchangedHeadAndCommitCount(
+    rejectingReferenceRepo,
+    rejectingBase,
+    rejectingCount,
+    "rejecting reference hook",
+  );
+  const rejectingGroups = parseReferenceTransactions(
+    await readFile(rejectingReferenceLog, "utf8"),
+    "rejecting reference-transaction hook",
+  );
+  const rejectingPrepared = rejectingGroups.find(group =>
+    group.phase === "prepared" && group.updates.some(update => update.endsWith(` ${rejectingRef}`))
+  );
+  const rejectedUpdate = rejectingPrepared?.updates.find(update => update.endsWith(` ${rejectingRef}`)) ?? "";
+  const rejectedNewOid = rejectedUpdate.split(" ")[1];
+  const expectedRejectedUpdate = `${rejectingBase} ${rejectedNewOid} ${rejectingRef}`;
+  if (!rejectingPrepared ||
+    rejectingPrepared.updates.filter(update => update.endsWith(` ${rejectingRef}`)).join("\n") !== expectedRejectedUpdate ||
+    !/^[0-9a-f]{40,64}$/.test(rejectedNewOid ?? "") ||
+    rejectedNewOid === rejectingBase) {
+    fail(`rejecting reference hook did not receive the exact prepared candidate update: ${JSON.stringify(rejectingGroups)}`);
+  }
+  const rejectingAbortedIndex = rejectingGroups.findIndex(group =>
+    group.phase === "aborted" && group.updates.some(update => update.endsWith(` ${rejectingRef}`))
+  );
+  if (rejectingAbortedIndex >= 0) {
+    const aborted = rejectingGroups[rejectingAbortedIndex];
+    if (rejectingAbortedIndex <= rejectingGroups.indexOf(rejectingPrepared) ||
+      aborted.updates.filter(update => update.endsWith(` ${rejectingRef}`)).join("\n") !== expectedRejectedUpdate) {
+      fail(`rejecting reference hook changed or reordered the aborted target update: ${JSON.stringify(rejectingGroups)}`);
+    }
+  }
+  await assertScanContractAndCleanup(["selected.txt"], "rejecting reference hook");
+
+  for (const ordinaryCase of [
+    { label: "accepting", reject: false },
+    { label: "rejecting", reject: true },
+  ]) {
+    const repo = await makeRepo(`${ordinaryCase.label}-pre-commit-relative-helper-`);
+    const hookRoot = join(repo, "hook-layout");
+    const activeHookDir = join(hookRoot, "active");
+    const helperLog = join(repo, "ordinary-helper.log");
+    await mkdir(activeHookDir, { recursive: true });
+    await git(repo, ["config", "core.hooksPath", "hook-layout/active"]);
+    const helper = join(hookRoot, "helper.sh");
+    await writeFile(
+      helper,
+      `#!/bin/sh\nprintf '%s\\n' '${ordinaryCase.label}-helper-executed' >> '${helperLog}'\n${ordinaryCase.reject ? "exit 27\n" : ""}`,
+    );
+    await chmod(helper, 0o755);
+    const preCommit = join(activeHookDir, "pre-commit");
+    await writeFile(
+      preCommit,
+      '#!/bin/sh\nhook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\n"$hook_dir/../helper.sh"\n',
+    );
+    await chmod(preCommit, 0o755);
+    await writeFile(join(repo, "selected.txt"), `${ordinaryCase.label} ordinary hook candidate\n`);
+    const beforeHead = await headOf(repo);
+    const beforeCount = await commitCountOf(repo);
+    const beforeIndex = await stagedTreeOf(repo);
+    await setFakeGitleaksMode("success");
+    const result = await execute(repo, `${ordinaryCase.label}-pre-commit-relative-helper`, {
+      files: ["selected.txt"],
+      commitMessage: `chore(test): ${ordinaryCase.label} ordinary helper`,
+      dryRun: false,
+      push: false,
+    });
+    if (ordinaryCase.reject) {
+      assertError(result, /git .* failed|pre-commit/i, "rejecting ordinary pre-commit helper");
+      await assertUnchangedHeadAndCommitCount(repo, beforeHead, beforeCount, "rejecting ordinary pre-commit helper");
+      if (await stagedTreeOf(repo) !== beforeIndex) fail("rejecting ordinary pre-commit helper changed the real index");
+      assertSameSet(await stagedPathsOf(repo), [], "rejecting ordinary pre-commit helper real index");
+    } else {
+      assertSucceeded(result, "accepting ordinary pre-commit helper");
+      await assertReturnedHashMatchesHead(repo, result, "accepting ordinary pre-commit helper");
+      await assertCommittedFiles(repo, ["HEAD^", "HEAD"], ["selected.txt"], "accepting ordinary pre-commit helper files");
+    }
+    if ((await readFile(helperLog, "utf8")) !== `${ordinaryCase.label}-helper-executed\n`) {
+      fail(`${ordinaryCase.label} ordinary pre-commit did not resolve and execute its parent helper through dirname/$0`);
+    }
+    await assertScanContractAndCleanup(["selected.txt"], `${ordinaryCase.label} ordinary pre-commit helper`);
+  }
+
+  for (const spacedHookCase of [
+    { label: "accepting", reject: false },
+    { label: "rejecting", reject: true },
+  ]) {
+    const repo = await makeRepo(`${spacedHookCase.label}-spaced-hooks-path-`);
+    const relativeHooksPath = ` ${spacedHookCase.label}-hooks `;
+    const hooksDir = join(repo, relativeHooksPath);
+    const hookLog = join(repo, `${spacedHookCase.label}-spaced-hook.log`);
+    await mkdir(hooksDir);
+    await git(repo, ["config", "core.hooksPath", relativeHooksPath]);
+    const helper = join(hooksDir, "helper.sh");
+    await writeFile(
+      helper,
+      `#!/bin/sh\nprintf '%s\\n' "$1" >> '${hookLog}'\n${spacedHookCase.reject ? "exit 29\n" : ""}`,
+    );
+    await chmod(helper, 0o755);
+    const preCommit = join(hooksDir, "pre-commit");
+    await writeFile(
+      preCommit,
+      '#!/bin/sh\nhook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\n"$hook_dir/helper.sh" "$0"\n',
+    );
+    await chmod(preCommit, 0o755);
+    await writeFile(join(repo, "selected.txt"), `${spacedHookCase.label} spaced hook candidate\n`);
+    const beforeHead = await headOf(repo);
+    const beforeCount = await commitCountOf(repo);
+    const beforeIndex = await stagedTreeOf(repo);
+    await setFakeGitleaksMode("success");
+    const result = await execute(repo, `${spacedHookCase.label}-spaced-hooks-path`, {
+      files: ["selected.txt"],
+      commitMessage: `chore(test): ${spacedHookCase.label} spaced hook path`,
+      dryRun: false,
+      push: false,
+    });
+    const caseLabel = `${spacedHookCase.label} spaced hooks path`;
+    if (spacedHookCase.reject) {
+      assertError(result, /git .* failed|pre-commit/i, caseLabel);
+      await assertUnchangedHeadAndCommitCount(repo, beforeHead, beforeCount, caseLabel);
+      if (await stagedTreeOf(repo) !== beforeIndex) fail(`${caseLabel} changed the real index`);
+      assertSameSet(await stagedPathsOf(repo), [], `${caseLabel} real index`);
+    } else {
+      assertSucceeded(result, caseLabel);
+      await assertReturnedHashMatchesHead(repo, result, caseLabel);
+      await assertCommittedFiles(repo, ["HEAD^", "HEAD"], ["selected.txt"], `${caseLabel} files`);
+    }
+    const observedHookLog = await readFile(hookLog, "utf8");
+    if (!observedHookLog.endsWith("\n") || observedHookLog.slice(0, -1).includes("\n")) {
+      fail(`${caseLabel} logged a malformed original pre-commit $0: ${JSON.stringify(observedHookLog)}`);
+    }
+    const observedHookPath = observedHookLog.slice(0, -1);
+    if (!observedHookPath.endsWith(`/${relativeHooksPath}/pre-commit`) ||
+      await realpath(observedHookPath) !== await realpath(preCommit)) {
+      fail(`${caseLabel} did not preserve and resolve the original pre-commit $0 through its spaced configured path: ${JSON.stringify({ observedHookPath, preCommit })}`);
+    }
+    await assertScanContractAndCleanup(["selected.txt"], caseLabel);
+  }
+
+  const inactiveSpacedHookRepo = await makeRepo("inactive-spaced-hooks-path-");
+  const inactiveRelativeHooksPath = " inactive-hooks ";
+  const inactiveHooksDir = join(inactiveSpacedHookRepo, inactiveRelativeHooksPath);
+  const inactiveHookLog = join(inactiveSpacedHookRepo, "inactive-spaced-hook.log");
+  await mkdir(inactiveHooksDir);
+  await git(inactiveSpacedHookRepo, ["config", "core.hooksPath", inactiveRelativeHooksPath]);
+  await writeFile(
+    join(inactiveHooksDir, "pre-commit"),
+    `#!/bin/sh\nprintf 'ran\\n' >> '${inactiveHookLog}'\nexit 31\n`,
+  );
+  await chmod(join(inactiveHooksDir, "pre-commit"), 0o644);
+  await writeFile(join(inactiveSpacedHookRepo, "selected.txt"), "inactive spaced hook candidate\n");
+  await setFakeGitleaksMode("success");
+  const inactiveSpacedHookResult = await execute(inactiveSpacedHookRepo, "inactive-spaced-hooks-path", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): ignore inactive spaced hook",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(inactiveSpacedHookResult, "inactive spaced hooks path");
+  await assertReturnedHashMatchesHead(inactiveSpacedHookRepo, inactiveSpacedHookResult, "inactive spaced hooks path");
+  await assertCommittedFiles(
+    inactiveSpacedHookRepo,
+    ["HEAD^", "HEAD"],
+    ["selected.txt"],
+    "inactive spaced hooks path files",
+  );
+  if (await exists(inactiveHookLog)) fail("inactive spaced pre-commit hook ran despite lacking execute permission");
+  await assertScanContractAndCleanup(["selected.txt"], "inactive spaced hooks path");
+
+
+  const siblingHookRepo = await makeRepo("commit-msg-sibling-helper-");
+  const siblingHooksDir = join(siblingHookRepo, "hooks");
+  const siblingHookLog = join(siblingHookRepo, "sibling-hook.log");
+  await mkdir(siblingHooksDir);
+  await git(siblingHookRepo, ["config", "core.hooksPath", "hooks"]);
+  await writeFile(
+    join(siblingHooksDir, "helper.sh"),
+    `record_sibling_hook() { printf '%s\\n' sibling-helper-loaded >> '${siblingHookLog}'; }\n`,
+  );
+  const siblingCommitMsg = join(siblingHooksDir, "commit-msg");
+  await writeFile(
+    siblingCommitMsg,
+    `#!/bin/sh\nhook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\n. "$hook_dir/helper.sh"\nrecord_sibling_hook "$1"\n`,
+  );
+  await chmod(siblingCommitMsg, 0o755);
+  await writeFile(join(siblingHookRepo, "selected.txt"), "sibling hook candidate\n");
+  await setFakeGitleaksMode("success");
+  const siblingHookResult = await execute(siblingHookRepo, "commit-msg-sibling-helper", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): load commit hook sibling",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(siblingHookResult, "commit-msg sibling helper");
+  await assertReturnedHashMatchesHead(siblingHookRepo, siblingHookResult, "commit-msg sibling helper");
+  if ((await readFile(siblingHookLog, "utf8")) !== "sibling-helper-loaded\n") {
+    fail("original commit-msg did not resolve its sibling helper through dirname/$0");
+  }
+  await assertScanContractAndCleanup(["selected.txt"], "commit-msg sibling helper");
+
+  const nullHooksRepo = await makeRepo("null-hooks-path-");
+  await git(nullHooksRepo, ["config", "core.hooksPath", "/dev/null"]);
+  await writeFile(join(nullHooksRepo, "selected.txt"), "no original hooks\n");
+  await setFakeGitleaksMode("success");
+  const nullHooksResult = await execute(nullHooksRepo, "null-hooks-path", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): tolerate null hooks path",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(nullHooksResult, "non-directory hooks path");
+  await assertReturnedHashMatchesHead(nullHooksRepo, nullHooksResult, "non-directory hooks path");
+  await assertScanContractAndCleanup(["selected.txt"], "non-directory hooks path");
+
+  for (const mutatingHook of ["pre-commit", "prepare-commit-msg"]) {
+    const repo = await makeRepo(`${mutatingHook}-tree-guard-`);
+    const hookDir = join(repo, "hooks");
+    const hookLog = join(repo, "hook.log");
+    await mkdir(hookDir);
+    await git(repo, ["config", "core.hooksPath", hookDir]);
+    await writeFile(join(repo, "selected.txt"), "scanned\n");
+    await writeFile(join(repo, "hook-added.txt"), "candidate mutation\n");
+    for (const hook of ["pre-commit", "prepare-commit-msg", "commit-msg", "post-commit"]) {
+      const body = hook === mutatingHook
+        ? `printf '%s\\n' '${hook}' >> '${hookLog}'\ngit add -- hook-added.txt\n`
+        : `printf '%s\\n' '${hook}' >> '${hookLog}'\n`;
+      await writeFile(join(hookDir, hook), `#!/bin/sh\n${body}`);
+      await chmod(join(hookDir, hook), 0o755);
+    }
+    const beforeHead = await headOf(repo);
+    const beforeCount = await commitCountOf(repo);
+    const beforeIndex = await stagedTreeOf(repo);
+    await setFakeGitleaksMode("success");
+    const result = await execute(repo, `${mutatingHook}-tree-guard`, {
+      files: ["selected.txt"],
+      commitMessage: `chore(test): guard ${mutatingHook} mutation`,
+      dryRun: false,
+      push: false,
+    });
+    assertError(result, /Commit blocked because a hook changed the scanned candidate|Git command failed/i, `${mutatingHook} tree guard`);
+    await assertUnchangedHeadAndCommitCount(repo, beforeHead, beforeCount, `${mutatingHook} tree guard`);
+    if (await stagedTreeOf(repo) !== beforeIndex) fail(`${mutatingHook} tree guard changed real index`);
+    const ranHooks = (await readFile(hookLog, "utf8")).trim().split("\n");
+    if (!ranHooks.includes("commit-msg")) fail(`${mutatingHook} tree guard did not reach commit-msg`);
+    if (ranHooks.includes("post-commit")) fail(`${mutatingHook} tree guard ran post-commit`);
+    await assertScanContractAndCleanup(["selected.txt"], `${mutatingHook} tree guard`);
+  }
+
+  const branchSwitchRepo = await makeRepo("same-base-branch-switch-");
+  const branchSwitchHooks = join(branchSwitchRepo, "hooks");
+  await mkdir(branchSwitchHooks);
+  await git(branchSwitchRepo, ["config", "core.hooksPath", "hooks"]);
+  const branchSwitchBase = await headOf(branchSwitchRepo);
+  await git(branchSwitchRepo, ["branch", "same-base-sibling", branchSwitchBase]);
+  const branchSwitchHook = join(branchSwitchHooks, "commit-msg");
+  await writeFile(
+    branchSwitchHook,
+    "#!/bin/sh\ngit symbolic-ref HEAD refs/heads/same-base-sibling\n",
+  );
+  await chmod(branchSwitchHook, 0o755);
+  await writeFile(join(branchSwitchRepo, "selected.txt"), "same-base branch switch\n");
+  await setFakeGitleaksMode("success");
+  const branchSwitchResult = await execute(branchSwitchRepo, "same-base-branch-switch", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): reject same-base branch switch",
+    dryRun: false,
+    push: false,
+  });
+  assertError(
+    branchSwitchResult,
+    /repository reference changed after scanning|Git command failed|git .* failed/i,
+    "same-base branch switch",
+  );
+  if ((await git(branchSwitchRepo, ["symbolic-ref", "HEAD"])).stdout.trim() !== "refs/heads/same-base-sibling") {
+    fail("same-base branch switch fixture did not change the symbolic HEAD");
+  }
+  for (const ref of ["refs/heads/main", "refs/heads/same-base-sibling"]) {
+    if ((await git(branchSwitchRepo, ["rev-parse", ref])).stdout.trim() !== branchSwitchBase) {
+      fail(`same-base branch switch unexpectedly advanced ${ref}`);
+    }
+  }
+  if (hashOf(branchSwitchResult)) fail("same-base branch switch returned a commit receipt");
+  await assertScanContractAndCleanup(["selected.txt"], "same-base branch switch");
+
+  const sameTreeRepo = await makeRepo("same-tree-external-");
+  const sameTreeHooks = join(sameTreeRepo, "hooks");
+  await mkdir(sameTreeHooks);
+  await git(sameTreeRepo, ["config", "core.hooksPath", "hooks"]);
+  const sameTreeBase = await headOf(sameTreeRepo);
+  const sameTreeRef = (await git(sameTreeRepo, ["symbolic-ref", "HEAD"])).stdout.trim();
+  const sameTreeHook = join(sameTreeHooks, "commit-msg");
+  await writeFile(
+    sameTreeHook,
+    `#!/bin/sh\ntree=$(git write-tree) || exit 30\nbase=$(git rev-parse HEAD) || exit 30\nexternal=$(printf '%s\\n' 'chore(test): concurrent same-tree commit' | git commit-tree "$tree" -p "$base") || exit 30\ngit update-ref '${sameTreeRef}' "$external" "$base" || exit 30\nexit 31\n`,
+  );
+  await chmod(sameTreeHook, 0o755);
+  await writeFile(join(sameTreeRepo, "selected.txt"), "same scanned tree bytes\n");
+  await setFakeGitleaksMode("success");
+  const sameTreeResult = await execute(sameTreeRepo, "same-tree-external", {
+    files: ["selected.txt"],
+    commitMessage: "chore(test): reject matching external commit",
+    dryRun: false,
+    push: false,
+  });
+  assertError(sameTreeResult, /git .* failed|Git command failed/i, "same-tree external commit");
+  const externalSameTree = await headOf(sameTreeRepo);
+  if (externalSameTree === sameTreeBase) fail("same-tree external fixture did not advance the branch");
+  const externalParents = (await git(sameTreeRepo, ["rev-list", "--parents", "-n", "1", externalSameTree])).stdout.trim();
+  if (externalParents !== `${externalSameTree} ${sameTreeBase}`) {
+    fail("same-tree external fixture created unexpected ancestry");
+  }
+  if ((await git(sameTreeRepo, ["show", "-s", "--format=%s", externalSameTree])).stdout.trim() !==
+    "chore(test): concurrent same-tree commit") {
+    fail("same-tree external fixture did not preserve the concurrent commit");
+  }
+  if (hashOf(sameTreeResult)) fail("same-tree external commit was mistaken for this transaction");
+  await assertScanContractAndCleanup(["selected.txt"], "same-tree external commit");
+
+  const legacyScannerRepo = await makeRepo("gitleaks-legacy-only-");
+  await writeFile(join(legacyScannerRepo, "legacy.txt"), "legacy scanner fixture\n");
+  const legacyScannerHead = await headOf(legacyScannerRepo);
+  const legacyScannerCount = await commitCountOf(legacyScannerRepo);
+  const legacyScannerIndex = await stagedTreeOf(legacyScannerRepo);
+  await setFakeGitleaksMode("legacy-only");
+  const legacyOnly = await execute(legacyScannerRepo, "gitleaks-legacy-only", {
+    files: ["legacy.txt"],
+    commitMessage: "chore(test): reject legacy scanner",
+    dryRun: false,
+    push: false,
+  });
+  assertErrorMessage(legacyOnly, "Gitleaks is unavailable or incompatible; commit was not created.", "legacy-only gitleaks");
+  await assertUnchangedHeadAndCommitCount(legacyScannerRepo, legacyScannerHead, legacyScannerCount, "legacy-only gitleaks");
+  if (await stagedTreeOf(legacyScannerRepo) !== legacyScannerIndex) fail("legacy-only gitleaks changed real index");
+  const legacyScannerLog = await readFile(join(gitleaksControlDir, "scan-log"), "utf8");
+  assertIncludes(legacyScannerLog, "capability=dir-help", "legacy-only directory capability probe");
+  assertIncludes(legacyScannerLog, "capability=stdin-help", "legacy-only stdin capability probe");
+  assertExcludes(legacyScannerLog, "pass=dir", "legacy-only directory scan");
+  assertExcludes(legacyScannerLog, "pass=stdin", "legacy-only stdin scan");
+
+  const detachedRepo = await makeRepo("detached-head-");
+  const detachedBase = await headOf(detachedRepo);
+  await git(detachedRepo, ["checkout", "--detach", detachedBase]);
+  await writeFile(join(detachedRepo, "detached.txt"), "detached candidate\n");
+  await setFakeGitleaksMode("success");
+  const detachedResult = await execute(detachedRepo, "detached-head", {
+    files: ["detached.txt"],
+    commitMessage: "chore(test): commit detached candidate",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(detachedResult, "detached HEAD commit");
+  await assertReturnedHashMatchesHead(detachedRepo, detachedResult, "detached HEAD commit");
+  const detachedHead = await headOf(detachedRepo);
+  if ((await git(detachedRepo, ["rev-list", "--parents", "-n", "1", detachedHead])).stdout.trim() !==
+    `${detachedHead} ${detachedBase}`) {
+    fail("detached HEAD commit recorded unexpected ancestry");
+  }
+  if ((await git(detachedRepo, ["symbolic-ref", "-q", "HEAD"], { allowFailure: true })).exitCode !== 1) {
+    fail("detached HEAD commit unexpectedly attached HEAD to a branch");
+  }
+  await assertScanContractAndCleanup(["detached.txt"], "detached HEAD commit");
+
+  const unbornRepo = await tempDir("omp-commit-ui-unborn-");
+  await git(unbornRepo, ["init"]);
+  await git(unbornRepo, ["config", "user.email", "commit-ui-test@example.invalid"]);
+  await git(unbornRepo, ["config", "user.name", "Commit UI Test"]);
+  await writeFile(join(unbornRepo, "first.txt"), "first commit\n");
+  await setFakeGitleaksMode("success");
+  const unborn = await execute(unbornRepo, "unborn-first-commit", {
+    files: ["first.txt"],
+    commitMessage: "chore(test): create first commit",
+    dryRun: false,
+    push: false,
+  });
+  assertSucceeded(unborn, "unborn first commit");
+  if (await commitCountOf(unbornRepo) !== 1) fail("unborn repository did not create exactly one commit");
+  const unbornScan = await assertScanContractAndCleanup(["first.txt"], "unborn first commit");
+  if ((await git(unbornRepo, ["rev-parse", "HEAD^{tree}"])).stdout.trim() !== unbornScan.tree) {
+    fail("unborn first commit differed from scanned candidate");
+  }
+
+
+  await assertReturnedHashMatchesHead(unbornRepo, unborn, "unborn first commit");
+  const unbornRef = (await git(unbornRepo, ["symbolic-ref", "HEAD"])).stdout.trim();
+  if (!unbornRef.startsWith("refs/heads/")) fail("unborn first commit did not preserve its symbolic branch");
+
+  const sha256Repo = await tempDir("omp-commit-ui-sha256-");
+  const sha256Init = await git(sha256Repo, ["init", "--object-format=sha256"], { allowFailure: true });
+  if (sha256Init.exitCode === 0) {
+    await git(sha256Repo, ["config", "user.email", "commit-ui-test@example.invalid"]);
+    await git(sha256Repo, ["config", "user.name", "Commit UI Test"]);
+    await writeFile(join(sha256Repo, "base.txt"), "sha256 base\n");
+    await git(sha256Repo, ["add", "--", "base.txt"]);
+    await git(sha256Repo, ["commit", "-m", "chore(test): initial sha256 fixture"]);
+    await writeFile(join(sha256Repo, "selected.txt"), "sha256 candidate\n");
+    await setFakeGitleaksMode("success");
+    const sha256Result = await execute(sha256Repo, "sha256-commit", {
+      files: ["selected.txt"],
+      commitMessage: "chore(test): commit sha256 candidate",
+      dryRun: false,
+      push: false,
+    });
+    assertSucceeded(sha256Result, "SHA-256 commit");
+    await assertReturnedHashMatchesHead(sha256Repo, sha256Result, "SHA-256 commit");
+    if (!/^[0-9a-f]{64}$/.test(await headOf(sha256Repo))) fail("SHA-256 commit did not return a 64-character OID");
+    const sha256Scan = await assertScanContractAndCleanup(["selected.txt"], "SHA-256 commit");
+    if (!/^[0-9a-f]{64}$/.test(sha256Scan.tree)) fail("SHA-256 scan did not record a 64-character tree OID");
+  } else {
+    console.log("SKIP: Git does not support SHA-256 repositories");
+  }
 
   const dryRunRepo = await makeRepo("dry-run-");
   await writeFile(join(dryRunRepo, "base.txt"), "base changed\n");
@@ -867,11 +2209,13 @@ try {
 
   const renameRepo = await makeRepo("rename-");
   await writeFile(join(renameRepo, "rename-source.txt"), "rename me\n");
-  await git(renameRepo, ["add", "rename-source.txt"]);
-  await git(renameRepo, ["commit", "-m", "chore(test): add rename source"]);
+  await writeFile(join(renameRepo, "delete-isolated.txt"), "leave deletion uncommitted\n");
+  await git(renameRepo, ["add", "rename-source.txt", "delete-isolated.txt"]);
+  await git(renameRepo, ["commit", "-m", "chore(test): add rename and delete sources"]);
   await git(renameRepo, ["mv", "rename-source.txt", "rename-destination.txt"]);
+  await rm(join(renameRepo, "delete-isolated.txt"));
   const renameStatusPaths = parseStatusPaths((await git(renameRepo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])).stdout);
-  assertSameSet(renameStatusPaths, ["rename-destination.txt"], "rename porcelain status destination");
+  assertSameSet(renameStatusPaths, ["rename-destination.txt", "delete-isolated.txt"], "rename/delete porcelain isolation");
   const renameResult = await execute(renameRepo, "rename-destination-selection", {
     files: ["rename-destination.txt"],
     commitMessage: "chore(test): commit rename destination",
@@ -883,12 +2227,15 @@ try {
   if (selectedFilesOf(renameResult).includes("rename-source.txt")) {
     fail(`rename source path should not be selected: ${JSON.stringify(renameResult.details)}`);
   }
+  if (!ignoredFilesOf(renameResult).includes("delete-isolated.txt")) {
+    fail(`rename selection did not isolate unrelated deletion: ${JSON.stringify(renameResult.details)}`);
+  }
   const renameNameStatus = (await git(renameRepo, ["diff", "--name-status", "HEAD^", "HEAD"])).stdout.trim();
   if (!/^R\d*\s+rename-source\.txt\s+rename-destination\.txt$/m.test(renameNameStatus)) {
     fail(`rename destination commit did not preserve the rename: ${renameNameStatus}`);
   }
-  const renameFinalStatus = (await git(renameRepo, ["status", "--porcelain"])).stdout.trim();
-  if (renameFinalStatus) fail(`rename destination commit left working tree changes: ${renameFinalStatus}`);
+  const renameFinalStatus = (await git(renameRepo, ["status", "--porcelain"])).stdout;
+  assertIncludes(renameFinalStatus, " D delete-isolated.txt", "rename commit preserved isolated deletion");
 
   const splitRepo = await makeRepo("split-");
   await writeFile(join(splitRepo, "alpha.txt"), "alpha\n");

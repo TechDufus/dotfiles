@@ -1,0 +1,63 @@
+---
+- name: "{{ role_name }} | Skills | Ensure Herdr skill checkout parent exists"
+  ansible.builtin.file:
+    path: "{{ omp_herdr_skill_checkout_dir | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Skills | Update Herdr skill checkout"
+  block:
+    - name: "{{ role_name }} | Skills | Clone or update Herdr skill checkout"
+      ansible.builtin.git:
+        repo: "{{ omp_herdr_skill_repo }}"
+        dest: "{{ omp_herdr_skill_checkout_dir }}"
+        version: "{{ omp_herdr_skill_version }}"
+        update: true
+        depth: 1
+        single_branch: true
+  rescue:
+    - name: "{{ role_name }} | Skills | Mark Herdr skill checkout unavailable"
+      ansible.builtin.set_fact:
+        omp_herdr_skill_update_failed: true
+
+- name: "{{ role_name }} | Skills | Check Herdr skill source"
+  ansible.builtin.stat:
+    path: "{{ omp_herdr_skill_source }}/SKILL.md"
+    follow: false
+  register: omp_herdr_skill_source_file
+
+- name: "{{ role_name }} | Skills | Warn when Herdr skill is unavailable"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Herdr skill checkout could not be updated from
+      {{ omp_herdr_skill_repo }}. Existing OMP skills were still deployed.
+  when:
+    - not ansible_check_mode
+    - >-
+      (omp_herdr_skill_update_failed | default(false))
+      or not (omp_herdr_skill_source_file.stat.exists | default(false))
+
+- name: "{{ role_name }} | Skills | Check Herdr skill destination"
+  ansible.builtin.stat:
+    path: "{{ omp_herdr_skill_dest }}"
+    follow: false
+  register: omp_herdr_skill_destination
+  when: omp_herdr_skill_source_file.stat.exists | default(false)
+
+- name: "{{ role_name }} | Skills | Fail when Herdr skill destination is unmanaged"
+  ansible.builtin.fail:
+    msg: >-
+      OMP Herdr skill destination {{ omp_herdr_skill_dest }} exists and is not a
+      symlink. Move or remove it, then rerun `dotfiles -t omp`.
+  when:
+    - omp_herdr_skill_source_file.stat.exists | default(false)
+    - omp_herdr_skill_destination.stat.exists
+    - not (omp_herdr_skill_destination.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Skills | Symlink Herdr skill"
+  ansible.builtin.file:
+    src: "{{ omp_herdr_skill_source }}"
+    dest: "{{ omp_herdr_skill_dest }}"
+    state: link
+    force: true
+  when: omp_herdr_skill_source_file.stat.exists | default(false)

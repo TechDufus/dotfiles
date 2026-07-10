@@ -31,6 +31,17 @@ omp_skills_dest: "{{ omp_agent_dir }}/skills"
 omp_extensions_source: "{{ role_path }}/files/extensions"
 omp_extensions_dest: "{{ omp_agent_dir }}/extensions"
 
+# Keep Herdr's official generated OMP lifecycle integration current.
+omp_herdr_integration_enabled: true
+
+# Keep the official Herdr skill updated from upstream.
+omp_herdr_skill_enabled: true
+omp_herdr_skill_repo: "https://github.com/ogulcancelik/herdr.git"
+omp_herdr_skill_version: "master"
+omp_herdr_skill_checkout_dir: "{{ ansible_facts['env']['HOME'] }}/.local/share/dotfiles/herdr"
+omp_herdr_skill_source: "{{ omp_herdr_skill_checkout_dir }}"
+omp_herdr_skill_dest: "{{ omp_skills_dest }}/herdr"
+
 # Keep the Worktrunk skill updated from upstream instead of vendoring a stale copy.
 omp_worktrunk_skill_enabled: true
 omp_worktrunk_skill_repo: "https://github.com/max-sixty/worktrunk.git"

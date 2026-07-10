@@ -403,6 +403,10 @@
       and not (item.stat.islnk | default(false))
     )
 
+- name: "{{ role_name }} | Skills | Install Herdr skill"
+  ansible.builtin.include_tasks: skill_herdr.yml
+  when: omp_herdr_skill_enabled | bool
+
 - name: "{{ role_name }} | Skills | Install Worktrunk skill"
   ansible.builtin.include_tasks: skill_worktrunk.yml
   when: omp_worktrunk_skill_enabled | bool
@@ -537,6 +541,36 @@
       and item.stat.exists
       and not (item.stat.islnk | default(false))
     )
+
+- name: "{{ role_name }} | Herdr | Check official OMP integration status"
+  ansible.builtin.command:
+    argv:
+      - herdr
+      - integration
+      - status
+  environment:
+    PI_CODING_AGENT_DIR: "{{ omp_agent_dir }}"
+  register: omp_herdr_integration_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: omp_herdr_integration_enabled | bool
+
+- name: "{{ role_name }} | Herdr | Install official OMP integration"
+  ansible.builtin.command:
+    argv:
+      - herdr
+      - integration
+      - install
+      - omp
+  environment:
+    PI_CODING_AGENT_DIR: "{{ omp_agent_dir }}"
+  changed_when: true
+  when:
+    - omp_herdr_integration_enabled | bool
+    - not ansible_check_mode
+    - (omp_herdr_integration_status.rc | default(1)) == 0
+    - "'omp: current (' not in omp_herdr_integration_status.stdout"
 
 - name: "{{ role_name }} | Profiles | Ensure global OMP profiles directory exists"
   ansible.builtin.file:

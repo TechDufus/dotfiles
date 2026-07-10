@@ -18,6 +18,9 @@ roles/claude/files/agents/raft-*.md
 roles/claude/files/hooks/peon-ping/
 roles/claude/files/skills/peon-ping-*/
 
+# Herdr-managed Claude integration artifacts
+roles/claude/files/hooks/herdr-agent-state.sh
+
 # Crush directory
 .crush/
 

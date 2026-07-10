@@ -15,6 +15,22 @@
 - `profiles/deep-review/agent/config.yml` is a heavier deep-review profile candidate. OMP profiles are full user-base relocations, not overlays: a profile does not inherit the default base's config, agents, rules, extensions, or skills unless that profile explicitly deploys them. Treat profile content as a complete alternate base, so the full deep-review advisor policy applies only when that profile is selected.
 - Repo-managed OMP configs use compact-first long-task handling: `contextPromotion.enabled: false` keeps threshold maintenance from switching Terra work to Luna before compaction, and compaction stays on `snapcompact` while threshold maintenance uses a percentage-based 65% threshold.
 
+## Herdr
+
+`/skill:herdr` is the official upstream skill, shallow-cloned from `ogulcancelik/herdr` into `~/.local/share/dotfiles/herdr` and symlinked into the OMP user base. On each real OMP role run, the role updates the checkout from configurable `omp_herdr_skill_version` (`master` by default); set `omp_herdr_skill_enabled` to `false` to disable this management. The role refuses an unmanaged regular destination, and an update failure preserves an existing valid checkout.
+
+`/skill:herdr-workflow` is the dotfiles-owned durable task overlay: it loads the official skill while keeping workflow policy reviewable in this repository. The official skill checkout is intentionally mutable upstream content. New tasks use a Herdr-owned isolated worktree workspace by default; when the user explicitly requests a current-workspace tab, the workflow composes Herdr with Worktrunk and Worktrunk owns checkout cleanup. It does not automatically commit, push, open a pull request, or force cleanup.
+
+This skill management is separate from `omp_herdr_integration_enabled`, which controls Herdr's generated lifecycle and session reporter.
+
+## `/commit` extension
+
+The `/commit` extension presents a visible workflow with `Plan`, `Tree`, `Stage`, `Scan`, and `Commit` steps (plus `Push` when requested). `Stage` builds a private index from current `HEAD` (or an unborn state), treating selected paths literally. `Scan` materializes the exact selected stage-0 blobs and first runs the path-aware `gitleaks dir` against OMP's trusted policy, then runs `gitleaks stdin` over their raw bytes prefixed by 512 printable ASCII bytes so filename and MIME heuristics cannot skip them. Each pass must replace its own strict, fresh report; the workflow scrubs `GITLEAKS*` environment variables, and repository ignores, inline allows, and Git diff attributes cannot suppress findings. Deleted entries and gitlinks are intentionally not blob-scanned, and compressed archive members are not decompressed.
+
+`Commit` succeeds only when this commit process receives matching `prepared` and `committed` reference-transaction receipts for the expected symbolic branch or detached `HEAD` target, base/parent, and scanned tree. Configured hooks remain delegated in normal Git order; mutations or reference mismatches block the commit. The real index remains untouched until success and selected paths are reconciled only while its lock/fingerprint guard holds, preserving newer staging otherwise. Findings, missing capabilities, scan errors, stale or malformed reports, and timeouts fail closed.
+
+The Git role provisions a modern compatible gitleaks through the platform package manager when installation is allowed: Homebrew on macOS, DNF on Fedora/RHEL, and Pacman on Arch Linux. After Debian dispatch, Ubuntu/Debian accepts a candidate only when both `gitleaks dir --help` and `gitleaks stdin --help` advertise every flag the runtime uses. A compatible APT package is preferred; otherwise—including no package-install permission or an unsuccessful or incompatible APT path—the role installs and verifies the pinned official v8.30.1 release in `~/.local/bin` under the same two-subcommand capability contract. A missing or incompatible scanner remains fail-closed for `/commit`.
+
 ## Agents
 
 Global agents must extend bundled OMP agents, not replace them. Do not create global agents named `explore`, `plan`, `designer`, `reviewer`, `task`, `sonic`, `librarian`, or `oracle`; those names belong to OMP and should keep receiving upstream prompt/tool updates.

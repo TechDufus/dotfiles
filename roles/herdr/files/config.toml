@@ -1,10 +1,27 @@
 onboarding = false
 
 [keys]
+goto = ["prefix+g", "prefix+o"]
+open_notification_target = "prefix+shift+o"
+
 focus_pane_left = ["prefix+h", "ctrl+h"]
 focus_pane_down = ["prefix+j", "ctrl+j"]
 focus_pane_up = ["prefix+k", "ctrl+k"]
 focus_pane_right = ["prefix+l", "ctrl+l"]
+
+navigate_workspace_up = "shift+k"
+navigate_workspace_down = "shift+j"
+previous_workspace = "prefix+alt+k"
+next_workspace = "prefix+alt+j"
+
+previous_tab = ["prefix+p", "alt+shift+h"]
+next_tab = ["prefix+n", "alt+shift+l"]
+
+previous_agent = ["prefix+alt+p", "ctrl+alt+k"]
+next_agent = ["prefix+alt+n", "ctrl+alt+j"]
+focus_agent = "prefix+alt+1..9"
+
+detach = ["prefix+q", "prefix+d"]
 
 [ui]
 show_agent_labels_on_pane_borders = true

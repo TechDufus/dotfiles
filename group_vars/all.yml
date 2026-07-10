@@ -17,6 +17,7 @@ default_roles:
   - bun
   - claude
   - codex
+  - herdr
   - omp
   # - docker
   - flatpak

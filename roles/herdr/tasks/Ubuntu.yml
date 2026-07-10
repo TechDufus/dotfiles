@@ -1,0 +1,3 @@
+---
+- name: "Herdr | Ubuntu | Install Herdr from GitHub Release"
+  ansible.builtin.include_tasks: install_github_release.yml

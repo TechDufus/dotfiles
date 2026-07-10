@@ -1,0 +1,21 @@
+---
+- name: "Herdr | Checking for Distribution Config | {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: herdr_distribution_config
+
+- name: "Herdr | Run Tasks | {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: herdr_distribution_config.stat.exists
+
+- name: "Herdr | Ensure Herdr config directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/herdr"
+    state: directory
+    mode: "0755"
+
+- name: "Herdr | Copy config"
+  ansible.builtin.copy:
+    dest: "{{ ansible_facts['user_dir'] }}/.config/herdr/config.toml"
+    src: "config.toml"
+    mode: "0644"

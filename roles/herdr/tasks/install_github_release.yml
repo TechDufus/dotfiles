@@ -1,0 +1,27 @@
+---
+- name: "Herdr | Set install path | {{ ansible_facts['distribution'] }}"
+  ansible.builtin.set_fact:
+    herdr_install_path: "{{ '/usr/local/bin' if can_install_packages | default(false) else ansible_facts['user_dir'] + '/.local/bin' }}"
+
+- name: "Herdr | Ensure user-local bin exists | {{ ansible_facts['distribution'] }}"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+  when: not (can_install_packages | default(false))
+
+- name: "Herdr | Install from GitHub Release | {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_role:
+    name: github_release
+  vars:
+    github_release_repo: "ogulcancelik/herdr"
+    github_release_binary_name: "herdr"
+    github_release_asset_name_pattern: "herdr-linux-{{ ansible_facts['architecture'] | replace('arm64', 'aarch64') }}"
+    github_release_asset_type: "binary"
+    github_release_check_command: "herdr --version"
+    github_release_version_pattern: '[0-9]+\.[0-9]+\.[0-9]+'
+    github_release_install_path: "{{ herdr_install_path }}"
+    github_release_install_mode: "0755"
+    github_release_become: "{{ can_install_packages | default(false) }}"
+    github_release_owner: "{{ host_user | default(ansible_facts['user_id']) }}"
+    github_release_group: "{{ host_user | default(ansible_facts['user_id']) }}"

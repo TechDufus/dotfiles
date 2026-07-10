@@ -79,6 +79,7 @@ default_roles:
   # === Terminal Emulators ===
   # - kitty        # GPU-accelerated terminal
   # - warp         # Modern terminal with AI features
+  # - herdr        # Terminal workspace for parallel coding agents
   
   # === Productivity Tools ===
   # - obsidian     # Knowledge management and note-taking

@@ -21,6 +21,31 @@
 
 `/skill:herdr-workflow` is the dotfiles-owned durable task overlay: it loads the official skill while keeping workflow policy reviewable in this repository. The official skill checkout is intentionally mutable upstream content. New tasks use a Herdr-owned isolated worktree workspace by default; when the user explicitly requests a current-workspace tab, the workflow composes Herdr with Worktrunk and Worktrunk owns checkout cleanup. It does not automatically commit, push, open a pull request, or force cleanup.
 
+The global `/herd` extension creates a Worktrunk-owned isolated checkout and opens a visible OMP agent in a new no-focus tab in the invoking Herdr workspace. OMP passes the text after an extension slash command to its registered handler as one raw tail; it does not automatically define or parse CLI flags for extensions. `/herd` therefore defines and parses the argument grammar below itself. Provisioning requires `HERDR_ENV=1`, an invoking OMP session file, and exactly one match for that file in a fresh native Herdr pane listing; it fails closed without a match or with multiple matches and never falls back to the focused pane. These preconditions apply to dry runs, but local help is available outside Herdr without them. Its grammar is:
+
+```text
+/herd
+/herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
+/herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>
+/herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
+```
+
+Use `/herd --help` to display the grammar and defaults locally; `/herd -h` and `/herd help` are exact aliases. Help aliases must be the command's entire raw tail apart from surrounding whitespace.
+
+Blank `/herd` aliases `context`. For example:
+
+```text
+/herd context --branch=review-auth
+/herd task --base=release/2.x -- Fix the refresh-token race without changing the public API
+/herd issue owner/repo#123 --branch=issue-123 -- Preserve the issue's compatibility constraints
+/herd context --dry-run -- Focus on the database migration risk
+```
+After deploying the OMP role, start a new OMP session or run `/reload-plugins` in an existing session so OMP discovers `/herd`.
+
+Options are parsed only before `--`; text after it remains one exact, opaque instruction string. The source checkout must be on a named local branch even when `--base` is explicit; the default base is that exact currently checked-out branch. Worktrunk hooks remain enabled and an approval requirement stops the handoff for user review—`/herd` never auto-approves or bypasses hooks. Context mode separately bounds and truncates the latest compaction summary and bounded recent primary user/assistant message blocks before composing them, excludes tool, thinking, and custom entries, and labels the excerpt as reference data. Issue mode reads repository and issue metadata without mutation, rejects cross-repository references, and labels issue content as untrusted reference data.
+
+`--dry-run` performs read-only resolution and creates nothing. Normal handoffs do not focus the new tab and return after bounded acceptance observation rather than waiting for task completion. Herdr 0.7.3 creates a fresh split agent pane inside the created tab, so `/herd` tracks the tab's root pane separately from the returned agent pane. Dirty or untracked changes in the source checkout are reported but are not stashed, copied, or inherited by the isolated checkout. Worktrunk owns checkout creation and cleanup; Herdr owns the created tab, panes, and agent. On failure, `/herd` retains a detailed ledger of every confirmed resource: the Worktrunk checkout and verified branch; the Herdr tab, root pane, agent pane, and agent; each resource's owner and last observed state; and an unknown state when a timeout prevents confirmation. A killed Worktrunk, tab-create, or agent-start mutation may have created a resource without returning an identifier; `/herd` reports that ambiguity as unknown and directs the user to inspect current Worktrunk and Herdr state. Nothing is automatically closed, deleted, rolled back, or cleaned up.
+
 This skill management is separate from `omp_herdr_integration_enabled`, which controls Herdr's generated lifecycle and session reporter.
 
 ## `/commit` extension
@@ -28,6 +53,8 @@ This skill management is separate from `omp_herdr_integration_enabled`, which co
 The `/commit` extension presents a visible workflow with `Plan`, `Tree`, `Stage`, `Scan`, and `Commit` steps (plus `Push` when requested). `Stage` builds a private index from current `HEAD` (or an unborn state), treating selected paths literally. `Scan` materializes the exact selected stage-0 blobs and first runs the path-aware `gitleaks dir` against OMP's trusted policy, then runs `gitleaks stdin` over their raw bytes prefixed by 512 printable ASCII bytes so filename and MIME heuristics cannot skip them. Each pass must replace its own strict, fresh report; the workflow scrubs `GITLEAKS*` environment variables, and repository ignores, inline allows, and Git diff attributes cannot suppress findings. Deleted entries and gitlinks are intentionally not blob-scanned, and compressed archive members are not decompressed.
 
 `Commit` succeeds only when this commit process receives matching `prepared` and `committed` reference-transaction receipts for the expected symbolic branch or detached `HEAD` target, base/parent, and scanned tree. Configured hooks remain delegated in normal Git order; mutations or reference mismatches block the commit. The real index remains untouched until success and selected paths are reconciled only while its lock/fingerprint guard holds, preserving newer staging otherwise. Findings, missing capabilities, scan errors, stale or malformed reports, and timeouts fail closed.
+
+An explicitly requested `Push` uses ordinary `git push` for a tracked branch. For a named branch without an upstream, it resolves `branch.<name>.pushRemote`, `remote.pushDefault`, `branch.<name>.remote`, `origin`, or the sole configured remote in that order, then pushes `HEAD` with `--set-upstream`. Detached `HEAD`, a missing remote, or ambiguous remotes leave the new commits local and report a push warning instead of guessing.
 
 The Git role provisions a modern compatible gitleaks through the platform package manager when installation is allowed: Homebrew on macOS, DNF on Fedora/RHEL, and Pacman on Arch Linux. After Debian dispatch, Ubuntu/Debian accepts a candidate only when both `gitleaks dir --help` and `gitleaks stdin --help` advertise every flag the runtime uses. A compatible APT package is preferred; otherwise—including no package-install permission or an unsuccessful or incompatible APT path—the role installs and verifies the pinned official v8.30.1 release in `~/.local/bin` under the same two-subcommand capability contract. A missing or incompatible scanner remains fail-closed for `/commit`.
 

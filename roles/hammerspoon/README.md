@@ -39,7 +39,8 @@ As of April 9, 2026:
 - this role now installs the upstream `GridLayout.spoon` release archive directly with no local
   overlay.
 - `WorkspaceManager.spoon` now publishes release zips, so the role no longer vendors a local
-  snapshot.
+  snapshot; deployment applies a narrow exact bundle-ID lookup patch to avoid its Accessibility-backed
+  fuzzy application search.
 
 Role defaults live in [defaults/main.yml](defaults/main.yml).
 
@@ -49,7 +50,7 @@ Runtime behavior lives in `WorkspaceManager.spoon`:
 
 - per-screen layout state
 - per-window and per-app overrides
-- summon/open/focus placement
+- summon/open/focus placement for layout-managed apps
 - focused-window moves between screens
 - screen change handling
 
@@ -60,6 +61,10 @@ Personal configuration stays here:
 - [files/config/positions.lua](files/config/positions.lua)
 - [files/config/screen_layouts.lua](files/config/screen_layouts.lua)
 - [files/config/init.lua](files/config/init.lua)
+
+`init.lua` limits each Accessibility query to 0.5 seconds, bounding stalls caused by unresponsive
+apps. Apps marked `launchOnly` in `apps.lua` use asynchronous LaunchServices
+activation instead of WorkspaceManager placement; currently ChatGPT and Teams.
 
 ## Role Defaults
 
@@ -87,8 +92,7 @@ release-managed bundles.
 Current bindings from [files/config/init.lua](files/config/init.lua):
 
 - `F13`: summon modal
-- `F13`, then `g`: summon ChatGPT
-- `F13`, then `shift+g`: summon Codex app
+- `F13`, then `g`: summon the merged ChatGPT/Codex desktop app (`com.openai.codex`)
 - `F13` twice: switch from summon modal to macro modal
 - `F16`: macro modal
 - `Hyper+a`: focus the frontmost app
@@ -106,7 +110,7 @@ Legacy `lilHyper+o` and `Hyper+o` bindings still exist as alternate screen-move 
 - [files/config/init.lua](files/config/init.lua)
   Composition root. Loads spoons, injects config, and binds keys.
 - [files/config/apps.lua](files/config/apps.lua)
-  Logical app definitions and summon bindings.
+  Logical app definitions, summon bindings, and LaunchServices-only exceptions for AX-unsafe apps.
 - [files/config/layouts.lua](files/config/layouts.lua)
   Ordered layout catalog.
 - [files/config/positions.lua](files/config/positions.lua)

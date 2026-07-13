@@ -98,6 +98,17 @@
         dest: "{{ hammerspoon_spoons_dir }}"
         remote_src: true
 
+# hs.application.find searches Accessibility window titles and can block on Chromium apps;
+# configured bundle IDs need only the exact hs.application.get lookup.
+- name: "Hammerspoon | MacOSX | Patch WorkspaceManager exact application lookup"
+  ansible.builtin.replace:
+    path: "{{ hammerspoon_spoons_dir }}/WorkspaceManager.spoon/{{ item }}"
+    regexp: 'hs\.application\.get\(([A-Za-z_][A-Za-z0-9_.]*)\) or hs\.application\.find\(\1\)'
+    replace: 'hs.application.get(\1)'
+  loop:
+    - summon.lua
+    - workspace_manager.lua
+
 - name: "Hammerspoon | MacOSX | Cleanup WorkspaceManager.spoon archive"
   ansible.builtin.file:
     path: "{{ hammerspoon_spoons_dir }}/WorkspaceManager.spoon.zip"

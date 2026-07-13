@@ -5,6 +5,9 @@
 lilHyper = { 'cmd', 'alt', 'ctrl' }             -- or D+F 🤘
 Hyper = { 'shift', 'cmd', 'alt', 'ctrl' } -- or S+D+F 😅
 
+-- Bound time spent in individual application Accessibility calls.
+hs.window.timeout(0.5)
+
 local function reloadConfig(files)
   local shouldReload = false
 
@@ -105,8 +108,18 @@ local workspaceManager = hs.loadSpoon('WorkspaceManager')
     })
     :apply()
 
-local summonModal = registerTransientLeader(nil, 'f13', hs.fnutils.map(summonModalBindings, function(app)
-  return function() workspaceManager:summon(app) end
+local function summonApp(appName)
+  local app = apps[appName]
+  if app.launchOnly then
+    hs.task.new('/usr/bin/open', nil, { '-b', app.id }):start()
+    return
+  end
+
+  workspaceManager:summon(appName)
+end
+
+local summonModal = registerTransientLeader(nil, 'f13', hs.fnutils.map(summonModalBindings, function(appName)
+  return function() summonApp(appName) end
 end), {
   timeoutSeconds = 1,
 })

@@ -24,12 +24,9 @@ return {
     summon = 'f', -- [F]inder
   },
   ChatGPT     = {
-    id = 'com.openai.chat',
-    summon = 'g', -- [G]enAI / ChatGPT
-  },
-  Codex       = {
     id = 'com.openai.codex',
-    summon = 'G', -- Codex app
+    launchOnly = true,
+    summon = 'g', -- [G]enAI / ChatGPT
   },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',
@@ -49,6 +46,7 @@ return {
   },
   Teams       = {
     id = 'com.microsoft.teams2',
+    launchOnly = true,
     summon = 'm', -- [M]eetings
   },
   Terminal    = {

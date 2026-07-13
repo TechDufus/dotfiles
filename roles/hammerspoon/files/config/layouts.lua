@@ -13,7 +13,7 @@ return {
     apps = {
       Browser     = { cell = 1, open = true },
       Terminal    = { cell = 2, open = true },
-      Windows     = { cell = 2 },
+      WorkSpaces  = { cell = 2 },
       Signal      = { cell = 3 },
       Spotify     = { cell = 3 },
       Outlook     = { cell = 3 },

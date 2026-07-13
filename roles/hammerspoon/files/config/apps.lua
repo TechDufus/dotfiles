@@ -55,8 +55,8 @@ return {
     id = 'com.mitchellh.ghostty',
     summon = 't', -- [T]erminal
   },
-  Windows     = {
-    id = 'Windows App',
-    summon = 'w', -- [W]indows RDP
+  WorkSpaces  = {
+    id = 'com.amazon.workspaces',
+    summon = 'w', -- AWS [W]orkSpaces
   }
 }

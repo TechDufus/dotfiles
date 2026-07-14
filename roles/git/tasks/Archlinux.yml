@@ -3,12 +3,11 @@
   community.general.pacman:
     name:
       - git
-      - gitleaks
     state: present
   become: true
   when: can_install_packages | default(false)
 
 - name: "Git | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
   ansible.builtin.debug:
-    msg: "Package installation skipped: git, gitleaks"
+    msg: "Package installation skipped: git"
   when: not (can_install_packages | default(false))

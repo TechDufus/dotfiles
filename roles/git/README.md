@@ -14,19 +14,18 @@ This role transforms your Git environment into a professional, secure, and effic
 
 ## Supported Platforms
 
-| Platform | Package Manager | Delta Support | Gitleaks | Status |
-|----------|----------------|---------------|----------|--------|
-| macOS | Homebrew | ✅ Yes | ✅ Yes | ✅ Full |
-| Ubuntu/Debian | APT when a compatible package is available; verified official release fallback | ❌ No | ✅ Yes | ✅ Full |
-| Fedora/RHEL | DNF | ❌ No | ✅ Yes | ✅ Full |
-| Arch Linux | Pacman | ❌ No | ✅ Yes | ✅ Full |
+| Platform | Package Manager | Delta Support | Status |
+|----------|-----------------|---------------|--------|
+| macOS | Homebrew | Yes | Full |
+| Ubuntu/Debian | APT | No | Full |
+| Fedora/RHEL | DNF | No | Full |
+| Arch Linux | Pacman | No | Full |
 
 ## What Gets Installed
 
 ### Packages
 - **git** - Core version control system (all platforms)
 - **git-delta** - Modern diff viewer with syntax highlighting (macOS only)
-- **gitleaks** - Dual-pass scanner used by the OMP `/commit` workflow: a path-aware trusted-policy `dir` pass over exact selected stage-0 blobs, followed by a 512-printable-ASCII-prefixed raw-byte `stdin` pass. Separate strict fresh reports, a scrubbed `GITLEAKS*` environment, and isolation flags prevent repository ignores, inline allows, or Git diff attributes from suppressing findings. Deleted entries and gitlinks are intentionally not blob-scanned; compressed archive members are not decompressed. Ubuntu/Debian accepts APT or the SHA-256-verified pinned official v8.30.1 fallback only after both `gitleaks dir --help` and `gitleaks stdin --help` advertise every required runtime flag. A missing or incompatible scanner blocks commits.
 
 ### Configuration Files
 ```
@@ -141,10 +140,10 @@ git br     # Formatted branch list with dates and authors
 ```mermaid
 flowchart TD
     A[Start Git Role] --> B{OS Detected?}
-    B -->|macOS| C[Install git + git-delta + gitleaks via Homebrew]
-    B -->|Ubuntu/Debian| D[Install git via APT; probe both gitleaks dir --help and gitleaks stdin --help plus every runtime flag, then compatible APT gitleaks or verified official fallback]
-    B -->|Fedora| E[Install git + gitleaks via DNF]
-    B -->|Arch| F[Install git + gitleaks via Pacman]
+    B -->|macOS| C[Install git + git-delta via Homebrew]
+    B -->|Ubuntu/Debian| D[Install git via APT]
+    B -->|Fedora| E[Install git via DNF]
+    B -->|Arch| F[Install git via Pacman]
 
     C --> G[Apply Global Config]
     D --> G
@@ -191,7 +190,7 @@ flowchart TD
 ### Prerequisites
 - **SSH key pair** - Must exist at `~/.ssh/id_ed25519` (not created by this role)
 - **1Password CLI** (optional) - For secure credential management
-- **Sudo access (Linux) or package-install permission** - Required for system package installation. After Debian dispatch, Ubuntu/Debian probes both `gitleaks dir --help` and `gitleaks stdin --help`, requiring every runtime flag in each, before accepting an APT candidate. Otherwise it installs the pinned SHA-256-verified official v8.30.1 release in `~/.local/bin` and applies the same two-subcommand capability check. A missing or incompatible scanner blocks commits.
+- **Sudo access (Linux) or package-install permission** - Required for system package installation.
 
 ### Variable Requirements
 

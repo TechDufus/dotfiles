@@ -9,11 +9,6 @@
     name: git-delta
     state: present
 
-- name: "Git | MacOSX | Install gitleaks"
-  community.general.homebrew:
-    name: gitleaks
-    state: present
-
 - name: "Git | Set [delta] config"
   block:
     - name: "Git | Set core.pager"

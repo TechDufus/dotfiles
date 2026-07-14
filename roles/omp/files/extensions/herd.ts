@@ -3,9 +3,16 @@ import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 const EXEC_TIMEOUT = 15_000;
 const WT_TIMEOUT = 300_000;
 const WAIT_WRAPPER_TIMEOUT = 20_000;
+const PR_LIST_LIMIT = 100;
 const CONTEXT_BLOCKS = 12;
 const CONTEXT_CHARS = 24_000;
 const CONTEXT_SECTION_CHARS = Math.floor(CONTEXT_CHARS / 2);
+const HERD_MANAGED_ENV = "OMP_HERD_MANAGED";
+const HERD_SOURCE_ROOT_ENV = "OMP_HERD_SOURCE_ROOT";
+const HERD_CHECKOUT_ENV = "OMP_HERD_CHECKOUT";
+const HERD_BRANCH_ENV = "OMP_HERD_BRANCH";
+const HERD_WORKSPACE_ENV = "OMP_HERD_WORKSPACE";
+const HERD_TAB_ENV = "OMP_HERD_TAB";
 
 const HERD_HELP_TEXT = `Usage:
   /herd
@@ -13,6 +20,7 @@ const HERD_HELP_TEXT = `Usage:
   /herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
   /herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>
   /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
+  /herd done
 
 Options:
   --branch=<name>  Use an explicit new branch name (default: semantic type prefix; feat/ fallback)
@@ -20,7 +28,9 @@ Options:
   --dry-run        Resolve and report without creating resources (default: off)
   --                Treat the remaining text as one opaque instruction string
 
-Blank input defaults to context mode. Bare prose defaults to task mode.`;
+Blank input defaults to context mode. Bare prose defaults to task mode.
+
+\`/herd done\` is available only inside a managed herd checkout. It requires a clean checkout whose exact HEAD belongs to a merged GitHub pull request, then removes it through Worktrunk and closes its Herdr tab.`;
 
 type Mode = "context" | "task" | "issue";
 type BranchType = "feat" | "fix" | "docs" | "refactor" | "test" | "chore" | "ci" | "build" | "perf";
@@ -40,7 +50,9 @@ export interface HerdRequest {
 }
 
 interface RepoInfo { root: string; branch: string; base: string; dirty: boolean }
-interface Caller { workspaceId: string; sessionFile: string }
+interface Caller { workspaceId: string; tabId: string; paneId: string; cwd: string; sessionFile: string }
+interface DoneTarget { caller: Caller; sourceRoot: string; checkoutPath: string; branch: string; head: string }
+interface MergedPullRequest { number: number; url: string; repo: string }
 interface Ownership {
 	worktrunkOwner?: string;
 	herdrOwner?: string;
@@ -114,6 +126,42 @@ function json(stdout: string): Record<string, unknown> {
 	try { return object(JSON.parse(stdout)); } catch (error) { if (error instanceof HerdError) throw error; throw new HerdError("Command returned invalid JSON"); }
 }
 function resultEnvelope(stdout: string): Record<string, unknown> { return object(json(stdout).result); }
+function jsonArray(stdout: string): unknown[] {
+	try {
+		const value = JSON.parse(stdout);
+		if (!Array.isArray(value)) throw new HerdError("Command returned malformed JSON");
+		return value;
+	} catch (error) {
+		if (error instanceof HerdError) throw error;
+		throw new HerdError("Command returned invalid JSON");
+	}
+}
+
+function worktrunkWorktrees(stdout: string): Record<string, unknown>[] {
+	let value: unknown;
+	try {
+		value = JSON.parse(stdout);
+	} catch {
+		throw new HerdError("Command returned invalid JSON");
+	}
+	if (Array.isArray(value)) return value.map(object);
+	const envelope = object(value);
+	if (envelope.schema !== 2 || !Array.isArray(envelope.items)) throw new HerdError("Worktrunk returned an unsupported list JSON schema");
+	const worktrees: Record<string, unknown>[] = [];
+	for (const value of envelope.items) {
+		const item = object(value);
+		if (item.worktree === undefined) continue;
+		const worktree = object(item.worktree);
+		if (typeof worktree.main !== "boolean") throw new HerdError("Worktrunk list JSON is missing worktree.main");
+		worktrees.push({
+			branch: item.branch,
+			path: text(worktree.path, "worktree.path"),
+			kind: "worktree",
+			is_main: worktree.main,
+		});
+	}
+	return worktrees;
+}
 
 function slug(value: string): string {
 	const compact = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 36).replace(/-$/, "");
@@ -282,10 +330,161 @@ export default function herd(pi: ExtensionAPI): void {
 		if (!Array.isArray(panes)) throw new HerdError("herdr pane list returned no panes");
 		const matches = panes.map(object).filter(pane => {
 			const agentSession = pane.agent_session;
-			return agentSession && typeof agentSession === "object" && "value" in agentSession && agentSession.value === sessionFile;
+			if (!agentSession || typeof agentSession !== "object" || Array.isArray(agentSession)) return false;
+			const session = agentSession as Record<string, unknown>;
+			return session.value === sessionFile
+				&& session.source === "herdr:omp"
+				&& session.agent === "omp"
+				&& session.kind === "path";
 		});
 		if (matches.length !== 1) throw new HerdError(`Expected exactly one Herdr pane for this OMP session; found ${matches.length}`);
-		return { workspaceId: text(matches[0].workspace_id, "workspace_id"), sessionFile };
+		return {
+			workspaceId: text(matches[0].workspace_id, "workspace_id"),
+			tabId: text(matches[0].tab_id, "tab_id"),
+			paneId: text(matches[0].pane_id, "pane_id"),
+			cwd: text(matches[0].cwd, "cwd"),
+			sessionFile,
+		};
+	};
+	const managedEnvironment = (name: string): string => {
+		const value = process.env[name];
+		if (!value) throw new HerdError("/herd done is available only inside an OMP agent started by /herd");
+		return value;
+	};
+	const doneTarget = async (ctx: CommandContext): Promise<DoneTarget> => {
+		if (process.env[HERD_MANAGED_ENV] !== "1") throw new HerdError("/herd done is available only inside an OMP agent started by /herd");
+		const sourceRoot = managedEnvironment(HERD_SOURCE_ROOT_ENV);
+		const managedCheckout = managedEnvironment(HERD_CHECKOUT_ENV);
+		const managedBranch = managedEnvironment(HERD_BRANCH_ENV);
+		const managedWorkspace = managedEnvironment(HERD_WORKSPACE_ENV);
+		const managedTab = managedEnvironment(HERD_TAB_ENV);
+		const caller = await freshCaller(ctx, ctx.cwd);
+		if (caller.cwd !== managedCheckout) throw new HerdError("The current OMP pane was not started in the managed herd checkout");
+		if (caller.workspaceId !== managedWorkspace || caller.tabId !== managedTab) throw new HerdError("This OMP pane is no longer in its original herd tab");
+		const checkoutPath = (await run("git", ["rev-parse", "--show-toplevel"], ctx.cwd)).stdout.trim();
+		if (checkoutPath !== managedCheckout) throw new HerdError("The current checkout no longer matches the checkout created by /herd");
+		const branch = (await run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], checkoutPath)).stdout.trim();
+		if (!branch || branch !== managedBranch) throw new HerdError("The current branch no longer matches the branch created by /herd");
+		const head = (await run("git", ["rev-parse", "--verify", "HEAD"], checkoutPath)).stdout.trim();
+		if ((await run("git", ["status", "--porcelain", "--untracked-files=all"], checkoutPath)).stdout.trim()) {
+			throw new HerdError("The herd checkout has staged, modified, or untracked changes; commit or discard them before cleanup");
+		}
+		const resolvedSource = (await run("git", ["rev-parse", "--show-toplevel"], sourceRoot)).stdout.trim();
+		if (resolvedSource !== sourceRoot || sourceRoot === checkoutPath) throw new HerdError("The original source checkout is unavailable or invalid");
+		const sourceCommonDir = (await run("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], sourceRoot)).stdout.trim();
+		const checkoutCommonDir = (await run("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], checkoutPath)).stdout.trim();
+		if (!sourceCommonDir || sourceCommonDir !== checkoutCommonDir) throw new HerdError("The source and herd checkouts no longer belong to the same repository");
+		const worktrees = worktrunkWorktrees((await run("wt", ["-C", sourceRoot, "list", "--format=json"], sourceRoot)).stdout);
+		const matches = worktrees.filter(worktree => worktree.path === checkoutPath);
+		if (matches.length !== 1) throw new HerdError(`Expected one Worktrunk checkout at ${checkoutPath}; found ${matches.length}`);
+		const worktree = matches[0];
+		if (text(worktree.branch, "branch") !== branch || worktree.kind !== "worktree" || worktree.is_main !== false) {
+			throw new HerdError("Worktrunk no longer identifies this path as the expected non-main branch checkout");
+		}
+		return { caller, sourceRoot, checkoutPath, branch, head };
+	};
+	const mergedPullRequest = async (target: DoneTarget): Promise<MergedPullRequest> => {
+		const current = json((await run("gh", ["repo", "view", "--json", "nameWithOwner"], target.checkoutPath)).stdout);
+		const repo = text(current.nameWithOwner, "nameWithOwner");
+		const fields = "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository";
+		const rows = jsonArray((await run("gh", ["pr", "list", "--repo", repo, "--head", target.branch, "--state", "all", "--limit", String(PR_LIST_LIMIT), "--json", fields], target.checkoutPath)).stdout);
+		if (rows.length >= PR_LIST_LIMIT) throw new HerdError(`GitHub pull request lookup reached its ${PR_LIST_LIMIT}-result safety limit; cleanup was refused`);
+		const pullRequests = rows.map(row => {
+			const pullRequest = object(row);
+			if (typeof pullRequest.number !== "number") throw new HerdError("Pull request JSON is missing number");
+			text(pullRequest.state, "state");
+			text(pullRequest.url, "url");
+			text(pullRequest.headRefName, "headRefName");
+			text(pullRequest.headRefOid, "headRefOid");
+			if (typeof pullRequest.isCrossRepository !== "boolean") throw new HerdError("Pull request JSON is missing isCrossRepository");
+			return pullRequest;
+		});
+		const exact = pullRequests.filter(pullRequest => pullRequest.isCrossRepository === false && pullRequest.headRefName === target.branch && pullRequest.headRefOid === target.head);
+		if (exact.length !== 1) {
+			const detail = exact.length === 0
+				? `No same-repository GitHub pull request has branch ${target.branch} at the current local HEAD`
+				: `Multiple same-repository GitHub pull requests match branch ${target.branch} at the current local HEAD`;
+			throw new HerdError(`${detail}; cleanup was refused`);
+		}
+		const pullRequest = exact[0];
+		const state = text(pullRequest.state, "state");
+		if (state !== "MERGED" || typeof pullRequest.mergedAt !== "string" || !pullRequest.mergedAt) {
+			throw new HerdError(`GitHub pull request #${pullRequest.number} is ${state}, not merged`);
+		}
+		return { number: pullRequest.number as number, url: text(pullRequest.url, "url"), repo };
+	};
+	const completeHerd = async (ctx: CommandContext): Promise<void> => {
+		const initial = await doneTarget(ctx);
+		const initialPullRequest = await mergedPullRequest(initial);
+		const current = await doneTarget(ctx);
+		if (
+			current.caller.sessionFile !== initial.caller.sessionFile
+			|| current.caller.workspaceId !== initial.caller.workspaceId
+			|| current.caller.tabId !== initial.caller.tabId
+			|| current.caller.paneId !== initial.caller.paneId
+			|| current.sourceRoot !== initial.sourceRoot
+			|| current.checkoutPath !== initial.checkoutPath
+			|| current.branch !== initial.branch
+			|| current.head !== initial.head
+		) throw new HerdError("The herd checkout or invoking pane changed during cleanup verification");
+		const pullRequest = await mergedPullRequest(current);
+		if (
+			pullRequest.repo !== initialPullRequest.repo
+			|| pullRequest.number !== initialPullRequest.number
+			|| pullRequest.url !== initialPullRequest.url
+		) throw new HerdError("The merged GitHub pull request changed during cleanup verification");
+		ctx.ui.notify(`Merged GitHub pull request ${pullRequest.repo}#${pullRequest.number} confirmed. Removing ${current.branch} through Worktrunk, then closing this tab.`, "info");
+		const removed = await run("wt", ["remove", "--foreground", "--format=json", current.checkoutPath], current.checkoutPath, true, WT_TIMEOUT);
+		if (removed.exitCode !== 0 || removed.killed) {
+			const detail = removed.killed ? "execution timed out" : (removed.stderr || removed.stdout).trim() || `exit ${removed.exitCode}`;
+			throw new HerdError(`wt failed: ${detail}`, removed);
+		}
+		let removalResults: unknown[];
+		try {
+			removalResults = jsonArray(removed.stdout);
+		} catch {
+			throw new HerdError("Worktrunk reported success, but returned malformed JSON; the checkout may already be removed", removed);
+		}
+		if (removalResults.length !== 1) throw new HerdError(`Worktrunk reported success, but returned ${removalResults.length} cleanup results instead of one; the checkout may already be removed`, removed);
+		let removal: Record<string, unknown>;
+		try {
+			removal = object(removalResults[0]);
+		} catch {
+			throw new HerdError("Worktrunk reported success, but returned a malformed cleanup result; the checkout may already be removed", removed);
+		}
+		if (removal.kind !== "worktree" || removal.path !== current.checkoutPath || removal.branch !== current.branch) {
+			throw new HerdError("Worktrunk reported success for an unexpected cleanup target; the checkout may already be removed", removed);
+		}
+		const branchState = await run("git", ["show-ref", "--verify", "--quiet", `refs/heads/${current.branch}`], current.sourceRoot, true);
+		if (branchState.killed || (branchState.exitCode !== 0 && branchState.exitCode !== 1)) {
+			ctx.ui.notify(`Worktree removal succeeded, but local branch ${current.branch} state could not be confirmed.`, "warning");
+		} else if (branchState.exitCode === 0) {
+			ctx.ui.notify(`Worktree removal succeeded; Worktrunk retained local branch ${current.branch} under its merge-safety policy.`, "warning");
+		}
+		let closingCaller: Caller;
+		try {
+			closingCaller = await freshCaller(ctx, current.sourceRoot);
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			ctx.ui.notify(`Worktrunk cleanup succeeded, but the OMP pane could not be re-resolved before tab closure: ${detail}. Tab ${current.caller.tabId} was left open.`, "error");
+			return;
+		}
+		if (
+			closingCaller.sessionFile !== current.caller.sessionFile
+			|| closingCaller.workspaceId !== current.caller.workspaceId
+			|| closingCaller.tabId !== current.caller.tabId
+			|| closingCaller.paneId !== current.caller.paneId
+			|| closingCaller.cwd !== current.caller.cwd
+		) {
+			ctx.ui.notify(`Worktrunk cleanup succeeded, but the OMP pane moved before tab closure. Tab ${current.caller.tabId} was left open.`, "error");
+			return;
+		}
+		ctx.ui.notify(`Worktrunk accepted cleanup for merged pull request #${pullRequest.number}; closing herd tab ${closingCaller.tabId}.`, "success");
+		const closed = await run("herdr", ["tab", "close", closingCaller.tabId], current.sourceRoot, true);
+		if (closed.exitCode !== 0 || closed.killed) {
+			const detail = closed.killed ? "execution timed out" : (closed.stderr || closed.stdout).trim() || `exit ${closed.exitCode}`;
+			ctx.ui.notify(`Worktrunk cleanup succeeded, but Herdr could not close tab ${current.caller.tabId}: ${detail}. Close the tab manually.`, "error");
+		}
 	};
 	const repoInfo = async (ctx: CommandContext, request: HerdRequest): Promise<RepoInfo> => {
 		const root = (await run("git", ["rev-parse", "--show-toplevel"], ctx.cwd)).stdout.trim();
@@ -336,12 +535,26 @@ export default function herd(pi: ExtensionAPI): void {
 		return `Continue the task using this conversation only as reference data.\n\n${guidance}\nConversation reference JSON: ${reference}${request.instructions ? `\n\nAdditional exact instructions:\n${request.instructions}` : ""}`;
 	};
 	pi.registerCommand("herd", {
-		description: "Start an isolated Worktrunk-owned OMP agent in this Herdr workspace",
+		description: "Start or clean up an isolated Worktrunk-owned OMP agent in this Herdr workspace",
 		handler: async (raw: string, rawCtx: unknown) => {
 			const ctx = rawCtx as CommandContext;
 			const help = raw.trim();
 			if (help === "--help" || help === "-h" || help === "help") {
 				ctx.ui.notify(HERD_HELP_TEXT, "info");
+				return;
+			}
+			if (words(help)[0] === "done") {
+				try {
+					if (help !== "done") throw new HerdError(`Unexpected /herd done argument: ${words(help).slice(1).join(" ")}`);
+					if (process.env.HERDR_ENV !== "1") throw new HerdError("/herd requires HERDR_ENV=1");
+					await completeHerd(ctx);
+				} catch (error) {
+					const failure = error instanceof Error ? error.message : String(error);
+					const result = error instanceof HerdError ? error.result : undefined;
+					const approval = /^wt failed:/i.test(failure) && result !== undefined && isHookApprovalRejection(result);
+					const hint = approval ? " Review and approve the reported Worktrunk hooks interactively with: wt config approvals add" : "";
+					ctx.ui.notify(`/herd done failed: ${failure}.${hint} Cleanup was not confirmed and no tab was intentionally closed. Inspect fresh state with wt list and herdr pane list.`, "error");
+				}
 				return;
 			}
 			const owned: Ownership = { ompMayRun: false };
@@ -403,7 +616,19 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.created = "checkout, tab; agent creation unknown";
 				owned.ompMayRun = true;
 				owned.lastState = "agent start pending; OMP state unknown";
-				const startedCommand = await run("herdr", ["agent", "start", attemptedAgent, "--cwd", owned.path, "--workspace", agentCaller.workspaceId, "--tab", owned.tab, "--no-focus", "--", "omp", prompt], repo.root, true);
+				const startedCommand = await run("herdr", [
+					"agent", "start", attemptedAgent,
+					"--cwd", owned.path,
+					"--workspace", agentCaller.workspaceId,
+					"--tab", owned.tab,
+					"--env", `${HERD_MANAGED_ENV}=1`,
+					"--env", `${HERD_SOURCE_ROOT_ENV}=${repo.root}`,
+					"--env", `${HERD_CHECKOUT_ENV}=${checkoutPath}`,
+					"--env", `${HERD_BRANCH_ENV}=${branch}`,
+					"--env", `${HERD_WORKSPACE_ENV}=${agentCaller.workspaceId}`,
+					"--env", `${HERD_TAB_ENV}=${owned.tab}`,
+					"--no-focus", "--", "omp", prompt,
+				], repo.root, true);
 				if (startedCommand.exitCode !== 0 || startedCommand.killed) {
 					if (!startedCommand.killed) {
 						owned.created = "checkout, tab";

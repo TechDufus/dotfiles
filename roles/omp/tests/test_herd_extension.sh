@@ -73,7 +73,13 @@ function makeHarness(overrides = {}) {
     if (command === "herdr" && argv[0] === "pane" && argv[1] === "list") {
       paneLists++;
       const workspace = overrides.callerChangeAt === paneLists ? "workspace-changed" : "workspace-fresh";
-      return { code: 0, stdout: envelope({ type: "pane_list", panes: [{ id: "caller-pane", workspace_id: workspace, agent_session: { state: "set", value: sessionFile } }] }), stderr: "" };
+      return { code: 0, stdout: envelope({ type: "pane_list", panes: [{
+        pane_id: "caller-pane",
+        tab_id: "caller-tab",
+        workspace_id: workspace,
+        cwd: overrides.cwd ?? "/source",
+        agent_session: { source: "herdr:omp", agent: "omp", kind: "path", value: sessionFile },
+      }] }), stderr: "" };
     }
     if (command === "git" && argv.join(" ") === "rev-parse --show-toplevel") return { code: 0, stdout: "/repo\n", stderr: "" };
     if (command === "git" && argv[0] === "symbolic-ref") return { code: 0, stdout: `${options.cwd === "/checkout" ? createdBranch : "main"}\n`, stderr: "" };
@@ -111,7 +117,7 @@ function makeHarness(overrides = {}) {
   const registered = registrations.find(item => item.name === "herd");
   ok(registered, "/herd was not registered");
   const ctx = {
-    cwd: "/source",
+    cwd: overrides.cwd ?? "/source",
     ui: { notify: (message, level) => notices.push({ message, level }) },
     sessionManager: {
       getSessionFile: () => sessionFile,
@@ -120,6 +126,92 @@ function makeHarness(overrides = {}) {
     },
   };
   return { calls, notices, handler: registered.definition.handler, ctx };
+}
+
+async function withManagedHerdEnvironment(fn) {
+  const values = {
+    OMP_HERD_MANAGED: "1",
+    OMP_HERD_SOURCE_ROOT: "/repo",
+    OMP_HERD_CHECKOUT: "/checkout",
+    OMP_HERD_BRANCH: "fix/widget",
+    OMP_HERD_WORKSPACE: "workspace-fresh",
+    OMP_HERD_TAB: "caller-tab",
+  };
+  const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
+  Object.assign(process.env, values);
+  try {
+    await fn();
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+function makeDoneHarness(overrides = {}) {
+  const head = overrides.head ?? "0123456789abcdef";
+  const branch = overrides.branch ?? "fix/widget";
+  let pullRequestLookups = 0;
+  const harness = makeHarness({
+    cwd: "/checkout",
+    callerChangeAt: overrides.callerChangeAt,
+    exec: (command, argv, options, state) => {
+      const custom = overrides.exec?.(command, argv, options, state);
+      if (custom !== undefined) return custom;
+      if (command === "git" && argv.join(" ") === "rev-parse --show-toplevel") {
+        const root = options.cwd === "/checkout" ? (overrides.checkoutRoot ?? "/checkout") : (overrides.sourceRoot ?? "/repo");
+        return { code: 0, stdout: `${root}\n`, stderr: "" };
+      }
+      if (command === "git" && argv[0] === "symbolic-ref") return { code: 0, stdout: `${branch}\n`, stderr: "" };
+      if (command === "git" && argv.join(" ") === "rev-parse --verify HEAD") return { code: 0, stdout: `${head}\n`, stderr: "" };
+      if (command === "git" && argv[0] === "status") return { code: 0, stdout: overrides.dirty ? " M unfinished.txt\n" : "", stderr: "" };
+      if (command === "git" && argv.join(" ") === "rev-parse --path-format=absolute --git-common-dir") {
+        const commonDir = options.cwd === "/checkout" ? (overrides.checkoutCommonDir ?? "/repo/.git") : (overrides.sourceCommonDir ?? "/repo/.git");
+        return { code: 0, stdout: `${commonDir}\n`, stderr: "" };
+      }
+      if (command === "wt" && argv.includes("list")) {
+        const worktrees = overrides.worktrees ?? [{ branch, path: "/checkout", kind: "worktree", is_main: false }];
+        return { code: 0, stdout: JSON.stringify(overrides.worktreeListOutput ?? worktrees), stderr: "" };
+      }
+      if (command === "gh" && argv[0] === "pr") {
+        pullRequestLookups++;
+        const configured = typeof overrides.pullRequests === "function"
+          ? overrides.pullRequests(pullRequestLookups)
+          : overrides.pullRequests;
+        const pullRequests = configured ?? [{
+          number: 42,
+          state: "MERGED",
+          mergedAt: "2026-07-13T00:00:00Z",
+          url: "https://github.com/owner/repo/pull/42",
+          headRefName: branch,
+          headRefOid: head,
+          isCrossRepository: false,
+        }];
+        return { code: 0, stdout: JSON.stringify(pullRequests), stderr: "" };
+      }
+      if (command === "wt" && argv.includes("remove")) {
+        return overrides.removeResult ?? { code: 0, stdout: JSON.stringify([{ kind: "worktree", branch, path: "/checkout", branch_deleted: true }]), stderr: "" };
+      }
+      if (command === "herdr" && argv[0] === "tab" && argv[1] === "close") {
+        return overrides.closeResult ?? { code: 0, stdout: envelope({ type: "tab_closed", tab_id: "caller-tab", workspace_id: "workspace-fresh" }), stderr: "" };
+      }
+    },
+  });
+  return { ...harness, head, branch };
+}
+
+function isCleanupMutation(call) {
+  return (call.command === "wt" && call.argv.includes("remove"))
+    || (call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close");
+}
+
+async function refusedDone(overrides = {}) {
+  const harness = makeDoneHarness(overrides);
+  await harness.handler("done", harness.ctx);
+  ok(!harness.calls.some(isCleanupMutation), `refused cleanup mutated resources: ${JSON.stringify(harness.calls)}`);
+  ok(harness.notices.at(-1)?.level === "error", "refused cleanup did not report an error");
+  return harness;
 }
 
 async function success() {
@@ -133,7 +225,19 @@ async function success() {
   equal(wt.options.timeout, 300_000, "Worktrunk did not receive its five-minute deadline");
   const start = mutations.find(call => call.argv[0] === "agent" && call.argv[1] === "start");
   const prompt = start.argv.at(-1);
-  equal(start.argv, ["agent", "start", start.argv[2], "--cwd", "/checkout", "--workspace", "workspace-fresh", "--tab", "tab-1", "--no-focus", "--", "omp", prompt], "wrong agent argv");
+  equal(start.argv, [
+    "agent", "start", start.argv[2],
+    "--cwd", "/checkout",
+    "--workspace", "workspace-fresh",
+    "--tab", "tab-1",
+    "--env", "OMP_HERD_MANAGED=1",
+    "--env", "OMP_HERD_SOURCE_ROOT=/repo",
+    "--env", "OMP_HERD_CHECKOUT=/checkout",
+    "--env", "OMP_HERD_BRANCH=fix/issue-123-fix-widget",
+    "--env", "OMP_HERD_WORKSPACE=workspace-fresh",
+    "--env", "OMP_HERD_TAB=tab-1",
+    "--no-focus", "--", "omp", prompt,
+  ], "wrong agent argv or cleanup ownership environment");
   const mutationKinds = mutations.map(call => call.command === "wt" ? "wt" : `${call.argv[0]}:${call.argv[1]}`);
   ok(mutationKinds.indexOf("wt") < mutationKinds.indexOf("tab:create") && mutationKinds.indexOf("tab:create") < mutationKinds.indexOf("agent:start"), "mutations ran out of order");
   const branchChecks = harness.calls.map((call, index) => ({ call, index })).filter(({ call }) => call.command === "git" && call.argv[0] === "symbolic-ref" && call.options.cwd === "/checkout");
@@ -368,6 +472,144 @@ await success();
   const secondName = second.calls.find(call => call.command === "herdr" && call.argv[1] === "start").argv[2];
   ok(firstName !== secondName, "identical harness timestamps produced duplicate agent names");
 }
+{
+  const previous = process.env.OMP_HERD_MANAGED;
+  delete process.env.OMP_HERD_MANAGED;
+  const harness = makeDoneHarness();
+  await harness.handler("done", harness.ctx);
+  if (previous === undefined) delete process.env.OMP_HERD_MANAGED;
+  else process.env.OMP_HERD_MANAGED = previous;
+  ok(harness.calls.length === 0, "unmanaged /herd done performed subprocess calls");
+  ok(harness.notices.at(-1)?.message.includes("started by /herd"), "unmanaged /herd done did not explain its ownership requirement");
+}
+
+await withManagedHerdEnvironment(async () => {
+  const exactPullRequest = {
+    number: 42,
+    state: "MERGED",
+    mergedAt: "2026-07-13T00:00:00Z",
+    url: "https://github.com/owner/repo/pull/42",
+    headRefName: "fix/widget",
+    headRefOid: "0123456789abcdef",
+    isCrossRepository: false,
+  };
+
+  const harness = makeDoneHarness();
+  await harness.handler("done", harness.ctx);
+  const lookup = harness.calls.find(call => call.command === "gh" && call.argv[0] === "pr");
+  equal(lookup.argv, ["pr", "list", "--repo", "owner/repo", "--head", "fix/widget", "--state", "all", "--limit", "100", "--json", "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository"], "cleanup used an ambiguous GitHub pull request lookup");
+  equal(harness.calls.filter(call => call.command === "gh" && call.argv[0] === "pr").length, 2, "GitHub merge proof was not refreshed after local cleanup revalidation");
+  const remove = harness.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
+  ok(remove, `merged cleanup did not reach Worktrunk removal: ${JSON.stringify(harness.notices)}`);
+  equal(remove.argv, ["remove", "--foreground", "--format=json", "/checkout"], "merged checkout cleanup used the wrong Worktrunk command");
+  equal(remove.options.cwd, "/checkout", "Worktrunk did not remove from the managed checkout context");
+  equal(remove.options.timeout, 300_000, "Worktrunk cleanup did not receive its five-minute deadline");
+  ok(!remove.argv.includes("--force") && !remove.argv.includes("--force-delete") && !remove.argv.includes("--yes") && !remove.argv.includes("--no-hooks"), "cleanup bypassed Worktrunk merge, dirty-tree, or hook safeguards");
+  const close = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close");
+  equal(close.argv, ["tab", "close", "caller-tab"], "cleanup did not close the verified current herd tab");
+  equal(close.options.cwd, "/repo", "tab closure did not run from the retained source checkout");
+  ok(harness.calls.indexOf(remove) < harness.calls.indexOf(close), "herd tab closed before Worktrunk accepted checkout removal");
+  equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, "caller identity was not refreshed before removal and tab closure");
+  equal(harness.calls.filter(call => call.command === "git" && call.argv[0] === "status").length, 2, "checkout cleanliness was not rechecked before removal");
+  ok(harness.notices.some(notice => notice.level === "success" && notice.message.includes("pull request #42")), "successful cleanup notice missing");
+
+  const schemaTwo = makeDoneHarness({
+    worktreeListOutput: {
+      schema: 2,
+      repo: { default_branch: "main" },
+      collected: { ci: false, summary: false },
+      items: [
+        { branch: "detached-branch-only" },
+        { branch: "fix/widget", worktree: { path: "/checkout", main: false, current: false, previous: false, detached: false } },
+      ],
+    },
+  });
+  await schemaTwo.handler("done", schemaTwo.ctx);
+  ok(schemaTwo.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "Worktrunk schema-2 inventory did not authorize the exact managed checkout");
+
+  const dirty = await refusedDone({ dirty: true });
+  ok(!dirty.calls.some(call => call.command === "gh"), "dirty cleanup queried GitHub after local refusal");
+  ok(dirty.notices.at(-1).message.includes("staged, modified, or untracked"), "dirty cleanup reason missing");
+
+  const open = await refusedDone({ pullRequests: [{ ...exactPullRequest, state: "OPEN", mergedAt: null }] });
+  ok(open.notices.at(-1).message.includes("is OPEN, not merged"), "open pull request was not identified");
+
+  const mismatchedHead = await refusedDone({ pullRequests: [{ ...exactPullRequest, headRefOid: "different-head" }] });
+  ok(mismatchedHead.notices.at(-1).message.includes("current local HEAD"), "unpushed or post-merge local commits were not rejected");
+
+  const changedPullRequest = await refusedDone({
+    pullRequests: lookup => lookup === 1
+      ? [exactPullRequest]
+      : [{ ...exactPullRequest, headRefOid: "changed-after-local-revalidation" }],
+  });
+  ok(changedPullRequest.notices.at(-1).message.includes("current local HEAD"), "GitHub merge proof was not refreshed immediately before removal");
+
+  const forkPullRequest = await refusedDone({ pullRequests: [{ ...exactPullRequest, isCrossRepository: true }] });
+  ok(forkPullRequest.notices.at(-1).message.includes("No same-repository GitHub pull request"), "cross-repository pull request was not rejected");
+
+  const ambiguous = await refusedDone({ pullRequests: [exactPullRequest, { ...exactPullRequest, number: 43, url: "https://github.com/owner/repo/pull/43" }] });
+  ok(ambiguous.notices.at(-1).message.includes("Multiple same-repository GitHub pull requests"), "ambiguous pull requests were not rejected");
+
+  const truncated = await refusedDone({ pullRequests: Array.from({ length: 100 }, () => ({})) });
+  ok(truncated.notices.at(-1).message.includes("100-result safety limit"), "possibly truncated GitHub results were not rejected");
+
+  const mainCheckout = await refusedDone({ worktrees: [{ branch: "fix/widget", path: "/checkout", kind: "worktree", is_main: true }] });
+  ok(mainCheckout.notices.at(-1).message.includes("non-main branch checkout"), "main checkout ownership was not rejected");
+
+  const unrelatedSource = await refusedDone({ sourceCommonDir: "/other/.git" });
+  ok(unrelatedSource.notices.at(-1).message.includes("same repository"), "unrelated source checkout was not rejected");
+
+  const changedBeforeRemoval = await refusedDone({ callerChangeAt: 2 });
+  ok(changedBeforeRemoval.notices.at(-1).message.includes("original herd tab"), "caller movement before removal was not rejected");
+
+  const removeFailed = makeDoneHarness({ removeResult: { code: 1, stdout: "", stderr: "branch is not integrated" } });
+  await removeFailed.handler("done", removeFailed.ctx);
+  ok(removeFailed.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "Worktrunk failure scenario did not attempt removal");
+  ok(!removeFailed.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "tab closed after Worktrunk refused removal");
+  ok(removeFailed.notices.at(-1).message.includes("branch is not integrated"), "Worktrunk refusal detail missing");
+
+  const malformedRemoval = makeDoneHarness({ removeResult: { code: 0, stdout: "{}", stderr: "" } });
+  await malformedRemoval.handler("done", malformedRemoval.ctx);
+  ok(!malformedRemoval.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "tab closed after malformed Worktrunk success output");
+  ok(malformedRemoval.notices.at(-1).message.includes("malformed JSON"), "malformed Worktrunk success output was not rejected");
+  ok(malformedRemoval.notices.at(-1).message.includes("checkout may already be removed"), "malformed Worktrunk success did not explain the partial-cleanup state");
+
+  const retainedBranch = makeDoneHarness({
+    exec: (command, argv) => command === "git" && argv[0] === "show-ref"
+      ? { code: 0, stdout: "", stderr: "" }
+      : undefined,
+  });
+  await retainedBranch.handler("done", retainedBranch.ctx);
+  ok(retainedBranch.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "safe local branch retention prevented herd tab closure");
+  ok(retainedBranch.notices.some(notice => notice.level === "warning" && notice.message.includes("retained local branch")), "retained local branch was not reported");
+
+  const changedBeforeClose = makeDoneHarness({ callerChangeAt: 3 });
+  await changedBeforeClose.handler("done", changedBeforeClose.ctx);
+  ok(changedBeforeClose.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "post-removal caller-change scenario did not reach Worktrunk");
+  ok(!changedBeforeClose.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "stale tab identifier was closed after caller movement");
+  ok(changedBeforeClose.notices.at(-1).message.includes("left open"), "post-removal caller movement did not explain retained tab");
+
+  let paneLists = 0;
+  const missingBeforeClose = makeDoneHarness({
+    exec: (command, argv) => command === "herdr" && argv[0] === "pane" && argv[1] === "list" && ++paneLists === 3
+      ? { code: 0, stdout: envelope({ type: "pane_list", panes: [] }), stderr: "" }
+      : undefined,
+  });
+  await missingBeforeClose.handler("done", missingBeforeClose.ctx);
+  ok(missingBeforeClose.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "post-removal missing-caller scenario did not reach Worktrunk");
+  ok(!missingBeforeClose.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "tab closed after the caller disappeared");
+  ok(missingBeforeClose.notices.at(-1).message.includes("could not be re-resolved") && missingBeforeClose.notices.at(-1).message.includes("left open"), "missing post-removal caller did not explain the partial-cleanup state");
+
+  const closeFailed = makeDoneHarness({ closeResult: { code: 1, stdout: "", stderr: "tab close rejected" } });
+  await closeFailed.handler("done", closeFailed.ctx);
+  ok(closeFailed.notices.at(-1).message.includes("Close the tab manually"), "tab-close failure did not provide manual recovery");
+
+  const unexpected = makeDoneHarness();
+  await unexpected.handler("done --force", unexpected.ctx);
+  ok(unexpected.calls.length === 0, "unexpected /herd done arguments performed subprocess calls");
+  ok(unexpected.notices.at(-1).message.includes("Unexpected /herd done argument"), "unexpected /herd done argument was not rejected clearly");
+});
+
 
 {
   const previous = process.env.HERDR_ENV;
@@ -380,7 +622,7 @@ await success();
     const notice = harness.notices[0];
     equal(notice.level, "info", `${alias} help did not use the info level`);
     for (const required of [
-      "/herd <exact task>", "/herd context", "/herd task", "/herd issue",
+      "/herd <exact task>", "/herd context", "/herd task", "/herd issue", "/herd done",
       "--branch=<name>", "--base=<ref>", "--dry-run",
       "-- <additional exact instructions>", "-- <exact task>",
       "opaque instruction string",
@@ -397,10 +639,14 @@ await success();
 
   const harness = makeHarness();
   await harness.handler("context", harness.ctx);
+  ok(harness.calls.length === 0, "missing HERDR_ENV performed a Herdr, Worktrunk, or repository action");
+  const doneHarness = makeDoneHarness();
+  await doneHarness.handler("done", doneHarness.ctx);
+  ok(doneHarness.calls.length === 0, "missing HERDR_ENV performed a cleanup action");
+  ok(doneHarness.notices.at(-1).message.includes("HERDR_ENV=1"), "missing HERDR_ENV cleanup guard error missing");
+  ok(harness.notices.at(-1).message.includes("HERDR_ENV=1"), "missing HERDR_ENV guard error missing");
   if (previous === undefined) delete process.env.HERDR_ENV;
   else process.env.HERDR_ENV = previous;
-  ok(harness.calls.length === 0, "missing HERDR_ENV performed a Herdr, Worktrunk, or repository action");
-  ok(harness.notices.at(-1).message.includes("HERDR_ENV=1"), "missing HERDR_ENV guard error missing");
 }
 
 console.log("herd extension tests passed");

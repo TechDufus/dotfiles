@@ -9,19 +9,21 @@ const CONTEXT_SECTION_CHARS = Math.floor(CONTEXT_CHARS / 2);
 
 const HERD_HELP_TEXT = `Usage:
   /herd
+  /herd <exact task>
   /herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
   /herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>
   /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
 
 Options:
-  --branch=<name>  Use an explicit new branch name (default: generated from the request)
+  --branch=<name>  Use an explicit new branch name (default: semantic type prefix; feat/ fallback)
   --base=<ref>     Start from this ref (default: the current named local branch)
   --dry-run        Resolve and report without creating resources (default: off)
   --                Treat the remaining text as one opaque instruction string
 
-Blank input defaults to context mode.`;
+Blank input defaults to context mode. Bare prose defaults to task mode.`;
 
 type Mode = "context" | "task" | "issue";
+type BranchType = "feat" | "fix" | "docs" | "refactor" | "test" | "chore" | "ci" | "build" | "perf";
 type ExecResult = { stdout: string; stderr: string; exitCode: number; killed: boolean };
 type Ui = { notify(message: string, level?: "info" | "success" | "warning" | "error"): void };
 type SessionEntry = { type?: string; role?: string; content?: unknown; summary?: unknown; message?: unknown };
@@ -73,6 +75,11 @@ function splitDelimiter(raw: string): { head: string; tail: string; found: boole
 }
 
 export function parseHerdArgs(raw: string): HerdRequest {
+	const trimmed = raw.trim();
+	const first = words(trimmed)[0];
+	if (first && first !== "context" && first !== "task" && first !== "issue" && !first.startsWith("-")) {
+		return { mode: "task", dryRun: false, instructions: trimmed };
+	}
 	const split = splitDelimiter(raw);
 	const tokens = words(split.head);
 	let mode: Mode = "context";
@@ -112,6 +119,43 @@ function slug(value: string): string {
 	const compact = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 36).replace(/-$/, "");
 	return compact || "task";
 }
+
+const BRANCH_TYPE_ALIASES: Readonly<Record<string, BranchType>> = {
+	feat: "feat", feature: "feat", enhancement: "feat", story: "feat",
+	fix: "fix", bug: "fix", repair: "fix", resolve: "fix", security: "fix", correction: "fix",
+	docs: "docs", doc: "docs", document: "docs", documentation: "docs", readme: "docs",
+	refactor: "refactor", test: "test", tests: "test", testing: "test",
+	chore: "chore", maintenance: "chore", dependencies: "chore", dependency: "chore", task: "chore",
+	ci: "ci", build: "build", perf: "perf", performance: "perf",
+	create: "feat", add: "feat", implement: "feat", design: "feat",
+};
+
+function categoryType(category: string): BranchType | undefined {
+	return BRANCH_TYPE_ALIASES[category.trim().toLowerCase().replace(/^type\s*:\s*/, "")];
+}
+
+function requestBranch(request: string): { type: BranchType; seed: string } {
+	const unscaffolded = request.replace(
+		/^\s*(?:(?:please|i\s+(?:want|need)\s+to|we\s+need\s+to|can\s+you)\b[\s,:-]*)+/i,
+		"",
+	);
+	const leading = /^(?:\[([a-z]+)\]|([a-z]+))(?:\([^)\r\n]*\))?(?:\s*[:-]\s*|\s+|$)/i.exec(unscaffolded);
+	const type = categoryType(leading?.[1] ?? leading?.[2] ?? "");
+	return { type: type ?? "feat", seed: type && leading ? unscaffolded.slice(leading[0].length) : unscaffolded };
+}
+
+function issueType(issue: IssueData): BranchType {
+	const specificTypes: BranchType[] = ["fix", "docs", "chore", "test", "refactor", "ci", "build", "perf"];
+	const labelTypes = issue.labels.map(categoryType);
+	for (const category of specificTypes) {
+		if (labelTypes.includes(category)) return category;
+	}
+	const bracketed = /^\s*\[([^\]\r\n]+)\]/.exec(issue.title);
+	const titleType = categoryType(bracketed?.[1] ?? "");
+	if (titleType) return titleType;
+	return "feat";
+}
+
 
 function entryText(entry: SessionEntry): string | undefined {
 	const message = entry.message && typeof entry.message === "object" && !Array.isArray(entry.message) ? entry.message as Record<string, unknown> : undefined;
@@ -251,8 +295,8 @@ export default function herd(pi: ExtensionAPI): void {
 		await run("git", ["rev-parse", "--verify", `${base}^{commit}`], root);
 		return { root, branch, base, dirty: Boolean((await run("git", ["status", "--porcelain"], root)).stdout.trim()) };
 	};
-	const uniqueBranch = async (root: string, requested: string | undefined, seed: string): Promise<string> => {
-		const initial = requested ?? `herd/${slug(seed)}`;
+	const uniqueBranch = async (root: string, requested: string | undefined, seed: string, type: BranchType): Promise<string> => {
+		const initial = requested ?? `${type}/${slug(seed)}`;
 		await run("git", ["check-ref-format", "--branch", initial], root);
 		for (let suffix = 1; ; suffix++) {
 			const candidate = suffix === 1 ? initial : `${initial}-${suffix}`;
@@ -308,8 +352,10 @@ export default function herd(pi: ExtensionAPI): void {
 				const repo = await repoInfo(ctx, request);
 				if (repo.dirty) ctx.ui.notify("Source checkout has dirty or untracked changes; they will not be copied.", "warning");
 				const issue = request.mode === "issue" ? await loadIssue(repo.root, request.issue ?? "") : undefined;
-				const seed = issue ? `issue-${issue.number}-${issue.title}` : request.mode === "task" ? request.instructions : contextSeed(ctx.sessionManager.getBranch?.() ?? []);
-				const branch = await uniqueBranch(repo.root, request.branch, seed);
+				const generated = issue
+					? { type: issueType(issue), seed: `issue-${issue.number}-${issue.title.replace(/^\s*\[[^\]\r\n]+\]\s*/, "")}` }
+					: requestBranch(request.mode === "task" ? request.instructions : contextSeed(ctx.sessionManager.getBranch?.() ?? []));
+				const branch = await uniqueBranch(repo.root, request.branch, generated.seed, generated.type);
 				const prompt = promptFor(request, ctx, issue);
 				if (request.dryRun) { ctx.ui.notify(`Dry run: would create ${branch} from ${repo.base} in workspace ${caller.workspaceId}.`, "info"); return; }
 				const wtCaller = await freshCaller(ctx, repo.root);

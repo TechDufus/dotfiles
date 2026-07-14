@@ -1,3 +1,4 @@
+---
 modelRoles:
   default: openai-codex/gpt-5.6-terra:xhigh
   smol: openai-codex/gpt-5.6-luna:xhigh
@@ -17,18 +18,11 @@ symbolPreset: nerd
 display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
-contextPromotion:
-  enabled: false
 advisor:
   enabled: true
   subagents: true
-  syncBacklog: 1
-  immuneTurns: 3
+  syncBacklog: "1"
 compaction:
-  strategy: snapcompact
-  autoContinue: true
-  midTurnEnabled: true
-  thresholdTokens: -1
   thresholdPercent: 65
 hideThinkingBlock: true
 disabledProviders:
@@ -58,8 +52,6 @@ mnemopi:
   scoping: per-project-tagged
   proactiveLinking: true
 github:
-  enabled: true
-renderMermaid:
   enabled: true
 inspect_image:
   enabled: true

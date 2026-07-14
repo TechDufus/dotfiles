@@ -1,4 +1,5 @@
-modelRoles: 
+---
+modelRoles:
   default: openai-codex/gpt-5.6-sol:xhigh
   smol: openai-codex/gpt-5.6-luna:xhigh
   task: openai-codex/gpt-5.6-sol:medium
@@ -8,31 +9,23 @@ modelRoles:
   vision: openai-codex/gpt-5.6-terra:xhigh
   commit: openai-codex/gpt-5.6-luna:xhigh
   advisor: openai-codex/gpt-5.6-sol:low
-cycleOrder: 
+cycleOrder:
   - smol
   - default
-theme: 
+theme:
   dark: dark-catppuccin
 symbolPreset: nerd
-display: 
+display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
-contextPromotion: 
-  enabled: false
-advisor: 
+advisor:
   enabled: true
-  subagents: false
   syncBacklog: "3"
   immuneTurns: 5
-compaction: 
-  strategy: snapcompact
-  autoContinue: true
-  midTurnEnabled: true
-  thresholdTokens: -1
+compaction:
   thresholdPercent: 65
-  idleEnabled: false
 hideThinkingBlock: true
-disabledProviders: 
+disabledProviders:
   - claude
   - claude-plugins
   - codex
@@ -44,76 +37,76 @@ disabledProviders:
   - vscode
   - github
   - amazon-bedrock
-marketplace: 
+marketplace:
   autoUpdate: auto
-bashInterceptor: 
+bashInterceptor:
   enabled: true
-edit: 
+edit:
   streamingAbort: true
-  mode: hashline
-lsp: 
+lsp:
   diagnosticsOnEdit: true
 collapseChangelog: true
-memory: 
+memory:
   backend: mnemopi
-mnemopi: 
+mnemopi:
   scoping: per-project-tagged
   proactiveLinking: true
-github: 
+  enhancedRecall: true
+github:
   enabled: true
-renderMermaid: 
+inspect_image:
   enabled: true
-inspect_image: 
-  enabled: true
-task: 
+task:
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
-  isolation: 
+  isolation:
     mode: auto
-skills: 
+    commits: ai
+skills:
   enableCodexUser: false
   enableClaudeUser: false
   enableClaudeProject: false
-commands: 
+commands:
   enableClaudeUser: false
   enableClaudeProject: false
   enableOpencodeUser: false
   enableOpencodeProject: false
-mcp: 
+mcp:
   enableProjectConfig: false
 setupVersion: 1
-vault: 
+vault:
   enabled: true
-dev: 
-  autoqa: 
+dev:
+  autoqa:
     consent: granted
-tier: 
+tier:
   openai: default
-  advisor: none
-browser: 
-  headless: true
-statusLine: 
+statusLine:
   transparent: true
   compactThinkingLevel: true
-  showHookStatus: true
-doubleEscapeAction: tree
-stt: 
-  enabled: false
-startup: 
+startup:
   showSplash: true
   quiet: true
-autolearn: 
+autolearn:
   enabled: true
   autoContinue: true
 readLineNumbers: true
-bash: 
-  autoBackground: 
+bash:
+  autoBackground:
     enabled: true
-eval: 
+eval:
   rb: true
   jl: true
-todo: 
+todo:
   eager: preferred
-secrets: 
+secrets:
   enabled: true
+terminal:
+  showProgress: true
+tui:
+  tight: true
+  scrollbackRebuild: true
+snapcompact:
+  systemPrompt: all
+  toolResults: true

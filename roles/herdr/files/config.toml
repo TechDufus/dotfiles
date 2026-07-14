@@ -28,4 +28,8 @@ show_agent_labels_on_pane_borders = true
 agent_panel_sort = "spaces"
 
 [ui.toast]
-delivery = "herdr"
+delivery = "system"
+
+[experimental]
+pane_history = true
+switch_ascii_input_source_in_prefix = true

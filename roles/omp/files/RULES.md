@@ -16,8 +16,8 @@
 - Update docs, config examples, runbooks, onboarding notes, and usage examples when behavior, public APIs, CLIs, configuration, workflows, or user-visible UX change.
 - Intentionally avoid docs churn for private implementation changes, pure refactors with unchanged semantics, or when no relevant docs exist; say so when relevant.
 - Never expose, print, store, or commit secrets; use approved secret references instead of plaintext.
-- Never commit unless explicitly requested; before committing, inspect selected commit content and exclude secrets and unrelated changes.
-- Ask before destructive external effects, including deleting remote resources, rotating credentials, deploying, force-pushing, or modifying shared state outside the repo.
+- Prefer a local commit when a coherent, verified atomic unit or meaningful rollback or review checkpoint is complete, without waiting for a separate prompt; inspect selected content, exclude secrets and unrelated work, use a concise intent-driven Conventional Commit message, and reference issue or commit identifiers only when established by context.
+- Ask before destructive external effects, including deleting remote resources, rotating credentials, deploying, pushing, amending, rebasing, squashing, force-pushing, other history rewrites, or modifying shared state outside the repo.
 - Prefer OMP-native and specialized tools for reading, editing, code intelligence, search, and verification when they fit.
 - Use ad-hoc shell only when it is the right narrow tool; do not bypass safer structured tooling.
 - If blocked, state the exact blocker, what was tried, and what remains incomplete.

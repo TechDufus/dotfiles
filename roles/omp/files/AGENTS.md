@@ -18,8 +18,11 @@
 ## Safety
 - Never expose, print, store, or commit plaintext secrets; use existing
   approved secret references.
-- Commit only when explicitly requested.
-- Ask before destructive actions unless explicitly requested and safely scoped.
+- Use concise, intent-driven Conventional Commit messages for coherent,
+  verified local checkpoints; inspect selected content and exclude unrelated
+  work. Reference issue or commit identifiers only when established by context.
+- Ask before destructive actions, pushing, or rewriting history unless
+  explicitly requested and safely scoped.
 
 ## Communication
 - Lead with the answer or outcome and keep responses concise.

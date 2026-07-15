@@ -63,7 +63,9 @@ After repeating the identity, ownership, cleanliness, branch, and `HEAD` checks,
 
 This skill management is separate from `omp_herdr_integration_enabled`, which controls Herdr's generated lifecycle and session reporter.
 
-## `/commit` extension
+## Checkpoint commits and `/commit`
+
+The commit skill and active `omp_commit` tool let the agent create local commits autonomously at coherent, verified checkpoints, including while broader work continues. `/commit` remains an optional manual fast path.
 
 `/commit [optional free-form context]` is a post-work fast path. The live conversation must already establish the related path selection, secret review, and verification evidence that the normal commit skill requires. If that evidence is missing or leaves a possible real secret unresolved, the command makes no tool call and directs the agent to run the normal commit skill/review first instead of guessing.
 

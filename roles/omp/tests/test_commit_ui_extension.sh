@@ -232,10 +232,13 @@ assert(messageSchema.refinements[0].predicate("fix(test): valid"), "valid messag
 assert(!messageSchema.refinements[0].predicate("   "), "blank message accepted by schema");
 assert(!messageSchema.refinements[0].predicate("bad\0message"), "NUL message accepted by schema");
 
+matches(tool.description, /local checkpoint commit.*coherent, verified atomic unit/i, "tool checkpoint contract");
+matches(tool.description, /supplied paths.*selected content.*unrelated changes.*secrets.*verification evidence/i, "tool review safeguards");
+excludes(tool.description, /only after|requires? an explicit request/i, "tool obsolete request gate");
+
 const watchdog = await readFile(watchdogPath, "utf8");
-matches(watchdog, /omp_commit.*registered execution surface.*explicit `?\/commit`?/i, "watchdog execution surface");
-matches(watchdog, /no separate visible authorization marker/i, "watchdog marker removal");
-matches(watchdog, /ordinary requirement for explicit user intent/i, "watchdog explicit intent");
+matches(watchdog, /do not object solely because the user did not explicitly request a local commit/i, "watchdog autonomous commit");
+matches(watchdog, /coherent, verified unit.*distinct work.*concise checkpoint suggestion/i, "watchdog checkpoint suggestion");
 excludes(watchdog, /\[commit-authorization\]|one-use-marker/i, "watchdog obsolete protocol");
 
 async function exerciseCommand(isIdle, rawContext) {

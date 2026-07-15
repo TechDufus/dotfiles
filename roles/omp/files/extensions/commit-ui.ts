@@ -50,7 +50,7 @@ export default function commitUi(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: TOOL_NAME,
 		label: "Commit",
-		description: "Create one local commit after an explicit request. Stages and commits only the supplied paths and depends on the agent having completed contextual file, secret, and verification review.",
+		description: "Create one local checkpoint commit for a coherent, verified atomic unit. Stages and commits only the supplied paths after the agent has reviewed selected content, unrelated changes, secrets, and verification evidence.",
 		parameters: z.object({
 			files: z.array(
 				z.string()

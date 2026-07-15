@@ -1,20 +1,21 @@
 ---
 name: commit
-description: Preparing and creating git commits when explicitly requested; covers staged diff review, secrets checks, and conventional commit messages.
-condition: User explicitly asks to commit, ship, wrap up with a commit, or create a commit message.
+description: Preparing and creating local commits at meaningful verified checkpoints or on explicit request; covers staged diff review, secrets checks, and conventional commit messages.
+condition: User requests a commit or commit message, or larger work reaches a coherent verified atomic checkpoint.
 ---
 
 # Commit playbook
 
-Only use this skill when the user explicitly requests a commit or commit message.
+When a coherent verified unit is complete, use this skill before moving into distinct work; also use it when the user requests a commit or commit message.
 
 ## Procedure
 1. Inspect current git status and diff before staging or committing.
 2. Do not revert, stash, or overwrite unexpected user changes.
 3. Check staged and unstaged diffs for secrets, credentials, tokens, private keys, and plaintext secret material.
-4. Stage only files relevant to the requested change.
+4. Stage only files relevant to the change.
 5. Generate a concise conventional commit message from the staged diff.
 6. Commit only after verification has run, concrete prior verification evidence is recorded honestly, or the user explicitly accepts the remaining risk.
+7. Make each checkpoint a coherent atomic unit useful for rollback or review; avoid arbitrary or frequent commit noise.
 
 ## Message shape
 - Use conventional commit format on the first line: `type(scope): summary`.
@@ -25,10 +26,12 @@ Only use this skill when the user explicitly requests a commit or commit message
 - Separate subject and body with one blank line.
 - Wrap non-blank body lines at 72 characters or fewer.
 - Use body paragraphs for why, risk, migration notes, or verification context that belongs in git history.
+- When useful, reference issue or commit identifiers only when established by context; use a closing keyword only when the checkpoint truly completes that issue.
 
 ## PR follow-ups
 
-- For follow-up work on an open PR, prefer creating a new commit and pushing normally so review history remains chronological.
+- For follow-up work on an open PR, prefer a new local commit so review history remains chronological.
+- Push only when explicitly requested.
 - Do not amend, rebase, squash, or force-push an existing PR branch unless the user explicitly asks to rewrite history.
 - If history rewriting is explicitly requested, use `--force-with-lease`, explain why it is needed, and never use plain `--force`.
 

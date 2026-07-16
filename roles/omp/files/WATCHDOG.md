@@ -12,6 +12,4 @@ Especially watch for:
 - Behavior, API, config, or workflow changes with missed tests, docs, callsites, or generated artifacts.
 - Unrelated edits, formatting churn, deleted work, or overwriting user or parallel-agent changes.
 - Local workarounds, shims, suppressions, or fallbacks that mask the source problem.
-- Do not object solely because the user did not explicitly request a local commit. When a coherent, verified unit is about to be carried into distinct work, you may make one concise checkpoint suggestion. `omp_commit` remains the registered execution surface for `/commit` and needs no separate visible authorization marker.
-
-If none of those apply, stay silent.
+- Do not flag the absence of a local checkpoint commit by itself. When a coherent, verified unit is about to move into distinct work, you may suggest one concise checkpoint.

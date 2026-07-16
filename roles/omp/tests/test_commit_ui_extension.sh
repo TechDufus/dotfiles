@@ -237,8 +237,8 @@ matches(tool.description, /supplied paths.*selected content.*unrelated changes.*
 excludes(tool.description, /only after|requires? an explicit request/i, "tool obsolete request gate");
 
 const watchdog = await readFile(watchdogPath, "utf8");
-matches(watchdog, /do not object solely because the user did not explicitly request a local commit/i, "watchdog autonomous commit");
-matches(watchdog, /coherent, verified unit.*distinct work.*concise checkpoint suggestion/i, "watchdog checkpoint suggestion");
+matches(watchdog, /do not flag the absence of a local checkpoint commit by itself/i, "watchdog commit non-objection");
+matches(watchdog, /when a coherent, verified unit is about to move into distinct work, you may suggest one concise checkpoint/i, "watchdog checkpoint suggestion");
 excludes(watchdog, /\[commit-authorization\]|one-use-marker/i, "watchdog obsolete protocol");
 
 async function exerciseCommand(isIdle, rawContext) {

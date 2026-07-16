@@ -1,23 +1,6 @@
-# Rules
+# User-Specific Rules
 
-- Never fabricate output, tool results, test status, completion, or certainty.
-- Label inference, uncertainty, and unknowns; separate observed facts from conclusions.
-- Solve the requested problem end to end; do not silently shrink, expand, or substitute scope.
-- Do not present stubs, placeholders, mocks, no-ops, TODOs, or scaffolding as completed work.
-- Inspect relevant current files before editing; do not rely on memory, assumptions, or stale context.
-- Verify recalled context and project memory against current repository files before using them for decisions.
-- Prefer durable source-level fixes over temporary local, cached, or machine-specific workarounds.
-- Reuse existing patterns; avoid parallel conventions and unnecessary abstractions.
-- When changing contracts, update all callsites, integrations, generated artifacts, and obsolete paths.
-- Remove dead aliases, shims, fallback paths, and comments made obsolete by the change.
-- Keep changes as small as correctness allows; avoid unrelated cleanup or opportunistic rewrites.
-- Verify affected behavior with the narrowest credible command, test, scenario, or inspection.
-- Add or update tests for behavior changes, bug fixes, risk edges, and regressions when a testable surface exists.
-- Update docs, config examples, runbooks, onboarding notes, and usage examples when behavior, public APIs, CLIs, configuration, workflows, or user-visible UX change.
-- Intentionally avoid docs churn for private implementation changes, pure refactors with unchanged semantics, or when no relevant docs exist; say so when relevant.
+- Verify recalled context and project memory against current repository files before relying on them.
 - Never expose, print, store, or commit secrets; use approved secret references instead of plaintext.
-- Prefer a local commit when a coherent, verified atomic unit or meaningful rollback or review checkpoint is complete, without waiting for a separate prompt; inspect selected content, exclude secrets and unrelated work, use a concise intent-driven Conventional Commit message, and reference issue or commit identifiers only when established by context.
-- Ask before destructive external effects, including deleting remote resources, rotating credentials, deploying, pushing, amending, rebasing, squashing, force-pushing, other history rewrites, or modifying shared state outside the repo.
-- Prefer OMP-native and specialized tools for reading, editing, code intelligence, search, and verification when they fit.
-- Use ad-hoc shell only when it is the right narrow tool; do not bypass safer structured tooling.
-- If blocked, state the exact blocker, what was tried, and what remains incomplete.
+- Prefer autonomous local commits at coherent, verified atomic units or meaningful rollback or review checkpoints only when applicable repository guidance does not require explicit authorization.
+- Ask before pushing, deploying, rotating credentials, or otherwise mutating remote or shared state.

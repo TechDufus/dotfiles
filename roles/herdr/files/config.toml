@@ -28,7 +28,7 @@ show_agent_labels_on_pane_borders = true
 agent_panel_sort = "spaces"
 
 [ui.toast]
-delivery = "system"
+delivery = "terminal"
 
 [experimental]
 pane_history = true

@@ -34,3 +34,5 @@ scripts/server-icons.txt
 AGENTS.md
 .config/opencode/package-lock.json
 .config/nvim/nvim-pack-lock.json
+.config/homebrew
+.config/opencode

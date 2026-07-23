@@ -10,7 +10,6 @@
 local.sh
 .config/astronvim
 .config/yazi/scripts
-.config/yazi/keymap.toml
 .config/jellyfin
 install
 .config/neofetch
@@ -26,7 +25,9 @@ install
 .config/apd
 .config/karabiner/automatic_backups
 .config/flashspace
-.config/yazi/plugins
+.config/yazi/plugins/*
+!.config/yazi/plugins/autosession-cursor.yazi/
+!.config/yazi/plugins/autosession-cursor.yazi/**
 .config/nvim/spell
 .config/kitty/font.conf
 scripts/server-icons.txt

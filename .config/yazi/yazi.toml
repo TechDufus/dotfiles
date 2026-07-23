@@ -48,18 +48,25 @@ reveal = [
 ]
 rootbrowse = [{ run = 'rootbrowse "$1"', orphan = true, for = "unix" }]
 rbtuple = [{ run = '''bash -lc 'source "$HOME/dotfiles/bash/functions"; rbtuple "$@"' rbtuple "$@"''', desc = "rbtuple", orphan = true, for = "unix" }]
-root = [{ run = '~/dotfiles/scripts/run_root_macro.sh "$1"', orphan = true, for = "unix", desc = "ROOT GUI" }]
+root = [{ run = 'exec "$HOME/dotfiles/scripts/yazi_root.sh" "$@"', block = false, orphan = false, for = "unix", desc = "Load macro in bkg" }]
 sioyek = [{ run = 'sioyek "$1"', orphan = true, for = "unix" }]
 skim = [{ run = 'open -a "Skim" "$1"', orphan = true, for = "macos" }]
+x11_pdf = [{ run = '''if [ -n "$SSH_CONNECTION" ] && [ -n "$DISPLAY" ]; then for viewer in mupdf-gl zathura; do if command -v "$viewer" >/dev/null; then exec "$viewer" "$@"; fi; done; fi; exec xdg-open "$@"''', desc = "Open via X11", for = "linux" }]
+x11_png = [{ run = '''if [ -n "$SSH_CONNECTION" ] && [ -n "$DISPLAY" ]; then for viewer in mupdf-gl feh nsxiv sxiv imv eog ristretto; do if command -v "$viewer" >/dev/null; then exec "$viewer" "$@"; fi; done; fi; exec xdg-open "$@"''', desc = "Open via X11", for = "linux" }]
 zathura = [{ run = 'zathura "$1"', orphan = true, for = "unix" }]
 yac = [{ name = "YAC", run = 'open -a "YACReader" "$1"', orphan = true, for = "macos"}]
 
 [open]
 prepend_rules = [
   { mime = "application/pdf", use = [
+    "x11_pdf",
     "skim",
     "zathura",
     "reveal",
+  ] },
+  { mime = "image/png", use = [
+    "x11_png",
+    "open",
   ] },
   { url = "*.root", use = [
     "rbtuple",

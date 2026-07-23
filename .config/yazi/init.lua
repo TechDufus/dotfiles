@@ -11,6 +11,7 @@ setup_plugin("sshfs", {
 	custom_hosts_file = os.getenv("HOME") .. "/.config/yazi/sshfs.list",
 	mount_dir = os.getenv("HOME") .. "/SSHFS",
 	sshfs_options = {
+		"reconnect",
 		"ConnectTimeout=5",
 		"compression=no",
 		"ServerAliveInterval=15",
@@ -23,6 +24,7 @@ setup_plugin("sshfs", {
 	},
 })
 setup_plugin("zoxide-track")
+setup_plugin("autosession-cursor")
 
 function Linemode:size_and_mtime()
 	local year = os.date("%Y")

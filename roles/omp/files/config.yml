@@ -3,10 +3,10 @@ modelRoles:
   default: openai-codex/gpt-5.6-sol:xhigh
   smol: openai-codex/gpt-5.6-luna:xhigh
   task: openai-codex/gpt-5.6-sol:medium
-  slow: openai-codex/gpt-5.6-terra:xhigh
+  slow: openai-codex/gpt-5.6-sol:xhigh
   plan: openai-codex/gpt-5.6-sol:high
   designer: openai-codex/gpt-5.6-sol:medium
-  vision: openai-codex/gpt-5.6-terra:xhigh
+  vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:xhigh
   advisor: openai-codex/gpt-5.6-sol:low
 cycleOrder:

@@ -1,0 +1,6 @@
+---
+modelRoles:
+  advisor: ollama/qwen3.6:35b-omp:max
+  task: ollama/qwen3.6:35b-omp:max
+  smol: ollama/qwen3.6:35b-omp:high
+  tiny: ollama/qwen3.6:35b-omp:low

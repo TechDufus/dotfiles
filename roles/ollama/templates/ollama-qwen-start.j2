@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+curl --fail --silent --show-error \
+  --header 'Content-Type: application/json' \
+  --data-binary '{"model":{{ ollama_omp_model | to_json }},"keep_alive":-1,"stream":false}' \
+  {{ (ollama_api_url ~ '/api/generate') | quote }} \
+  >/dev/null
+printf 'Loaded %s until ollama-qwen-stop is run.\n' {{ ollama_omp_model | quote }}

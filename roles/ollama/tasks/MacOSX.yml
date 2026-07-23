@@ -1,0 +1,155 @@
+---
+- name: "Ollama | MacOSX | Install formula"
+  community.general.homebrew:
+    name: "{{ ollama_formula }}"
+    state: present
+
+- name: "Ollama | MacOSX | Start user service"
+  community.general.homebrew_services:
+    name: "{{ ollama_service_name }}"
+    state: "{{ ollama_service_state }}"
+  when: ollama_manage_service
+
+- name: "Ollama | MacOSX | Wait for local API"
+  ansible.builtin.uri:
+    url: "{{ ollama_api_url }}/api/tags"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: ollama_tags_response
+  changed_when: false
+  retries: "{{ ollama_api_ready_retries }}"
+  delay: "{{ ollama_api_ready_delay }}"
+  until: ollama_tags_response.status == 200
+  when: not ansible_check_mode
+
+- name: "Ollama | MacOSX | Check base model"
+  ansible.builtin.set_fact:
+    ollama_base_model_installed: >-
+      {{ ollama_base_model in (ollama_tags_response.json.models | default([]) | map(attribute='name') | list) }}
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: "Ollama | MacOSX | Pull base model"
+  ansible.builtin.uri:
+    url: "{{ ollama_api_url }}/api/pull"
+    method: POST
+    body_format: json
+    body:
+      model: "{{ ollama_base_model }}"
+      stream: false
+    status_code: 200
+    timeout: 3600
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - not ollama_base_model_installed
+
+- name: "Ollama | MacOSX | Inspect base model definition"
+  ansible.builtin.command:
+    argv:
+      - ollama
+      - show
+      - --modelfile
+      - "{{ ollama_base_model }}"
+  environment:
+    OLLAMA_HOST: "{{ ollama_api_url }}"
+  register: ollama_base_modelfile
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: "Ollama | MacOSX | Check derived model"
+  ansible.builtin.set_fact:
+    ollama_omp_model_installed: >-
+      {{ ollama_omp_model in (ollama_tags_response.json.models | default([]) | map(attribute='name') | list) }}
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: "Ollama | MacOSX | Inspect derived model definition"
+  ansible.builtin.command:
+    argv:
+      - ollama
+      - show
+      - --modelfile
+      - "{{ ollama_omp_model }}"
+  environment:
+    OLLAMA_HOST: "{{ ollama_api_url }}"
+  register: ollama_omp_modelfile
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - ollama_omp_model_installed
+
+- name: "Ollama | MacOSX | Determine whether derived model needs creation"
+  ansible.builtin.set_fact:
+    ollama_omp_model_needs_create: >-
+      {{
+        not ollama_omp_model_installed
+        or (
+          ollama_omp_modelfile.stdout_lines
+          | default([])
+          | select('match', '^FROM ')
+          | list
+          | first
+          | default('')
+        ) != (
+          ollama_base_modelfile.stdout_lines
+          | default([])
+          | select('match', '^FROM ')
+          | list
+          | first
+          | default('')
+        )
+        or ('PARAMETER num_ctx ' ~ (ollama_context_length | string))
+          not in (ollama_omp_modelfile.stdout_lines | default([]))
+      }}
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: "Ollama | MacOSX | Ensure model config directory exists"
+  ansible.builtin.file:
+    path: "{{ ollama_modelfile_dest | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "Ollama | MacOSX | Deploy derived model definition"
+  ansible.builtin.template:
+    src: Modelfile.qwen-omp.j2
+    dest: "{{ ollama_modelfile_dest }}"
+    mode: "0644"
+
+- name: "Ollama | MacOSX | Create configured derived model"
+  ansible.builtin.command:
+    argv:
+      - ollama
+      - create
+      - "{{ ollama_omp_model }}"
+      - --file
+      - "{{ ollama_modelfile_dest }}"
+  environment:
+    OLLAMA_HOST: "{{ ollama_api_url }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - ollama_omp_model_needs_create
+
+- name: "Ollama | MacOSX | Ensure local bin directory exists"
+  ansible.builtin.file:
+    path: "{{ ollama_launcher_dest | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "Ollama | MacOSX | Deploy Qwen launchers"
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0755"
+  loop:
+    - src: ollama-qwen.j2
+      dest: "{{ ollama_launcher_dest }}"
+    - src: ollama-qwen-start.j2
+      dest: "{{ ollama_start_launcher_dest }}"
+    - src: ollama-qwen-stop.j2
+      dest: "{{ ollama_stop_launcher_dest }}"
+  loop_control:
+    label: "{{ item.dest | basename }}"

@@ -1,0 +1,9 @@
+---
+- name: "Ollama | Checking for distribution config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: ollama_distribution_config
+
+- name: "Ollama | Run tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: ollama_distribution_config.stat.exists

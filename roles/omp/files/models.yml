@@ -1,0 +1,32 @@
+---
+providers:
+  ollama:
+    baseUrl: http://127.0.0.1:11434
+    auth: none
+    api: openai-responses
+    discovery:
+      type: ollama
+    models:
+      - id: qwen3.6:35b-omp
+        name: Qwen 3.6 35B OMP 64K
+        baseUrl: http://127.0.0.1:11434/v1
+        reasoning: true
+        thinking:
+          mode: effort
+          efforts:
+            - low
+            - medium
+            - high
+            - max
+          defaultLevel: high
+        input:
+          - text
+          - image
+        supportsTools: true
+        cost:
+          input: 0
+          output: 0
+          cacheRead: 0
+          cacheWrite: 0
+        contextWindow: 65536
+        maxTokens: 32768

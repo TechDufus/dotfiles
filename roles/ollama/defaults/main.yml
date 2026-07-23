@@ -1,0 +1,16 @@
+---
+ollama_formula: ollama
+ollama_manage_service: true
+ollama_service_name: ollama
+ollama_service_state: present
+ollama_api_url: http://127.0.0.1:11434
+ollama_api_ready_retries: 30
+ollama_api_ready_delay: 2
+ollama_base_model: qwen3.6:35b
+ollama_omp_model: qwen3.6:35b-omp
+ollama_context_length: 65536
+ollama_keepalive: 30m
+ollama_modelfile_dest: "{{ ansible_facts['env']['HOME'] }}/.config/ollama/Modelfile.qwen-omp"
+ollama_launcher_dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/ollama-qwen"
+ollama_start_launcher_dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/ollama-qwen-start"
+ollama_stop_launcher_dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/ollama-qwen-stop"

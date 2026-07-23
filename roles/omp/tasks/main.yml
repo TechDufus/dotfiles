@@ -53,6 +53,61 @@
     - "{{ omp_config_root }}"
     - "{{ omp_agent_dir }}"
 
+- name: "{{ role_name }} | Ensure local-mode deployment directories exist"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ omp_overlays_dest }}"
+      mode: "0700"
+    - path: "{{ omp_launchers_dest }}"
+      mode: "0755"
+
+- name: "{{ role_name }} | Check repo-managed local-mode files"
+  ansible.builtin.stat:
+    path: "{{ item.source }}"
+    checksum_algorithm: sha256
+  loop: "{{ omp_local_mode_links }}"
+  loop_control:
+    label: "{{ item.source | basename }}"
+  register: omp_local_mode_sources
+  failed_when: not (omp_local_mode_sources.stat.isreg | default(false))
+
+- name: "{{ role_name }} | Check installed local-mode files"
+  ansible.builtin.stat:
+    path: "{{ item.dest }}"
+    follow: false
+    checksum_algorithm: sha256
+  loop: "{{ omp_local_mode_links }}"
+  loop_control:
+    label: "{{ item.dest | basename }}"
+  register: omp_installed_local_modes
+
+- name: "{{ role_name }} | Refuse to overwrite unmanaged local-mode files"
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.0.item.dest }} is a regular file and differs from
+      {{ item.1.item.source }}. Copy the live changes into the repo file before
+      re-running the role, or remove the file to allow the managed symlink.
+  loop: "{{ omp_installed_local_modes.results | zip(omp_local_mode_sources.results) }}"
+  loop_control:
+    label: "{{ item.0.item.dest | basename }}"
+  when:
+    - item.0.stat.exists
+    - item.0.stat.isreg | default(false)
+    - item.0.stat.checksum != item.1.stat.checksum
+
+- name: "{{ role_name }} | Link repo-managed local-mode files"
+  ansible.builtin.file:
+    src: "{{ item.source }}"
+    dest: "{{ item.dest }}"
+    state: link
+    force: true
+  loop: "{{ omp_local_mode_links }}"
+  loop_control:
+    label: "{{ item.dest | basename }}"
+
 - name: "{{ role_name }} | Check repo omp config"
   ansible.builtin.stat:
     path: "{{ role_path }}/files/config.yml"

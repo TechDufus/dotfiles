@@ -1,0 +1,2 @@
+#!/bin/sh
+exec ollama run --think=high --keepalive {{ ollama_keepalive | quote }} {{ ollama_omp_model | quote }} "$@"

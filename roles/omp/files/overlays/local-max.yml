@@ -1,0 +1,22 @@
+---
+modelRoles:
+  default: ollama/qwen3.6:35b-omp:max
+  smol: ollama/qwen3.6:35b-omp:high
+  slow: ollama/qwen3.6:35b-omp:max
+  vision: ollama/qwen3.6:35b-omp:max
+  plan: ollama/qwen3.6:35b-omp:max
+  designer: ollama/qwen3.6:35b-omp:max
+  commit: ollama/qwen3.6:35b-omp:low
+  tiny: ollama/qwen3.6:35b-omp:low
+  task: ollama/qwen3.6:35b-omp:max
+  advisor: ollama/qwen3.6:35b-omp:max
+enabledModels:
+  - ollama/qwen3.6:35b-omp
+cycleOrder:
+  - smol
+  - default
+advisor:
+  enabled: true
+  subagents: true
+  syncBacklog: "1"
+  immuneTurns: 0

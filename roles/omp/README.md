@@ -4,7 +4,7 @@
 
 ## Managed files
 
-- `config.yml` and `lsp.json` are repo-managed symlinks into `~/.omp/agent/`. If a destination regular file exists and differs, the role fails; copy live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` should use OMP's default home; do not relocate it with `PI_CONFIG_DIR` or `PI_CODING_AGENT_DIR` for the default profile.
+- `config.yml`, `models.yml`, `lsp.json`, and the local-mode overlays are repo-managed symlinks under `~/.omp/agent/`; `omp-local-max` and `omp-local-assist` are repo-managed symlinks under `~/.local/bin/`. `models.yml` statically declares the derived Ollama model while retaining runtime Ollama discovery, so a stale discovery cache cannot make the launcher fail before its first refresh. If a destination regular file exists and differs, the role fails; copy live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` should use OMP's default home; do not relocate it with `PI_CONFIG_DIR` or `PI_CODING_AGENT_DIR`.
 - Both managed `config.yml` files contain only intentional overrides of the installed OMP defaults. Omit a setting when the desired value equals the current default; add it only when this role deliberately diverges. Re-audit after OMP upgrades because inherited behavior follows upstream default changes.
 - Repo-managed `modelRoles` use `openai-codex/gpt-5.6-sol:xhigh` for `default`, `openai-codex/gpt-5.6-sol:medium` for `task` and `designer`, `openai-codex/gpt-5.6-sol:high` for `plan`, `openai-codex/gpt-5.6-terra:xhigh` for `slow` and `vision`, `openai-codex/gpt-5.6-luna:xhigh` for `smol` and `commit`, and `openai-codex/gpt-5.6-sol:low` for `advisor` in the normal `config.yml`. The deep-review config retains `openai-codex/gpt-5.6-terra:xhigh` for every substantive role: `default`, `task`, `slow`, `plan`, `designer`, and `vision`; both configs use `openai-codex/gpt-5.6-luna:xhigh` for `smol` and `commit`, plus `openai-codex/gpt-5.6-sol:low` for the lightweight advisor. The effective default-profile advisor is always on and main-session-only: the file overrides `advisor.enabled: true`, `advisor.syncBacklog: "3"`, and `advisor.immuneTurns: 5`, while inheriting upstream `advisor.subagents: false` and `tier.advisor: none`; `tier.openai: default` remains explicit.
 - `mcp.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges managed servers into existing `mcpServers`, preserves unowned entries, and writes mode `0600` because OAuth and per-user credentials may land there.
@@ -17,6 +17,37 @@
 - Repo-managed OMP configs use compact-first long-task handling. Their non-default `compaction.thresholdPercent: 65` is explicit; they currently inherit upstream `contextPromotion.enabled: false` and `compaction.strategy: snapcompact`. If upstream changes those defaults, effective behavior changes until a new deliberate override is added.
 
 Maintainers should treat the installed bundled system prompt plus generated tool and personality guidance as the baseline: `AGENTS.md` and `RULES.md` contain only deliberate user extensions or overrides, advisor and specialist guidance may repeat baseline risks only to define their respective roles, and this ownership split must be re-audited after OMP upgrades.
+
+## Local Ollama modes
+
+The Ollama role installs and starts Ollama, pulls `qwen3.6:35b` when absent, then creates the derived `qwen3.6:35b-omp` model with `num_ctx 65536`; verify both models with `ollama list`. The derived model is required because the unmodified base otherwise loads with a 32K runtime context on this Mac.
+
+The repo-managed `models.yml` pins that derived model's zero cost, tools, vision, thinking levels, and 64K context metadata while retaining Ollama discovery for other local models. This makes the selector immediately resolvable even when OMP's runtime discovery cache predates the derived model.
+
+The role starts only the lightweight Ollama server; it does not load the 23 GB model into GPU memory. OMP or `ollama-qwen` loads the model on first use. Preload and pin it explicitly, then release it immediately, with the shell-independent commands:
+
+```sh
+ollama-qwen-start
+ollama-qwen-stop
+```
+
+`ollama-qwen-start` keeps the derived model loaded until `ollama-qwen-stop` runs. Without the explicit start command, normal Ollama keep-alive behavior unloads an idle OMP model automatically.
+
+Run either managed launcher for an interactive or print-mode OMP session:
+
+```sh
+omp-local-max
+omp-local-assist
+omp-local-max --cwd /path/to/repo "Review this change"
+```
+
+Both launchers export `OLLAMA_CONTEXT_LENGTH=65536`, load their managed file with `omp --config ~/.omp/agent/overlays/<mode>.yml`, and forward session arguments unchanged. The environment setting makes OMP advertise the same practical 64K ceiling enforced by the derived Ollama model; it avoids advertising the model's much larger discovered metadata context when this 48 GiB Mac cannot run that context usefully. These are session launchers, not wrappers for every OMP management subcommand: commands such as `omp config` do not accept `--config`, so run those through `omp` directly.
+
+`omp-local-max` is fully local during normal role resolution: every supported model role resolves to exact selector `ollama/qwen3.6:35b-omp`, `enabledModels` permits only that selector, and the quick-cycle contains only local roles. Substantive, default, task, and advisor work uses maximum thinking; only `smol`, `tiny`, and `commit` deliberately use lower effort. The advisor is enabled for main and subagent sessions, synchronizes after one-turn backlog, and has no interrupt immunity. These settings prevent automatic resolution or fallback from spending hosted-model tokens; an explicit CLI override such as `--model openai-codex/...` remains an intentional escape hatch.
+
+`omp-local-assist` is hybrid. It inherits the normal cloud `default`, `plan`, `vision`, `slow`, `designer`, and `commit` roles, while overriding exactly `advisor`, `task`, `smol`, and `tiny` to local Qwen. Advisor and task use maximum thinking, smol uses high, and tiny uses low. It intentionally has no `enabledModels`, so inherited cloud roles remain available.
+
+These modes use CLI `--config` overlays rather than named profiles. A named profile relocates the complete OMP user base and would lose the normal base's global rules, agents, extensions, skills, authentication, and session state unless all of them were duplicated. An overlay changes only the listed settings while preserving the normal `~/.omp/agent` base.
 
 ## Herdr
 

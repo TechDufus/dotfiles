@@ -63,23 +63,32 @@ class HerdrRoleTests(unittest.TestCase):
 
     def test_managed_config_has_expected_onboarding_ui_and_navigation(self) -> None:
         self.assertIs(self.config["onboarding"], False)
+        ui = self.config["ui"]
+        self.assertIs(ui["show_agent_labels_on_pane_borders"], True)
+        self.assertEqual(ui["agent_panel_sort"], "priority")
+        self.assertEqual(ui["sidebar_width"], 34)
+        self.assertEqual(ui["sidebar_min_width"], 24)
+        self.assertEqual(ui["sidebar_max_width"], 44)
         self.assertEqual(
-            self.config["ui"],
+            ui["sidebar"]["agents"],
             {
-                "show_agent_labels_on_pane_borders": True,
-                "agent_panel_sort": "spaces",
-                "toast": {"delivery": "herdr"},
+                "row_gap": 0,
+                "rows": [
+                    ["state_icon", "agent", "$model"],
+                    ["terminal_title_stripped"],
+                    ["workspace", "tab"],
+                ],
             },
         )
-        self.assertEqual(
-            self.config["keys"],
-            {
-                "focus_pane_left": ["prefix+h", "ctrl+h"],
-                "focus_pane_down": ["prefix+j", "ctrl+j"],
-                "focus_pane_up": ["prefix+k", "ctrl+k"],
-                "focus_pane_right": ["prefix+l", "ctrl+l"],
-            },
-        )
+        self.assertEqual(ui["toast"], {"delivery": "terminal"})
+        keys = self.config["keys"]
+        self.assertEqual(keys["focus_pane_left"], ["prefix+h", "ctrl+h"])
+        self.assertEqual(keys["focus_pane_down"], ["prefix+j", "ctrl+j"])
+        self.assertEqual(keys["focus_pane_up"], ["prefix+k", "ctrl+k"])
+        self.assertEqual(keys["focus_pane_right"], ["prefix+l", "ctrl+l"])
+        self.assertEqual(keys["previous_agent"], ["prefix+alt+p", "ctrl+alt+k"])
+        self.assertEqual(keys["next_agent"], ["prefix+alt+n", "ctrl+alt+j"])
+        self.assertEqual(keys["focus_agent"], "prefix+alt+1..9")
 
     def test_main_dispatches_distribution_before_deploying_managed_config(self) -> None:
         dispatch = self._task_with_action(

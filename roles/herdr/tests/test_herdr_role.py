@@ -66,9 +66,9 @@ class HerdrRoleTests(unittest.TestCase):
         ui = self.config["ui"]
         self.assertIs(ui["show_agent_labels_on_pane_borders"], True)
         self.assertEqual(ui["agent_panel_sort"], "priority")
-        self.assertEqual(ui["sidebar_width"], 34)
-        self.assertEqual(ui["sidebar_min_width"], 24)
-        self.assertEqual(ui["sidebar_max_width"], 44)
+        self.assertEqual(ui["sidebar_width"], 38)
+        self.assertEqual(ui["sidebar_min_width"], 26)
+        self.assertEqual(ui["sidebar_max_width"], 48)
         self.assertEqual(
             ui["sidebar"]["agents"],
             {
@@ -76,7 +76,7 @@ class HerdrRoleTests(unittest.TestCase):
                 "rows": [
                     ["state_icon", "agent", "$model"],
                     ["terminal_title_stripped"],
-                    ["workspace", "tab"],
+                    ["workspace"],
                 ],
             },
         )

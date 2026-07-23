@@ -1,6 +1,8 @@
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const EXEC_TIMEOUT = 15_000;
+const AGENT_START_TIMEOUT = 30_000;
+const AGENT_START_WRAPPER_TIMEOUT = 35_000;
 const WT_TIMEOUT = 300_000;
 const WAIT_WRAPPER_TIMEOUT = 20_000;
 const PR_LIST_LIMIT = 100;
@@ -11,8 +13,6 @@ const HERD_MANAGED_ENV = "OMP_HERD_MANAGED";
 const HERD_SOURCE_ROOT_ENV = "OMP_HERD_SOURCE_ROOT";
 const HERD_CHECKOUT_ENV = "OMP_HERD_CHECKOUT";
 const HERD_BRANCH_ENV = "OMP_HERD_BRANCH";
-const HERD_WORKSPACE_ENV = "OMP_HERD_WORKSPACE";
-const HERD_TAB_ENV = "OMP_HERD_TAB";
 
 const HERD_HELP_TEXT = `Usage:
   /herd
@@ -35,6 +35,7 @@ Blank input defaults to context mode. Bare prose defaults to task mode.
 type Mode = "context" | "task" | "issue";
 type BranchType = "feat" | "fix" | "docs" | "refactor" | "test" | "chore" | "ci" | "build" | "perf";
 type ExecResult = { stdout: string; stderr: string; exitCode: number; killed: boolean };
+type PromptAcceptedStatus = "working" | "blocked" | "idle" | "done";
 type Ui = { notify(message: string, level?: "info" | "success" | "warning" | "error"): void };
 type SessionEntry = { type?: string; role?: string; content?: unknown; summary?: unknown; message?: unknown };
 type SessionManager = { getSessionFile(): string | undefined; getBranch?(): SessionEntry[]; getEntries?(): SessionEntry[] };
@@ -63,7 +64,6 @@ interface Ownership {
 	rootPane?: string;
 	agent?: string;
 	attemptedAgent?: string;
-	agentPane?: string;
 	ompMayRun: boolean;
 	lastState?: string;
 }
@@ -290,7 +290,6 @@ function retained(owned: Ownership): string {
 		owned.attemptedAgent && `attempted agent=${owned.attemptedAgent}`,
 		owned.rootPane && `root pane=${owned.rootPane}`,
 		owned.agent && `agent=${owned.agent}`,
-		owned.agentPane && `agent pane=${owned.agentPane}`,
 		`OMP may run=${owned.ompMayRun ? "yes" : "no"}`,
 		owned.lastState && `last state=${owned.lastState}`,
 	].filter(Boolean);
@@ -356,8 +355,8 @@ export default function herd(pi: ExtensionAPI): void {
 		const sourceRoot = managedEnvironment(HERD_SOURCE_ROOT_ENV);
 		const managedCheckout = managedEnvironment(HERD_CHECKOUT_ENV);
 		const managedBranch = managedEnvironment(HERD_BRANCH_ENV);
-		const managedWorkspace = managedEnvironment(HERD_WORKSPACE_ENV);
-		const managedTab = managedEnvironment(HERD_TAB_ENV);
+		const managedWorkspace = managedEnvironment("HERDR_WORKSPACE_ID");
+		const managedTab = managedEnvironment("HERDR_TAB_ID");
 		const caller = await freshCaller(ctx, ctx.cwd);
 		if (caller.cwd !== managedCheckout) throw new HerdError("The current OMP pane was not started in the managed herd checkout");
 		if (caller.workspaceId !== managedWorkspace || caller.tabId !== managedTab) throw new HerdError("This OMP pane is no longer in its original herd tab");
@@ -596,7 +595,17 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.herdrOwner = current.workspaceId;
 				owned.created = "checkout; tab creation unknown";
 				owned.lastState = "tab create pending";
-				const tabCommand = await run("herdr", ["tab", "create", "--workspace", current.workspaceId, "--cwd", owned.path, "--label", label, "--no-focus"], repo.root, true);
+				const tabCommand = await run("herdr", [
+					"tab", "create",
+					"--workspace", current.workspaceId,
+					"--cwd", owned.path,
+					"--label", label,
+					"--env", `${HERD_MANAGED_ENV}=1`,
+					"--env", `${HERD_SOURCE_ROOT_ENV}=${repo.root}`,
+					"--env", `${HERD_CHECKOUT_ENV}=${checkoutPath}`,
+					"--env", `${HERD_BRANCH_ENV}=${branch}`,
+					"--no-focus",
+				], repo.root, true);
 				if (tabCommand.exitCode !== 0 || tabCommand.killed) {
 					if (!tabCommand.killed) { owned.created = "checkout"; owned.lastState = "tab create failed"; }
 					const detail = tabCommand.killed ? "execution timed out" : (tabCommand.stderr || tabCommand.stdout).trim() || `exit ${tabCommand.exitCode}`;
@@ -611,46 +620,75 @@ export default function herd(pi: ExtensionAPI): void {
 				if (agentCaller.sessionFile !== caller.sessionFile || agentCaller.workspaceId !== caller.workspaceId) throw new HerdError("Invoking OMP session or workspace changed before agent start");
 				const finalCheckoutBranch = (await run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], owned.path)).stdout.trim();
 				if (finalCheckoutBranch !== branch) throw new HerdError(`Checkout branch mismatch before agent start: expected ${branch}, got ${finalCheckoutBranch}`);
-				const attemptedAgent = `herd-${slug(label)}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+				const agentLabel = slug(label).slice(0, 10).replace(/-$/, "") || "task";
+				const attemptedAgent = `herd-${agentLabel}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 				owned.attemptedAgent = attemptedAgent;
 				owned.created = "checkout, tab; agent creation unknown";
 				owned.ompMayRun = true;
 				owned.lastState = "agent start pending; OMP state unknown";
 				const startedCommand = await run("herdr", [
 					"agent", "start", attemptedAgent,
-					"--cwd", owned.path,
-					"--workspace", agentCaller.workspaceId,
-					"--tab", owned.tab,
-					"--env", `${HERD_MANAGED_ENV}=1`,
-					"--env", `${HERD_SOURCE_ROOT_ENV}=${repo.root}`,
-					"--env", `${HERD_CHECKOUT_ENV}=${checkoutPath}`,
-					"--env", `${HERD_BRANCH_ENV}=${branch}`,
-					"--env", `${HERD_WORKSPACE_ENV}=${agentCaller.workspaceId}`,
-					"--env", `${HERD_TAB_ENV}=${owned.tab}`,
-					"--no-focus", "--", "omp", prompt,
-				], repo.root, true);
+					"--kind", "omp",
+					"--pane", owned.rootPane,
+					"--timeout", String(AGENT_START_TIMEOUT),
+				], repo.root, true, AGENT_START_WRAPPER_TIMEOUT);
 				if (startedCommand.exitCode !== 0 || startedCommand.killed) {
-					if (!startedCommand.killed) {
-						owned.created = "checkout, tab";
-						owned.ompMayRun = false;
-						owned.lastState = "agent start failed";
-					}
 					const detail = startedCommand.killed ? "execution timed out" : (startedCommand.stderr || startedCommand.stdout).trim() || `exit ${startedCommand.exitCode}`;
 					throw new HerdError(`herdr failed: ${detail}`, startedCommand);
 				}
 				owned.lastState = "agent start returned";
 				const started = resultEnvelope(startedCommand.stdout);
 				const agent = object(started.agent);
-				const returnedName = typeof agent.name === "string" && agent.name ? agent.name : attemptedAgent;
+				const returnedName = text(agent.name, "agent.name");
 				owned.agent = returnedName;
-				owned.agentPane = typeof agent.pane_id === "string" && agent.pane_id ? agent.pane_id : undefined;
 				owned.created = "checkout, tab, agent";
-				owned.lastState = "agent started";
+				owned.lastState = "agent ready";
 				const argv = started.argv;
-				if (!Array.isArray(argv) || argv.length !== 2 || argv[0] !== "omp" || argv[1] !== prompt) throw new HerdError("Herdr returned unexpected agent argv");
-				if (returnedName !== attemptedAgent || agent.workspace_id !== agentCaller.workspaceId || agent.tab_id !== owned.tab || !owned.agentPane || owned.agentPane === owned.rootPane || agent.focused !== false) throw new HerdError("Herdr returned an agent with unexpected identity");
-				const waited = await run("herdr", ["agent", "wait", returnedName, "--status", "working", "--timeout", "15000"], repo.root, true, WAIT_WRAPPER_TIMEOUT);
-				if (waited.exitCode !== 0 || waited.killed) {
+				if (!Array.isArray(argv) || argv.length !== 1 || argv[0] !== "omp") throw new HerdError("Herdr returned unexpected agent argv");
+				if (
+					returnedName !== attemptedAgent
+					|| agent.workspace_id !== agentCaller.workspaceId
+					|| agent.tab_id !== owned.tab
+					|| agent.pane_id !== owned.rootPane
+					|| agent.focused !== false
+					|| agent.interactive_ready !== true
+				) throw new HerdError("Herdr returned an agent with unexpected identity");
+				owned.lastState = "prompt acceptance pending";
+				const promptedCommand = await run("herdr", [
+					"agent", "prompt", returnedName, prompt,
+					"--wait",
+					"--until", "working",
+					"--until", "blocked",
+					"--until", "idle",
+					"--until", "done",
+					"--timeout", "15000",
+				], repo.root, true, WAIT_WRAPPER_TIMEOUT);
+				let acceptedStatus: PromptAcceptedStatus | undefined;
+				let promptFailure: string | undefined;
+				if (promptedCommand.exitCode !== 0 || promptedCommand.killed) {
+					promptFailure = promptedCommand.killed
+						? "prompt observation timed out"
+						: (promptedCommand.stderr || promptedCommand.stdout).trim() || `prompt exited ${promptedCommand.exitCode}`;
+				} else {
+					try {
+						const prompted = object(resultEnvelope(promptedCommand.stdout).agent);
+						const status = prompted.agent_status;
+						if (status !== "working" && status !== "blocked" && status !== "idle" && status !== "done") {
+							throw new HerdError("Herdr returned an unexpected prompt status");
+						}
+						if (
+							prompted.name !== returnedName
+							|| prompted.workspace_id !== agentCaller.workspaceId
+							|| prompted.tab_id !== owned.tab
+							|| prompted.pane_id !== owned.rootPane
+						) throw new HerdError("Herdr returned a prompted agent with unexpected identity");
+						acceptedStatus = status;
+					} catch (error) {
+						promptFailure = error instanceof Error ? error.message : String(error);
+					}
+				}
+				if (promptFailure || !acceptedStatus) {
+					const reason = promptFailure ?? "Herdr returned no accepted prompt status";
 					const observed = await run("herdr", ["agent", "get", returnedName], repo.root, true);
 					let status = "unavailable";
 					if (observed.exitCode === 0 && !observed.killed) {
@@ -662,10 +700,14 @@ export default function herd(pi: ExtensionAPI): void {
 					owned.lastState = status;
 					const read = await run("herdr", ["agent", "read", returnedName, "--source", "recent-unwrapped", "--lines", "20"], repo.root, true);
 					const readObservation = read.exitCode === 0 && !read.killed ? "" : " Recent output observation unavailable.";
-					ctx.ui.notify(`Agent started, but working status was not observed; agent status: ${status}.${readObservation}${retained(owned)}${safeInspection(owned)}`, "warning");
+					ctx.ui.notify(`Agent started, but prompt acceptance was not confirmed: ${reason}; agent status: ${status}.${readObservation}${retained(owned)}${safeInspection(owned)}`, "warning");
 					return;
 				}
-				ctx.ui.notify(`Started ${returnedName} on ${branch} without changing focus.`, "success");
+				owned.lastState = acceptedStatus;
+				ctx.ui.notify(
+					`Started ${returnedName} on ${branch} without changing focus; agent state: ${acceptedStatus}.`,
+					acceptedStatus === "blocked" ? "warning" : "success",
+				);
 			} catch (error) {
 				const failure = error instanceof Error ? error.message : String(error);
 				const result = error instanceof HerdError ? error.result : undefined;

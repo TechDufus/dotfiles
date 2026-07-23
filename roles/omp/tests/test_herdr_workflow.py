@@ -189,7 +189,7 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             "forbid guessed or stale identifiers",
         )
         self.assertBodyContains(
-            "Use the official skill's non-focus option on every operation that can create, open, split, move, or start a resource",
+            "Use the official skill's non-focus option on every operation that can create, open, split, or move a resource",
             "preserve user focus for every topology-changing operation",
         )
         self.assertBodyContains(
@@ -204,24 +204,32 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "execute external programs through bounded argv calls",
             ),
             (
-                "The complete OMP prompt is one exact `argv` element.",
-                "preserve the prompt as one argument",
+                "Every prompt is one exact `argv` element.",
+                "preserve each prompt as one argument",
             ),
             (
                 "wt -C <root> switch --create <branch> --base <base> --no-cd --format=json",
                 "create the checkout through Worktrunk with structured output",
             ),
             (
-                "herdr tab create --workspace <workspace-id> --cwd <path> --label <label> --no-focus",
-                "create a no-focus tab in the resolved workspace",
+                "herdr tab create --workspace <workspace-id> --cwd <path> --label <label> --env <cleanup-ledger-entry> --no-focus",
+                "create a no-focus tab carrying the cleanup ledger environment",
             ),
             (
-                "herdr agent start <unique-name> --cwd <path> --workspace <workspace-id> --tab <tab-id> --no-focus -- omp <prompt>",
-                "start OMP in the returned tab with an argv-bound prompt",
+                "herdr agent start <unique-name> --kind omp --pane <root-pane-id> --timeout 30000",
+                "start OMP in the returned root pane",
             ),
             (
-                "herdr agent wait <name> --status working --timeout 15000",
-                "bound acceptance observation without waiting for completion",
+                "using a wrapper deadline longer than 30 seconds",
+                "allow the bounded Agent startup wait to complete",
+            ),
+            (
+                "herdr agent prompt <name> <prompt> --wait --until working --until blocked --until idle --until done --timeout 15000",
+                "atomically submit the prompt and bound acceptance observation",
+            ),
+            (
+                "herdr agent wait <name> --until idle --until done --until blocked --timeout <milliseconds>",
+                "use modern bounded completion wait syntax",
             ),
             (
                 "A dry run completes those read-only checks and creates nothing.",
@@ -255,20 +263,26 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             dedent(
                 '''\
                 herdr agent start "$AGENT_NAME" \\
-                  --cwd "$CHECKOUT" \\
-                  --workspace "$WORKSPACE_ID" \\
-                  --no-focus \\
-                  -- omp "$PROMPT"
+                  --kind omp \\
+                  --pane "$ROOT_PANE_ID" \\
+                  --timeout 30000
+                herdr agent prompt "$AGENT_NAME" "$PROMPT" \\
+                  --wait \\
+                  --until working \\
+                  --until blocked \\
+                  --until idle \\
+                  --until done \\
+                  --timeout 15000
                 '''
             ).strip(),
-            "start OMP through an argv-safe agent boundary",
+            "start OMP in the existing pane and submit through argv-safe Agent operations",
         )
         self.assertBodyContains(
             "Preserve its argument boundary: never interpolate it into a shell command, `eval` it",
             "forbid shell interpretation of the initial prompt",
         )
-        acceptance = "first observe prompt acceptance or working state"
-        completion = "then wait for an idle state with an explicit timeout"
+        acceptance = "observe prompt acceptance or working state"
+        completion = "when a separate completion wait is needed"
         self.assertBodyContains(acceptance, "observe prompt acceptance before completion")
         self.assertBodyContains(completion, "bound non-herd completion waits")
         self.assertBodyContains(
@@ -276,7 +290,7 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             "scope completion waiting away from the herd initiating command",
         )
         self.assertBodyContains(
-            "only the acceptance wait described above and returns without a completion wait",
+            "only the acceptance wait described above and returns without a separate completion wait",
             "preserve herd acceptance-only return behavior",
         )
         self.assertBodyContains(
@@ -284,21 +298,16 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             "treat timeout and killed execution as failure regardless of exit code",
         )
 
-        sending = "Herdr's agent-send operation writes text but does not submit it."
-        resolving = "After sending, freshly resolve the agent's current pane and send Enter to that pane."
-        self.assertBodyContains(sending, "distinguish writing follow-up text from submission")
-        self.assertBodyContains(resolving, "resolve the current pane before submitting")
-        self.assertLess(
-            self.body.index(sending),
-            self.body.index(resolving),
-            "follow-up workflow must send literal text before fresh pane resolution",
-        )
+        prompting = "use `herdr agent prompt <name> <prompt> --wait` with explicit accepted `--until` states and a bounded timeout"
+        submission = "The prompt operation submits the text plus Enter atomically"
+        self.assertBodyContains(prompting, "use the modern bounded follow-up prompt operation")
+        self.assertBodyContains(submission, "submit follow-up text and Enter atomically")
         self.assertBodyContains(
-            "If sending, JSON parsing, or fresh pane resolution fails, do not send Enter",
-            "forbid submission after any failed fresh-resolution step",
+            "do not separately send text, resolve a pane, or inject Enter",
+            "forbid the stale multi-operation follow-up protocol",
         )
 
-    def test_herd_context_and_split_pane_contracts_are_explicit(self) -> None:
+    def test_herd_context_and_one_pane_contracts_are_explicit(self) -> None:
         for contract, purpose in (
             (
                 "latest compaction summary and recent primary user/assistant messages independently",
@@ -313,15 +322,34 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "preserve the user-provided prompt suffix",
             ),
             (
-                "fresh split agent pane in that tab",
-                "reflect the installed agent-start split behavior",
+                "that root pane is the sole OMP/agent pane",
+                "use the tab-created root pane as the only agent pane",
             ),
             (
-                "returned agent pane separately from the tab's root pane",
-                "track root and agent panes independently",
+                "Agent start activates the pane and creates no tab, split, or other layout resource",
+                "keep layout creation out of Agent start",
+            ),
+            (
+                "cleanup-ledger environment entry at tab creation",
+                "make tab creation responsible for the cleanup environment",
             ),
         ):
             self.assertBodyContains(contract, purpose)
+
+    def test_stale_layout_capable_agent_contract_is_absent(self) -> None:
+        for stale_contract in (
+            "agent start <unique-name> --cwd",
+            "--tab <tab-id> --no-focus -- omp <prompt>",
+            "agent wait <name> --status",
+            "fresh split agent pane",
+            "separately returned agent pane",
+            "agent-send operation",
+        ):
+            self.assertNotIn(
+                stale_contract,
+                self.body,
+                f"workflow must reject stale Agent syntax or topology: {stale_contract}",
+            )
 
     def test_herd_checkout_and_failure_ledger_are_detailed(self) -> None:
         for contract, purpose in (
@@ -334,8 +362,8 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "record the confirmed Worktrunk checkout and branch",
             ),
             (
-                "tab identifier, its root pane identifier, the separately returned agent pane identifier, and the agent name",
-                "record every confirmed Herdr resource",
+                "tab identifier, its root/agent pane identifier, and the agent name",
+                "record the single confirmed Herdr pane",
             ),
             (
                 "each resource's owner (`Herdr` or `Worktrunk`)",

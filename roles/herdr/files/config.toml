@@ -25,17 +25,21 @@ detach = ["prefix+q", "prefix+d"]
 
 [ui]
 show_agent_labels_on_pane_borders = true
+pane_gaps = false
+hide_tab_bar_when_single_tab = true
+prompt_new_workspace_name = true
 agent_panel_sort = "priority"
 sidebar_width = 38
 sidebar_min_width = 26
 sidebar_max_width = 48
+sidebar_collapsed_mode = "hidden"
 
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", "agent", "$model"],
-  ["terminal_title_stripped"],
   ["workspace"],
+  ["state_icon", { token = "agent", bold = true }, "$model"],
+  [{ token = "terminal_title_stripped", dim = true }],
 ]
 
 [ui.toast]

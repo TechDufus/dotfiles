@@ -4,6 +4,8 @@ const EXEC_TIMEOUT = 15_000;
 const AGENT_START_TIMEOUT = 30_000;
 const AGENT_START_WRAPPER_TIMEOUT = 35_000;
 const WT_TIMEOUT = 300_000;
+const AGENT_START_BUSY_GRACE = 5_000;
+const AGENT_START_BUSY_INTERVAL = 100;
 const WAIT_WRAPPER_TIMEOUT = 20_000;
 const PR_LIST_LIMIT = 100;
 const CONTEXT_BLOCKS = 12;
@@ -301,6 +303,19 @@ function safeInspection(owned: Ownership): string {
 		owned.herdrOwner && "herdr pane list",
 	].filter(Boolean);
 	return commands.length ? ` Next: inspect fresh read-only state with ${commands.join(" and ")}.` : "";
+}
+
+function herdrErrorCode(stderr: string): string | undefined {
+	try {
+		const parsed: unknown = JSON.parse(stderr);
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+		const error = (parsed as Record<string, unknown>).error;
+		if (!error || typeof error !== "object" || Array.isArray(error)) return undefined;
+		const code = (error as Record<string, unknown>).code;
+		return typeof code === "string" ? code : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 function isHookApprovalRejection(result: ExecResult): boolean {
@@ -626,12 +641,23 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.created = "checkout, tab; agent creation unknown";
 				owned.ompMayRun = true;
 				owned.lastState = "agent start pending; OMP state unknown";
-				const startedCommand = await run("herdr", [
+				const startArgv = [
 					"agent", "start", attemptedAgent,
 					"--kind", "omp",
 					"--pane", owned.rootPane,
 					"--timeout", String(AGENT_START_TIMEOUT),
-				], repo.root, true, AGENT_START_WRAPPER_TIMEOUT);
+				];
+				let busyDeadline: number | undefined;
+				let startedCommand: ExecResult;
+				while (true) {
+					startedCommand = await run("herdr", startArgv, repo.root, true, AGENT_START_WRAPPER_TIMEOUT);
+					if (startedCommand.exitCode === 0 || startedCommand.killed || herdrErrorCode(startedCommand.stderr) !== "agent_pane_busy") break;
+					busyDeadline ??= performance.now() + AGENT_START_BUSY_GRACE;
+					const remaining = busyDeadline - performance.now();
+					if (remaining <= 0) break;
+					await new Promise<void>(resolve => setTimeout(resolve, Math.min(AGENT_START_BUSY_INTERVAL, remaining)));
+					if (performance.now() >= busyDeadline) break;
+				}
 				if (startedCommand.exitCode !== 0 || startedCommand.killed) {
 					const detail = startedCommand.killed ? "execution timed out" : (startedCommand.stderr || startedCommand.stdout).trim() || `exit ${startedCommand.exitCode}`;
 					throw new HerdError(`herdr failed: ${detail}`, startedCommand);

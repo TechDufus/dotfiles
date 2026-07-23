@@ -307,6 +307,43 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             "forbid the stale multi-operation follow-up protocol",
         )
 
+    def test_herd_agent_start_retry_is_exact_bounded_and_fail_closed(self) -> None:
+        for contract, purpose in (
+            (
+                "After tab creation, this is the only retry",
+                "limit retries to the post-tab Agent-start operation",
+            ),
+            (
+                "retry the post-tab root-pane Agent-start call only for an exact structured `agent_pane_busy` error",
+                "require the exact structured transient-busy error before retrying",
+            ),
+            (
+                "`error.code` exactly `agent_pane_busy`",
+                "match the transient-busy error code exactly",
+            ),
+            (
+                "reuse the same generated Agent name, root-pane ID, and complete argv for every attempt",
+                "keep every retry on the original generated target and argv",
+            ),
+            (
+                "5-second monotonic grace window",
+                "bound the transient-busy retry grace period",
+            ),
+            (
+                "checked at 100ms intervals",
+                "bound retry polling intervals",
+            ),
+            (
+                "Never retry killed calls, malformed error JSON, or any other error code.",
+                "fail closed for killed, malformed, and unrelated failures",
+            ),
+            (
+                "On grace exhaustion, follow the existing retained-resource failure path.",
+                "retain resources and use the established failure path after exhaustion",
+            ),
+        ):
+            self.assertBodyContains(contract, purpose)
+
     def test_herd_context_and_one_pane_contracts_are_explicit(self) -> None:
         for contract, purpose in (
             (

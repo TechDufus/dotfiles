@@ -56,12 +56,14 @@ const hugeContext = contextReference([
 ok(hugeContext.includes("LATEST COMPACTION SUMMARY:") && hugeContext.includes("summary-marker-") && hugeContext.includes("recent-marker-") && hugeContext.length <= 24_100, "per-section context bounding displaced the latest summary");
 
 function envelope(result) { return JSON.stringify({ id: "r", result }); }
+function errorEnvelope(code) { return JSON.stringify({ id: "r", error: { code, message: code } }); }
 function commandKey(command, argv) { return `${command} ${argv.join(" ")}`; }
 
 function makeHarness(overrides = {}) {
   const calls = [];
   const notices = [];
   let paneLists = 0;
+  let agentStarts = 0;
   const sessionFile = "/sessions/caller.jsonl";
   let createdBranch = "";
   const response = async (command, argv, options) => {
@@ -99,6 +101,8 @@ function makeHarness(overrides = {}) {
     }
     if (command === "herdr" && argv[0] === "tab") return { code: 0, stdout: envelope({ type: "tab_created", tab: { tab_id: "tab-1" }, root_pane: { pane_id: "pane-root" } }), stderr: "" };
     if (command === "herdr" && argv[0] === "agent" && argv[1] === "start") {
+      const failure = overrides.agentStartFailures?.[agentStarts++];
+      if (failure) return failure;
       return { code: 0, stdout: envelope({ type: "agent_started", argv: ["omp"], agent: { name: argv[2], agent: "omp", agent_status: "idle", workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" };
     }
     if (command === "herdr" && argv[0] === "agent" && argv[1] === "prompt") {
@@ -400,6 +404,43 @@ await success();
   ok(failure.includes("tab=tab-1") && failure.includes("root pane=pane-root") && failure.includes("OMP may run=yes"), "agent failure ownership ledger incomplete");
   ok(failure.includes("wt list") && failure.includes("herdr pane list") && !/delete|remove/.test(failure), "agent failure safe inspection guidance was destructive or incomplete");
   ok(!harness.calls.some(call => /delete|remove/.test(call.argv.join(" "))), "agent failure attempted rollback");
+  equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start").length, 1, "malformed agent-start error was retried");
+  ok(!harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "malformed agent-start error still submitted a prompt");
+}
+{
+  const harness = makeHarness({ agentStartFailures: [{ code: 1, stdout: "", stderr: errorEnvelope("agent_pane_busy") }] });
+  await harness.handler("context", harness.ctx);
+  const starts = harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start");
+  equal(starts.length, 2, "transient pane busy did not retry exactly once before success");
+  equal(starts[1], starts[0], "transient pane busy changed the agent-start target, argv, cwd, or timeout");
+  equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt").length, 1, "transient pane busy did not prompt exactly once after recovery");
+  ok(harness.notices.at(-1)?.level === "success", "transient pane busy recovery did not complete successfully");
+}
+{
+  const nowDescriptor = Object.getOwnPropertyDescriptor(performance, "now");
+  ok(nowDescriptor, "performance.now descriptor unavailable");
+  const ticks = [0, 4_900, 5_000];
+  let clockReads = 0;
+  Object.defineProperty(performance, "now", { ...nowDescriptor, value: () => ticks[Math.min(clockReads++, ticks.length - 1)] });
+  try {
+    const harness = makeHarness({ agentStartFailures: [{ code: 1, stdout: "", stderr: errorEnvelope("agent_pane_busy") }] });
+    await harness.handler("context", harness.ctx);
+    equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start").length, 1, "busy retry dispatched another start at the grace deadline");
+    ok(!harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "expired busy retry still submitted a prompt");
+    ok(!harness.calls.some(isCleanupMutation), "expired busy retry attempted automatic cleanup");
+    const failure = harness.notices.at(-1);
+    ok(failure.level === "error" && failure.message.includes("agent_pane_busy") && failure.message.includes("root pane=pane-root"), "expired busy retry lost the retained-resource failure");
+  } finally {
+    Object.defineProperty(performance, "now", nowDescriptor);
+  }
+}
+{
+  const harness = makeHarness({ agentStartFailures: [{ code: 1, stdout: "", stderr: errorEnvelope("agent_not_found") }] });
+  await harness.handler("context", harness.ctx);
+  equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start").length, 1, "non-busy structured agent-start failure was retried");
+  ok(!harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "non-busy structured agent-start failure still submitted a prompt");
+  const failure = harness.notices.at(-1);
+  ok(failure.level === "error" && failure.message.includes("agent_not_found") && failure.message.includes("tab=tab-1") && failure.message.includes("root pane=pane-root") && failure.message.includes("OMP may run=yes"), "non-busy structured agent-start failure lost the retained-resource error");
 }
 {
   for (const getFailure of [false, true]) {
@@ -498,6 +539,8 @@ await success();
   await harness.handler("context", harness.ctx);
   const failure = harness.notices.at(-1).message;
   ok(failure.includes("agent creation unknown") && failure.includes("OMP may run=yes") && failure.includes("OMP state unknown") && failure.includes("attempted agent=") && failure.includes("wt list") && failure.includes("herdr pane list"), "killed agent-start ledger or safe inspection guidance hid ambiguous state");
+  equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start").length, 1, "killed agent start was retried");
+  ok(!harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "killed agent start still submitted a prompt");
 }
 {
   const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start" ? { code: 0, stdout: envelope({ argv: ["bad"], agent: { name: argv[2], workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" } : undefined });

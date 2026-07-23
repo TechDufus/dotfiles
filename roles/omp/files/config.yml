@@ -4,7 +4,7 @@ modelRoles:
   smol: openai-codex/gpt-5.6-luna:xhigh
   task: openai-codex/gpt-5.6-sol:medium
   slow: openai-codex/gpt-5.6-sol:xhigh
-  plan: openai-codex/gpt-5.6-sol:high
+  plan: openai-codex/gpt-5.6-sol:xhigh
   designer: openai-codex/gpt-5.6-sol:medium
   vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:xhigh

@@ -20,6 +20,8 @@ Behavior:
 - prefer the smallest credible check set that covers the changed behavior
 - include directly affected docs, examples, configuration references, and tests in scope when the change contract makes them relevant
 - widen checks only when blast radius or uncertainty requires it
+- prefer an oracle independent of the changed implementation: pre-existing behavior or specifications, a bug reproduction, an external contract, or direct end-to-end observation
+- treat tests derived only from the changed implementation as supporting evidence, not proof that intended behavior was captured
 - use LSP only for read-only diagnostics, definitions, references, hover, symbols, or capabilities
 - distinguish new failures from pre-existing, unrelated, or flaky failures when evidence supports it
 - do not claim results for checks you did not execute

@@ -158,6 +158,11 @@ async function withManagedHerdEnvironment(fn) {
 function makeDoneHarness(overrides = {}) {
   const head = overrides.head ?? "0123456789abcdef";
   const branch = overrides.branch ?? "fix/widget";
+  const repository = overrides.repository ?? {
+    nameWithOwner: "owner/repo",
+    isFork: false,
+    parent: null,
+  };
   let pullRequestLookups = 0;
   const harness = makeHarness({
     cwd: "/checkout",
@@ -180,11 +185,19 @@ function makeDoneHarness(overrides = {}) {
         const worktrees = overrides.worktrees ?? [{ branch, path: "/checkout", kind: "worktree", is_main: false }];
         return { code: 0, stdout: JSON.stringify(overrides.worktreeListOutput ?? worktrees), stderr: "" };
       }
+      if (command === "gh" && argv[0] === "repo") {
+        return { code: 0, stdout: JSON.stringify(repository), stderr: "" };
+      }
       if (command === "gh" && argv[0] === "pr") {
         pullRequestLookups++;
-        const configured = typeof overrides.pullRequests === "function"
-          ? overrides.pullRequests(pullRequestLookups)
-          : overrides.pullRequests;
+        const repo = argv[argv.indexOf("--repo") + 1];
+        const configuredByRepo = typeof overrides.pullRequestsByRepo === "function"
+          ? overrides.pullRequestsByRepo(repo, pullRequestLookups)
+          : overrides.pullRequestsByRepo?.[repo];
+        const configured = configuredByRepo ?? (typeof overrides.pullRequests === "function"
+          ? overrides.pullRequests(pullRequestLookups, repo)
+          : overrides.pullRequests);
+        const localOwner = repository.nameWithOwner?.split("/")[0];
         const pullRequests = configured ?? [{
           number: 42,
           state: "MERGED",
@@ -193,6 +206,7 @@ function makeDoneHarness(overrides = {}) {
           headRefName: branch,
           headRefOid: head,
           isCrossRepository: false,
+          headRepositoryOwner: { login: localOwner },
         }];
         return { code: 0, stdout: JSON.stringify(pullRequests), stderr: "" };
       }
@@ -591,12 +605,16 @@ await withManagedHerdEnvironment(async () => {
     headRefName: "fix/widget",
     headRefOid: "0123456789abcdef",
     isCrossRepository: false,
+    headRepositoryOwner: { login: "owner" },
   };
 
   const harness = makeDoneHarness();
   await harness.handler("done", harness.ctx);
+  const repoLookup = harness.calls.find(call => call.command === "gh" && call.argv[0] === "repo");
+  equal(repoLookup.argv, ["repo", "view", "--json", "nameWithOwner,isFork,parent"], "cleanup did not request the complete repository topology");
   const lookup = harness.calls.find(call => call.command === "gh" && call.argv[0] === "pr");
-  equal(lookup.argv, ["pr", "list", "--repo", "owner/repo", "--head", "fix/widget", "--state", "all", "--limit", "100", "--json", "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository"], "cleanup used an ambiguous GitHub pull request lookup");
+  equal(lookup.argv, ["pr", "list", "--repo", "owner/repo", "--head", "fix/widget", "--state", "all", "--limit", "100", "--json", "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository,headRepositoryOwner"], "cleanup used an ambiguous GitHub pull request lookup");
+  equal(harness.calls.filter(call => call.command === "gh" && call.argv[0] === "repo").length, 2, "GitHub repository topology was not refreshed after local cleanup revalidation");
   equal(harness.calls.filter(call => call.command === "gh" && call.argv[0] === "pr").length, 2, "GitHub merge proof was not refreshed after local cleanup revalidation");
   const remove = harness.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
   ok(remove, `merged cleanup did not reach Worktrunk removal: ${JSON.stringify(harness.notices)}`);
@@ -611,6 +629,59 @@ await withManagedHerdEnvironment(async () => {
   equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, "caller identity was not refreshed before removal and tab closure");
   equal(harness.calls.filter(call => call.command === "git" && call.argv[0] === "status").length, 2, "checkout cleanliness was not rechecked before removal");
   ok(harness.notices.some(notice => notice.level === "success" && notice.message.includes("pull request #42")), "successful cleanup notice missing");
+
+  const forkBranch = "feat/task-multi-agent-support";
+  const forkHead = "fedcba9876543210";
+  const forkRepository = {
+    nameWithOwner: "TechDufus/oh-my-pi",
+    isFork: true,
+    parent: { name: "oh-my-pi", owner: { login: "can1357" } },
+  };
+  const upstreamPullRequest = {
+    number: 314,
+    state: "MERGED",
+    mergedAt: "2026-07-23T00:00:00Z",
+    url: "https://github.com/can1357/oh-my-pi/pull/314",
+    headRefName: forkBranch,
+    headRefOid: forkHead,
+    isCrossRepository: true,
+    headRepositoryOwner: { login: "TechDufus" },
+  };
+  const previousManagedBranch = process.env.OMP_HERD_BRANCH;
+  process.env.OMP_HERD_BRANCH = forkBranch;
+  try {
+    const fork = makeDoneHarness({
+      branch: forkBranch,
+      head: forkHead,
+      repository: forkRepository,
+      pullRequestsByRepo: {
+        "TechDufus/oh-my-pi": [],
+        "can1357/oh-my-pi": [upstreamPullRequest],
+      },
+    });
+    await fork.handler("done", fork.ctx);
+    const forkRepoLookups = fork.calls.filter(call => call.command === "gh" && call.argv[0] === "repo");
+    equal(forkRepoLookups.length, 2, "fork repository topology was not refreshed");
+    for (const call of forkRepoLookups) {
+      equal(call.argv, ["repo", "view", "--json", "nameWithOwner,isFork,parent"], "fork cleanup used an incomplete repository-topology lookup");
+    }
+    const forkPullRequestLookups = fork.calls.filter(call => call.command === "gh" && call.argv[0] === "pr");
+    equal(forkPullRequestLookups.length, 4, "current-fork and direct-parent pull request lookups were not both refreshed");
+    equal(forkPullRequestLookups.map(call => call.argv[3]), [
+      "TechDufus/oh-my-pi",
+      "can1357/oh-my-pi",
+      "TechDufus/oh-my-pi",
+      "can1357/oh-my-pi",
+    ], "fork cleanup queried repositories outside the current fork and its direct parent or did not refresh in order");
+    for (const call of forkPullRequestLookups) {
+      equal(call.argv, ["pr", "list", "--repo", call.argv[3], "--head", forkBranch, "--state", "all", "--limit", "100", "--json", "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository,headRepositoryOwner"], "fork cleanup used the wrong pull request lookup argv");
+    }
+    ok(fork.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "merged upstream pull request did not reach Worktrunk removal");
+    ok(fork.notices.some(notice => notice.message.includes("can1357/oh-my-pi#314")), "fork cleanup notification did not report the upstream base repository");
+  } finally {
+    if (previousManagedBranch === undefined) delete process.env.OMP_HERD_BRANCH;
+    else process.env.OMP_HERD_BRANCH = previousManagedBranch;
+  }
 
   const schemaTwo = makeDoneHarness({
     worktreeListOutput: {
@@ -636,6 +707,9 @@ await withManagedHerdEnvironment(async () => {
   const mismatchedHead = await refusedDone({ pullRequests: [{ ...exactPullRequest, headRefOid: "different-head" }] });
   ok(mismatchedHead.notices.at(-1).message.includes("current local HEAD"), "unpushed or post-merge local commits were not rejected");
 
+  const mismatchedBranch = await refusedDone({ pullRequests: [{ ...exactPullRequest, headRefName: "fix/other" }] });
+  ok(mismatchedBranch.notices.at(-1).message.includes("branch fix/widget"), "pull request from a different head branch was not rejected");
+
   const changedPullRequest = await refusedDone({
     pullRequests: lookup => lookup === 1
       ? [exactPullRequest]
@@ -643,14 +717,109 @@ await withManagedHerdEnvironment(async () => {
   });
   ok(changedPullRequest.notices.at(-1).message.includes("current local HEAD"), "GitHub merge proof was not refreshed immediately before removal");
 
-  const forkPullRequest = await refusedDone({ pullRequests: [{ ...exactPullRequest, isCrossRepository: true }] });
-  ok(forkPullRequest.notices.at(-1).message.includes("No same-repository GitHub pull request"), "cross-repository pull request was not rejected");
+  const malformedParentOwner = await refusedDone({
+    repository: {
+      ...forkRepository,
+      parent: { name: "oh-my-pi", owner: {} },
+    },
+  });
+  ok(!malformedParentOwner.calls.some(call => call.command === "gh" && call.argv[0] === "pr"), "malformed parent owner reached pull request lookup");
+  ok(malformedParentOwner.notices.at(-1).message.includes("parent"), "malformed parent owner metadata was not rejected explicitly");
 
-  const ambiguous = await refusedDone({ pullRequests: [exactPullRequest, { ...exactPullRequest, number: 43, url: "https://github.com/owner/repo/pull/43" }] });
-  ok(ambiguous.notices.at(-1).message.includes("Multiple same-repository GitHub pull requests"), "ambiguous pull requests were not rejected");
+  const malformedParentName = await refusedDone({
+    repository: {
+      ...forkRepository,
+      parent: { name: "", owner: { login: "can1357" } },
+    },
+  });
+  ok(!malformedParentName.calls.some(call => call.command === "gh" && call.argv[0] === "pr"), "malformed parent name reached pull request lookup");
+  ok(malformedParentName.notices.at(-1).message.includes("parent"), "malformed parent name metadata was not rejected explicitly");
 
-  const truncated = await refusedDone({ pullRequests: Array.from({ length: 100 }, () => ({})) });
-  ok(truncated.notices.at(-1).message.includes("100-result safety limit"), "possibly truncated GitHub results were not rejected");
+  const exactForkPullRequest = {
+    ...upstreamPullRequest,
+    headRefName: "fix/widget",
+    headRefOid: "0123456789abcdef",
+  };
+  const parentLookupFailure = await refusedDone({
+    repository: forkRepository,
+    pullRequestsByRepo: { "TechDufus/oh-my-pi": [] },
+    exec: (command, argv) => command === "gh" && argv[0] === "pr" && argv[3] === "can1357/oh-my-pi"
+      ? { code: 1, stdout: "", stderr: "GitHub API unavailable" }
+      : undefined,
+  });
+  equal(parentLookupFailure.calls.filter(call => call.command === "gh" && call.argv[0] === "pr").map(call => call.argv[3]), [
+    "TechDufus/oh-my-pi",
+    "can1357/oh-my-pi",
+  ], "direct-parent GitHub failure did not stop after the exact required lookups");
+  ok(parentLookupFailure.notices.at(-1).message.includes("GitHub API unavailable"), "direct-parent GitHub failure was not reported");
+
+  const wrongForkOwner = await refusedDone({
+    repository: forkRepository,
+    pullRequestsByRepo: {
+      "TechDufus/oh-my-pi": [],
+      "can1357/oh-my-pi": [{
+        ...exactForkPullRequest,
+        headRepositoryOwner: { login: "someone-else" },
+      }],
+    },
+  });
+  ok(wrongForkOwner.notices.at(-1).message.includes("the current repository or its direct parent"), "fork pull request from the wrong head owner was not rejected");
+
+  const wrongTopology = await refusedDone({
+    repository: forkRepository,
+    pullRequestsByRepo: {
+      "TechDufus/oh-my-pi": [{
+        ...exactForkPullRequest,
+        url: "https://github.com/TechDufus/oh-my-pi/pull/41",
+        isCrossRepository: true,
+      }],
+      "can1357/oh-my-pi": [{
+        ...exactForkPullRequest,
+        isCrossRepository: false,
+      }],
+    },
+  });
+  ok(wrongTopology.notices.at(-1).message.includes("the current repository or its direct parent"), "pull requests with query-inconsistent cross-repository topology were not rejected");
+
+  const malformedHeadOwner = await refusedDone({
+    pullRequests: [{ ...exactPullRequest, headRepositoryOwner: {} }],
+  });
+  ok(malformedHeadOwner.notices.at(-1).message.includes("headRepositoryOwner"), "malformed pull request head owner was not rejected explicitly");
+
+  const deletedHeadOwner = await refusedDone({
+    pullRequests: [{ ...exactPullRequest, headRepositoryOwner: null }],
+  });
+  ok(deletedHeadOwner.notices.at(-1).message.includes("headRepositoryOwner"), "deleted pull request head owner was not rejected explicitly");
+
+  const ambiguous = await refusedDone({
+    repository: forkRepository,
+    pullRequestsByRepo: {
+      "TechDufus/oh-my-pi": [{
+        ...exactForkPullRequest,
+        number: 41,
+        url: "https://github.com/TechDufus/oh-my-pi/pull/41",
+        isCrossRepository: false,
+      }],
+      "can1357/oh-my-pi": [exactForkPullRequest],
+    },
+  });
+  ok(ambiguous.notices.at(-1).message.includes("Multiple GitHub pull requests in the current repository or its direct parent"), "ambiguous exact matches across the current fork and direct parent were not rejected");
+
+  const truncatedCurrent = await refusedDone({ pullRequests: Array.from({ length: 100 }, () => ({})) });
+  ok(truncatedCurrent.notices.at(-1).message.includes("100-result safety limit"), "possibly truncated current-repository results were not rejected");
+
+  const truncatedParent = await refusedDone({
+    repository: forkRepository,
+    pullRequestsByRepo: {
+      "TechDufus/oh-my-pi": [],
+      "can1357/oh-my-pi": Array.from({ length: 100 }, () => ({})),
+    },
+  });
+  equal(truncatedParent.calls.filter(call => call.command === "gh" && call.argv[0] === "pr").map(call => call.argv[3]), [
+    "TechDufus/oh-my-pi",
+    "can1357/oh-my-pi",
+  ], "parent truncation proof did not query exactly the current fork and its direct parent");
+  ok(truncatedParent.notices.at(-1).message.includes("100-result safety limit"), "possibly truncated direct-parent results were not rejected");
 
   const mainCheckout = await refusedDone({ worktrees: [{ branch: "fix/widget", path: "/checkout", kind: "worktree", is_main: true }] });
   ok(mainCheckout.notices.at(-1).message.includes("non-main branch checkout"), "main checkout ownership was not rejected");

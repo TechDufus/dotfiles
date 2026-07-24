@@ -56,6 +56,17 @@ interface RepoInfo { root: string; branch: string; base: string; dirty: boolean 
 interface Caller { workspaceId: string; tabId: string; paneId: string; cwd: string; sessionFile: string }
 interface DoneTarget { caller: Caller; sourceRoot: string; checkoutPath: string; branch: string; head: string }
 interface MergedPullRequest { number: number; url: string; repo: string }
+interface RepositoryIdentity { repo: string; owner: string }
+interface PullRequestData {
+	number: number;
+	state: string;
+	mergedAt: string | null;
+	url: string;
+	headRefName: string;
+	headRefOid: string;
+	isCrossRepository: boolean;
+	headRepositoryOwner: string;
+}
 interface Ownership {
 	worktrunkOwner?: string;
 	herdrOwner?: string;
@@ -123,6 +134,24 @@ function object(value: unknown): Record<string, unknown> {
 function text(value: unknown, field: string): string {
 	if (typeof value !== "string" || !value) throw new HerdError(`Command JSON is missing ${field}`);
 	return value;
+}
+function repositoryOwner(value: unknown, field: string): string {
+	const owner = text(value, field);
+	if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(owner)) throw new HerdError(`Command JSON has malformed ${field}`);
+	return owner;
+}
+function repositoryName(value: unknown, field: string): string {
+	const name = text(value, field);
+	if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new HerdError(`Command JSON has malformed ${field}`);
+	return name;
+}
+function repositoryIdentity(value: unknown, field: string): RepositoryIdentity {
+	const repo = text(value, field);
+	const parts = repo.split("/");
+	if (parts.length !== 2) throw new HerdError(`Command JSON has malformed ${field}`);
+	const owner = repositoryOwner(parts[0], `${field} owner`);
+	repositoryName(parts[1], `${field} name`);
+	return { repo, owner };
 }
 function json(stdout: string): Record<string, unknown> {
 	try { return object(JSON.parse(stdout)); } catch (error) { if (error instanceof HerdError) throw error; throw new HerdError("Command returned invalid JSON"); }
@@ -398,34 +427,75 @@ export default function herd(pi: ExtensionAPI): void {
 		return { caller, sourceRoot, checkoutPath, branch, head };
 	};
 	const mergedPullRequest = async (target: DoneTarget): Promise<MergedPullRequest> => {
-		const current = json((await run("gh", ["repo", "view", "--json", "nameWithOwner"], target.checkoutPath)).stdout);
-		const repo = text(current.nameWithOwner, "nameWithOwner");
-		const fields = "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository";
-		const rows = jsonArray((await run("gh", ["pr", "list", "--repo", repo, "--head", target.branch, "--state", "all", "--limit", String(PR_LIST_LIMIT), "--json", fields], target.checkoutPath)).stdout);
-		if (rows.length >= PR_LIST_LIMIT) throw new HerdError(`GitHub pull request lookup reached its ${PR_LIST_LIMIT}-result safety limit; cleanup was refused`);
-		const pullRequests = rows.map(row => {
-			const pullRequest = object(row);
-			if (typeof pullRequest.number !== "number") throw new HerdError("Pull request JSON is missing number");
-			text(pullRequest.state, "state");
-			text(pullRequest.url, "url");
-			text(pullRequest.headRefName, "headRefName");
-			text(pullRequest.headRefOid, "headRefOid");
-			if (typeof pullRequest.isCrossRepository !== "boolean") throw new HerdError("Pull request JSON is missing isCrossRepository");
-			return pullRequest;
-		});
-		const exact = pullRequests.filter(pullRequest => pullRequest.isCrossRepository === false && pullRequest.headRefName === target.branch && pullRequest.headRefOid === target.head);
+		const metadata = json((await run("gh", ["repo", "view", "--json", "nameWithOwner,isFork,parent"], target.checkoutPath)).stdout);
+		const current = repositoryIdentity(metadata.nameWithOwner, "nameWithOwner");
+		if (typeof metadata.isFork !== "boolean") throw new HerdError("Repository JSON is missing isFork");
+		const candidates: { repo: string; isCrossRepository: boolean }[] = [{ repo: current.repo, isCrossRepository: false }];
+		if (metadata.isFork) {
+			if (!metadata.parent || typeof metadata.parent !== "object" || Array.isArray(metadata.parent)) {
+				throw new HerdError("Repository JSON has malformed fork parent metadata");
+			}
+			const parentMetadata = object(metadata.parent);
+			if (!parentMetadata.owner || typeof parentMetadata.owner !== "object" || Array.isArray(parentMetadata.owner)) {
+				throw new HerdError("Repository JSON has malformed fork parent owner metadata");
+			}
+			const parentOwner = repositoryOwner(object(parentMetadata.owner).login, "parent.owner.login");
+			const parentName = repositoryName(parentMetadata.name, "parent.name");
+			const parent = `${parentOwner}/${parentName}`;
+			if (parent.toLowerCase() === current.repo.toLowerCase()) throw new HerdError("Repository JSON has malformed fork parent metadata");
+			candidates.push({ repo: parent, isCrossRepository: true });
+		} else if (metadata.parent !== null) {
+			throw new HerdError("Repository JSON has malformed non-fork parent metadata");
+		}
+
+		const fields = "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository,headRepositoryOwner";
+		const exact: { pullRequest: PullRequestData; repo: string }[] = [];
+		for (const candidate of candidates) {
+			const rows = jsonArray((await run("gh", ["pr", "list", "--repo", candidate.repo, "--head", target.branch, "--state", "all", "--limit", String(PR_LIST_LIMIT), "--json", fields], target.checkoutPath)).stdout);
+			if (rows.length >= PR_LIST_LIMIT) throw new HerdError(`GitHub pull request lookup reached its ${PR_LIST_LIMIT}-result safety limit; cleanup was refused`);
+			for (const row of rows) {
+				const value = object(row);
+				if (!Number.isSafeInteger(value.number) || (value.number as number) <= 0) throw new HerdError("Pull request JSON has malformed number");
+				const state = text(value.state, "state");
+				if (value.mergedAt !== null && (typeof value.mergedAt !== "string" || !value.mergedAt)) throw new HerdError("Pull request JSON has malformed mergedAt");
+				const url = text(value.url, "url");
+				const headRefName = text(value.headRefName, "headRefName");
+				const headRefOid = text(value.headRefOid, "headRefOid");
+				if (typeof value.isCrossRepository !== "boolean") throw new HerdError("Pull request JSON is missing isCrossRepository");
+				if (!value.headRepositoryOwner || typeof value.headRepositoryOwner !== "object" || Array.isArray(value.headRepositoryOwner)) {
+					throw new HerdError("Pull request JSON is missing headRepositoryOwner");
+				}
+				const headRepositoryOwner = repositoryOwner(object(value.headRepositoryOwner).login, "headRepositoryOwner.login");
+				const pullRequest: PullRequestData = {
+					number: value.number as number,
+					state,
+					mergedAt: value.mergedAt as string | null,
+					url,
+					headRefName,
+					headRefOid,
+					isCrossRepository: value.isCrossRepository,
+					headRepositoryOwner,
+				};
+				if (
+					pullRequest.headRefName === target.branch
+					&& pullRequest.headRefOid === target.head
+					&& pullRequest.headRepositoryOwner.toLowerCase() === current.owner.toLowerCase()
+					&& pullRequest.isCrossRepository === candidate.isCrossRepository
+				) exact.push({ pullRequest, repo: candidate.repo });
+			}
+		}
 		if (exact.length !== 1) {
+			const scope = metadata.isFork ? "the current repository or its direct parent" : "the current repository";
 			const detail = exact.length === 0
-				? `No same-repository GitHub pull request has branch ${target.branch} at the current local HEAD`
-				: `Multiple same-repository GitHub pull requests match branch ${target.branch} at the current local HEAD`;
+				? `No GitHub pull request in ${scope} has branch ${target.branch} at the current local HEAD with the expected head owner and repository topology`
+				: `Multiple GitHub pull requests in ${scope} match branch ${target.branch} at the current local HEAD with the expected head owner and repository topology`;
 			throw new HerdError(`${detail}; cleanup was refused`);
 		}
-		const pullRequest = exact[0];
-		const state = text(pullRequest.state, "state");
-		if (state !== "MERGED" || typeof pullRequest.mergedAt !== "string" || !pullRequest.mergedAt) {
-			throw new HerdError(`GitHub pull request #${pullRequest.number} is ${state}, not merged`);
+		const { pullRequest, repo } = exact[0];
+		if (pullRequest.state !== "MERGED" || !pullRequest.mergedAt) {
+			throw new HerdError(`GitHub pull request ${repo}#${pullRequest.number} is ${pullRequest.state}, not merged`);
 		}
-		return { number: pullRequest.number as number, url: text(pullRequest.url, "url"), repo };
+		return { number: pullRequest.number, url: pullRequest.url, repo };
 	};
 	const completeHerd = async (ctx: CommandContext): Promise<void> => {
 		const initial = await doneTarget(ctx);

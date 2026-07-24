@@ -31,6 +31,8 @@ omp_local_mode_links:
     dest: "{{ omp_overlays_dest }}/local-max.yml"
   - source: "{{ omp_overlays_source }}/local-assist.yml"
     dest: "{{ omp_overlays_dest }}/local-assist.yml"
+  - source: "{{ omp_overlays_source }}/herd.yml"
+    dest: "{{ omp_overlays_dest }}/herd.yml"
   - source: "{{ omp_launchers_source }}/omp-local-max"
     dest: "{{ omp_launchers_dest }}/omp-local-max"
   - source: "{{ omp_launchers_source }}/omp-local-assist"

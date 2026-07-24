@@ -1,3 +1,5 @@
+import { accessSync, constants as fsConstants, statSync } from "node:fs";
+import * as path from "node:path";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const EXEC_TIMEOUT = 15_000;
@@ -84,6 +86,33 @@ interface IssueData { number: number; title: string; body: string; url: string; 
 
 class HerdError extends Error {
 	constructor(message: string, readonly result?: ExecResult) { super(message); }
+}
+
+function herdOverlayPath(): string {
+	const configuredAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const home = process.env.HOME;
+	const agentDir = configuredAgentDir
+		? configuredAgentDir
+		: home
+			? path.join(home, ".omp", "agent")
+			: undefined;
+	if (!agentDir) {
+		throw new HerdError("Cannot resolve an absolute herd OMP overlay path: PI_CODING_AGENT_DIR and HOME are empty or unset");
+	}
+	const overlayPath = path.join(agentDir, "overlays", "herd.yml");
+	if (!path.isAbsolute(overlayPath)) {
+		throw new HerdError(`Herd OMP overlay path must be absolute: ${overlayPath}`);
+	}
+	try {
+		if (!statSync(overlayPath).isFile()) {
+			throw new HerdError(`Herd OMP overlay is not a regular file: ${overlayPath}`);
+		}
+		accessSync(overlayPath, fsConstants.R_OK);
+	} catch (error) {
+		if (error instanceof HerdError) throw error;
+		throw new HerdError(`Herd OMP overlay must be an existing readable regular file: ${overlayPath}`);
+	}
+	return overlayPath;
 }
 
 function words(source: string): string[] {
@@ -656,6 +685,7 @@ export default function herd(pi: ExtensionAPI): void {
 				if (request.dryRun) { ctx.ui.notify(`Dry run: would create ${branch} from ${repo.base} in workspace ${caller.workspaceId}.`, "info"); return; }
 				const wtCaller = await freshCaller(ctx, repo.root);
 				if (wtCaller.sessionFile !== caller.sessionFile || wtCaller.workspaceId !== caller.workspaceId) throw new HerdError("Invoking OMP session or workspace changed before Worktrunk");
+				const overlayPath = herdOverlayPath();
 				owned.worktrunkOwner = "Worktrunk";
 				owned.branch = branch;
 				owned.created = "checkout creation unknown; inspect wt list";
@@ -715,6 +745,7 @@ export default function herd(pi: ExtensionAPI): void {
 					"--kind", "omp",
 					"--pane", owned.rootPane,
 					"--timeout", String(AGENT_START_TIMEOUT),
+					"--", "--config", overlayPath,
 				];
 				let busyDeadline: number | undefined;
 				let startedCommand: ExecResult;
@@ -739,7 +770,13 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.created = "checkout, tab, agent";
 				owned.lastState = "agent ready";
 				const argv = started.argv;
-				if (!Array.isArray(argv) || argv.length !== 1 || argv[0] !== "omp") throw new HerdError("Herdr returned unexpected agent argv");
+				if (
+					!Array.isArray(argv)
+					|| argv.length !== 3
+					|| argv[0] !== "omp"
+					|| argv[1] !== "--config"
+					|| argv[2] !== overlayPath
+				) throw new HerdError("Herdr returned unexpected agent argv");
 				if (
 					returnedName !== attemptedAgent
 					|| agent.workspace_id !== agentCaller.workspaceId

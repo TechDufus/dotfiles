@@ -6,13 +6,36 @@ extension_path="$repo_root/roles/omp/files/extensions/herd.ts"
 
 bun --check "$extension_path"
 bun - "$extension_path" <<'TS'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const extensionPath = process.argv[2];
 const mod = await import(pathToFileURL(extensionPath).href);
 const { parseHerdArgs, contextReference } = mod;
 
+const inheritedEnvironment = {
+  HERDR_ENV: process.env.HERDR_ENV,
+  PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+  HOME: process.env.HOME,
+};
+const fixtureRoot = mkdtempSync(join(tmpdir(), "herd extension-"));
+const explicitAgentDir = join(fixtureRoot, "explicit-agent");
+const fixtureHome = join(fixtureRoot, "home");
+function createOverlay(agentDir) {
+  const overlayPath = join(agentDir, "overlays", "herd.yml");
+  mkdirSync(join(agentDir, "overlays"), { recursive: true });
+  writeFileSync(overlayPath, "paste:\n  largeMenuThreshold: 0\n");
+  return overlayPath;
+}
+const explicitOverlay = createOverlay(explicitAgentDir);
+const defaultHomeOverlay = createOverlay(join(fixtureHome, ".omp", "agent"));
 process.env.HERDR_ENV = "1";
+process.env.PI_CODING_AGENT_DIR = explicitAgentDir;
+process.env.HOME = fixtureHome;
+
+try {
 
 function fail(message) { throw new Error(message); }
 function canonical(value) {
@@ -29,6 +52,25 @@ function ok(value, message) { if (!value) fail(message); }
 function throws(fn, pattern, message) {
   try { fn(); } catch (error) { if (pattern.test(String(error?.message))) return; throw error; }
   fail(message);
+}
+
+async function withAgentPathEnvironment(values, fn) {
+  const names = ["PI_CODING_AGENT_DIR", "HOME"];
+  const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  for (const name of names) {
+    const value = values[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const name of names) {
+      const value = previous[name];
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
 }
 
 equal(parseHerdArgs(""), { mode: "context", dryRun: false, instructions: "" }, "blank must alias context");
@@ -58,6 +100,16 @@ ok(hugeContext.includes("LATEST COMPACTION SUMMARY:") && hugeContext.includes("s
 function envelope(result) { return JSON.stringify({ id: "r", result }); }
 function errorEnvelope(code) { return JSON.stringify({ id: "r", error: { code, message: code } }); }
 function commandKey(command, argv) { return `${command} ${argv.join(" ")}`; }
+function returnedAgentArgv(startArgv) {
+  const separator = startArgv.indexOf("--");
+  ok(separator >= 0, "mocked Herdr agent start omitted the native argv separator");
+  return ["omp", ...startArgv.slice(separator + 1)];
+}
+
+function isHerdResourceMutation(call) {
+  return call.command === "wt"
+    || (call.command === "herdr" && (call.argv[0] === "tab" || call.argv[0] === "agent"));
+}
 
 function makeHarness(overrides = {}) {
   const calls = [];
@@ -109,7 +161,7 @@ function makeHarness(overrides = {}) {
     if (command === "herdr" && argv[0] === "agent" && argv[1] === "start") {
       const failure = overrides.agentStartFailures?.[agentStarts++];
       if (failure) return failure;
-      return { code: 0, stdout: envelope({ type: "agent_started", argv: ["omp"], agent: { name: argv[2], agent: "omp", agent_status: "idle", workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" };
+      return { code: 0, stdout: envelope({ type: "agent_started", argv: returnedAgentArgv(argv), agent: { name: argv[2], agent: "omp", agent_status: "idle", workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" };
     }
     if (command === "herdr" && argv[0] === "agent" && argv[1] === "prompt") {
       if (overrides.promptTimeout) return { code: 0, killed: true, stdout: "", stderr: "timeout" };
@@ -271,6 +323,7 @@ async function success() {
     "--kind", "omp",
     "--pane", "pane-root",
     "--timeout", "30000",
+    "--", "--config", explicitOverlay,
   ], "wrong agent start argv or root-pane target");
   ok(/^[a-z][a-z0-9_-]{0,31}$/.test(start.argv[2]), "generated agent name violated Herdr's modern name contract");
   equal(start.options.timeout, 35_000, "agent start wrapper deadline must exceed the 30-second CLI timeout");
@@ -308,6 +361,52 @@ async function success() {
   ok(harness.notices.some(item => item.level === "success"), "success notification missing");
 }
 await success();
+
+{
+  for (const [label, agentDir] of [["unset", undefined], ["empty", ""]]) {
+    await withAgentPathEnvironment({ PI_CODING_AGENT_DIR: agentDir, HOME: fixtureHome }, async () => {
+      const harness = makeHarness();
+      await harness.handler("context", harness.ctx);
+      const start = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start");
+      ok(start, `${label} PI_CODING_AGENT_DIR did not reach agent start through HOME`);
+      equal(start.argv.slice(-3), ["--", "--config", defaultHomeOverlay], `${label} PI_CODING_AGENT_DIR did not resolve the default HOME overlay as one native argv element`);
+    });
+  }
+}
+{
+  await withAgentPathEnvironment({ PI_CODING_AGENT_DIR: undefined, HOME: undefined }, async () => {
+    const harness = makeHarness();
+    await harness.handler("context", harness.ctx);
+    ok(!harness.calls.some(isHerdResourceMutation), "missing HOME/PI_CODING_AGENT_DIR mutated a checkout, tab, or agent before failing");
+    ok(harness.notices.at(-1)?.level === "error" && harness.notices.at(-1).message.includes("absolute herd OMP overlay path"), "missing HOME/PI_CODING_AGENT_DIR did not fail closed with a path error");
+  });
+}
+{
+  await withAgentPathEnvironment({ PI_CODING_AGENT_DIR: "relative-agent", HOME: fixtureHome }, async () => {
+    const harness = makeHarness();
+    await harness.handler("context", harness.ctx);
+    ok(!harness.calls.some(isHerdResourceMutation), "relative PI_CODING_AGENT_DIR fell back to HOME or mutated a checkout, tab, or agent");
+    ok(harness.notices.at(-1)?.message.includes("must be absolute"), "relative PI_CODING_AGENT_DIR did not fail the absolute-path preflight");
+  });
+}
+{
+  await withAgentPathEnvironment({ PI_CODING_AGENT_DIR: join(fixtureRoot, "missing-agent"), HOME: fixtureHome }, async () => {
+    const harness = makeHarness();
+    await harness.handler("context", harness.ctx);
+    ok(!harness.calls.some(isHerdResourceMutation), "missing herd overlay mutated a checkout, tab, or agent before failing");
+    ok(harness.notices.at(-1)?.message.includes("existing readable regular file"), "missing herd overlay did not fail the file preflight");
+  });
+}
+{
+  const directoryAgentDir = join(fixtureRoot, "directory-agent");
+  mkdirSync(join(directoryAgentDir, "overlays", "herd.yml"), { recursive: true });
+  await withAgentPathEnvironment({ PI_CODING_AGENT_DIR: directoryAgentDir, HOME: fixtureHome }, async () => {
+    const harness = makeHarness();
+    await harness.handler("context", harness.ctx);
+    ok(!harness.calls.some(isHerdResourceMutation), "non-file herd overlay mutated a checkout, tab, or agent before failing");
+    ok(harness.notices.at(-1)?.message.includes("not a regular file"), "non-file herd overlay did not fail the regular-file preflight");
+  });
+}
 
 {
   const harness = makeHarness({ issue: { number: 123, title: "[STORY] Add widget sharing", body: "", url: "https://github.com/owner/repo/issues/123", state: "OPEN", labels: [{ name: "enhancement" }] } });
@@ -362,6 +461,18 @@ await success();
   const prompt = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt");
   ok(wt && tab && start && prompt, "bare task did not complete normal Worktrunk and Herdr preflight");
   equal(prompt.argv[3], expectedPrompt, "bare task did not reach agent prompt as one exact argv element");
+}
+
+{
+  const harness = makeHarness();
+  const longPrompt = Array.from({ length: 150 }, (_, index) => `long prompt line ${index + 1}`).join("\n");
+  await harness.handler(`task -- ${longPrompt}`, harness.ctx);
+  const start = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start");
+  const prompt = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt");
+  ok(start && prompt, "long multiline task did not reach the separate start and prompt operations");
+  ok(!start.argv.includes(longPrompt), "long multiline task leaked into agent start argv");
+  equal(prompt.argv[3], longPrompt, "long multiline task was not preserved as one later agent prompt argv element");
+  equal(prompt.argv.filter(value => value === longPrompt).length, 1, "long multiline task was duplicated or split across prompt argv");
 }
 
 {
@@ -569,14 +680,22 @@ await success();
   ok(!harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "killed agent start still submitted a prompt");
 }
 {
-  const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start" ? { code: 0, stdout: envelope({ argv: ["bad"], agent: { name: argv[2], workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" } : undefined });
-  await harness.handler("context", harness.ctx);
-  const failure = harness.notices.at(-1).message;
-  ok(failure.includes("unexpected agent argv") && failure.includes("agent=") && failure.includes("root pane=pane-root"), "malformed successful start omitted safely returned identity");
+  for (const returnedArgv of [
+    ["bad"],
+    ["omp", "--config", explicitOverlay, "--extra"],
+    ["omp", "--config", `${explicitOverlay}.wrong`],
+    ["omp", "config", explicitOverlay],
+  ]) {
+    const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start" ? { code: 0, stdout: envelope({ argv: returnedArgv, agent: { name: argv[2], workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" } : undefined });
+    await harness.handler("context", harness.ctx);
+    const failure = harness.notices.at(-1).message;
+    ok(failure.includes("unexpected agent argv") && failure.includes("agent=") && failure.includes("root pane=pane-root"), `malformed successful start omitted safely returned identity: ${JSON.stringify(returnedArgv)}`);
+    ok(!harness.calls.some(call => call.command === "herdr" && call.argv[1] === "prompt"), `malformed returned argv still submitted the prompt: ${JSON.stringify(returnedArgv)}`);
+  }
 }
 {
   const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start"
-    ? { code: 0, stdout: envelope({ argv: ["omp"], agent: { workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" }
+    ? { code: 0, stdout: envelope({ argv: returnedAgentArgv(argv), agent: { workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" }
     : undefined });
   await harness.handler("context", harness.ctx);
   ok(!harness.calls.some(call => call.command === "herdr" && call.argv[1] === "prompt"), "start reply without a confirmed agent name still submitted the prompt");
@@ -584,7 +703,7 @@ await success();
   ok(failure.includes("agent.name") && failure.includes("attempted agent=") && failure.includes("root pane=pane-root"), "missing start name did not fail closed with retained-resource guidance");
 }
 {
-  const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start" ? { code: 0, stdout: envelope({ argv: ["omp"], agent: { name: argv[2], workspace_id: "other-workspace", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" } : undefined });
+  const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start" ? { code: 0, stdout: envelope({ argv: returnedAgentArgv(argv), agent: { name: argv[2], workspace_id: "other-workspace", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" } : undefined });
   await harness.handler("context", harness.ctx);
   ok(harness.notices.at(-1).message.includes("unexpected identity") && harness.notices.at(-1).message.includes("root pane=pane-root"), "mismatched successful start response was accepted or lost returned identity");
 }
@@ -959,4 +1078,11 @@ await withManagedHerdEnvironment(async () => {
 }
 
 console.log("herd extension tests passed");
+} finally {
+  for (const [name, value] of Object.entries(inheritedEnvironment)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+  rmSync(fixtureRoot, { recursive: true, force: true });
+}
 TS

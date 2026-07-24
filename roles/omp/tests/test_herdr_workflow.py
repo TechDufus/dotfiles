@@ -13,6 +13,7 @@ from textwrap import dedent
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILL_PATH = REPO_ROOT / "roles/omp/files/skills/herdr-workflow/SKILL.md"
 DEFAULTS_PATH = REPO_ROOT / "roles/omp/defaults/main.yml"
+HERD_OVERLAY_PATH = REPO_ROOT / "roles/omp/files/overlays/herd.yml"
 TASKS_PATH = REPO_ROOT / "roles/omp/tasks/main.yml"
 HERDR_SKILL_TASKS_PATH = REPO_ROOT / "roles/omp/tasks/skill_herdr.yml"
 
@@ -216,7 +217,7 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "create a no-focus tab carrying the cleanup ledger environment",
             ),
             (
-                "herdr agent start <unique-name> --kind omp --pane <root-pane-id> --timeout 30000",
+                "herdr agent start <unique-name> --kind omp --pane <root-pane-id> --timeout 30000 -- --config <absolute-overlay-path>",
                 "start OMP in the returned root pane",
             ),
             (
@@ -265,7 +266,9 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 herdr agent start "$AGENT_NAME" \\
                   --kind omp \\
                   --pane "$ROOT_PANE_ID" \\
-                  --timeout 30000
+                  --timeout 30000 \\
+                  -- \\
+                  --config "$HERD_OMP_CONFIG"
                 herdr agent prompt "$AGENT_NAME" "$PROMPT" \\
                   --wait \\
                   --until working \\
@@ -305,6 +308,84 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
         self.assertBodyContains(
             "do not separately send text, resolve a pane, or inject Enter",
             "forbid the stale multi-operation follow-up protocol",
+        )
+
+    def test_herd_start_uses_installed_scoped_large_paste_overlay(self) -> None:
+        preflight_contract = (
+            "For a real handoff, before any mutation, resolve the effective OMP agent base"
+        )
+        for contract, purpose in (
+            (
+                preflight_contract,
+                "resolve the overlay before creating any durable resource",
+            ),
+            (
+                "The selected base must be absolute; reject a relative or missing selected base.",
+                "fail closed instead of resolving relative agent directories",
+            ),
+            (
+                "Append `overlays/herd.yml` and require the resulting absolute path to be an existing readable regular file",
+                "preflight the installed herd overlay",
+            ),
+            (
+                "contains only `paste.largeMenuThreshold: 0`",
+                "limit the herd overlay to the large-paste threshold override",
+            ),
+            (
+                'require Herdr\'s returned native argv to equal `["omp", "--config", "<absolute-overlay-path>"]` exactly',
+                "validate that OMP received only the expected native config argv",
+            ),
+            (
+                "applies only to OMP sessions started by `/herd`; never disable the menu globally",
+                "scope the paste override to herd-started OMP sessions",
+            ),
+            (
+                "automated prompts above 100 lines collapse synchronously",
+                "avoid OMP's interactive large-paste menu for long prompts",
+            ),
+            (
+                "the same atomic Enter sent by `herdr agent prompt` submits the prompt instead of selecting OMP's interactive large-paste menu",
+                "preserve the existing single atomic prompt submission",
+            ),
+        ):
+            self.assertBodyContains(contract, purpose)
+
+        self.assertLess(
+            self.body.index(preflight_contract),
+            self.body.index("1. Re-resolve the caller from its native session identity"),
+            "the overlay preflight must precede checkout creation",
+        )
+        self.assertEqual(
+            HERD_OVERLAY_PATH.read_text(encoding="utf-8"),
+            "---\npaste:\n  largeMenuThreshold: 0\n",
+            "the deployed herd overlay must contain only the scoped paste override",
+        )
+        defaults = DEFAULTS_PATH.read_text(encoding="utf-8")
+        self.assertIn(
+            'omp_overlays_dest: "{{ omp_agent_dir }}/overlays"',
+            defaults,
+            "the managed overlay destination must remain under the OMP agent directory",
+        )
+        self.assertIn(
+            '  - source: "{{ omp_overlays_source }}/herd.yml"\n'
+            '    dest: "{{ omp_overlays_dest }}/herd.yml"',
+            defaults,
+            "the herd overlay must be included in the managed local-mode links",
+        )
+        link_task = extract_task(
+            TASKS_PATH.read_text(encoding="utf-8"),
+            "Link repo-managed local-mode files",
+        )
+        self.assertIn(
+            'loop: "{{ omp_local_mode_links }}"',
+            link_task,
+            "the role must deploy every configured local-mode link",
+        )
+
+        self.assertNotIn(
+            "arguments equivalent to `herdr agent start <unique-name> --kind omp --pane <root-pane-id> --timeout 30000`,",
+            self.body,
+            "the deterministic herd flow must not document a bare OMP start",
         )
 
     def test_herd_agent_start_retry_is_exact_bounded_and_fail_closed(self) -> None:

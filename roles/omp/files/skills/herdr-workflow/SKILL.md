@@ -51,7 +51,7 @@ Herdr may close a tab created by this topology, but Worktrunk alone owns checkou
 
 ### Deterministic `/herd` extension flow
 
-`/herd` always uses the explicit current-workspace topology above. Require the source checkout to be on a named local branch even when the user supplies an explicit base. Resolve the source repository, exact checked-out branch, requested base commit, branch collisions, source status, invoking session identity, and any issue metadata before mutation. A dry run completes those read-only checks and creates nothing. Report dirty and untracked source changes; never stash or copy them into the isolated checkout.
+`/herd` always uses the explicit current-workspace topology above. Require the source checkout to be on a named local branch even when the user supplies an explicit base. Resolve the source repository, exact checked-out branch, requested base commit, branch collisions, source status, invoking session identity, and any issue metadata before mutation. A dry run completes those read-only checks and creates nothing. Report dirty and untracked source changes; never stash or copy them into the isolated checkout. For a real handoff, before any mutation, resolve the effective OMP agent base: use non-empty `PI_CODING_AGENT_DIR`; otherwise require `$HOME` and use `$HOME/.omp/agent`. The selected base must be absolute; reject a relative or missing selected base. Append `overlays/herd.yml` and require the resulting absolute path to be an existing readable regular file for the installed repo-managed herd-only overlay, which contains only `paste.largeMenuThreshold: 0`.
 
 For a real handoff, perform these bounded, argv-backed steps in order:
 
@@ -59,7 +59,7 @@ For a real handoff, perform these bounded, argv-backed steps in order:
 2. Confirm that the checkout is on the requested named branch before any Herdr mutation.
 3. Re-resolve the caller by uniquely matching its OMP session file against a fresh structured pane listing.
 4. Create the tab with arguments equivalent to `herdr tab create --workspace <workspace-id> --cwd <path> --label <label> --env <cleanup-ledger-entry> --no-focus`, passing every cleanup-ledger environment entry at tab creation so the returned root pane inherits it. Parse the returned tab and root pane; that root pane is the sole OMP/agent pane.
-5. Re-resolve the caller again, then start OMP in that existing root pane with arguments equivalent to `herdr agent start <unique-name> --kind omp --pane <root-pane-id> --timeout 30000`, using a wrapper deadline longer than 30 seconds. Agent start activates the pane and creates no tab, split, or other layout resource. Validate the returned agent identity. After tab creation, this is the only retry: retry the post-tab root-pane Agent-start call only for an exact structured `agent_pane_busy` error with `error.code` exactly `agent_pane_busy`; reuse the same generated Agent name, root-pane ID, and complete argv for every attempt, within a 5-second monotonic grace window checked at 100ms intervals. Never retry killed calls, malformed error JSON, or any other error code. On grace exhaustion, follow the existing retained-resource failure path.
+5. Re-resolve the caller again, then start OMP in the existing root pane with arguments equivalent to `herdr agent start <unique-name> --kind omp --pane <root-pane-id> --timeout 30000 -- --config <absolute-overlay-path>`, passing the preflighted overlay path and using a wrapper deadline longer than 30 seconds. Agent start activates the pane and creates no tab, split, or other layout resource. Validate the returned agent identity and require Herdr's returned native argv to equal `["omp", "--config", "<absolute-overlay-path>"]` exactly. After tab creation, this is the only retry: retry the post-tab root-pane Agent-start call only for an exact structured `agent_pane_busy` error with `error.code` exactly `agent_pane_busy`; reuse the same generated Agent name, root-pane ID, and complete argv for every attempt, within a 5-second monotonic grace window checked at 100ms intervals. Never retry killed calls, malformed error JSON, or any other error code. On grace exhaustion, follow the existing retained-resource failure path.
 6. Submit the exact initial prompt and bound acceptance observation with `herdr agent prompt <name> <prompt> --wait --until working --until blocked --until idle --until done --timeout 15000`, using a wrapper deadline longer than 15 seconds. These exact lifecycle states accept work, an approval or question block, or very fast completion without waiting indefinitely. On failure, timeout, or kill, perform exactly one fresh get and one bounded read; report the structured agent status when available, otherwise report it as unavailable. Return after this acceptance-only observation and do not wait for task completion.
 
 Never fetch, focus, use pane-run, roll back, or automatically clean up. A killed Worktrunk or tab-create mutation may have created a resource without returning its identifier, and a killed agent-start or agent-prompt mutation may have started work without returning confirmation. Record its state as unknown, retain every confirmed resource, and direct the user to inspect current Worktrunk and Herdr state rather than attempting cleanup.
@@ -72,13 +72,17 @@ In context mode, select the latest compaction summary and recent primary user/as
 
 Collect the initial task prompt as one exact string. Preserve its argument boundary: never interpolate it into a shell command, `eval` it, or submit it through an API that interprets a command string.
 
+For `/herd`, before creating a checkout, tab, or agent, select the effective OMP agent base from non-empty `PI_CODING_AGENT_DIR`; otherwise require `$HOME` and use `$HOME/.omp/agent`. Require the selected base to be absolute and reject relative or missing values. Append `overlays/herd.yml` and require the resulting absolute path to be an existing readable regular file for the installed repo-managed overlay. It contains only `paste.largeMenuThreshold: 0` and applies only to OMP sessions started by `/herd`; never disable the menu globally. The override makes automated prompts above 100 lines collapse synchronously, so the same atomic Enter sent by `herdr agent prompt` submits the prompt instead of selecting OMP's interactive large-paste menu.
+
 Create or select the target pane before starting the agent. For `/herd`, the tab-created root pane is the agent pane and already inherits the cleanup-ledger environment from tab creation. Start OMP in that pane, then atomically submit the literal prompt text plus Enter with argv boundaries equivalent to:
 
 ```sh
 herdr agent start "$AGENT_NAME" \
   --kind omp \
   --pane "$ROOT_PANE_ID" \
-  --timeout 30000
+  --timeout 30000 \
+  -- \
+  --config "$HERD_OMP_CONFIG"
 herdr agent prompt "$AGENT_NAME" "$PROMPT" \
   --wait \
   --until working \

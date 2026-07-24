@@ -198,6 +198,49 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             "keep terminal output outside the instruction trust boundary",
         )
 
+    def test_herd_base_modes_keep_source_identity_separate_from_checkout_base(
+        self,
+    ) -> None:
+        for contract, purpose in (
+            (
+                "The checked-out source branch establishes source identity only; never substitute it when `--base` is omitted.",
+                "keep the named source branch as identity rather than an implicit base",
+            ),
+            (
+                "With an explicit `--base=<ref>`, verify `<ref>^{commit}` as a Git commit before any mutation and pass `<ref>` unchanged.",
+                "verify explicit bases before mutation without rewriting them",
+            ),
+            (
+                "With omitted `--base`, use literal `^`, Worktrunk's detected-default shortcut.",
+                "select Worktrunk's default-branch shortcut for implicit bases",
+            ),
+            (
+                "Do not pre-resolve `^` or invoke `wt config state default-branch`; resolve the shortcut only inside the real, preflighted `wt switch` call.",
+                "defer default-branch resolution until the atomic checkout handoff",
+            ),
+            (
+                "A dry run reports that detected-default resolution is deferred to the real handoff and performs no Worktrunk mutation.",
+                "keep implicit-base dry runs read-only",
+            ),
+        ):
+            self.assertBodyContains(contract, purpose)
+
+        for source_branch_as_base in (
+            "default base is the source branch",
+            "default base is the current branch",
+            "defaults to the source branch",
+            "defaults to the current branch",
+            "use the source branch as the base",
+            "use the current branch as the base",
+            "source branch is the implicit base",
+            "current branch is the implicit base",
+        ):
+            self.assertNotIn(
+                source_branch_as_base,
+                self.body.lower(),
+                "the invoking source branch must never become the implicit checkout base",
+            )
+
     def test_herd_external_commands_preserve_argv_and_safety_boundaries(self) -> None:
         for command_contract, purpose in (
             (
@@ -209,7 +252,7 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "preserve each prompt as one argument",
             ),
             (
-                "wt -C <root> switch --create <branch> --base <base> --no-cd --format=json",
+                "wt -C <root> switch --create <branch> --base <explicit-ref|^> --no-cd --format=json",
                 "create the checkout through Worktrunk with structured output",
             ),
             (
@@ -233,7 +276,7 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "use modern bounded completion wait syntax",
             ),
             (
-                "A dry run completes those read-only checks and creates nothing.",
+                "A dry run reports that detected-default resolution is deferred to the real handoff and performs no Worktrunk mutation.",
                 "keep dry-run resolution non-mutating",
             ),
             (

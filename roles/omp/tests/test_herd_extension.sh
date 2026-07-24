@@ -142,7 +142,7 @@ function makeHarness(overrides = {}) {
       }] }), stderr: "" };
     }
     if (command === "git" && argv.join(" ") === "rev-parse --show-toplevel") return { code: 0, stdout: "/repo\n", stderr: "" };
-    if (command === "git" && argv[0] === "symbolic-ref") return { code: 0, stdout: `${options.cwd === "/checkout" ? createdBranch : "main"}\n`, stderr: "" };
+    if (command === "git" && argv[0] === "symbolic-ref") return { code: 0, stdout: `${options.cwd === "/checkout" ? createdBranch : (overrides.sourceBranch ?? "main")}\n`, stderr: "" };
     if (command === "git" && argv[0] === "rev-parse") return { code: 0, stdout: "deadbeef\n", stderr: "" };
     if (command === "git" && argv[0] === "status") return { code: 0, stdout: overrides.dirty ? "?? new.txt\n" : "", stderr: "" };
     if (command === "git" && argv[0] === "check-ref-format") return overrides.invalidBranch ? { code: 1, stdout: "", stderr: "bad ref" } : { code: 0, stdout: "", stderr: "" };
@@ -503,15 +503,42 @@ await success();
   ok(!harness.calls.some(call => call.command === "wt"), "invalid branch mutated state");
 }
 {
+  const sourceBranch = "feat/source-worktree";
+  const harness = makeHarness({ sourceBranch });
+  await harness.handler("context", harness.ctx);
+  const wtCalls = harness.calls.filter(call => call.command === "wt");
+  equal(wtCalls.length, 1, "implicit base ran Worktrunk outside the atomic switch handoff");
+  equal(wtCalls[0].argv, ["-C", "/repo", "switch", "--create", "feat/latest-request", "--base", "^", "--no-cd", "--format=json"], "implicit base did not pass Worktrunk's default-branch shortcut unchanged");
+  ok(!wtCalls[0].argv.includes(sourceBranch), "implicit base reverted to the invoking source/worktree branch");
+  ok(!harness.calls.some(call => call.command === "git" && call.argv[0] === "rev-parse" && call.argv[1] === "--verify"), "implicit Worktrunk base shortcut was Git-verified");
+}
+{
+  const explicitBase = "release/2026-q3";
+  const harness = makeHarness();
+  await harness.handler(`context --base=${explicitBase}`, harness.ctx);
+  equal(
+    harness.calls.filter(call => call.command === "git" && call.argv[0] === "rev-parse" && call.argv[1] === "--verify").map(call => call.argv),
+    [["rev-parse", "--verify", `${explicitBase}^{commit}`]],
+    "explicit base was not Git commit-verified exactly once",
+  );
+  const wt = harness.calls.find(call => call.command === "wt");
+  equal(wt.argv[wt.argv.indexOf("--base") + 1], explicitBase, "explicit base was not passed to Worktrunk unchanged");
+}
+{
   const harness = makeHarness({ exec: (command, argv) => command === "git" && argv[0] === "rev-parse" && argv[1] === "--verify" ? { code: 1, stdout: "", stderr: "bad base" } : undefined });
   await harness.handler("context --base=missing", harness.ctx);
   ok(!harness.calls.some(call => call.command === "wt"), "invalid base mutated state");
 }
 {
-  const harness = makeHarness();
+  const sourceBranch = "feat/source-worktree";
+  const harness = makeHarness({ sourceBranch });
   await harness.handler("task --dry-run -- exact task", harness.ctx);
-  ok(!harness.calls.some(call => call.command === "wt" || (call.command === "herdr" && call.argv[0] !== "pane")), "dry-run performed mutations");
-  ok(harness.notices.some(item => item.message.startsWith("Dry run:")), "dry-run notification missing");
+  ok(!harness.calls.some(isHerdResourceMutation), "dry-run performed a Worktrunk or Herdr mutation");
+  ok(!harness.calls.some(call => call.command === "git" && call.argv[0] === "rev-parse" && call.argv[1] === "--verify"), "dry-run Git-verified the implicit Worktrunk base shortcut");
+  const notice = harness.notices.find(item => item.message.startsWith("Dry run:"));
+  ok(notice, "dry-run notification missing");
+  ok(notice.message.includes("Worktrunk's detected default branch (resolved during the real handoff)"), "dry-run did not defer default-branch resolution to the real handoff");
+  ok(!notice.message.includes(sourceBranch), "dry-run reported the invoking source/worktree branch as its implicit base");
 }
 {
   const harness = makeHarness({ exec: (command, argv) => command === "wt" ? { code: 1, stdout: "", stderr: "▲ cargo-difftest needs approval to execute 1 command:\n○ post-start install\n✗ Cannot prompt for approval in non-interactive environment\n↳ run wt config approvals add" } : undefined });
@@ -1055,7 +1082,7 @@ await withManagedHerdEnvironment(async () => {
       "-- <additional exact instructions>", "-- <exact task>",
       "opaque instruction string",
       "semantic type prefix; feat/ fallback",
-      "default: the current named local branch", "default: off",
+      "default: Worktrunk's detected default branch", "default: off",
       "Blank input defaults to context mode", "Bare prose defaults to task mode",
     ]) ok(notice.message.includes(required), `${alias} help omitted ${required}`);
   }

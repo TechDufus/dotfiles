@@ -17,6 +17,7 @@ const HERD_MANAGED_ENV = "OMP_HERD_MANAGED";
 const HERD_SOURCE_ROOT_ENV = "OMP_HERD_SOURCE_ROOT";
 const HERD_CHECKOUT_ENV = "OMP_HERD_CHECKOUT";
 const HERD_BRANCH_ENV = "OMP_HERD_BRANCH";
+const WORKTRUNK_DEFAULT_BASE = "^";
 
 const HERD_HELP_TEXT = `Usage:
   /herd
@@ -28,7 +29,7 @@ const HERD_HELP_TEXT = `Usage:
 
 Options:
   --branch=<name>  Use an explicit new branch name (default: semantic type prefix; feat/ fallback)
-  --base=<ref>     Start from this ref (default: the current named local branch)
+  --base=<ref>     Start from this ref (default: Worktrunk's detected default branch)
   --dry-run        Resolve and report without creating resources (default: off)
   --                Treat the remaining text as one opaque instruction string
 
@@ -54,7 +55,7 @@ export interface HerdRequest {
 	instructions: string;
 }
 
-interface RepoInfo { root: string; branch: string; base: string; dirty: boolean }
+interface RepoInfo { root: string; branch: string; base: string; defaultBase: boolean; dirty: boolean }
 interface Caller { workspaceId: string; tabId: string; paneId: string; cwd: string; sessionFile: string }
 interface DoneTarget { caller: Caller; sourceRoot: string; checkoutPath: string; branch: string; head: string }
 interface MergedPullRequest { number: number; url: string; repo: string }
@@ -602,9 +603,16 @@ export default function herd(pi: ExtensionAPI): void {
 		const root = (await run("git", ["rev-parse", "--show-toplevel"], ctx.cwd)).stdout.trim();
 		const branch = (await run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], root)).stdout.trim();
 		if (!branch) throw new HerdError("The source checkout must be on a branch");
-		const base = request.base ?? branch;
-		await run("git", ["rev-parse", "--verify", `${base}^{commit}`], root);
-		return { root, branch, base, dirty: Boolean((await run("git", ["status", "--porcelain"], root)).stdout.trim()) };
+		const defaultBase = request.base === undefined;
+		const base = request.base ?? WORKTRUNK_DEFAULT_BASE;
+		if (!defaultBase) await run("git", ["rev-parse", "--verify", `${base}^{commit}`], root);
+		return {
+			root,
+			branch,
+			base,
+			defaultBase,
+			dirty: Boolean((await run("git", ["status", "--porcelain"], root)).stdout.trim()),
+		};
 	};
 	const uniqueBranch = async (root: string, requested: string | undefined, seed: string, type: BranchType): Promise<string> => {
 		const initial = requested ?? `${type}/${slug(seed)}`;
@@ -682,7 +690,13 @@ export default function herd(pi: ExtensionAPI): void {
 					: requestBranch(request.mode === "task" ? request.instructions : contextSeed(ctx.sessionManager.getBranch?.() ?? []));
 				const branch = await uniqueBranch(repo.root, request.branch, generated.seed, generated.type);
 				const prompt = promptFor(request, ctx, issue);
-				if (request.dryRun) { ctx.ui.notify(`Dry run: would create ${branch} from ${repo.base} in workspace ${caller.workspaceId}.`, "info"); return; }
+				if (request.dryRun) {
+					const base = repo.defaultBase
+						? "Worktrunk's detected default branch (resolved during the real handoff)"
+						: repo.base;
+					ctx.ui.notify(`Dry run: would create ${branch} from ${base} in workspace ${caller.workspaceId}.`, "info");
+					return;
+				}
 				const wtCaller = await freshCaller(ctx, repo.root);
 				if (wtCaller.sessionFile !== caller.sessionFile || wtCaller.workspaceId !== caller.workspaceId) throw new HerdError("Invoking OMP session or workspace changed before Worktrunk");
 				const overlayPath = herdOverlayPath();

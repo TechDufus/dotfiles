@@ -324,8 +324,8 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             "start OMP in the existing pane and submit through argv-safe Agent operations",
         )
         self.assertBodyContains(
-            "Preserve its argument boundary: never interpolate it into a shell command, `eval` it",
-            "forbid shell interpretation of the initial prompt",
+            "Preserve its argument boundary from construction through submission: never tokenize or rejoin exact task/additional text, interpolate the prompt into a shell command, `eval` it",
+            "forbid rewriting or shell interpretation of the initial prompt",
         )
         acceptance = "observe prompt acceptance or working state"
         completion = "when a separate completion wait is needed"
@@ -475,11 +475,23 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "select the two context sources independently",
             ),
             (
-                "a bounded truncation to the compaction summary and a separate bounded truncation",
-                "prevent recent messages from consuming the summary allowance",
+                "Bound the rendered, `| `-prefixed summary and recent-message sections separately",
+                "bound the rendered sections after continuation-marker expansion",
             ),
             (
-                "exact additional-instructions suffix as one opaque string",
+                "Before applying the recent-message block-count cap or character truncation, reserve a bounded, generated `USER:` block for the latest user entry",
+                "keep the current objective across both recent-context caps",
+            ),
+            (
+                "One generated `USER:` header spans both retained halves of an internally `| ...[truncated]...` latest-user block",
+                "document ownership of a bounded latest-user request",
+            ),
+            (
+                "label it `USER (continued after truncation):` or `ASSISTANT (continued after truncation):`",
+                "preserve the owning role for every retained tail fragment",
+            ),
+            (
+                "append the exact current suffix unchanged outside the blockquote",
                 "preserve the user-provided prompt suffix",
             ),
             (

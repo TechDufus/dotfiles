@@ -558,9 +558,8 @@ export default function herd(pi: ExtensionAPI): void {
 			|| closingCaller.workspaceId !== current.caller.workspaceId
 			|| closingCaller.tabId !== current.caller.tabId
 			|| closingCaller.paneId !== current.caller.paneId
-			|| closingCaller.cwd !== current.caller.cwd
 		) {
-			ctx.ui.notify(`Worktrunk cleanup succeeded, but the OMP pane moved before tab closure. Tab ${current.caller.tabId} was left open.`, "error");
+			ctx.ui.notify(`Worktrunk cleanup succeeded, but the OMP pane identity changed before tab closure. Tab ${current.caller.tabId} was left open.`, "error");
 			return;
 		}
 		ctx.ui.notify(`Worktrunk accepted cleanup for merged pull request #${pullRequest.number}; closing herd tab ${closingCaller.tabId}.`, "success");

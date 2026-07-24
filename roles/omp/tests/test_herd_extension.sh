@@ -74,13 +74,19 @@ function makeHarness(overrides = {}) {
     if (custom) return custom;
     if (command === "herdr" && argv[0] === "pane" && argv[1] === "list") {
       paneLists++;
-      const workspace = overrides.callerChangeAt === paneLists ? "workspace-changed" : "workspace-fresh";
+      const changedIdentity = overrides.callerIdentityChangeAt === paneLists
+        ? (overrides.changedCallerIdentity ?? {})
+        : {};
+      const workspace = changedIdentity.workspaceId ?? (overrides.callerChangeAt === paneLists ? "workspace-changed" : "workspace-fresh");
+      const cwd = overrides.callerCwdChangeAt === paneLists
+        ? overrides.changedCallerCwd
+        : (overrides.cwd ?? "/source");
       return { code: 0, stdout: envelope({ type: "pane_list", panes: [{
-        pane_id: "caller-pane",
-        tab_id: "caller-tab",
+        pane_id: changedIdentity.paneId ?? "caller-pane",
+        tab_id: changedIdentity.tabId ?? "caller-tab",
         workspace_id: workspace,
-        cwd: overrides.cwd ?? "/source",
-        agent_session: { source: "herdr:omp", agent: "omp", kind: "path", value: sessionFile },
+        cwd,
+        agent_session: { source: "herdr:omp", agent: "omp", kind: "path", value: changedIdentity.sessionFile ?? sessionFile },
       }] }), stderr: "" };
     }
     if (command === "git" && argv.join(" ") === "rev-parse --show-toplevel") return { code: 0, stdout: "/repo\n", stderr: "" };
@@ -126,7 +132,9 @@ function makeHarness(overrides = {}) {
     cwd: overrides.cwd ?? "/source",
     ui: { notify: (message, level) => notices.push({ message, level }) },
     sessionManager: {
-      getSessionFile: () => sessionFile,
+      getSessionFile: () => overrides.callerIdentityChangeAt === paneLists + 1
+        ? (overrides.changedCallerIdentity?.sessionFile ?? sessionFile)
+        : sessionFile,
       getBranch: () => overrides.entries ?? [{ type: "compaction", summary: "active summary" }, { role: "user", content: "older active request" }, { role: "assistant", content: "active answer" }, { role: "user", content: "latest request" }],
       getEntries: () => [{ role: "user", content: "abandoned stale request" }],
     },
@@ -167,6 +175,10 @@ function makeDoneHarness(overrides = {}) {
   const harness = makeHarness({
     cwd: "/checkout",
     callerChangeAt: overrides.callerChangeAt,
+    callerCwdChangeAt: overrides.callerCwdChangeAt,
+    changedCallerCwd: overrides.changedCallerCwd,
+    callerIdentityChangeAt: overrides.callerIdentityChangeAt,
+    changedCallerIdentity: overrides.changedCallerIdentity,
     exec: (command, argv, options, state) => {
       const custom = overrides.exec?.(command, argv, options, state);
       if (custom !== undefined) return custom;
@@ -830,6 +842,12 @@ await withManagedHerdEnvironment(async () => {
   const changedBeforeRemoval = await refusedDone({ callerChangeAt: 2 });
   ok(changedBeforeRemoval.notices.at(-1).message.includes("original herd tab"), "caller movement before removal was not rejected");
 
+  const cwdChangedBeforeRemoval = await refusedDone({
+    callerCwdChangeAt: 2,
+    changedCallerCwd: "/repo/.git/wt/trash/premature-relocation",
+  });
+  ok(cwdChangedBeforeRemoval.notices.at(-1).message.includes("not started in the managed herd checkout"), "cwd relocation before Worktrunk removal was not rejected");
+
   const removeFailed = makeDoneHarness({ removeResult: { code: 1, stdout: "", stderr: "branch is not integrated" } });
   await removeFailed.handler("done", removeFailed.ctx);
   ok(removeFailed.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "Worktrunk failure scenario did not attempt removal");
@@ -851,11 +869,32 @@ await withManagedHerdEnvironment(async () => {
   ok(retainedBranch.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "safe local branch retention prevented herd tab closure");
   ok(retainedBranch.notices.some(notice => notice.level === "warning" && notice.message.includes("retained local branch")), "retained local branch was not reported");
 
-  const changedBeforeClose = makeDoneHarness({ callerChangeAt: 3 });
-  await changedBeforeClose.handler("done", changedBeforeClose.ctx);
-  ok(changedBeforeClose.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "post-removal caller-change scenario did not reach Worktrunk");
-  ok(!changedBeforeClose.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "stale tab identifier was closed after caller movement");
-  ok(changedBeforeClose.notices.at(-1).message.includes("left open"), "post-removal caller movement did not explain retained tab");
+  const relocatedBeforeClose = makeDoneHarness({
+    callerCwdChangeAt: 3,
+    changedCallerCwd: "/repo/.git/wt/trash/oh-my-pi.feat-task-multi-agent-support-1784906745",
+  });
+  await relocatedBeforeClose.handler("done", relocatedBeforeClose.ctx);
+  const relocatedRemoval = relocatedBeforeClose.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
+  const relocatedClose = relocatedBeforeClose.calls.find(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close");
+  ok(relocatedRemoval, "cwd-relocation scenario did not complete exact Worktrunk removal");
+  equal(relocatedClose?.argv, ["tab", "close", "caller-tab"], "post-removal cwd relocation did not close the exact managed herd tab");
+  ok(relocatedBeforeClose.calls.indexOf(relocatedRemoval) < relocatedBeforeClose.calls.indexOf(relocatedClose), "cwd-relocation scenario closed the herd tab before exact Worktrunk removal succeeded");
+  equal(relocatedBeforeClose.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, "cwd-relocation scenario did not apply to the final post-removal caller lookup");
+
+  for (const [label, changedCallerIdentity] of [
+    ["session file", { sessionFile: "/sessions/changed.jsonl" }],
+    ["workspace", { workspaceId: "workspace-changed" }],
+    ["tab", { tabId: "changed-tab" }],
+    ["pane", { paneId: "changed-pane" }],
+  ]) {
+    const changedBeforeClose = makeDoneHarness({ callerIdentityChangeAt: 3, changedCallerIdentity });
+    await changedBeforeClose.handler("done", changedBeforeClose.ctx);
+    const changedRemoval = changedBeforeClose.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
+    ok(changedRemoval, `post-removal ${label} change did not complete Worktrunk removal`);
+    equal(changedBeforeClose.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, `post-removal ${label} change did not refresh identity exactly once after removal`);
+    ok(!changedBeforeClose.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), `managed tab was closed after the caller ${label} changed`);
+    ok(changedBeforeClose.notices.at(-1)?.level === "error" && changedBeforeClose.notices.at(-1).message.includes("identity changed") && changedBeforeClose.notices.at(-1).message.includes("left open"), `post-removal ${label} change was not reported as a retained-tab identity refusal`);
+  }
 
   let paneLists = 0;
   const missingBeforeClose = makeDoneHarness({
@@ -864,9 +903,11 @@ await withManagedHerdEnvironment(async () => {
       : undefined,
   });
   await missingBeforeClose.handler("done", missingBeforeClose.ctx);
-  ok(missingBeforeClose.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "post-removal missing-caller scenario did not reach Worktrunk");
-  ok(!missingBeforeClose.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "tab closed after the caller disappeared");
-  ok(missingBeforeClose.notices.at(-1).message.includes("could not be re-resolved") && missingBeforeClose.notices.at(-1).message.includes("left open"), "missing post-removal caller did not explain the partial-cleanup state");
+  const missingRemoval = missingBeforeClose.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
+  ok(missingRemoval, "post-removal missing-caller scenario did not complete Worktrunk removal");
+  equal(missingBeforeClose.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, "post-removal missing-caller scenario did not perform the final caller lookup");
+  ok(!missingBeforeClose.calls.some(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close"), "managed tab was closed after the caller disappeared");
+  ok(missingBeforeClose.notices.at(-1)?.level === "error" && missingBeforeClose.notices.at(-1).message.includes("could not be re-resolved") && missingBeforeClose.notices.at(-1).message.includes("left open"), "missing post-removal caller was not reported as a retained-tab resolution refusal");
 
   const closeFailed = makeDoneHarness({ closeResult: { code: 1, stdout: "", stderr: "tab close rejected" } });
   await closeFailed.handler("done", closeFailed.ctx);

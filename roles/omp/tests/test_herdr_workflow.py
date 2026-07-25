@@ -20,7 +20,7 @@ REFERENCE_PATHS = (
     REFERENCE_DIR / "ownership-and-cleanup.md",
 )
 # Frozen full pre-refactor skill; audited with pi-natives O200kBase countTokens.
-LEGACY_SKILL_PATH = REPO_ROOT / "roles/omp/tests/fixtures/herdr-workflow-legacy.md"
+LEGACY_SKILL_PATH = REPO_ROOT / "roles/omp/tests/fixtures/herdr-workflow-legacy.txt"
 LEGACY_MONOLITH_TOKENS = 3955
 ROUTE_REFERENCES = {
     "general handoff": ("general-handoff.md", "ownership-and-cleanup.md"),
@@ -625,7 +625,7 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "select the two context sources independently",
             ),
             (
-                "Bound the rendered, `| `-prefixed summary and recent-message sections separately",
+                "Prefix each line with vertical bar plus space. Bound rendered summary and recent-message sections separately",
                 "bound the rendered sections after continuation-marker expansion",
             ),
             (

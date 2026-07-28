@@ -878,6 +878,14 @@ await success();
   ok(!harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "killed agent start still submitted a prompt");
 }
 {
+  const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start"
+    ? { code: 0, stdout: envelope({ argv: returnedAgentArgv(argv), agent: { name: argv[2], workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: true, interactive_ready: true } }), stderr: "" }
+    : undefined });
+  await harness.handler("context", harness.ctx);
+  ok(harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "a focus change during agent startup prevented the initial prompt");
+  ok(harness.notices.at(-1).level === "success", "focused startup did not complete the handoff");
+}
+{
   for (const returnedArgv of [
     ["bad"],
     ["omp", "--config", explicitOverlay, "--extra"],

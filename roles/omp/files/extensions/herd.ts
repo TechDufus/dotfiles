@@ -920,7 +920,6 @@ export default function herd(pi: ExtensionAPI): void {
 					|| agent.workspace_id !== agentCaller.workspaceId
 					|| agent.tab_id !== owned.tab
 					|| agent.pane_id !== owned.rootPane
-					|| agent.focused !== false
 					|| agent.interactive_ready !== true
 				) throw new HerdError("Herdr returned an agent with unexpected identity");
 				owned.lastState = "prompt acceptance pending";

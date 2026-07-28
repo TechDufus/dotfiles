@@ -85,6 +85,9 @@ class HerdrRoleTests(unittest.TestCase):
             },
         )
         self.assertEqual(ui["toast"], {"delivery": "terminal"})
+        self.assertEqual(
+            self.config["advanced"]["scrollback_limit_bytes"], 100_000_000
+        )
         keys = self.config["keys"]
         self.assertEqual(keys["focus_pane_left"], ["prefix+h", "ctrl+h"])
         self.assertEqual(keys["focus_pane_down"], ["prefix+j", "ctrl+j"])

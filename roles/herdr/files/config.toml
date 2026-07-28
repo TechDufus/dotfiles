@@ -46,7 +46,7 @@ rows = [
 delivery = "terminal"
 
 [advanced]
-scrollback_limit_bytes = 50_000_000
+scrollback_limit_bytes = 100_000_000
 
 [experimental]
 pane_history = true

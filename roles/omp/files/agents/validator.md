@@ -1,6 +1,7 @@
 ---
 name: validator
 description: Validation agent that runs the smallest credible check set and returns a binary readiness verdict.
+model: "@task"
 tools:
   - read
   - grep

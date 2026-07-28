@@ -1,6 +1,7 @@
 ---
 name: risk-assessor
 description: Cross-stack change-risk assessor for plans, diffs, and implemented changes.
+model: "@task"
 tools:
   - read
   - grep

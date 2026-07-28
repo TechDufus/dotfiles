@@ -1,6 +1,7 @@
 ---
 name: plan-critic
 description: Plan reviewer that stress-tests execution readiness, sequencing, and missing validation before work starts.
+model: "@task"
 tools:
   - read
   - grep

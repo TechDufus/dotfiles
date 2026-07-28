@@ -1,6 +1,7 @@
 ---
 name: security-auditor
 description: Security-focused reviewer for exploitable code risks, trust boundaries, and dependency signals.
+model: "@task"
 tools:
   - read
   - grep

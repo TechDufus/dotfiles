@@ -1,6 +1,7 @@
 ---
 name: gap-advisor
 description: Pre-plan gap analyst that surfaces hidden requirements, missing context, and scope risk before planning starts.
+model: "@task"
 tools:
   - read
   - grep

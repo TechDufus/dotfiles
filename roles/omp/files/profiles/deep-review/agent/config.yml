@@ -55,7 +55,7 @@ mnemopi:
 github:
   enabled: true
 inspect_image:
-  enabled: true
+  mode: auto
 task:
   eager: always
   showResolvedModelBadge: true

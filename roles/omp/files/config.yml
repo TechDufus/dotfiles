@@ -81,6 +81,7 @@ dev:
   autoqaConsent: granted
 tier: 
   openai: default
+  subagent: priority
 statusLine: 
   transparent: true
   compactThinkingLevel: true

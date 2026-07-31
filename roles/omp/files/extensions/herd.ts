@@ -25,6 +25,8 @@ const HERD_HELP_TEXT = `Usage:
   /herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
   /herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>
   /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
+  Unqualified issue numbers (\`123\` or \`#123\`) target the current repository.
+  Qualified issues may target the current repository or its direct fork parent only; arbitrary repositories are not supported.
   /herd done
 
 Options:
@@ -60,6 +62,8 @@ interface Caller { workspaceId: string; tabId: string; paneId: string; cwd: stri
 interface DoneTarget { caller: Caller; sourceRoot: string; checkoutPath: string; branch: string; head: string }
 interface MergedPullRequest { number: number; url: string; repo: string }
 interface RepositoryIdentity { repo: string; owner: string }
+interface RepositoryCandidate { repo: string; isCrossRepository: boolean }
+interface RepositoryTopology { current: RepositoryIdentity; candidates: RepositoryCandidate[]; scope: string }
 interface PullRequestData {
 	number: number;
 	state: string;
@@ -576,11 +580,11 @@ export default function herd(pi: ExtensionAPI): void {
 		}
 		return { caller, sourceRoot, checkoutPath, branch, head };
 	};
-	const mergedPullRequest = async (target: DoneTarget): Promise<MergedPullRequest> => {
-		const metadata = json((await run("gh", ["repo", "view", "--json", "nameWithOwner,isFork,parent"], target.checkoutPath)).stdout);
+	const repositoryTopology = async (root: string): Promise<RepositoryTopology> => {
+		const metadata = json((await run("gh", ["repo", "view", "--json", "nameWithOwner,isFork,parent"], root)).stdout);
 		const current = repositoryIdentity(metadata.nameWithOwner, "nameWithOwner");
 		if (typeof metadata.isFork !== "boolean") throw new HerdError("Repository JSON is missing isFork");
-		const candidates: { repo: string; isCrossRepository: boolean }[] = [{ repo: current.repo, isCrossRepository: false }];
+		const candidates: RepositoryCandidate[] = [{ repo: current.repo, isCrossRepository: false }];
 		if (metadata.isFork) {
 			if (!metadata.parent || typeof metadata.parent !== "object" || Array.isArray(metadata.parent)) {
 				throw new HerdError("Repository JSON has malformed fork parent metadata");
@@ -597,6 +601,14 @@ export default function herd(pi: ExtensionAPI): void {
 		} else if (metadata.parent !== null) {
 			throw new HerdError("Repository JSON has malformed non-fork parent metadata");
 		}
+		return {
+			current,
+			candidates,
+			scope: metadata.isFork ? "the current repository or its direct parent" : "the current repository",
+		};
+	};
+	const mergedPullRequest = async (target: DoneTarget): Promise<MergedPullRequest> => {
+		const { current, candidates, scope } = await repositoryTopology(target.checkoutPath);
 
 		const fields = "number,state,mergedAt,url,headRefName,headRefOid,isCrossRepository,headRepositoryOwner";
 		const exact: { pullRequest: PullRequestData; repo: string }[] = [];
@@ -635,7 +647,6 @@ export default function herd(pi: ExtensionAPI): void {
 			}
 		}
 		if (exact.length !== 1) {
-			const scope = metadata.isFork ? "the current repository or its direct parent" : "the current repository";
 			const detail = exact.length === 0
 				? `No GitHub pull request in ${scope} has branch ${target.branch} at the current local HEAD with the expected head owner and repository topology`
 				: `Multiple GitHub pull requests in ${scope} match branch ${target.branch} at the current local HEAD with the expected head owner and repository topology`;
@@ -746,10 +757,15 @@ export default function herd(pi: ExtensionAPI): void {
 		}
 	};
 	const loadIssue = async (root: string, reference: string): Promise<IssueData> => {
-		const current = json((await run("gh", ["repo", "view", "--json", "nameWithOwner"], root)).stdout);
-		const repo = text(current.nameWithOwner, "nameWithOwner");
+		const topology = await repositoryTopology(root);
 		const parsed = issueNumber(reference);
-		if (parsed.repo && parsed.repo.toLowerCase() !== repo.toLowerCase()) throw new HerdError(`Cross-repository issue rejected: ${parsed.repo} (current repo is ${repo})`);
+		const selected = parsed.repo
+			? topology.candidates.find(candidate => candidate.repo.toLowerCase() === parsed.repo?.toLowerCase())
+			: topology.candidates[0];
+		if (!selected) {
+			throw new HerdError(`Cross-repository issue rejected: ${parsed.repo} (allowed scope is ${topology.scope}: ${topology.candidates.map(candidate => candidate.repo).join(", ")})`);
+		}
+		const repo = selected.repo;
 		const data = json((await run("gh", ["issue", "view", String(parsed.number), "--repo", repo, "--json", "number,title,labels"], root)).stdout);
 		if (typeof data.number !== "number") throw new HerdError("Issue JSON is missing number");
 		const labels = data.labels;

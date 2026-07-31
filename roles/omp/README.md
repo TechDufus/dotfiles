@@ -74,6 +74,10 @@ The global `/herd` extension creates a Worktrunk-owned isolated checkout and ope
 ```
 
 Blank `/herd` aliases `context`; `/herd <exact task>` is the preferred shorthand. Use the explicit modes for options and mode-specific inputs. Options are parsed only before `--`; text after it remains one exact, opaque instruction string. `/herd --help`, `/herd -h`, and `/herd help` show the local grammar and defaults.
+Issue references are resolved before the Worktrunk handoff. An unqualified `123` or `#123` means issue `123` in the current repository. A qualified `owner/repo#123` or GitHub issue URL may name the current repository or, when it is a fork, its explicit direct parent; an unrelated repository is rejected. The issue repository supplies metadata only: the local source checkout and Worktrunk checkout remain in the current repository (the fork, when applicable), and `--base` still selects the source checkout's base ref.
+
+The upstream lookup is exactly `gh issue view <number> --repo <issue-owner>/<issue-repo> --json number,title,labels`; the selected issue repository is not used as a checkout or implicit base.
+
 
 ```text
 /herd Fix the refresh-token race without changing the public API

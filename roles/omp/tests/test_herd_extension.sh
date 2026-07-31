@@ -1090,7 +1090,11 @@ await withManagedHerdEnvironment(async () => {
   ok(!forceDirty.calls.some(call => call.command === "gh"), "force cleanup queried GitHub after dirty-check refusal");
   equal(pushed(forceDirty).length, 0, "force cleanup pushed after dirty-check refusal");
 
-  for (const form of ["done --delete", "done -d"]) {
+  for (const form of [
+    "done --delete", "done -d",
+    "done --force --delete", "done --force -d", "done -f --delete", "done -f -d",
+    "done --delete --force", "done --delete -f", "done -d --force", "done -d -f",
+  ]) {
     const deleted = makeDoneHarness();
     await deleted.handler(form, deleted.ctx);
     const deleteRemoval = deleted.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
@@ -1179,9 +1183,9 @@ await withManagedHerdEnvironment(async () => {
   ok(ambientDefault.calls.filter(call => call.command === "gh" && call.argv[0] === "repo").every(call => call.argv[2] === "owner/repo"), "remote identity proof used an ambient GitHub CLI repository selector");
 
   const deleteDirty = makeDoneHarness({ dirty: true });
-  await deleteDirty.handler("done --delete", deleteDirty.ctx);
-  ok(!deleteDirty.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "explicit deletion removed a dirty checkout");
-  equal(pushed(deleteDirty).length, 0, "explicit deletion pushed after dirty-check refusal");
+  await deleteDirty.handler("done -f -d", deleteDirty.ctx);
+  ok(!deleteDirty.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "force/delete cleanup removed a dirty checkout");
+  equal(pushed(deleteDirty).length, 0, "force/delete cleanup pushed after dirty-check refusal");
 
   for (const [label, overrides] of [
     ["Worktrunk refusal", { removeResult: { code: 1, stdout: "", stderr: "refused" } }],
@@ -1499,12 +1503,14 @@ await withManagedHerdEnvironment(async () => {
     "done force",
     "done --unknown",
     "done --",
-    "done --force --delete",
-    "done --force -d",
-    "done -f --delete",
-    "done -f -d",
+    "done --force --force",
+    "done -f -f",
     "done --force -f",
+    "done -f --force",
+    "done --delete --delete",
+    "done -d -d",
     "done --delete -d",
+    "done -d --delete",
     "done -fd",
     "done --force=now",
     "done --delete=now",
@@ -1532,11 +1538,13 @@ await withManagedHerdEnvironment(async () => {
     for (const required of [
       "/herd <exact task>", "/herd context", "/herd task", "/herd issue", "/herd done",
       "--branch=<name>", "--base=<ref>", "--dry-run",
+      "/herd done [--force|-f] [--delete|-d]",
       "-- <additional exact instructions>", "-- <exact task>",
       "opaque instruction string",
       "semantic type prefix; feat/ fallback",
       "default: Worktrunk's detected default branch", "default: off",
       "Blank input defaults to context mode", "Bare prose defaults to task mode",
+      "implies that force mode", "No done mode discards dirty files",
     ]) ok(notice.message.includes(required), `${alias} help omitted ${required}`);
   }
   const mixed = makeHarness();

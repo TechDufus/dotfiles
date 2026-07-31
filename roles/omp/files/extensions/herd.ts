@@ -29,7 +29,7 @@ const HERD_HELP_TEXT = `Usage:
   /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
   Unqualified issue numbers (\`123\` or \`#123\`) target the current repository.
   Qualified issues may target the current repository or its direct fork parent only; arbitrary repositories are not supported.
-  /herd done [--force|-f|--delete|-d]
+  /herd done [--force|-f] [--delete|-d]
 
 Options:
   --branch=<name>  Use an explicit new branch name (default: semantic type prefix; feat/ fallback)
@@ -39,7 +39,7 @@ Options:
 
 Blank input defaults to context mode. Bare prose defaults to task mode.
 
-\`/herd done\` is available only inside a managed herd checkout. Plain \`done\` requires a clean checkout whose exact HEAD belongs to a merged GitHub pull request, then removes it through Worktrunk and closes its Herdr tab. \`done --force\` (or \`-f\`) abandons only a clean managed checkout and retains both local and remote branches. \`done --delete\` (or \`-d\`) requests local branch deletion and conditional exact upstream deletion after local cleanup is confirmed. Neither mode discards dirty files.`;
+\`/herd done\` is available only inside a managed herd checkout. Plain \`done\` requires a clean checkout whose exact HEAD belongs to a merged GitHub pull request, then removes it through Worktrunk and closes its Herdr tab. \`done --force\` (or \`-f\`) skips only the merged-pull-request proof, abandons only a clean managed checkout, and retains both local and remote branches. \`done --delete\` (or \`-d\`) implies that force mode, requests local branch deletion and conditional exact upstream deletion after local cleanup is confirmed, and may be combined with exactly one force spelling in either order. No done mode discards dirty files.`;
 
 type Mode = "context" | "task" | "issue";
 type DoneMode = "plain" | "force" | "delete";
@@ -169,12 +169,20 @@ export function parseHerdArgs(raw: string): HerdRequest {
 
 function parseDoneMode(raw: string): DoneMode {
 	const tokens = words(raw);
-	if (tokens.length === 1 && tokens[0] === "done") return "plain";
-	if (tokens.length === 2 && tokens[0] === "done") {
-		if (tokens[1] === "--force" || tokens[1] === "-f") return "force";
-		if (tokens[1] === "--delete" || tokens[1] === "-d") return "delete";
+	const arguments_ = tokens.slice(1);
+	const forceFlags = ["--force", "-f"];
+	const deleteFlags = ["--delete", "-d"];
+	if (tokens[0] === "done") {
+		if (arguments_.length === 0) return "plain";
+		if (arguments_.length === 1) {
+			if (forceFlags.includes(arguments_[0])) return "force";
+			if (deleteFlags.includes(arguments_[0])) return "delete";
+		}
+		if (arguments_.length === 2
+			&& ((forceFlags.includes(arguments_[0]) && deleteFlags.includes(arguments_[1]))
+				|| (deleteFlags.includes(arguments_[0]) && forceFlags.includes(arguments_[1])))) return "delete";
 	}
-	throw new HerdError(`Unexpected /herd done argument: ${tokens.slice(1).join(" ") || raw.trim()}`);
+	throw new HerdError(`Unexpected /herd done argument: ${arguments_.join(" ") || raw.trim()}`);
 }
 
 function gitHubRepositoryFromEndpoint(endpoint: string): string | undefined {

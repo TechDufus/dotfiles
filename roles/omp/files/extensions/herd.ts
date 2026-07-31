@@ -1,4 +1,6 @@
 import { accessSync, constants as fsConstants, statSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
@@ -27,7 +29,7 @@ const HERD_HELP_TEXT = `Usage:
   /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
   Unqualified issue numbers (\`123\` or \`#123\`) target the current repository.
   Qualified issues may target the current repository or its direct fork parent only; arbitrary repositories are not supported.
-  /herd done
+  /herd done [--force|-f|--delete|-d]
 
 Options:
   --branch=<name>  Use an explicit new branch name (default: semantic type prefix; feat/ fallback)
@@ -37,9 +39,10 @@ Options:
 
 Blank input defaults to context mode. Bare prose defaults to task mode.
 
-\`/herd done\` is available only inside a managed herd checkout. It requires a clean checkout whose exact HEAD belongs to a merged GitHub pull request, then removes it through Worktrunk and closes its Herdr tab.`;
+\`/herd done\` is available only inside a managed herd checkout. Plain \`done\` requires a clean checkout whose exact HEAD belongs to a merged GitHub pull request, then removes it through Worktrunk and closes its Herdr tab. \`done --force\` (or \`-f\`) abandons only a clean managed checkout and retains both local and remote branches. \`done --delete\` (or \`-d\`) requests local branch deletion and conditional exact upstream deletion after local cleanup is confirmed. Neither mode discards dirty files.`;
 
 type Mode = "context" | "task" | "issue";
+type DoneMode = "plain" | "force" | "delete";
 type BranchType = "feat" | "fix" | "docs" | "refactor" | "test" | "chore" | "ci" | "build" | "perf";
 type ExecResult = { stdout: string; stderr: string; exitCode: number; killed: boolean };
 type PromptAcceptedStatus = "working" | "blocked" | "idle" | "done";
@@ -88,6 +91,9 @@ interface Ownership {
 	lastState?: string;
 }
 interface IssueData { number: number; title: string; repo: string; labels: string[] }
+interface RemotePlan { endpoint: string; ref: string; head: string }
+interface RepositoryProof extends RepositoryIdentity { id: string; url: string }
+type RemotePlanOutcome = { plan: RemotePlan } | { reason: string };
 
 class HerdError extends Error {
 	constructor(message: string, readonly result?: ExecResult) { super(message); }
@@ -161,6 +167,23 @@ export function parseHerdArgs(raw: string): HerdRequest {
 	return { mode, branch, base, dryRun, issue, instructions: split.tail };
 }
 
+function parseDoneMode(raw: string): DoneMode {
+	const tokens = words(raw);
+	if (tokens.length === 1 && tokens[0] === "done") return "plain";
+	if (tokens.length === 2 && tokens[0] === "done") {
+		if (tokens[1] === "--force" || tokens[1] === "-f") return "force";
+		if (tokens[1] === "--delete" || tokens[1] === "-d") return "delete";
+	}
+	throw new HerdError(`Unexpected /herd done argument: ${tokens.slice(1).join(" ") || raw.trim()}`);
+}
+
+function gitHubRepositoryFromEndpoint(endpoint: string): string | undefined {
+	const owner = "[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?";
+	const name = "[A-Za-z0-9._-]+?";
+	const match = new RegExp(`^(?:https://github\\.com/|git@github\\.com:|ssh://git@github\\.com(?::22)?/)(${owner})/(${name})(?:\\.git)?$`, "i").exec(endpoint);
+	return match ? `${match[1]}/${match[2]}` : undefined;
+}
+
 function object(value: unknown): Record<string, unknown> {
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new HerdError("Command returned malformed JSON");
 	return value as Record<string, unknown>;
@@ -186,6 +209,15 @@ function repositoryIdentity(value: unknown, field: string): RepositoryIdentity {
 	const owner = repositoryOwner(parts[0], `${field} owner`);
 	repositoryName(parts[1], `${field} name`);
 	return { repo, owner };
+}
+function repositoryProof(value: Record<string, unknown>): RepositoryProof {
+	const identity = repositoryIdentity(value.nameWithOwner, "nameWithOwner");
+	const id = text(value.id, "id");
+	const url = text(value.url, "url");
+	if (url.toLowerCase() !== `https://github.com/${identity.repo}`.toLowerCase()) {
+		throw new HerdError("Command JSON has inconsistent repository URL");
+	}
+	return { ...identity, id, url };
 }
 function json(stdout: string): Record<string, unknown> {
 	try { return object(JSON.parse(stdout)); } catch (error) { if (error instanceof HerdError) throw error; throw new HerdError("Command returned invalid JSON"); }
@@ -658,10 +690,7 @@ export default function herd(pi: ExtensionAPI): void {
 		}
 		return { number: pullRequest.number, url: pullRequest.url, repo };
 	};
-	const completeHerd = async (ctx: CommandContext): Promise<void> => {
-		const initial = await doneTarget(ctx);
-		const initialPullRequest = await mergedPullRequest(initial);
-		const current = await doneTarget(ctx);
+	const sameDoneTarget = (initial: DoneTarget, current: DoneTarget): void => {
 		if (
 			current.caller.sessionFile !== initial.caller.sessionFile
 			|| current.caller.workspaceId !== initial.caller.workspaceId
@@ -672,14 +701,20 @@ export default function herd(pi: ExtensionAPI): void {
 			|| current.branch !== initial.branch
 			|| current.head !== initial.head
 		) throw new HerdError("The herd checkout or invoking pane changed during cleanup verification");
-		const pullRequest = await mergedPullRequest(current);
-		if (
-			pullRequest.repo !== initialPullRequest.repo
-			|| pullRequest.number !== initialPullRequest.number
-			|| pullRequest.url !== initialPullRequest.url
-		) throw new HerdError("The merged GitHub pull request changed during cleanup verification");
-		ctx.ui.notify(`Merged GitHub pull request ${pullRequest.repo}#${pullRequest.number} confirmed. Removing ${current.branch} through Worktrunk, then closing this tab.`, "info");
-		const removed = await run("wt", ["remove", "--foreground", "--format=json", current.checkoutPath], current.checkoutPath, true, WT_TIMEOUT);
+	};
+	const localBranchState = async (target: DoneTarget): Promise<"present" | "absent" | "unknown"> => {
+		try {
+			const result = await run("git", ["show-ref", "--verify", "--quiet", `refs/heads/${target.branch}`], target.sourceRoot, true);
+			if (result.killed || (result.exitCode !== 0 && result.exitCode !== 1)) return "unknown";
+			return result.exitCode === 0 ? "present" : "absent";
+		} catch {
+			return "unknown";
+		}
+	};
+	const removeHerdCheckout = async (target: DoneTarget, mode: DoneMode): Promise<void> => {
+		const option = mode === "delete" ? "--force-delete" : "--no-delete-branch";
+		const argv = ["remove", "--foreground", "--format=json", option, target.checkoutPath];
+		const removed = await run("wt", argv, target.checkoutPath, true, WT_TIMEOUT);
 		if (removed.exitCode !== 0 || removed.killed) {
 			const detail = removed.killed ? "execution timed out" : (removed.stderr || removed.stdout).trim() || `exit ${removed.exitCode}`;
 			throw new HerdError(`wt failed: ${detail}`, removed);
@@ -697,15 +732,74 @@ export default function herd(pi: ExtensionAPI): void {
 		} catch {
 			throw new HerdError("Worktrunk reported success, but returned a malformed cleanup result; the checkout may already be removed", removed);
 		}
-		if (removal.kind !== "worktree" || removal.path !== current.checkoutPath || removal.branch !== current.branch) {
+		if (removal.kind !== "worktree" || removal.path !== target.checkoutPath || removal.branch !== target.branch) {
 			throw new HerdError("Worktrunk reported success for an unexpected cleanup target; the checkout may already be removed", removed);
 		}
-		const branchState = await run("git", ["show-ref", "--verify", "--quiet", `refs/heads/${current.branch}`], current.sourceRoot, true);
-		if (branchState.killed || (branchState.exitCode !== 0 && branchState.exitCode !== 1)) {
-			ctx.ui.notify(`Worktree removal succeeded, but local branch ${current.branch} state could not be confirmed.`, "warning");
-		} else if (branchState.exitCode === 0) {
-			ctx.ui.notify(`Worktree removal succeeded; Worktrunk retained local branch ${current.branch} under its merge-safety policy.`, "warning");
+	};
+	const remoteDeletionPlan = async (target: DoneTarget): Promise<RemotePlanOutcome> => {
+		const configValues = async (key: string): Promise<string[] | undefined> => {
+			try {
+				const result = await run("git", ["config", "--no-includes", "--local", "--get-all", key], target.sourceRoot, true);
+				if (result.killed || (result.exitCode !== 0 && result.exitCode !== 1)) return undefined;
+				if (result.exitCode === 1) return [];
+				const values = result.stdout.split(/\r?\n/);
+				if (values.at(-1) === "") values.pop();
+				return values;
+			} catch {
+				return undefined;
+			}
+		};
+		const remoteValues = await configValues(`branch.${target.branch}.remote`);
+		if (!remoteValues || remoteValues.length !== 1 || !remoteValues[0] || remoteValues[0] === ".") {
+			return { reason: "branch remote configuration was missing, invalid, or ambiguous" };
 		}
+		const mergeValues = await configValues(`branch.${target.branch}.merge`);
+		if (!mergeValues || mergeValues.length !== 1 || !mergeValues[0]?.startsWith("refs/heads/") || mergeValues[0] === "refs/heads/") {
+			return { reason: "branch merge configuration was missing, invalid, ambiguous, or not a heads ref" };
+		}
+		const mergeRef = mergeValues[0];
+		try {
+			const checkedRef = await run("git", ["check-ref-format", mergeRef], target.sourceRoot, true);
+			if (checkedRef.killed || checkedRef.exitCode !== 0) {
+				return { reason: "the configured upstream branch ref was malformed" };
+			}
+		} catch {
+			return { reason: "the configured upstream branch ref could not be validated" };
+		}
+		if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(target.head)) {
+			return { reason: "the managed checkout HEAD was not a full object ID" };
+		}
+		const fetchEndpoints = await configValues(`remote.${remoteValues[0]}.url`);
+		if (!fetchEndpoints || fetchEndpoints.length !== 1 || !fetchEndpoints[0]) {
+			return { reason: "the configured remote did not have exactly one raw fetch endpoint" };
+		}
+		const configuredPushEndpoints = await configValues(`remote.${remoteValues[0]}.pushurl`);
+		if (configuredPushEndpoints === undefined || configuredPushEndpoints.length > 1 || configuredPushEndpoints.some(endpoint => !endpoint)) {
+			return { reason: "the configured remote push endpoint was invalid or ambiguous" };
+		}
+		const pushEndpoints = configuredPushEndpoints.length === 0 ? fetchEndpoints : configuredPushEndpoints;
+		const fetchRepository = gitHubRepositoryFromEndpoint(fetchEndpoints[0]);
+		const pushRepository = gitHubRepositoryFromEndpoint(pushEndpoints[0]);
+		if (!fetchRepository || !pushRepository) {
+			return { reason: "the configured remote endpoints were not credential-free GitHub SSH or HTTPS endpoints" };
+		}
+		try {
+			const fetchResult = await run("gh", ["repo", "view", fetchRepository, "--json", "id,nameWithOwner,url"], target.sourceRoot, true);
+			const pushResult = await run("gh", ["repo", "view", pushRepository, "--json", "id,nameWithOwner,url"], target.sourceRoot, true);
+			if (fetchResult.killed || fetchResult.exitCode !== 0 || pushResult.killed || pushResult.exitCode !== 0) {
+				return { reason: "the configured fetch and push repository identities could not be proven" };
+			}
+			const source = repositoryProof(json(fetchResult.stdout));
+			const destination = repositoryProof(json(pushResult.stdout));
+			if (source.id !== destination.id || source.repo.toLowerCase() !== destination.repo.toLowerCase()) {
+				return { reason: "the configured push repository did not match the branch remote's fetch repository" };
+			}
+			return { plan: { endpoint: `${source.url}.git`, ref: mergeRef, head: target.head } };
+		} catch {
+			return { reason: "the configured fetch and push repository identities could not be proven" };
+		}
+	};
+	const closeHerdTab = async (ctx: CommandContext, current: DoneTarget, success: string): Promise<void> => {
 		let closingCaller: Caller;
 		try {
 			closingCaller = await freshCaller(ctx, current.sourceRoot);
@@ -723,12 +817,109 @@ export default function herd(pi: ExtensionAPI): void {
 			ctx.ui.notify(`Worktrunk cleanup succeeded, but the OMP pane identity changed before tab closure. Tab ${current.caller.tabId} was left open.`, "error");
 			return;
 		}
-		ctx.ui.notify(`Worktrunk accepted cleanup for merged pull request #${pullRequest.number}; closing herd tab ${closingCaller.tabId}.`, "success");
-		const closed = await run("herdr", ["tab", "close", closingCaller.tabId], current.sourceRoot, true);
-		if (closed.exitCode !== 0 || closed.killed) {
-			const detail = closed.killed ? "execution timed out" : (closed.stderr || closed.stdout).trim() || `exit ${closed.exitCode}`;
+		ctx.ui.notify(success, "success");
+		try {
+			const closed = await run("herdr", ["tab", "close", closingCaller.tabId], current.sourceRoot, true);
+			if (closed.exitCode !== 0 || closed.killed) {
+				const detail = closed.killed ? "execution timed out" : (closed.stderr || closed.stdout).trim() || `exit ${closed.exitCode}`;
+				ctx.ui.notify(`Worktrunk cleanup succeeded, but Herdr could not close tab ${current.caller.tabId}: ${detail}. Close the tab manually.`, "error");
+			}
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
 			ctx.ui.notify(`Worktrunk cleanup succeeded, but Herdr could not close tab ${current.caller.tabId}: ${detail}. Close the tab manually.`, "error");
 		}
+	};
+	const completeHerd = async (ctx: CommandContext, mode: DoneMode): Promise<void> => {
+		const initial = await doneTarget(ctx);
+		const initialPullRequest = mode === "plain" ? await mergedPullRequest(initial) : undefined;
+		const remotePlan = mode === "delete" ? await remoteDeletionPlan(initial) : undefined;
+		const current = await doneTarget(ctx);
+		sameDoneTarget(initial, current);
+		const pullRequest = mode === "plain" ? await mergedPullRequest(current) : undefined;
+		if (
+			pullRequest
+			&& initialPullRequest
+			&& (pullRequest.repo !== initialPullRequest.repo || pullRequest.number !== initialPullRequest.number || pullRequest.url !== initialPullRequest.url)
+		) throw new HerdError("The merged GitHub pull request changed during cleanup verification");
+		if (mode === "plain" && pullRequest) {
+			ctx.ui.notify(`Merged GitHub pull request ${pullRequest.repo}#${pullRequest.number} confirmed. Removing ${current.branch} through Worktrunk, then closing this tab.`, "info");
+		} else if (mode === "force") {
+			ctx.ui.notify(`Clean managed checkout confirmed. Abandoning ${current.branch} through Worktrunk while retaining local and remote branches, then closing this tab.`, "info");
+		} else {
+			ctx.ui.notify(`Clean managed checkout confirmed. Removing ${current.branch} through Worktrunk; upstream deletion will be attempted only after exact local cleanup is confirmed.`, "info");
+		}
+		await removeHerdCheckout(current, mode);
+		const branchState = await localBranchState(current);
+		if (mode === "plain") {
+			if (branchState === "unknown") {
+				ctx.ui.notify(`Worktree removal succeeded, but local branch ${current.branch} state could not be confirmed.`, "warning");
+			} else if (branchState === "present") {
+				ctx.ui.notify(`Worktree removal succeeded; Worktrunk retained local branch ${current.branch} under its merge-safety policy.`, "warning");
+			}
+			await closeHerdTab(ctx, current, `Worktrunk accepted cleanup for merged pull request #${pullRequest?.number}; closing herd tab ${current.caller.tabId}.`);
+			return;
+		}
+		if (mode === "force") {
+			if (branchState === "present") {
+				ctx.ui.notify(`Worktree removal succeeded; local branch ${current.branch} was retained as requested.`, "info");
+			} else {
+				ctx.ui.notify(`Worktree removal succeeded, but local branch ${current.branch} was ${branchState === "absent" ? "not retained" : "not confirmable"}.`, "warning");
+			}
+			await closeHerdTab(ctx, current, `Worktrunk accepted forced abandonment; no remote branch was modified. Closing herd tab ${current.caller.tabId}.`);
+			return;
+		}
+		if (branchState === "present") {
+			ctx.ui.notify(`Worktree removal succeeded, but local branch ${current.branch} remains; upstream deletion was skipped.`, "warning");
+		} else if (branchState === "unknown") {
+			ctx.ui.notify(`Worktree removal succeeded, but local branch ${current.branch} absence could not be confirmed; upstream deletion was skipped.`, "warning");
+		} else if (remotePlan === undefined) {
+			ctx.ui.notify("Worktree and local branch removal succeeded, but upstream deletion was skipped because its preflight was unavailable.", "warning");
+		} else if (!("plan" in remotePlan)) {
+			ctx.ui.notify(`Worktree and local branch removal succeeded, but upstream deletion was skipped because ${remotePlan.reason}.`, "warning");
+		} else {
+			const isolatedGitEnvironment = [
+				"-u", "GIT_CONFIG_PARAMETERS",
+				"-u", "GIT_CONFIG",
+				"-u", "GIT_DIR",
+				"-u", "GIT_WORK_TREE",
+				"-u", "GIT_COMMON_DIR",
+				"-u", "GIT_TEMPLATE_DIR",
+				"GIT_CONFIG_NOSYSTEM=1",
+				"GIT_CONFIG_GLOBAL=/dev/null",
+				"GIT_CONFIG_COUNT=1",
+				"GIT_CONFIG_KEY_0=credential.helper",
+				"GIT_CONFIG_VALUE_0=!gh auth git-credential",
+			];
+			let scratch: string | undefined;
+			try {
+				const scratchPath = await mkdtemp(path.join(tmpdir(), "herd-git-"));
+				scratch = scratchPath;
+				const initialized = await run("env", [...isolatedGitEnvironment, "git", "init", "--bare", "--quiet", scratchPath], current.sourceRoot, true);
+				if (initialized.killed || initialized.exitCode !== 0) {
+					ctx.ui.notify("Local cleanup succeeded, but the isolated upstream deletion environment could not be initialized.", "warning");
+				} else {
+					const pushed = await run("env", [
+						...isolatedGitEnvironment,
+						"git", "push", remotePlan.plan.endpoint,
+						`--force-with-lease=${remotePlan.plan.ref}:${remotePlan.plan.head}`,
+						`:${remotePlan.plan.ref}`,
+					], scratchPath, true);
+					if (pushed.killed) {
+						ctx.ui.notify("Local cleanup succeeded, but upstream deletion timed out; its outcome is unknown.", "warning");
+					} else if (pushed.exitCode !== 0) {
+						ctx.ui.notify("Local cleanup succeeded, but upstream deletion was not confirmed.", "warning");
+					} else {
+						ctx.ui.notify("Local cleanup succeeded and the exact upstream branch deletion was confirmed.", "success");
+					}
+				}
+			} catch {
+				ctx.ui.notify("Local cleanup succeeded, but upstream deletion was not confirmed.", "warning");
+			} finally {
+				if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => {});
+			}
+		}
+		const localOutcome = branchState === "absent" ? "local branch deletion" : "checkout removal";
+		await closeHerdTab(ctx, current, `Worktrunk accepted cleanup with ${localOutcome}; closing herd tab ${current.caller.tabId}.`);
 	};
 	const repoInfo = async (ctx: CommandContext, request: HerdRequest): Promise<RepoInfo> => {
 		const root = (await run("git", ["rev-parse", "--show-toplevel"], ctx.cwd)).stdout.trim();
@@ -805,15 +996,18 @@ export default function herd(pi: ExtensionAPI): void {
 			}
 			if (words(help)[0] === "done") {
 				try {
-					if (help !== "done") throw new HerdError(`Unexpected /herd done argument: ${words(help).slice(1).join(" ")}`);
+					const doneMode = parseDoneMode(raw);
 					if (process.env.HERDR_ENV !== "1") throw new HerdError("/herd requires HERDR_ENV=1");
-					await completeHerd(ctx);
+					await completeHerd(ctx, doneMode);
 				} catch (error) {
 					const failure = error instanceof Error ? error.message : String(error);
 					const result = error instanceof HerdError ? error.result : undefined;
 					const approval = /^wt failed:/i.test(failure) && result !== undefined && isHookApprovalRejection(result);
 					const hint = approval ? " Review and approve the reported Worktrunk hooks interactively with: wt config approvals add" : "";
-					ctx.ui.notify(`/herd done failed: ${failure}.${hint} Cleanup was not confirmed and no tab was intentionally closed. Inspect fresh state with wt list and herdr pane list.`, "error");
+					const cleanupStatus = result && result.exitCode === 0 && !result.killed && /^Worktrunk reported success/i.test(failure)
+						? " Worktrunk reported success but cleanup target validation failed, so its mutation state is unknown and no tab was intentionally closed."
+						: " Cleanup was not confirmed and no tab was intentionally closed.";
+					ctx.ui.notify(`/herd done failed: ${failure}.${hint}${cleanupStatus} Inspect fresh state with wt list and herdr pane list.`, "error");
 				}
 				return;
 			}

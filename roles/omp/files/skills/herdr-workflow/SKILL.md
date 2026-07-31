@@ -9,13 +9,13 @@ Load `skill://herdr` before doing anything else. Official skill plus current `he
 
 ## Scope
 
-Explicit visible, durable OMP handoff only. Herdr agents: terminal processes; durable scrollback; lifetime independent of initiating OMP turn. OMP `task` subagents: in-process harness delegation, not Herdr resources.
+Explicit visible, durable OMP handoff only. Herdr agents: independent terminal processes with durable scrollback. OMP `task` subagents: in-process delegation, not Herdr resources.
 
 The separately installed official OMP lifecycle integration reports OMP state and native session identity to Herdr. Never install, update, replace, or imitate it here: lifecycle reporting does not orchestrate terminals, and this workflow does not own lifecycle reporting.
 
 ## Universal guardrails
 
-1. Require `HERDR_ENV=1`, invoking OMP session file from `ctx.sessionManager.getSessionFile()`, and `herdr` on `PATH`, including during `/herd --dry-run`; otherwise explain caller is not in a resolvable Herdr pane and stop.
+1. Require `HERDR_ENV=1`, invoking OMP session file from `ctx.sessionManager.getSessionFile()`, and `herdr` on `PATH`, including during `/herd --dry-run`; otherwise report unresolved Herdr caller and stop.
 2. Never require inherited public ID/socket variables or print a present socket. Resolve caller by native session file plus fresh structured Herdr state, never UI focus; stop on no match or ambiguity.
 3. Before each action, freshly resolve workspace/tab/pane/terminal/agent IDs. IDs: opaque, ephemeral; never synthesize, persist, or reuse after topology change. Use official non-focus option for every create/open/split/move operation; never steal focus.
 4. Exact user text: data, never executable shell content. Never interpolate into shell commands, use `eval`, or call command-string APIs.
@@ -44,4 +44,4 @@ Generic Herdr outside `/herd`: never load [H] or [P].
 
 ## External effects
 
-Never automatically fetch, commit, push, create a pull request, force cleanup, stop the Herdr server, approve OMP or Worktrunk actions, deploy, send network messages, or perform another external effect. Perform a specific effect only when the user explicitly requests it and the applicable safety workflow permits it.
+Never automatically fetch, commit, push, create a pull request, force cleanup, stop the Herdr server, approve OMP/Worktrunk actions, deploy, send network messages, or cause other external effects. A specific effect requires explicit user request plus applicable safety-workflow permission.

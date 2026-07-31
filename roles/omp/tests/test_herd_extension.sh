@@ -6,7 +6,7 @@ extension_path="$repo_root/roles/omp/files/extensions/herd.ts"
 
 bun --check "$extension_path"
 bun - "$extension_path" <<'TS'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -264,14 +264,21 @@ async function withManagedHerdEnvironment(fn) {
 }
 
 function makeDoneHarness(overrides = {}) {
-  const head = overrides.head ?? "0123456789abcdef";
+  const head = overrides.head ?? "0123456789abcdef0123456789abcdef01234567";
   const branch = overrides.branch ?? "fix/widget";
   const repository = overrides.repository ?? {
+    id: "R_owner_repo",
     nameWithOwner: "owner/repo",
+    url: "https://github.com/owner/repo",
     isFork: false,
     parent: null,
   };
+  const sourceFetchUrl = overrides.sourceFetchUrl ?? "https://github.com/owner/repo.git";
+  const sourcePushUrl = overrides.sourcePushUrl ?? "https://github.com/owner/repo.git";
+  const branchRemote = overrides.branchRemote ?? "origin";
+  const branchMerge = overrides.branchMerge ?? `refs/heads/${branch}`;
   let pullRequestLookups = 0;
+  let repositoryIdentityLookups = 0;
   const harness = makeHarness({
     cwd: "/checkout",
     callerChangeAt: overrides.callerChangeAt,
@@ -293,12 +300,43 @@ function makeDoneHarness(overrides = {}) {
         const commonDir = options.cwd === "/checkout" ? (overrides.checkoutCommonDir ?? "/repo/.git") : (overrides.sourceCommonDir ?? "/repo/.git");
         return { code: 0, stdout: `${commonDir}\n`, stderr: "" };
       }
+      if (command === "git" && argv[0] === "config" && argv.includes("--get-all")) {
+        const key = argv.at(-1);
+        if (key === `branch.${branch}.remote`) {
+          const values = overrides.branchRemotes ?? (branchRemote === undefined ? [] : [branchRemote]);
+          return { code: values.length ? 0 : 1, stdout: values.map(value => `${value}\n`).join(""), stderr: "" };
+        }
+        if (key === `branch.${branch}.merge`) {
+          const values = overrides.branchMerges ?? (branchMerge === undefined ? [] : [branchMerge]);
+          return { code: values.length ? 0 : 1, stdout: values.map(value => `${value}\n`).join(""), stderr: "" };
+        }
+        if (key === `remote.${branchRemote}.url`) {
+          const values = overrides.fetchUrls ?? (sourceFetchUrl === undefined ? [] : [sourceFetchUrl]);
+          return { code: values.length ? 0 : 1, stdout: values.map(value => `${value}\n`).join(""), stderr: "" };
+        }
+        if (key === `remote.${branchRemote}.pushurl`) {
+          const values = overrides.pushUrls ?? (sourcePushUrl === undefined ? [] : [sourcePushUrl]);
+          return { code: values.length ? 0 : 1, stdout: values.map(value => `${value}\n`).join(""), stderr: "" };
+        }
+      }
+      if (command === "git" && argv[0] === "show-ref") {
+        if (overrides.branchStateResult) return overrides.branchStateResult;
+        const branchExists = overrides.localBranchExists ?? false;
+        return { code: branchExists ? 0 : 1, stdout: branchExists ? `${head} refs/heads/${branch}\n` : "", stderr: "" };
+      }
+      if (command === "env" && argv[argv.indexOf("git") + 1] === "init") return overrides.initResult ?? { code: 0, stdout: "", stderr: "" };
+      if (command === "env" && argv[argv.indexOf("git") + 1] === "push") return overrides.pushResult ?? { code: 0, stdout: "", stderr: "" };
       if (command === "wt" && argv.includes("list")) {
         const worktrees = overrides.worktrees ?? [{ branch, path: "/checkout", kind: "worktree", is_main: false }];
         return { code: 0, stdout: JSON.stringify(overrides.worktreeListOutput ?? worktrees), stderr: "" };
       }
       if (command === "gh" && argv[0] === "repo") {
-        return { code: 0, stdout: JSON.stringify(repository), stderr: "" };
+        if (argv[2] === "--json") return { code: 0, stdout: JSON.stringify(repository), stderr: "" };
+        repositoryIdentityLookups++;
+        const endpointRepository = repositoryIdentityLookups === 1
+          ? (overrides.fetchRepository ?? repository)
+          : (overrides.pushRepository ?? overrides.endpointRepository ?? repository);
+        return { code: 0, stdout: JSON.stringify(endpointRepository), stderr: "" };
       }
       if (command === "gh" && argv[0] === "pr") {
         pullRequestLookups++;
@@ -323,14 +361,19 @@ function makeDoneHarness(overrides = {}) {
         return { code: 0, stdout: JSON.stringify(pullRequests), stderr: "" };
       }
       if (command === "wt" && argv.includes("remove")) {
-        return overrides.removeResult ?? { code: 0, stdout: JSON.stringify([{ kind: "worktree", branch, path: "/checkout", branch_deleted: true }]), stderr: "" };
+        return overrides.removeResult ?? { code: 0, stdout: JSON.stringify([{
+          kind: "worktree",
+          branch,
+          path: "/checkout",
+          branch_deleted: !argv.includes("--no-delete-branch"),
+        }]), stderr: "" };
       }
       if (command === "herdr" && argv[0] === "tab" && argv[1] === "close") {
         return overrides.closeResult ?? { code: 0, stdout: envelope({ type: "tab_closed", tab_id: "caller-tab", workspace_id: "workspace-fresh" }), stderr: "" };
       }
     },
   });
-  return { ...harness, head, branch };
+  return { ...harness, head, branch, sourceFetchUrl, sourcePushUrl };
 }
 
 function isCleanupMutation(call) {
@@ -987,12 +1030,12 @@ await withManagedHerdEnvironment(async () => {
     mergedAt: "2026-07-13T00:00:00Z",
     url: "https://github.com/owner/repo/pull/42",
     headRefName: "fix/widget",
-    headRefOid: "0123456789abcdef",
+    headRefOid: "0123456789abcdef0123456789abcdef01234567",
     isCrossRepository: false,
     headRepositoryOwner: { login: "owner" },
   };
 
-  const harness = makeDoneHarness();
+  const harness = makeDoneHarness({ localBranchExists: true });
   await harness.handler("done", harness.ctx);
   const repoLookup = harness.calls.find(call => call.command === "gh" && call.argv[0] === "repo");
   equal(repoLookup.argv, ["repo", "view", "--json", "nameWithOwner,isFork,parent"], "cleanup did not request the complete repository topology");
@@ -1002,7 +1045,7 @@ await withManagedHerdEnvironment(async () => {
   equal(harness.calls.filter(call => call.command === "gh" && call.argv[0] === "pr").length, 2, "GitHub merge proof was not refreshed after local cleanup revalidation");
   const remove = harness.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
   ok(remove, `merged cleanup did not reach Worktrunk removal: ${JSON.stringify(harness.notices)}`);
-  equal(remove.argv, ["remove", "--foreground", "--format=json", "/checkout"], "merged checkout cleanup used the wrong Worktrunk command");
+  equal(remove.argv, ["remove", "--foreground", "--format=json", "--no-delete-branch", "/checkout"], "merged checkout cleanup did not preserve the local branch");
   equal(remove.options.cwd, "/checkout", "Worktrunk did not remove from the managed checkout context");
   equal(remove.options.timeout, 300_000, "Worktrunk cleanup did not receive its five-minute deadline");
   ok(!remove.argv.includes("--force") && !remove.argv.includes("--force-delete") && !remove.argv.includes("--yes") && !remove.argv.includes("--no-hooks"), "cleanup bypassed Worktrunk merge, dirty-tree, or hook safeguards");
@@ -1013,6 +1056,173 @@ await withManagedHerdEnvironment(async () => {
   equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, "caller identity was not refreshed before removal and tab closure");
   equal(harness.calls.filter(call => call.command === "git" && call.argv[0] === "status").length, 2, "checkout cleanliness was not rechecked before removal");
   ok(harness.notices.some(notice => notice.level === "success" && notice.message.includes("pull request #42")), "successful cleanup notice missing");
+  ok(harness.notices.some(notice => notice.message.includes("retained local branch fix/widget")), "merged cleanup did not report local branch retention");
+
+  const fullLocalChecks = (tested, label) => {
+    equal(tested.calls.filter(call => call.command === "git" && call.argv[0] === "status").length, 2, `${label} did not recheck checkout cleanliness immediately before removal`);
+    equal(tested.calls.filter(call => call.command === "git" && call.argv[0] === "symbolic-ref" && call.options.cwd === "/checkout").length, 2, `${label} did not recheck the managed branch immediately before removal`);
+    equal(tested.calls.filter(call => call.command === "git" && call.argv.join(" ") === "rev-parse --verify HEAD" && call.options.cwd === "/checkout").length, 2, `${label} did not recheck the managed HEAD immediately before removal`);
+    equal(tested.calls.filter(call => call.command === "wt" && call.argv.includes("list")).length, 2, `${label} did not recheck Worktrunk ownership immediately before removal`);
+  };
+  const closedTab = (tested, label) => {
+    const closed = tested.calls.find(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "close");
+    equal(closed?.argv, ["tab", "close", "caller-tab"], `${label} did not close only the verified managed tab`);
+    equal(tested.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, `${label} did not re-resolve caller identity immediately before tab closure`);
+  };
+  const pushed = tested => tested.calls.filter(call => call.command === "env" && call.argv[call.argv.indexOf("git") + 1] === "push");
+  const gitArgv = call => call.argv.slice(call.argv.indexOf("git") + 1);
+
+  for (const form of ["done --force", "done -f"]) {
+    const forced = makeDoneHarness({ localBranchExists: true });
+    await forced.handler(form, forced.ctx);
+    const forcedRemoval = forced.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
+    equal(forcedRemoval?.argv, ["remove", "--foreground", "--format=json", "--no-delete-branch", "/checkout"], `${form} did not preserve the local branch with the exact Worktrunk argv`);
+    ok(!forced.calls.some(call => call.command === "gh"), `${form} consulted GitHub despite explicit abandonment`);
+    equal(pushed(forced).length, 0, `${form} attempted remote branch deletion`);
+    equal(forced.calls.filter(call => call.command === "git" && call.argv[0] === "show-ref").length, 1, `${form} did not confirm local branch preservation after Worktrunk removal`);
+    fullLocalChecks(forced, form);
+    closedTab(forced, form);
+  }
+
+  const forceDirty = makeDoneHarness({ dirty: true });
+  await forceDirty.handler("done --force", forceDirty.ctx);
+  ok(!forceDirty.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "force cleanup removed a dirty checkout");
+  ok(!forceDirty.calls.some(call => call.command === "gh"), "force cleanup queried GitHub after dirty-check refusal");
+  equal(pushed(forceDirty).length, 0, "force cleanup pushed after dirty-check refusal");
+
+  for (const form of ["done --delete", "done -d"]) {
+    const deleted = makeDoneHarness();
+    await deleted.handler(form, deleted.ctx);
+    const deleteRemoval = deleted.calls.find(call => call.command === "wt" && call.argv.includes("remove"));
+    equal(deleteRemoval?.argv, ["remove", "--foreground", "--format=json", "--force-delete", "/checkout"], `${form} did not use exact explicit-abandonment Worktrunk argv`);
+    ok(!deleteRemoval.argv.includes("--force") && !deleteRemoval.argv.includes("--yes") && !deleteRemoval.argv.includes("--no-hooks") && !deleteRemoval.argv.includes("--reap"), `${form} bypassed dirty-tree, hook, or Worktrunk lifecycle safeguards`);
+    ok(!deleted.calls.some(call => call.command === "gh" && call.argv[0] === "pr"), `${form} consulted GitHub pull requests rather than honoring explicit abandonment`);
+    const repoProofs = deleted.calls.filter(call => call.command === "gh" && call.argv[0] === "repo");
+    equal(repoProofs.map(call => call.argv), [
+      ["repo", "view", "owner/repo", "--json", "id,nameWithOwner,url"],
+      ["repo", "view", "owner/repo", "--json", "id,nameWithOwner,url"],
+    ], `${form} did not prove the explicit fetch and push repository identities`);
+    fullLocalChecks(deleted, form);
+    const localStatuses = deleted.calls.map((call, index) => ({ call, index }))
+      .filter(({ call }) => call.command === "git" && call.argv[0] === "status");
+    const remotePlan = deleted.calls.map((call, index) => ({ call, index }))
+      .filter(({ call }) => call.command === "git" && call.argv[0] === "config");
+    equal(remotePlan.map(({ call }) => call.argv), [
+      ["config", "--no-includes", "--local", "--get-all", `branch.${deleted.branch}.remote`],
+      ["config", "--no-includes", "--local", "--get-all", `branch.${deleted.branch}.merge`],
+      ["config", "--no-includes", "--local", "--get-all", "remote.origin.url"],
+      ["config", "--no-includes", "--local", "--get-all", "remote.origin.pushurl"],
+    ], `${form} did not derive the remote plan from exact unexpanded local branch and remote configuration`);
+    ok(remotePlan.every(({ call }) => call.options.cwd === "/repo"), `${form} did not derive the remote plan from the freshly verified source checkout`);
+    ok(localStatuses[0].index < remotePlan[0].index && remotePlan.at(-1).index < localStatuses[1].index && localStatuses[1].index < deleted.calls.indexOf(deleteRemoval), `${form} did not freeze remote configuration between initial and final local validation before Worktrunk removal`);
+    equal(deleted.calls.filter(call => call.command === "git" && call.argv[0] === "remote").length, 0, `${form} expanded the raw remote URL through mutable Git rewrite configuration`);
+    const deletePushes = pushed(deleted);
+    equal(deletePushes.length, 1, `${form} did not attempt exactly one eligible remote deletion`);
+    equal(gitArgv(deletePushes[0]), [
+      "push",
+      "https://github.com/owner/repo.git",
+      `--force-with-lease=refs/heads/${deleted.branch}:${deleted.head}`,
+      `:refs/heads/${deleted.branch}`,
+    ], `${form} remote deletion did not use the canonical repository URL, exact ref, and full HEAD lease`);
+    for (const variable of ["GIT_CONFIG_PARAMETERS", "GIT_CONFIG", "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_TEMPLATE_DIR"]) {
+      ok(deletePushes[0].argv.includes(variable), `${form} remote deletion did not unset ${variable}`);
+    }
+    for (const setting of [
+      "GIT_CONFIG_NOSYSTEM=1",
+      "GIT_CONFIG_GLOBAL=/dev/null",
+      "GIT_CONFIG_COUNT=1",
+      "GIT_CONFIG_KEY_0=credential.helper",
+      "GIT_CONFIG_VALUE_0=!gh auth git-credential",
+    ]) ok(deletePushes[0].argv.includes(setting), `${form} remote deletion omitted isolated Git setting ${setting}`);
+    const branchAbsence = deleted.calls.find(call => call.command === "git" && call.argv[0] === "show-ref");
+    equal(branchAbsence?.argv, ["show-ref", "--verify", "--quiet", `refs/heads/${deleted.branch}`], `${form} did not verify exact local branch absence before remote deletion`);
+    ok(deleted.calls.indexOf(deleteRemoval) < deleted.calls.indexOf(branchAbsence) && deleted.calls.indexOf(branchAbsence) < deleted.calls.indexOf(deletePushes[0]), `${form} remote deletion was not sequenced after successful Worktrunk removal and confirmed local branch absence`);
+    ok(deletePushes[0].options.timeout > 0, `${form} remote deletion did not have a bounded execution deadline`);
+    const initialized = deleted.calls.find(call => call.command === "env" && call.argv[call.argv.indexOf("git") + 1] === "init");
+    equal(gitArgv(initialized), ["init", "--bare", "--quiet", deletePushes[0].options.cwd], `${form} did not initialize an isolated bare repository`);
+    equal(initialized.argv.slice(0, initialized.argv.indexOf("git")), deletePushes[0].argv.slice(0, deletePushes[0].argv.indexOf("git")), `${form} did not sanitize Git initialization and deletion identically`);
+    equal(initialized.options.cwd, "/repo", `${form} did not create the isolated repository from the retained source checkout`);
+    ok(deletePushes[0].options.cwd.includes("herd-git-") && deletePushes[0].options.cwd !== "/repo", `${form} remote deletion reused the mutable source repository config`);
+    ok(!existsSync(deletePushes[0].options.cwd), `${form} did not remove its isolated repository`);
+    closedTab(deleted, form);
+    ok(!deleted.notices.some(notice => notice.message.includes(deleted.sourcePushUrl)), `${form} remote deletion exposed the frozen endpoint`);
+  }
+
+  const trackedTarget = makeDoneHarness({ branchMerge: "refs/heads/review/widget" });
+  await trackedTarget.handler("done --delete", trackedTarget.ctx);
+  equal(gitArgv(pushed(trackedTarget)[0]), [
+    "push",
+    "https://github.com/owner/repo.git",
+    `--force-with-lease=refs/heads/review/widget:${trackedTarget.head}`,
+    ":refs/heads/review/widget",
+  ], "delete did not use the configured upstream branch as its exact lease and deletion target");
+
+  const sshEndpoint = makeDoneHarness({
+    sourceFetchUrl: "git@github.com:owner/repo.git",
+    sourcePushUrl: "ssh://git@github.com:22/owner/repo.git",
+  });
+  await sshEndpoint.handler("done --delete", sshEndpoint.ctx);
+  equal(gitArgv(pushed(sshEndpoint)[0])?.[1], "https://github.com/owner/repo.git", "credential-free SSH endpoints were not canonicalized to the proven HTTPS repository");
+
+  const implicitPushEndpoint = makeDoneHarness({ pushUrls: [] });
+  await implicitPushEndpoint.handler("done --delete", implicitPushEndpoint.ctx);
+  equal(gitArgv(pushed(implicitPushEndpoint)[0])?.[1], "https://github.com/owner/repo.git", "missing raw pushurl did not fall back to the raw fetch URL");
+
+  const canonicalRepository = { id: "R_owner_repo", nameWithOwner: "owner/repo", url: "https://github.com/owner/repo" };
+  const ambientDefault = makeDoneHarness({
+    repository: { nameWithOwner: "upstream/repo", isFork: false, parent: null },
+    fetchRepository: canonicalRepository,
+    pushRepository: canonicalRepository,
+  });
+  await ambientDefault.handler("done --delete", ambientDefault.ctx);
+  equal(pushed(ambientDefault).length, 1, "ambient GitHub CLI repository selection overrode the explicit branch remote");
+  ok(ambientDefault.calls.filter(call => call.command === "gh" && call.argv[0] === "repo").every(call => call.argv[2] === "owner/repo"), "remote identity proof used an ambient GitHub CLI repository selector");
+
+  const deleteDirty = makeDoneHarness({ dirty: true });
+  await deleteDirty.handler("done --delete", deleteDirty.ctx);
+  ok(!deleteDirty.calls.some(call => call.command === "wt" && call.argv.includes("remove")), "explicit deletion removed a dirty checkout");
+  equal(pushed(deleteDirty).length, 0, "explicit deletion pushed after dirty-check refusal");
+
+  for (const [label, overrides] of [
+    ["Worktrunk refusal", { removeResult: { code: 1, stdout: "", stderr: "refused" } }],
+    ["malformed Worktrunk result", { removeResult: { code: 0, stdout: "{}", stderr: "" } }],
+    ["retained local branch", { localBranchExists: true }],
+    ["missing branch remote", { branchRemotes: [] }],
+    ["ambiguous branch remote", { branchRemotes: ["origin", "mirror"] }],
+    ["uncheckable local branch", { branchStateResult: { code: 2, stdout: "", stderr: "ref unavailable" } }],
+    ["invalid merge ref", { branchMerges: ["refs/tags/widget"] }],
+    ["ambiguous merge ref", { branchMerges: ["refs/heads/widget", "refs/heads/other"] }],
+    ["dot branch remote", { branchRemote: "." }],
+    ["missing fetch endpoint", { fetchUrls: [] }],
+    ["ambiguous fetch endpoint", { fetchUrls: ["https://github.com/owner/repo.git", "git@github.com:owner/repo.git"] }],
+    ["empty push endpoint", { pushUrls: [""] }],
+    ["ambiguous push endpoint", { pushUrls: ["https://github.com/owner/repo.git", "git@github.com:owner/repo.git"] }],
+    ["non-GitHub fetch endpoint", { sourceFetchUrl: "https://example.invalid/owner/repo.git" }],
+    ["non-GitHub push endpoint", { sourcePushUrl: "https://example.invalid/owner/repo.git" }],
+    ["wrong remote repository", { pushRepository: { id: "R_other_repo", nameWithOwner: "other/repo", url: "https://github.com/other/repo" } }],
+    ["changed repository identity", { pushRepository: { id: "R_replaced_repo", nameWithOwner: "owner/repo", url: "https://github.com/owner/repo" } }],
+    ["inconsistent canonical URL", { pushRepository: { id: "R_owner_repo", nameWithOwner: "owner/repo", url: "https://github.com/other/repo" } }],
+    ["credential-bearing fetch endpoint", { sourceFetchUrl: "https://token@github.com/owner/repo.git" }],
+    ["credential-bearing push endpoint", { sourcePushUrl: "https://token@github.com/owner/repo.git" }],
+  ]) {
+    const skipped = makeDoneHarness(overrides);
+    await skipped.handler("done --delete", skipped.ctx);
+    equal(pushed(skipped).length, 0, `${label} still attempted a remote deletion`);
+    ok(!skipped.notices.some(notice => notice.message.includes(skipped.sourcePushUrl)), `${label} remote-plan refusal exposed an endpoint`);
+    if (label !== "Worktrunk refusal" && label !== "malformed Worktrunk result") closedTab(skipped, label);
+  }
+
+  for (const [label, pushResult, expectedNotice] of [
+    ["advanced lease", { code: 1, stdout: "", stderr: "stale lease" }, "not confirmed"],
+    ["killed", { code: 0, killed: true, stdout: "", stderr: "timed out" }, "unknown"],
+  ]) {
+    const uncertain = makeDoneHarness({ pushResult });
+    await uncertain.handler("done --delete", uncertain.ctx);
+    equal(pushed(uncertain).length, 1, `${label} remote deletion was retried after an ambiguous or rejected lease outcome`);
+    closedTab(uncertain, `${label} remote deletion`);
+    ok(uncertain.notices.some(notice => notice.level === "warning" && notice.message.includes(expectedNotice)), `${label} remote deletion did not report the truthful outcome`);
+    ok(!uncertain.notices.some(notice => notice.message.includes(uncertain.sourcePushUrl)), `${label} remote deletion exposed the remote endpoint`);
+  }
 
   const forkBranch = "feat/task-multi-agent-support";
   const forkHead = "fedcba9876543210";
@@ -1122,7 +1332,7 @@ await withManagedHerdEnvironment(async () => {
   const exactForkPullRequest = {
     ...upstreamPullRequest,
     headRefName: "fix/widget",
-    headRefOid: "0123456789abcdef",
+    headRefOid: "0123456789abcdef0123456789abcdef01234567",
   };
   const parentLookupFailure = await refusedDone({
     repository: forkRepository,
@@ -1285,10 +1495,27 @@ await withManagedHerdEnvironment(async () => {
   await closeFailed.handler("done", closeFailed.ctx);
   ok(closeFailed.notices.at(-1).message.includes("Close the tab manually"), "tab-close failure did not provide manual recovery");
 
-  const unexpected = makeDoneHarness();
-  await unexpected.handler("done --force", unexpected.ctx);
-  ok(unexpected.calls.length === 0, "unexpected /herd done arguments performed subprocess calls");
-  ok(unexpected.notices.at(-1).message.includes("Unexpected /herd done argument"), "unexpected /herd done argument was not rejected clearly");
+  for (const invalid of [
+    "done force",
+    "done --unknown",
+    "done --",
+    "done --force --delete",
+    "done --force -d",
+    "done -f --delete",
+    "done -f -d",
+    "done --force -f",
+    "done --delete -d",
+    "done -fd",
+    "done --force=now",
+    "done --delete=now",
+    "done -f=now",
+    "done -dnow",
+  ]) {
+    const unexpected = makeDoneHarness();
+    await unexpected.handler(invalid, unexpected.ctx);
+    ok(unexpected.calls.length === 0, `${invalid} performed a subprocess call before /herd done grammar rejection`);
+    ok(unexpected.notices.at(-1).message.includes("Unexpected /herd done argument"), `${invalid} was not rejected clearly`);
+  }
 });
 
 

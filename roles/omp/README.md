@@ -70,7 +70,7 @@ The global `/herd` extension creates a Worktrunk-owned isolated checkout and ope
 /herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
 /herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>
 /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
-/herd done
+/herd done [--force|-f|--delete|-d]
 ```
 
 Blank `/herd` aliases `context`; `/herd <exact task>` is the preferred shorthand. Use the explicit modes for options and mode-specific inputs. Options are parsed only before `--`; text after it remains one exact, opaque instruction string. `/herd --help`, `/herd -h`, and `/herd help` show the local grammar and defaults.
@@ -86,13 +86,15 @@ The upstream lookup is exactly `gh issue view <number> --repo <issue-owner>/<iss
 /herd issue owner/repo#123 --branch=issue-123 -- Preserve the issue's compatibility constraints
 /herd context --dry-run -- Focus on the database migration risk
 /herd done
+/herd done --force
+/herd done --delete
 ```
 
 The source checkout must be on a named local branch. Worktrunk hooks remain enabled, approval requirements stop for user review, and `--dry-run` resolves inputs without creating anything. Dirty or untracked source changes are reported but are not stashed, copied, or inherited by the isolated checkout.
 
 After installing or updating this native OMP extension, restart the OMP process. `/new` resets only the conversation, and `/reload-plugins` does not rediscover native extension modules. If `/herd --help` reaches the model as an ordinary user message, `/herd` is not registered in that process.
 
-Run `/herd done` only from the OMP agent started by `/herd`, after its exact local `HEAD` has been merged through a matching GitHub pull request. Cleanup fails closed on stale ownership, identity, checkout, branch, cleanliness, or merged-PR evidence. It uses normal Worktrunk hooks and merge-safety checks and never force-removes a dirty worktree, force-deletes a branch, auto-approves a hook, or bypasses Worktrunk.
+Run plain `/herd done` only from its managed OMP agent after the exact clean local `HEAD` has merged through one matching GitHub pull request; Worktrunk removes the checkout but preserves its local branch. `/herd done --force` (`-f`) skips only that PR proof, likewise retaining the local branch and never modifying a remote branch. `/herd done --delete` (`-d`) instead asks Worktrunk to delete the unmerged local branch; after confirmed local deletion, it makes one best-effort deletion of only the branch's exact configured upstream. The raw local fetch URL and optional raw local push URL are read without includes or Git URL rewrites; an absent push URL falls back to the fetch URL. Both endpoints must be credential-free GitHub endpoints and match by canonical immutable repository identity. Deletion uses canonical HTTPS from an isolated bare repository with system, global, ambient, template, and source-local Git configuration excluded, guarded by an explicit full-`HEAD` force-with-lease. Missing or ambiguous tracking, identity mismatch, branch retention, a lease rejection, or an uncertain network outcome never broadens or retries the deletion.
 
 Agent workflow policy starts at [`files/skills/herdr-workflow/SKILL.md`](files/skills/herdr-workflow/SKILL.md) and routes specialized detail to [`references/general-handoff.md`](files/skills/herdr-workflow/references/general-handoff.md), [`references/herd-extension.md`](files/skills/herdr-workflow/references/herd-extension.md), [`references/prompt-construction.md`](files/skills/herdr-workflow/references/prompt-construction.md), and [`references/ownership-and-cleanup.md`](files/skills/herdr-workflow/references/ownership-and-cleanup.md). The exact `/herd` runtime contract lives in [`files/extensions/herd.ts`](files/extensions/herd.ts) and [`tests/test_herd_extension.sh`](tests/test_herd_extension.sh); [`tests/test_herdr_workflow.py`](tests/test_herdr_workflow.py) checks the repo-owned workflow policy.
 

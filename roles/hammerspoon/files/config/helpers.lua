@@ -64,6 +64,47 @@ function isAppClosed(appName)
   return not isAppOpen(appName)
 end
 
+function focusNextWindowOfFrontmostApp()
+  local app = hs.application.frontmostApplication()
+  local focusedWindow = app and app:focusedWindow()
+  if not focusedWindow then
+    return false
+  end
+
+  local focusedWindowId = focusedWindow:id()
+  if not focusedWindowId then
+    return false
+  end
+
+  local firstWindow
+  local firstWindowId
+  local nextWindow
+  local nextWindowId
+
+  for _, window in ipairs(app:allWindows()) do
+    local windowId = window:id()
+    if windowId and window:isStandard() and not window:isMinimized() then
+      if not firstWindowId or windowId < firstWindowId then
+        firstWindow = window
+        firstWindowId = windowId
+      end
+
+      if windowId > focusedWindowId and (not nextWindowId or windowId < nextWindowId) then
+        nextWindow = window
+        nextWindowId = windowId
+      end
+    end
+  end
+
+  local targetWindow = nextWindow or firstWindow
+  if not targetWindow or targetWindow:id() == focusedWindowId then
+    return false
+  end
+
+  targetWindow:focus()
+  return true
+end
+
 -- function appIs(appName)
 --     return hs.application.frontmostApplication():name() == appName
 -- end

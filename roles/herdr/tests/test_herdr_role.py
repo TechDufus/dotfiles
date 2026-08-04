@@ -66,6 +66,8 @@ class HerdrRoleTests(unittest.TestCase):
         ui = self.config["ui"]
         self.assertIs(ui["show_agent_labels_on_pane_borders"], True)
         self.assertIs(ui["pane_gaps"], False)
+        self.assertIs(ui["pane_scrollbars"], False)
+        self.assertEqual(ui["tab_bar_position"], "bottom")
         self.assertIs(ui["hide_tab_bar_when_single_tab"], True)
         self.assertIs(ui["prompt_new_workspace_name"], True)
         self.assertEqual(ui["sidebar_collapsed_mode"], "hidden")
@@ -78,8 +80,11 @@ class HerdrRoleTests(unittest.TestCase):
             {
                 "row_gap": 0,
                 "rows": [
-                    ["workspace"],
                     ["state_icon", {"token": "agent", "bold": True}, "$model"],
+                    [
+                        {"token": "workspace", "dim": True},
+                        {"token": "tab", "dim": True},
+                    ],
                     [{"token": "terminal_title_stripped", "dim": True}],
                 ],
             },

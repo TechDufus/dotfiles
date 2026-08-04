@@ -39,8 +39,8 @@ sidebar_collapsed_mode = "hidden"
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", { token = "agent", bold = true }, "$model"],
-  [{ token = "workspace", dim = true }, { token = "tab", dim = true }],
+  ["state_icon", { token = "workspace", bold = true }, { token = "agent", dim = true }, "state_text"],
+  [{ token = "tab", bold = true }],
   [{ token = "terminal_title_stripped", dim = true }],
 ]
 

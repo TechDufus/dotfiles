@@ -80,11 +80,13 @@ class HerdrRoleTests(unittest.TestCase):
             {
                 "row_gap": 0,
                 "rows": [
-                    ["state_icon", {"token": "agent", "bold": True}, "$model"],
                     [
-                        {"token": "workspace", "dim": True},
-                        {"token": "tab", "dim": True},
+                        "state_icon",
+                        {"token": "workspace", "bold": True},
+                        {"token": "agent", "dim": True},
+                        "state_text",
                     ],
+                    [{"token": "tab", "bold": True}],
                     [{"token": "terminal_title_stripped", "dim": True}],
                 ],
             },

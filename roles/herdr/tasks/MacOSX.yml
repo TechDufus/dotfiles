@@ -1,5 +1,55 @@
 ---
-- name: "Herdr | MacOSX | Install Herdr via Homebrew"
-  community.general.homebrew:
-    name: herdr
-    state: present
+- name: "Herdr | MacOSX | Ensure user-local binary directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: "Herdr | MacOSX | Detect user-local Herdr binary"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin/herdr"
+  register: herdr_binary
+
+- name: "Herdr | MacOSX | Determine release architecture"
+  ansible.builtin.set_fact:
+    herdr_macos_arch: "{{ ansible_facts['architecture'] | replace('arm64', 'aarch64') }}"
+  when:
+    - not herdr_binary.stat.exists
+    - not ansible_check_mode
+
+- name: "Herdr | MacOSX | Fetch latest stable release manifest"
+  ansible.builtin.uri:
+    url: "https://herdr.dev/latest.json"
+    return_content: true
+    status_code: 200
+  register: herdr_release
+  when:
+    - not herdr_binary.stat.exists
+    - not ansible_check_mode
+
+- name: "Herdr | MacOSX | Validate macOS release asset"
+  ansible.builtin.assert:
+    that:
+      - herdr_release.json.assets['macos-' ~ herdr_macos_arch] is defined
+      - herdr_release.json.assets['macos-' ~ herdr_macos_arch] | length > 0
+    fail_msg: "No macOS Herdr release asset exists for architecture {{ herdr_macos_arch }}."
+  when:
+    - not herdr_binary.stat.exists
+    - not ansible_check_mode
+
+- name: "Herdr | MacOSX | Download latest stable Herdr binary"
+  ansible.builtin.get_url:
+    url: "{{ herdr_release.json.assets['macos-' ~ herdr_macos_arch] }}"
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/herdr"
+    mode: "0755"
+  when:
+    - not herdr_binary.stat.exists
+    - not ansible_check_mode
+
+- name: "Herdr | MacOSX | Verify user-local Herdr binary"
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_facts['user_dir'] }}/.local/bin/herdr"
+      - --version
+  changed_when: false
+  when: not ansible_check_mode

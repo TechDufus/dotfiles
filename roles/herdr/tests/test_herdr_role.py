@@ -118,13 +118,56 @@ class HerdrRoleTests(unittest.TestCase):
         self.assertIn('    src: "config.toml"', copy)
         self.assertIn('    mode: "0644"', copy)
 
-    def test_macos_installs_stable_homebrew_formula(self) -> None:
+    def test_macos_bootstraps_local_binary_without_homebrew(self) -> None:
         tasks = load_task_blocks(TASKS_ROOT / "MacOSX.yml")
-        install = self._task_with_action(tasks, "community.general.homebrew")
+        macos_text = (TASKS_ROOT / "MacOSX.yml").read_text(encoding="utf-8")
+        directory = self._task_with_action(tasks, "ansible.builtin.file")
+        binary = self._task_with_action(tasks, "ansible.builtin.stat")
+        architecture = self._task_with_action(tasks, "ansible.builtin.set_fact")
+        manifest = self._task_with_action(tasks, "ansible.builtin.uri")
+        asset = self._task_with_action(tasks, "ansible.builtin.assert")
+        download = self._task_with_action(tasks, "ansible.builtin.get_url")
+        verify = self._task_with_action(tasks, "ansible.builtin.command")
 
-        self.assertIn("  community.general.homebrew:", install)
-        self.assertIn("    name: herdr", install)
-        self.assertIn("    state: present", install)
+        install_dir = "{{ ansible_facts['user_dir'] }}/.local/bin"
+        binary_path = f"{install_dir}/herdr"
+        self.assertIn(f'    path: "{install_dir}"', directory)
+        self.assertIn("    state: directory", directory)
+        self.assertIn(f'    path: "{binary_path}"', binary)
+        self.assertIn("  ansible.builtin.set_fact:", architecture)
+        self.assertIn(
+            "herdr_macos_arch: "
+            '"{{ ansible_facts[\'architecture\'] | replace(\'arm64\', \'aarch64\') }}"',
+            architecture,
+        )
+        self.assertIn('    url: "https://herdr.dev/latest.json"', manifest)
+        self.assertIn("herdr_release.json.assets['macos-' ~ herdr_macos_arch]", asset)
+        self.assertIn(
+            "url: \"{{ herdr_release.json.assets['macos-' ~ herdr_macos_arch] }}\"",
+            download,
+        )
+        self.assertIn(f'    dest: "{binary_path}"', download)
+        self.assertIn('    mode: "0755"', download)
+        self.assertIn(f'      - "{binary_path}"', verify)
+        self.assertIn("      - --version", verify)
+        self.assertIn("  changed_when: false", verify)
+        self.assertNotIn("homebrew", macos_text.lower())
+
+    def test_macos_bootstrap_is_guarded_by_missing_binary_and_check_mode(self) -> None:
+        tasks = load_task_blocks(TASKS_ROOT / "MacOSX.yml")
+        binary = self._task_with_action(tasks, "ansible.builtin.stat")
+        binary_register = re.search(r"(?m)^  register: (\S+)", binary)
+        self.assertIsNotNone(binary_register)
+        missing_binary = f"not {binary_register.group(1)}.stat.exists"
+        bootstrap_tasks = (
+            self._task_with_action(tasks, "ansible.builtin.set_fact"),
+            self._task_with_action(tasks, "ansible.builtin.uri"),
+            self._task_with_action(tasks, "ansible.builtin.assert"),
+            self._task_with_action(tasks, "ansible.builtin.get_url"),
+        )
+        for task in bootstrap_tasks:
+            self.assertIn(f"    - {missing_binary}", task)
+            self.assertIn("    - not ansible_check_mode", task)
 
     def test_supported_linux_distributions_use_shared_release_installer(self) -> None:
         for distribution in ("Archlinux", "Fedora", "Ubuntu", "Debian"):

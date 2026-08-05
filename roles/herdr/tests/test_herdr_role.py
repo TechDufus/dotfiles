@@ -103,6 +103,19 @@ class HerdrRoleTests(unittest.TestCase):
         self.assertEqual(keys["previous_agent"], ["prefix+alt+p", "ctrl+alt+k"])
         self.assertEqual(keys["next_agent"], ["prefix+alt+n", "ctrl+alt+j"])
         self.assertEqual(keys["focus_agent"], "prefix+alt+1..9")
+        self.assertEqual(
+            keys["command"],
+            [
+                {
+                    "key": "alt+backtick",
+                    "type": "popup",
+                    "command": "gh dash",
+                    "description": "open repository GitHub dashboard",
+                    "width": "90%",
+                    "height": "90%",
+                }
+            ],
+        )
 
     def test_main_dispatches_distribution_before_deploying_managed_config(self) -> None:
         dispatch = self._task_with_action(

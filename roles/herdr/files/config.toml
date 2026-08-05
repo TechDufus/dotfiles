@@ -23,6 +23,14 @@ focus_agent = "prefix+alt+1..9"
 
 detach = ["prefix+q", "prefix+d"]
 
+[[keys.command]]
+key = "alt+backtick"
+type = "popup"
+command = "gh dash"
+description = "open repository GitHub dashboard"
+width = "90%"
+height = "90%"
+
 [ui]
 show_agent_labels_on_pane_borders = true
 pane_gaps = false

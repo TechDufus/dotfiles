@@ -73,15 +73,16 @@ async function withAgentPathEnvironment(values, fn) {
   }
 }
 
-equal(parseHerdArgs(""), { mode: "context", dryRun: false, instructions: "" }, "blank must alias context");
-equal(parseHerdArgs("context --base=main --dry-run -- keep\n  spacing"), { mode: "context", base: "main", dryRun: true, instructions: "keep\n  spacing" }, "context parse or opaque suffix changed");
-equal(parseHerdArgs("task --branch=herd/x -- do this\nexactly"), { mode: "task", branch: "herd/x", dryRun: false, instructions: "do this\nexactly" }, "task parse changed");
-equal(parseHerdArgs("issue owner/repo#123 --base=main -- extra"), { mode: "issue", issue: "owner/repo#123", base: "main", dryRun: false, instructions: "extra" }, "issue parse changed");
+equal(parseHerdArgs(""), { mode: "context", dryRun: false, loadSecrets: true, instructions: "" }, "blank must alias context with secret loading enabled");
+equal(parseHerdArgs("context --base=main --dry-run -- keep\n  spacing"), { mode: "context", base: "main", dryRun: true, loadSecrets: true, instructions: "keep\n  spacing" }, "context parse or opaque suffix changed");
+equal(parseHerdArgs("task --branch=herd/x -- do this\nexactly"), { mode: "task", branch: "herd/x", dryRun: false, loadSecrets: true, instructions: "do this\nexactly" }, "task parse changed");
+equal(parseHerdArgs("issue owner/repo#123 --base=main -- extra"), { mode: "issue", issue: "owner/repo#123", base: "main", dryRun: false, loadSecrets: true, instructions: "extra" }, "issue parse changed");
+equal(parseHerdArgs("context --no-secret"), { mode: "context", dryRun: false, loadSecrets: false, instructions: "" }, "--no-secret must opt out of automatic secret loading");
 throws(() => parseHerdArgs("task --dry-run"), /requires --/, "task must require a delimited task");
 throws(() => parseHerdArgs("issue nope"), /Invalid issue|issue reference/, "issue syntax must eventually reject");
-equal(parseHerdArgs("Describe the work i want to do here"), { mode: "task", dryRun: false, instructions: "Describe the work i want to do here" }, "bare prose must alias task mode");
-equal(parseHerdArgs(" \n  Describe  this work\n\twithout changing   its spacing  \n"), { mode: "task", dryRun: false, instructions: "Describe  this work\n\twithout changing   its spacing" }, "bare multiline prose must preserve everything except outer whitespace");
-equal(parseHerdArgs("task --branch=herd/exact --base=main --dry-run -- keep  this\n\tverbatim"), { mode: "task", branch: "herd/exact", base: "main", dryRun: true, instructions: "keep  this\n\tverbatim" }, "explicit task option and delimiter grammar changed");
+equal(parseHerdArgs("Describe the work i want to do here"), { mode: "task", dryRun: false, loadSecrets: true, instructions: "Describe the work i want to do here" }, "bare prose must alias task mode with secret loading enabled");
+equal(parseHerdArgs(" \n  Describe  this work\n\twithout changing   its spacing  \n"), { mode: "task", dryRun: false, loadSecrets: true, instructions: "Describe  this work\n\twithout changing   its spacing" }, "bare multiline prose must preserve everything except outer whitespace");
+equal(parseHerdArgs("task --branch=herd/exact --base=main --dry-run -- keep  this\n\tverbatim"), { mode: "task", branch: "herd/exact", base: "main", dryRun: true, loadSecrets: true, instructions: "keep  this\n\tverbatim" }, "explicit task option and delimiter grammar changed");
 throws(() => parseHerdArgs("--unknown"), /Unexpected \/herd argument: --unknown/, "dash-leading unknown option must remain an error");
 const bounded = contextReference([
   { role: "tool", content: "secret tool noise" },
@@ -415,6 +416,7 @@ async function success() {
     "--env", "OMP_HERD_SOURCE_ROOT=/repo",
     "--env", "OMP_HERD_CHECKOUT=/checkout",
     "--env", "OMP_HERD_BRANCH=fix/issue-123-fix-widget",
+    "--env", "OMP_HERD_LOAD_SECRETS=1",
     "--no-focus",
   ], "wrong tab argv, cleanup ownership environment, or stale workspace");
   equal(wt.options.timeout, 300_000, "Worktrunk did not receive its five-minute deadline");
@@ -481,6 +483,22 @@ async function success() {
   ok(harness.notices.some(item => item.level === "success"), "success notification missing");
 }
 await success();
+
+{
+  const harness = makeHarness();
+  await harness.handler("context --no-secret", harness.ctx);
+  const tab = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "tab" && call.argv[1] === "create");
+  const start = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start");
+  ok(tab && start, "--no-secret did not complete the normal tab and agent startup path");
+  ok(!tab.argv.includes("OMP_HERD_LOAD_SECRETS=1"), "--no-secret still propagated the secret-loading marker to tab creation");
+  equal(start.argv, [
+    "agent", "start", start.argv[2],
+    "--kind", "omp",
+    "--pane", "pane-root",
+    "--timeout", "30000",
+    "--", "--config", explicitOverlay,
+  ], "--no-secret changed the native agent argv instead of limiting propagation to tab creation");
+}
 
 {
   for (const [label, agentDir] of [["unset", undefined], ["empty", ""]]) {
@@ -744,15 +762,33 @@ await success();
   ok(!harness.calls.some(call => call.command === "wt"), "invalid base mutated state");
 }
 {
-  const sourceBranch = "feat/source-worktree";
-  const harness = makeHarness({ sourceBranch });
-  await harness.handler("task --dry-run -- exact task", harness.ctx);
-  ok(!harness.calls.some(isHerdResourceMutation), "dry-run performed a Worktrunk or Herdr mutation");
-  ok(!harness.calls.some(call => call.command === "git" && call.argv[0] === "rev-parse" && call.argv[1] === "--verify"), "dry-run Git-verified the implicit Worktrunk base shortcut");
-  const notice = harness.notices.find(item => item.message.startsWith("Dry run:"));
-  ok(notice, "dry-run notification missing");
-  ok(notice.message.includes("Worktrunk's detected default branch (resolved during the real handoff)"), "dry-run did not defer default-branch resolution to the real handoff");
-  ok(!notice.message.includes(sourceBranch), "dry-run reported the invoking source/worktree branch as its implicit base");
+  const previousLoadSecrets = process.env.OMP_HERD_LOAD_SECRETS;
+  process.env.OMP_HERD_LOAD_SECRETS = "sentinel";
+  try {
+    const sourceBranch = "feat/source-worktree";
+    const harness = makeHarness({ sourceBranch });
+    await harness.handler("task --dry-run -- exact task", harness.ctx);
+    ok(!harness.calls.some(isHerdResourceMutation), "dry-run performed a Worktrunk or Herdr mutation");
+    ok(!harness.calls.some(call => call.argv.includes("OMP_HERD_LOAD_SECRETS=1")), "dry-run propagated a secret-loading marker");
+    equal(process.env.OMP_HERD_LOAD_SECRETS, "sentinel", "dry-run mutated the secret-loading environment");
+    ok(!harness.calls.some(call => call.command === "git" && call.argv[0] === "rev-parse" && call.argv[1] === "--verify"), "dry-run Git-verified the implicit Worktrunk base shortcut");
+    const notice = harness.notices.find(item => item.message.startsWith("Dry run:"));
+    ok(notice, "dry-run notification missing");
+    ok(notice.message.includes("Worktrunk's detected default branch (resolved during the real handoff)"), "dry-run did not defer default-branch resolution to the real handoff");
+    ok(!notice.message.includes(sourceBranch), "dry-run reported the invoking source/worktree branch as its implicit base");
+    ok(notice.message.includes("Secret loading would occur"), "default dry-run did not report that secrets would load");
+
+    const optedOut = makeHarness();
+    await optedOut.handler("task --no-secret --dry-run -- exact task", optedOut.ctx);
+    ok(!optedOut.calls.some(isHerdResourceMutation), "--no-secret dry-run performed a Worktrunk or Herdr mutation");
+    ok(!optedOut.calls.some(call => call.argv.includes("OMP_HERD_LOAD_SECRETS=1")), "--no-secret dry-run propagated a secret-loading marker");
+    equal(process.env.OMP_HERD_LOAD_SECRETS, "sentinel", "--no-secret dry-run mutated the secret-loading environment");
+    const optedOutNotice = optedOut.notices.find(item => item.message.startsWith("Dry run:"));
+    ok(optedOutNotice?.message.includes("Secret loading would not occur"), "--no-secret dry-run did not report that secret loading is disabled");
+  } finally {
+    if (previousLoadSecrets === undefined) delete process.env.OMP_HERD_LOAD_SECRETS;
+    else process.env.OMP_HERD_LOAD_SECRETS = previousLoadSecrets;
+  }
 }
 {
   const harness = makeHarness({ exec: (command, argv) => command === "wt" ? { code: 1, stdout: "", stderr: "▲ cargo-difftest needs approval to execute 1 command:\n○ post-start install\n✗ Cannot prompt for approval in non-interactive environment\n↳ run wt config approvals add" } : undefined });
@@ -1537,8 +1573,8 @@ await withManagedHerdEnvironment(async () => {
     equal(notice.level, "info", `${alias} help did not use the info level`);
     for (const required of [
       "/herd <exact task>", "/herd context", "/herd task", "/herd issue", "/herd done",
-      "--branch=<name>", "--base=<ref>", "--dry-run",
-      "/herd done [--force|-f] [--delete|-d]",
+      "--branch=<name>", "--base=<ref>", "--dry-run", "--no-secret",
+      "Do not load the user's zsh secret environment automatically", "default: automatic secret loading on",
       "-- <additional exact instructions>", "-- <exact task>",
       "opaque instruction string",
       "semantic type prefix; feat/ fallback",

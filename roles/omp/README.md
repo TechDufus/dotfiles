@@ -67,13 +67,15 @@ The global `/herd` extension creates a Worktrunk-owned isolated checkout and ope
 ```text
 /herd
 /herd <exact task>
-/herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
-/herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>
-/herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]
+/herd context [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
+/herd task [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] -- <exact task>
+/herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
 /herd done [--force|-f] [--delete|-d]
 ```
 
 Blank `/herd` aliases `context`; `/herd <exact task>` is the preferred shorthand. Use the explicit modes for options and mode-specific inputs. Options are parsed only before `--`; text after it remains one exact, opaque instruction string. `/herd --help`, `/herd -h`, and `/herd help` show the local grammar and defaults.
+
+By default, the new tab's marked zsh shell runs `secret` before its first `omp` command. Secret output is suppressed, the canonical OMP process inherits the exported environment without putting secret values in Herdr arguments or metadata, and OMP does not start if loading fails. Use `--no-secret` to skip loading for a handoff.
 Issue references are resolved before the Worktrunk handoff. An unqualified `123` or `#123` means issue `123` in the current repository. A qualified `owner/repo#123` or GitHub issue URL may name the current repository or, when it is a fork, its explicit direct parent; an unrelated repository is rejected. The issue repository supplies metadata only: the local source checkout and Worktrunk checkout remain in the current repository (the fork, when applicable), and `--base` still selects the source checkout's base ref.
 
 The upstream lookup is exactly `gh issue view <number> --repo <issue-owner>/<issue-repo> --json number,title,labels`; the selected issue repository is not used as a checkout or implicit base.
@@ -85,6 +87,7 @@ The upstream lookup is exactly `gh issue view <number> --repo <issue-owner>/<iss
 /herd task --base=release/2.x -- Fix the refresh-token race without changing the public API
 /herd issue owner/repo#123 --branch=issue-123 -- Preserve the issue's compatibility constraints
 /herd context --dry-run -- Focus on the database migration risk
+/herd context --no-secret -- Review public documentation only
 /herd done
 /herd done --force
 /herd done --delete

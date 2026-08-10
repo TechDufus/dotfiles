@@ -239,6 +239,30 @@ function secret() {
   esac
 }
 
+# A marked Herd shell loads secrets only for its first OMP call.
+if [[ "${OMP_HERD_LOAD_SECRETS-}" == "1" ]]; then
+  unset OMP_HERD_LOAD_SECRETS
+
+  function omp() {
+    local canonical_omp
+
+    unfunction omp
+
+    if ! secret >/dev/null 2>&1; then
+      print -ru2 -- "Error: unable to load secrets; OMP was not started"
+      return 1
+    fi
+
+    canonical_omp="$(whence -p omp)"
+    if [[ -z "$canonical_omp" ]]; then
+      print -ru2 -- "Error: OMP was not found after loading secrets"
+      return 1
+    fi
+
+    "$canonical_omp" "$@"
+  }
+fi
+
 # Add completion for the secret function
 if [[ -n "$ZSH_VERSION" ]] && [[ -n "${functions[compdef]}" ]]; then
   _secret() {

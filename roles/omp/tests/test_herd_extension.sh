@@ -425,11 +425,11 @@ async function success() {
     "agent", "start", start.argv[2],
     "--kind", "omp",
     "--pane", "pane-root",
-    "--timeout", "30000",
+    "--timeout", "120000",
     "--", "--config", explicitOverlay,
   ], "wrong agent start argv or root-pane target");
   ok(/^[a-z][a-z0-9_-]{0,31}$/.test(start.argv[2]), "generated agent name violated Herdr's modern name contract");
-  equal(start.options.timeout, 35_000, "agent start wrapper deadline must exceed the 30-second CLI timeout");
+  equal(start.options.timeout, 125_000, "secret-loading agent start wrapper deadline must exceed the two-minute CLI timeout");
   const promptCall = mutations.find(call => call.argv[0] === "agent" && call.argv[1] === "prompt");
   const promptText = promptCall.argv[3];
   equal(promptCall.argv, [
@@ -498,6 +498,7 @@ await success();
     "--timeout", "30000",
     "--", "--config", explicitOverlay,
   ], "--no-secret changed the native agent argv instead of limiting propagation to tab creation");
+  equal(start.options.timeout, 35_000, "--no-secret did not retain the ordinary 30-second CLI and 35-second wrapper deadlines");
 }
 
 {

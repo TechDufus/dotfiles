@@ -155,18 +155,33 @@ REPO_ROOT="$repo_root" \
 typeset -gx OMP_HERD_LOAD_SECRETS=1
 source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
 
+typeset -g secret_attempts=0
 function secret() {
-  print -r -- 'fake secret stdout'
-  print -ru2 -- 'fake secret stderr'
-  return 23
+  secret_attempts=$(( secret_attempts + 1 ))
+  if (( secret_attempts == 1 )); then
+    print -r -- 'fake secret stdout'
+    print -ru2 -- 'fake secret stderr'
+    return 23
+  fi
+  export OMP_SECRET_SENTINEL='retry-exported-sentinel'
 }
 
-if omp 'fake-secret-argument'; then
+if omp 'failed-secret-argument'; then
   print -ru2 -- "omp succeeded after secret failure"
   exit 1
 fi
+if (( ! ${+functions[omp]} )); then
+  print -ru2 -- "omp wrapper was removed after secret failure"
+  exit 1
+fi
+
+omp 'retry argument'
+if (( secret_attempts != 2 )); then
+  print -ru2 -- "secret was not retried exactly once"
+  exit 1
+fi
 if (( ${+functions[omp]} )); then
-  print -ru2 -- "omp wrapper remained after secret failure"
+  print -ru2 -- "omp wrapper remained after successful retry"
   exit 1
 fi
 ZSH
@@ -176,8 +191,9 @@ if [[ -s "$failure_stdout" ]]; then
   exit 1
 fi
 
-if [[ -s "$failure_calls" ]]; then
-  echo "external omp ran after secret failure" >&2
+expected=$'sentinel=<retry-exported-sentinel>\nargc=<1>\narg=<retry argument>'
+if [[ "$(<"$failure_calls")" != "$expected" ]]; then
+  echo "external omp did not run exactly once after successful secret retry" >&2
   exit 1
 fi
 if [[ "$(<"$failure_stderr")" != 'Error: unable to load secrets; OMP was not started' ]]; then

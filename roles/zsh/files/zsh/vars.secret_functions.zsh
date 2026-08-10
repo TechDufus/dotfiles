@@ -246,8 +246,6 @@ if [[ "${OMP_HERD_LOAD_SECRETS-}" == "1" ]]; then
   function omp() {
     local canonical_omp
 
-    unfunction omp
-
     if ! secret >/dev/null 2>&1; then
       print -ru2 -- "Error: unable to load secrets; OMP was not started"
       return 1
@@ -258,6 +256,7 @@ if [[ "${OMP_HERD_LOAD_SECRETS-}" == "1" ]]; then
       print -ru2 -- "Error: OMP was not found after loading secrets"
       return 1
     fi
+    unfunction omp
 
     "$canonical_omp" "$@"
   }

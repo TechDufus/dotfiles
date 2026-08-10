@@ -6,7 +6,8 @@ import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const EXEC_TIMEOUT = 15_000;
 const AGENT_START_TIMEOUT = 30_000;
-const AGENT_START_WRAPPER_TIMEOUT = 35_000;
+const SECRET_AGENT_START_TIMEOUT = 120_000;
+const AGENT_START_WRAPPER_GRACE = 5_000;
 const WT_TIMEOUT = 300_000;
 const AGENT_START_BUSY_GRACE = 5_000;
 const AGENT_START_BUSY_INTERVAL = 100;
@@ -1102,17 +1103,18 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.created = "checkout, tab; agent creation unknown";
 				owned.ompMayRun = true;
 				owned.lastState = "agent start pending; OMP state unknown";
+				const agentStartTimeout = request.loadSecrets ? SECRET_AGENT_START_TIMEOUT : AGENT_START_TIMEOUT;
 				const startArgv = [
 					"agent", "start", attemptedAgent,
 					"--kind", "omp",
 					"--pane", owned.rootPane,
-					"--timeout", String(AGENT_START_TIMEOUT),
+					"--timeout", String(agentStartTimeout),
 					"--", "--config", overlayPath,
 				];
 				let busyDeadline: number | undefined;
 				let startedCommand: ExecResult;
 				while (true) {
-					startedCommand = await run("herdr", startArgv, repo.root, true, AGENT_START_WRAPPER_TIMEOUT);
+					startedCommand = await run("herdr", startArgv, repo.root, true, agentStartTimeout + AGENT_START_WRAPPER_GRACE);
 					if (startedCommand.exitCode === 0 || startedCommand.killed || herdrErrorCode(startedCommand.stderr) !== "agent_pane_busy") break;
 					busyDeadline ??= performance.now() + AGENT_START_BUSY_GRACE;
 					const remaining = busyDeadline - performance.now();

@@ -30,7 +30,6 @@ disabledProviders:
   - claude-plugins
   - codex
   - opencode
-  - cursor
   - cline
   - gemini
   - windsurf
@@ -45,7 +44,6 @@ edit:
   streamingAbort: true
 lsp: 
   diagnosticsOnEdit: true
-collapseChangelog: true
 memory: 
   backend: mnemopi
 mnemopi: 
@@ -89,6 +87,7 @@ statusLine:
 startup: 
   showSplash: true
   quiet: true
+  changelogMode: summary
 autolearn: 
   enabled: true
   autoContinue: true
@@ -113,3 +112,5 @@ snapcompact:
   toolResults: true
 features: 
   unexpectedStopDetection: true
+codexResets:
+  autoRedeem: "no"

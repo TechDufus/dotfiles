@@ -13,4 +13,4 @@ Personal dotfiles repository
 
 向各位鞠躬！🙇
 
-[![Star History Chart](https://api.star-history.com/svg?repos=patricorgi/dotfiles&type=Date)](https://www.star-history.com/#patricorgi/dotfiles&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=patricorgi/dotfiles&type=Date)](https://star-history.dera.page/#patricorgi/dotfiles&Date)

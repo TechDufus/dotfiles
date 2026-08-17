@@ -8,7 +8,7 @@ modelRoles:
   designer: openai-codex/gpt-5.6-terra:high
   vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:medium
-  advisor: openai-codex/gpt-5.6-terra:high
+  advisor: cursor/cursor-grok-4.6-high
 cycleOrder: 
   - smol
   - default

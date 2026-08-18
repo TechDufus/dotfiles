@@ -480,7 +480,7 @@ async function success() {
   equal(promptText.slice(-expectedIssueSuffix.length), expectedIssueSuffix, "issue additional direction was changed or merged into the issue reference");
   equal(promptCall.argv.filter(value => value.includes(issueDirection)).length, 1, "issue additional direction was split or duplicated across prompt argv");
   ok(harness.notices.some(item => item.level === "warning" && item.message.includes("dirty")), "dirty warning missing");
-  ok(harness.notices.some(item => item.level === "success"), "success notification missing");
+  ok(harness.notices.some(item => item.level === "info"), "success notification missing");
 }
 await success();
 
@@ -829,7 +829,7 @@ await success();
   equal(starts.length, 2, "transient pane busy did not retry exactly once before success");
   equal(starts[1], starts[0], "transient pane busy changed the agent-start target, argv, cwd, or timeout");
   equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt").length, 1, "transient pane busy did not prompt exactly once after recovery");
-  ok(harness.notices.at(-1)?.level === "success", "transient pane busy recovery did not complete successfully");
+  ok(harness.notices.at(-1)?.level === "info", "transient pane busy recovery did not complete successfully");
 }
 {
   const nowDescriptor = Object.getOwnPropertyDescriptor(performance, "now");
@@ -1010,7 +1010,7 @@ await success();
     : undefined });
   await harness.handler("context", harness.ctx);
   ok(harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "a focus change during agent startup prevented the initial prompt");
-  ok(harness.notices.at(-1).level === "success", "focused startup did not complete the handoff");
+  ok(harness.notices.at(-1).level === "info", "focused startup did not complete the handoff");
 }
 {
   for (const returnedArgv of [
@@ -1092,7 +1092,7 @@ await withManagedHerdEnvironment(async () => {
   ok(harness.calls.indexOf(remove) < harness.calls.indexOf(close), "herd tab closed before Worktrunk accepted checkout removal");
   equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "pane" && call.argv[1] === "list").length, 3, "caller identity was not refreshed before removal and tab closure");
   equal(harness.calls.filter(call => call.command === "git" && call.argv[0] === "status").length, 2, "checkout cleanliness was not rechecked before removal");
-  ok(harness.notices.some(notice => notice.level === "success" && notice.message.includes("pull request #42")), "successful cleanup notice missing");
+  ok(harness.notices.some(notice => notice.level === "info" && notice.message.includes("pull request #42")), "successful cleanup notice missing");
   ok(harness.notices.some(notice => notice.message.includes("retained local branch fix/widget")), "merged cleanup did not report local branch retention");
 
   const fullLocalChecks = (tested, label) => {

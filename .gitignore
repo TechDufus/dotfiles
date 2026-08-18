@@ -29,7 +29,14 @@ roles/claude/files/hooks/herdr-agent-state.sh
 
 # Ansible cache/runtime directories
 .ansible/
-.omp/
+
+# OMP runtime state is ignored; project skills are repository-managed.
+.omp/*
+!.omp/skills/
+!.omp/skills/**
+
+# OMP advisory config locks follow managed symlinks into this role.
+roles/omp/files/**/config.yml.lock
 
 # Logs
 logs

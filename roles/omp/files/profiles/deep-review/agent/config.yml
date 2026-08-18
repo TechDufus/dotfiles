@@ -21,7 +21,6 @@ display:
 defaultThinkingLevel: xhigh
 advisor:
   enabled: true
-  subagents: true
   syncBacklog: "1"
 compaction:
   thresholdPercent: 65
@@ -46,7 +45,6 @@ edit:
   streamingAbort: true
 lsp:
   diagnosticsOnEdit: true
-collapseChangelog: true
 memory:
   backend: mnemopi
 mnemopi:
@@ -62,6 +60,19 @@ task:
   enableLsp: true
   isolation:
     mode: auto
+  agentAdvisor:
+    scout: "on"
+    designer: "on"
+    reviewer: "on"
+    security-reviewer: "on"
+    librarian: "on"
+    task: "on"
+    sonic: "on"
+    gap-advisor: "on"
+    plan-critic: "on"
+    risk-assessor: "on"
+    validator: "on"
+    security-auditor: "on"
 skills:
   enableCodexUser: false
   enableClaudeUser: false
@@ -77,8 +88,7 @@ setupVersion: 1
 vault:
   enabled: true
 dev:
-  autoqa:
-    consent: granted
+  autoqaConsent: granted
 tier:
   openai: default
 browser:

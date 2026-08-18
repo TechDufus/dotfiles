@@ -49,7 +49,7 @@ type DoneMode = "plain" | "force" | "delete";
 type BranchType = "feat" | "fix" | "docs" | "refactor" | "test" | "chore" | "ci" | "build" | "perf";
 type ExecResult = { stdout: string; stderr: string; exitCode: number; killed: boolean };
 type PromptAcceptedStatus = "working" | "blocked" | "idle" | "done";
-type Ui = { notify(message: string, level?: "info" | "success" | "warning" | "error"): void };
+type Ui = { notify(message: string, level?: "info" | "warning" | "error"): void };
 type SessionEntry = { type?: string; role?: string; content?: unknown; summary?: unknown; message?: unknown };
 type SessionManager = { getSessionFile(): string | undefined; getBranch?(): SessionEntry[]; getEntries?(): SessionEntry[] };
 type CommandContext = { cwd: string; ui: Ui; sessionManager: SessionManager };
@@ -831,7 +831,7 @@ export default function herd(pi: ExtensionAPI): void {
 			ctx.ui.notify(`Worktrunk cleanup succeeded, but the OMP pane identity changed before tab closure. Tab ${current.caller.tabId} was left open.`, "error");
 			return;
 		}
-		ctx.ui.notify(success, "success");
+		ctx.ui.notify(success, "info");
 		try {
 			const closed = await run("herdr", ["tab", "close", closingCaller.tabId], current.sourceRoot, true);
 			if (closed.exitCode !== 0 || closed.killed) {
@@ -923,7 +923,7 @@ export default function herd(pi: ExtensionAPI): void {
 					} else if (pushed.exitCode !== 0) {
 						ctx.ui.notify("Local cleanup succeeded, but upstream deletion was not confirmed.", "warning");
 					} else {
-						ctx.ui.notify("Local cleanup succeeded and the exact upstream branch deletion was confirmed.", "success");
+						ctx.ui.notify("Local cleanup succeeded and the exact upstream branch deletion was confirmed.", "info");
 					}
 				}
 			} catch {
@@ -1201,7 +1201,7 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.lastState = acceptedStatus;
 				ctx.ui.notify(
 					`Started ${returnedName} on ${branch} without changing focus; agent state: ${acceptedStatus}.`,
-					acceptedStatus === "blocked" ? "warning" : "success",
+					acceptedStatus === "blocked" ? "warning" : "info",
 				);
 			} catch (error) {
 				const failure = error instanceof Error ? error.message : String(error);

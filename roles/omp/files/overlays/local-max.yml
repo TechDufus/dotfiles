@@ -17,6 +17,19 @@ cycleOrder:
   - default
 advisor:
   enabled: true
-  subagents: true
   syncBacklog: "1"
   immuneTurns: 0
+task:
+  agentAdvisor:
+    scout: "on"
+    designer: "on"
+    reviewer: "on"
+    security-reviewer: "on"
+    librarian: "on"
+    task: "on"
+    sonic: "on"
+    gap-advisor: "on"
+    plan-critic: "on"
+    risk-assessor: "on"
+    validator: "on"
+    security-auditor: "on"

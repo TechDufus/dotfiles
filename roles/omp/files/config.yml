@@ -23,6 +23,8 @@ advisor:
   enabled: true
   syncBacklog: "3"
   immuneTurns: 5
+error:
+  notify: "on"
 compaction: 
   thresholdPercent: 65
 hideThinkingBlock: false
@@ -53,12 +55,16 @@ mnemopi:
   enhancedRecall: true
 github: 
   enabled: true
+security:
+  enabled: true
 inspect_image: 
   mode: auto
 task: 
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
+  enableEffort: true
+  maxEffort: xhigh
   isolation: 
     mode: auto
     commits: ai

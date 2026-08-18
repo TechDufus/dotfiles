@@ -12,6 +12,7 @@
 - `extensions/*` is deployed as per-file symlinks into `~/.omp/agent/extensions/`; never symlink the whole directory. Unrelated user-installed extension files are preserved, and cleanup removes only stale repo-owned symlinks whose managed source no longer exists. Regular files at repo-managed extension names are migrated safely: identical copies are removed, while differing files are backed up outside the extensions directory before being replaced by the repo symlink.
 - `profiles/deep-review/agent/config.yml` is a heavier deep-review profile candidate. OMP profiles are full user-base relocations, not overlays: a profile does not inherit the default base's config, agents, rules, extensions, or skills unless that profile explicitly deploys them. Treat profile content as a complete alternate base, so the full deep-review advisor policy applies only when that profile is selected.
 - Repo-managed OMP configs use compact-first long-task handling. Their non-default `compaction.thresholdPercent: 65` is explicit; they currently inherit upstream `contextPromotion.enabled: false` and `compaction.strategy: snapcompact`. If upstream changes those defaults, effective behavior changes until a new deliberate override is added.
+- Both managed configs enable error notifications, the OMP-native security workflow, and per-spawn task effort capped at `xhigh`. Idle compaction and prewalk remain disabled by deliberate policy.
 
 ### Context ownership
 

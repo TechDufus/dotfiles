@@ -22,6 +22,8 @@ defaultThinkingLevel: xhigh
 advisor:
   enabled: true
   syncBacklog: "1"
+error:
+  notify: "on"
 compaction:
   thresholdPercent: 65
 hideThinkingBlock: true
@@ -52,12 +54,16 @@ mnemopi:
   proactiveLinking: true
 github:
   enabled: true
+security:
+  enabled: true
 inspect_image:
   mode: auto
 task:
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
+  enableEffort: true
+  maxEffort: xhigh
   isolation:
     mode: auto
   agentAdvisor:

@@ -59,5 +59,6 @@ delivery = "terminal"
 scrollback_limit_bytes = 100_000_000
 
 [experimental]
+kitty_graphics = true
 pane_history = true
 switch_ascii_input_source_in_prefix = true

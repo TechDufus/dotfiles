@@ -1,5 +1,4 @@
-# OMP release/config audit reviewed through: 17.3.7
-modelRoles: 
+modelRoles:
   default: openai-codex/gpt-5.6-sol:xhigh
   smol: openai-codex/gpt-5.6-luna
   tiny: openai-codex/gpt-5.6-luna:low
@@ -9,26 +8,26 @@ modelRoles:
   designer: openai-codex/gpt-5.6-terra:high
   vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:medium
-  advisor: cursor/cursor-grok-4.6-high
-cycleOrder: 
+  advisor: cursor/cursor-grok-4.6-medium
+cycleOrder:
   - smol
   - default
-theme: 
+theme:
   dark: dark-catppuccin
 symbolPreset: nerd
-display: 
+display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
-advisor: 
+advisor:
   enabled: true
   syncBacklog: "3"
   immuneTurns: 5
 error:
   notify: "on"
-compaction: 
+compaction:
   thresholdPercent: 65
-hideThinkingBlock: false
-disabledProviders: 
+hideThinkingBlock: true
+disabledProviders:
   - claude
   - claude-plugins
   - codex
@@ -39,85 +38,85 @@ disabledProviders:
   - vscode
   - github
   - amazon-bedrock
-marketplace: 
+marketplace:
   autoUpdate: auto
-bashInterceptor: 
+bashInterceptor:
   enabled: true
-edit: 
+edit:
   streamingAbort: true
-lsp: 
+lsp:
   diagnosticsOnEdit: true
-memory: 
+memory:
   backend: mnemopi
-mnemopi: 
+mnemopi:
   scoping: per-project-tagged
   proactiveLinking: true
   enhancedRecall: true
-github: 
+github:
   enabled: true
 security:
   enabled: true
-inspect_image: 
+inspect_image:
   mode: auto
-task: 
+task:
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
   enableEffort: true
   maxEffort: xhigh
-  isolation: 
+  isolation:
     mode: auto
     commits: ai
-skills: 
+skills:
   enableCodexUser: false
   enableClaudeUser: false
   enableClaudeProject: false
-commands: 
+commands:
   enableClaudeUser: false
   enableClaudeProject: false
   enableOpencodeUser: false
   enableOpencodeProject: false
-mcp: 
+mcp:
   enableProjectConfig: false
 setupVersion: 1
-vault: 
+vault:
   enabled: true
-dev: 
+dev:
   autoqaConsent: granted
-tier: 
+tier:
   openai: default
   subagent: priority
   advisor: priority
-statusLine: 
+statusLine:
   transparent: true
   compactThinkingLevel: true
-startup: 
+startup:
   showSplash: true
   quiet: true
   changelogMode: summary
-autolearn: 
+autolearn:
   enabled: true
   autoContinue: true
 readLineNumbers: true
-bash: 
-  autoBackground: 
+bash:
+  autoBackground:
     enabled: true
-eval: 
+eval:
   rb: true
   jl: true
-todo: 
+todo:
   eager: preferred
-secrets: 
+secrets:
   enabled: true
-terminal: 
+terminal:
   showProgress: true
-tui: 
+tui:
   tight: true
   scrollbackRebuild: true
-snapcompact: 
+snapcompact:
   systemPrompt: all
   toolResults: true
-features: 
+features:
   unexpectedStopDetection: true
 codexResets:
-  autoRedeem: "no"
+  autoRedeem: "yes"

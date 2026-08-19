@@ -14,7 +14,7 @@
   ansible.builtin.include_role:
     name: github_release
   vars:
-    github_release_repo: "ogulcancelik/herdr"
+    github_release_repo: "herdrdev/herdr"
     github_release_binary_name: "herdr"
     github_release_asset_name_pattern: "herdr-linux-{{ ansible_facts['architecture'] | replace('arm64', 'aarch64') }}"
     github_release_asset_type: "binary"

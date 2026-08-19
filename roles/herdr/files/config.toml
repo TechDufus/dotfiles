@@ -34,15 +34,24 @@ height = "90%"
 [ui]
 show_agent_labels_on_pane_borders = true
 pane_gaps = false
+pane_outer_borders = false
 tab_bar_position = "bottom"
+tab_bar_right = [
+  { type = "zoom" },
+  { type = "hostname" },
+  { type = "datetime", format = "%H:%M" },
+]
+tab_bar_right_separator = " · "
 pane_scrollbars = false
 hide_tab_bar_when_single_tab = true
+window_title = "{workspace} — {tab} · {hostname}"
+status_indicators = "symbols"
 prompt_new_workspace_name = true
 agent_panel_sort = "priority"
 sidebar_width = 38
 sidebar_min_width = 26
 sidebar_max_width = 48
-sidebar_collapsed_mode = "hidden"
+sidebar_collapsed_mode = "compact"
 
 [ui.sidebar.agents]
 row_gap = 0

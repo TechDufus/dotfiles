@@ -66,11 +66,23 @@ class HerdrRoleTests(unittest.TestCase):
         ui = self.config["ui"]
         self.assertIs(ui["show_agent_labels_on_pane_borders"], True)
         self.assertIs(ui["pane_gaps"], False)
+        self.assertIs(ui["pane_outer_borders"], False)
         self.assertIs(ui["pane_scrollbars"], False)
         self.assertEqual(ui["tab_bar_position"], "bottom")
+        self.assertEqual(
+            ui["tab_bar_right"],
+            [
+                {"type": "zoom"},
+                {"type": "hostname"},
+                {"type": "datetime", "format": "%H:%M"},
+            ],
+        )
+        self.assertEqual(ui["tab_bar_right_separator"], " · ")
         self.assertIs(ui["hide_tab_bar_when_single_tab"], True)
+        self.assertEqual(ui["window_title"], "{workspace} — {tab} · {hostname}")
+        self.assertEqual(ui["status_indicators"], "symbols")
         self.assertIs(ui["prompt_new_workspace_name"], True)
-        self.assertEqual(ui["sidebar_collapsed_mode"], "hidden")
+        self.assertEqual(ui["sidebar_collapsed_mode"], "compact")
         self.assertEqual(ui["agent_panel_sort"], "priority")
         self.assertEqual(ui["sidebar_width"], 38)
         self.assertEqual(ui["sidebar_min_width"], 26)
@@ -210,7 +222,7 @@ class HerdrRoleTests(unittest.TestCase):
         self.assertIn("  ansible.builtin.include_role:", install)
         self.assertIn("    name: github_release", install)
         self.assertIn(
-            '    github_release_repo: "ogulcancelik/herdr"', install
+            '    github_release_repo: "herdrdev/herdr"', install
         )
         self.assertIn('    github_release_binary_name: "herdr"', install)
         self.assertIn('    github_release_asset_type: "binary"', install)

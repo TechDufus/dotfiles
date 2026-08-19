@@ -787,13 +787,13 @@ class HerdrIntegrationSourceTests(unittest.TestCase):
     def test_official_skill_defaults_define_upstream_and_destinations(self) -> None:
         expected = {
             "omp_herdr_skill_enabled": "true",
-            "omp_herdr_skill_repo": '"https://github.com/ogulcancelik/herdr.git"',
+            "omp_herdr_skill_repo": '"https://github.com/herdrdev/herdr.git"',
             "omp_herdr_skill_version": '"master"',
             "omp_herdr_skill_checkout_dir": (
                 '"{{ ansible_facts[\'env\'][\'HOME\'] }}'
                 '/.local/share/dotfiles/herdr"'
             ),
-            "omp_herdr_skill_source": '"{{ omp_herdr_skill_checkout_dir }}"',
+            "omp_herdr_skill_source": '"{{ omp_herdr_skill_checkout_dir }}/skills/herdr"',
             "omp_herdr_skill_dest": '"{{ omp_skills_dest }}/herdr"',
         }
         for variable, value in expected.items():
@@ -828,7 +828,7 @@ class HerdrIntegrationSourceTests(unittest.TestCase):
         self.assertIn(
             'path: "{{ omp_herdr_skill_source }}/SKILL.md"',
             source,
-            "deployment must require the upstream root SKILL.md",
+            "deployment must require the upstream skills/herdr SKILL.md",
         )
         self.assertIn("follow: false", source, "source inspection must not follow links")
 

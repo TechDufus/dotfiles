@@ -59,7 +59,7 @@ These modes use CLI `--config` overlays rather than named profiles. A named prof
 
 ## Herdr
 
-`/skill:herdr` is the official upstream skill, shallow-cloned from `ogulcancelik/herdr` into `~/.local/share/dotfiles/herdr` and symlinked into the OMP user base. On each real OMP role run, the role updates the checkout from configurable `omp_herdr_skill_version` (`master` by default); set `omp_herdr_skill_enabled` to `false` to disable this management. The role refuses an unmanaged regular destination, and an update failure preserves an existing valid checkout.
+`/skill:herdr` is the official upstream skill, shallow-cloned from `herdrdev/herdr` into `~/.local/share/dotfiles/herdr`; the clone root's `skills/herdr` subdirectory is symlinked into the OMP user base. On each real OMP role run, the role updates the checkout from configurable `omp_herdr_skill_version` (`master` by default); set `omp_herdr_skill_enabled` to `false` to disable this management. The role refuses an unmanaged regular destination, and an update failure preserves an existing valid checkout.
 
 `/skill:herdr-workflow` is the dotfiles-owned durable-task overlay. It loads the intentionally mutable upstream skill while keeping workflow policy reviewable here. New tasks use a Herdr-owned isolated worktree workspace by default; an explicitly requested current-workspace tab composes Herdr with Worktrunk, which owns checkout cleanup. The workflow does not automatically commit, push, open a pull request, or force cleanup.
 

@@ -25,7 +25,8 @@ advisor:
 error:
   notify: "on"
 compaction:
-  thresholdPercent: 65
+  thresholdPercent: 35
+  asyncEnabled: true
 hideThinkingBlock: true
 disabledProviders:
   - claude
@@ -56,8 +57,6 @@ github:
   enabled: true
 security:
   enabled: true
-inspect_image:
-  mode: auto
 task:
   eager: always
   showResolvedModelBadge: true
@@ -90,10 +89,11 @@ tier:
 statusLine:
   transparent: true
   compactThinkingLevel: true
+  sessionAccent: true
+  showHookStatus: true
 startup:
   showSplash: true
   quiet: true
-  changelogMode: summary
 autolearn:
   enabled: true
   autoContinue: true
@@ -104,6 +104,8 @@ bash:
 eval:
   rb: true
   jl: true
+  autoBackground:
+    enabled: true
 todo:
   eager: preferred
 secrets:
@@ -113,6 +115,11 @@ terminal:
 tui:
   tight: true
   scrollbackRebuild: true
+  textSizing: false
+  codexResetFireworks: true
+  titleState: true
+  hyperlinks: auto
+  imeSafeCursor: false
 snapcompact:
   systemPrompt: all
   toolResults: true
@@ -120,3 +127,4 @@ features:
   unexpectedStopDetection: true
 codexResets:
   autoRedeem: "yes"
+colorBlindMode: false

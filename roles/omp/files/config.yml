@@ -25,7 +25,7 @@ advisor:
 error:
   notify: "on"
 compaction:
-  thresholdPercent: 35
+  thresholdPercent: 25
   asyncEnabled: true
 hideThinkingBlock: true
 disabledProviders:

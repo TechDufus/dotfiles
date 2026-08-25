@@ -1,6 +1,6 @@
 ---
 modelRoles:
-  default: cursor/gpt-5.6-luna:high
+  default: cursor/gpt-5.6-luna:xhigh
   smol: cursor/gpt-5.6-luna
   tiny: cursor/gpt-5.6-luna:low
   task: cursor/gpt-5.6-luna

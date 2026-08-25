@@ -69,7 +69,7 @@ Like the local modes, this uses an overlay rather than a named profile. A named 
 
 The role mix follows measured price-performance, not Cursor-pool labels or model-family balancing. Cursor's [current list price](https://cursor.com/docs/models-and-pricing) makes Luna the least expensive capable model, while [CursorBench 3.2](https://cursor.com/cursorbench) compares published cost per task on ambiguous multi-file work:
 
-- Luna at `high` serves default, designer, and vision work; it scores 56.8% at $0.16/task and preserves image handling.
+- Luna at `xhigh` serves default work, scoring 57.7% at $0.23/task; Luna at `high` serves designer and vision work, scoring 56.8% at $0.16/task while preserving image handling.
 - Bare Luna serves smol and task work so each caller retains its selected effort; Luna at `low` serves tiny work, and at `medium` serves commit and advisor work. Luna Medium scores 47.7% at $0.08/task, ahead of Terra Low's 46.9% at $0.42/task.
 - Grok 4.6 at `medium` is reserved for slow and plan work. It scores 67.1% at $1.28/task, essentially matching Sol Max's 67.2% at $5.69/task and outperforming Terra Extra High's 59.2% at $1.15/task.
 

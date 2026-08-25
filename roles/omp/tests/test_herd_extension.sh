@@ -73,7 +73,8 @@ async function withAgentPathEnvironment(values, fn) {
   }
 }
 
-equal(parseHerdArgs(""), { mode: "context", dryRun: false, loadSecrets: true, instructions: "" }, "blank must alias context with secret loading enabled");
+const noModelOverride = parseHerdArgs("");
+equal(noModelOverride, { mode: "context", dryRun: false, loadSecrets: true, instructions: "" }, "blank must alias context with secret loading enabled");
 equal(parseHerdArgs("context --base=main --dry-run -- keep\n  spacing"), { mode: "context", base: "main", dryRun: true, loadSecrets: true, instructions: "keep\n  spacing" }, "context parse or opaque suffix changed");
 equal(parseHerdArgs("task --branch=herd/x -- do this\nexactly"), { mode: "task", branch: "herd/x", dryRun: false, loadSecrets: true, instructions: "do this\nexactly" }, "task parse changed");
 equal(parseHerdArgs("issue owner/repo#123 --base=main -- extra"), { mode: "issue", issue: "owner/repo#123", base: "main", dryRun: false, loadSecrets: true, instructions: "extra" }, "issue parse changed");
@@ -84,6 +85,44 @@ equal(parseHerdArgs("Describe the work i want to do here"), { mode: "task", dryR
 equal(parseHerdArgs(" \n  Describe  this work\n\twithout changing   its spacing  \n"), { mode: "task", dryRun: false, loadSecrets: true, instructions: "Describe  this work\n\twithout changing   its spacing" }, "bare multiline prose must preserve everything except outer whitespace");
 equal(parseHerdArgs("task --branch=herd/exact --base=main --dry-run -- keep  this\n\tverbatim"), { mode: "task", branch: "herd/exact", base: "main", dryRun: true, loadSecrets: true, instructions: "keep  this\n\tverbatim" }, "explicit task option and delimiter grammar changed");
 throws(() => parseHerdArgs("--unknown"), /Unexpected \/herd argument: --unknown/, "dash-leading unknown option must remain an error");
+const fullOpenAiSelector = "openai-codex/gpt-5.6-terra";
+equal(
+  parseHerdArgs(`context --model=${fullOpenAiSelector}:xhigh`),
+  { mode: "context", dryRun: false, loadSecrets: true, model: fullOpenAiSelector, effort: "xhigh", instructions: "" },
+  "full OpenAI model selector parse changed",
+);
+equal(
+  parseHerdArgs("task --model=vendor:preview/gpt-5.6-terra:high -- exact task"),
+  { mode: "task", dryRun: false, loadSecrets: true, model: "vendor:preview/gpt-5.6-terra", effort: "high", instructions: "exact task" },
+  "model selector with an internal colon did not split only on the final colon",
+);
+equal(
+  parseHerdArgs("issue owner/repo#123 --model=openai-codex/gpt-5.6-terra:auto"),
+  { mode: "issue", issue: "owner/repo#123", dryRun: false, loadSecrets: true, model: fullOpenAiSelector, effort: "auto", instructions: "" },
+  "issue mode did not preserve the paired model override",
+);
+for (const effort of ["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"]) {
+  equal(
+    parseHerdArgs(`context --model=${fullOpenAiSelector}:${effort}`),
+    { mode: "context", dryRun: false, loadSecrets: true, model: fullOpenAiSelector, effort, instructions: "" },
+    `accepted thinking effort ${effort} did not parse`,
+  );
+}
+ok(!("model" in noModelOverride) && !("effort" in noModelOverride), "omitting --model changed the default HerdRequest shape");
+for (const [label, raw, pattern] of [
+  ["missing model selector and effort", "context --model=", /model/i],
+  ["missing model selector", "context --model=:high", /model/i],
+  ["empty model selector and effort", "context --model=:", /model/i],
+  ["bare model flag", "context --model", /--model/i],
+  ["missing thinking effort", `context --model=${fullOpenAiSelector}:`, /effort/i],
+  ["missing final-colon separator", `context --model=${fullOpenAiSelector}`, /model|effort/i],
+  ["unrecognized thinking effort", `context --model=${fullOpenAiSelector}:ultra`, /effort/i],
+  ["duplicate model overrides", `context --model=${fullOpenAiSelector}:high --model=${fullOpenAiSelector}:low`, /duplicate|--model/i],
+  ["separate thinking flag", "context --thinking=high", /Unexpected \/herd argument/i],
+  ["separate effort flag", "context --effort=high", /Unexpected \/herd argument/i],
+] as const) {
+  throws(() => parseHerdArgs(raw), pattern, `${label} was accepted`);
+}
 const bounded = contextReference([
   { role: "tool", content: "secret tool noise" },
   { type: "compaction", summary: "old" },
@@ -483,6 +522,24 @@ async function success() {
   ok(harness.notices.some(item => item.level === "info"), "success notification missing");
 }
 await success();
+{
+  const model = "ollama/qwen3.6:35b-omp";
+  const effort = "xhigh";
+  const harness = makeHarness();
+  await harness.handler(`context --model=${model}:${effort}`, harness.ctx);
+  const start = harness.calls.find(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start");
+  ok(start, "model override did not reach a real agent start");
+  equal(start.argv, [
+    "agent", "start", start.argv[2],
+    "--kind", "omp",
+    "--pane", "pane-root",
+    "--timeout", "120000",
+    "--", "--config", explicitOverlay,
+    "--model", model,
+    "--thinking", effort,
+  ], "model override did not produce the exact native OMP argv");
+  ok(harness.calls.some(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt"), "model override did not complete the successful launch with its initial prompt");
+}
 
 {
   const harness = makeHarness();
@@ -786,6 +843,13 @@ await success();
     equal(process.env.OMP_HERD_LOAD_SECRETS, "sentinel", "--no-secret dry-run mutated the secret-loading environment");
     const optedOutNotice = optedOut.notices.find(item => item.message.startsWith("Dry run:"));
     ok(optedOutNotice?.message.includes("Secret loading would not occur"), "--no-secret dry-run did not report that secret loading is disabled");
+    const model = fullOpenAiSelector;
+    const effort = "xhigh";
+    const override = makeHarness();
+    await override.handler(`context --model=${model}:${effort} --dry-run`, override.ctx);
+    ok(!override.calls.some(isHerdResourceMutation), "model override dry-run performed a Worktrunk or Herdr mutation");
+    const overrideNotice = override.notices.find(item => item.message.startsWith("Dry run:"));
+    ok(overrideNotice?.message.includes(`${model}:${effort}`), "model override dry-run did not report the requested model and thinking effort");
   } finally {
     if (previousLoadSecrets === undefined) delete process.env.OMP_HERD_LOAD_SECRETS;
     else process.env.OMP_HERD_LOAD_SECRETS = previousLoadSecrets;
@@ -824,10 +888,11 @@ await success();
 }
 {
   const harness = makeHarness({ agentStartFailures: [{ code: 1, stdout: "", stderr: errorEnvelope("agent_pane_busy") }] });
-  await harness.handler("context", harness.ctx);
+  await harness.handler(`context --model=${fullOpenAiSelector}:xhigh`, harness.ctx);
   const starts = harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "start");
   equal(starts.length, 2, "transient pane busy did not retry exactly once before success");
   equal(starts[1], starts[0], "transient pane busy changed the agent-start target, argv, cwd, or timeout");
+  equal(starts[0].argv.slice(-4), ["--model", fullOpenAiSelector, "--thinking", "xhigh"], "transient pane busy retry omitted the complete model override");
   equal(harness.calls.filter(call => call.command === "herdr" && call.argv[0] === "agent" && call.argv[1] === "prompt").length, 1, "transient pane busy did not prompt exactly once after recovery");
   ok(harness.notices.at(-1)?.level === "info", "transient pane busy recovery did not complete successfully");
 }
@@ -1024,6 +1089,28 @@ await success();
     const failure = harness.notices.at(-1).message;
     ok(failure.includes("unexpected agent argv") && failure.includes("agent=") && failure.includes("root pane=pane-root"), `malformed successful start omitted safely returned identity: ${JSON.stringify(returnedArgv)}`);
     ok(!harness.calls.some(call => call.command === "herdr" && call.argv[1] === "prompt"), `malformed returned argv still submitted the prompt: ${JSON.stringify(returnedArgv)}`);
+  }
+}
+{
+  const model = fullOpenAiSelector;
+  const effort = "xhigh";
+  for (const [label, returnedArgv] of [
+    ["missing model and thinking args", ["omp", "--config", explicitOverlay]],
+    ["missing model arg", ["omp", "--config", explicitOverlay, "--thinking", effort]],
+    ["missing thinking arg", ["omp", "--config", explicitOverlay, "--model", model]],
+    ["wrong model", ["omp", "--config", explicitOverlay, "--model", "openai-codex/gpt-5.6-terra-wrong", "--thinking", effort]],
+    ["wrong thinking effort", ["omp", "--config", explicitOverlay, "--model", model, "--thinking", "high"]],
+    ["reordered model and thinking args", ["omp", "--config", explicitOverlay, "--thinking", effort, "--model", model]],
+    ["extra model arg", ["omp", "--config", explicitOverlay, "--model", model, "--thinking", effort, "--model", model]],
+    ["extra thinking arg", ["omp", "--config", explicitOverlay, "--model", model, "--thinking", effort, "--thinking", effort]],
+  ] as const) {
+    const harness = makeHarness({ exec: (command, argv) => command === "herdr" && argv[0] === "agent" && argv[1] === "start"
+      ? { code: 0, stdout: envelope({ argv: returnedArgv, agent: { name: argv[2], workspace_id: "workspace-fresh", tab_id: "tab-1", pane_id: "pane-root", focused: false, interactive_ready: true } }), stderr: "" }
+      : undefined });
+    await harness.handler(`context --model=${model}:${effort}`, harness.ctx);
+    const failure = harness.notices.at(-1).message;
+    ok(failure.includes("unexpected agent argv") && failure.includes("agent=") && failure.includes("root pane=pane-root"), `${label} successful start omitted safely returned identity`);
+    ok(!harness.calls.some(call => call.command === "herdr" && call.argv[1] === "prompt"), `${label} returned argv still submitted the prompt`);
   }
 }
 {
@@ -1574,8 +1661,9 @@ await withManagedHerdEnvironment(async () => {
     equal(notice.level, "info", `${alias} help did not use the info level`);
     for (const required of [
       "/herd <exact task>", "/herd context", "/herd task", "/herd issue", "/herd done",
-      "--branch=<name>", "--base=<ref>", "--dry-run", "--no-secret",
+      "--branch=<name>", "--base=<ref>", "--model=<model-selector>:<effort>", "--dry-run", "--no-secret",
       "Do not load the user's zsh secret environment automatically", "default: automatic secret loading on",
+      "--model=openai-codex/gpt-5.6-terra:xhigh", "Set the child OMP model and thinking effort together",
       "-- <additional exact instructions>", "-- <exact task>",
       "opaque instruction string",
       "semantic type prefix; feat/ fallback",

@@ -26,9 +26,9 @@ const WORKTRUNK_DEFAULT_BASE = "^";
 const HERD_HELP_TEXT = `Usage:
   /herd
   /herd <exact task>
-  /herd context [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
-  /herd task [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] -- <exact task>
-  /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
+  /herd context [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
+  /herd task [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--no-secret] [--dry-run] -- <exact task>
+  /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
   Unqualified issue numbers (\`123\` or \`#123\`) target the current repository.
   Qualified issues may target the current repository or its direct fork parent only; arbitrary repositories are not supported.
   /herd done [--force|-f] [--delete|-d]
@@ -37,6 +37,8 @@ Options:
   --branch=<name>  Use an explicit new branch name (default: semantic type prefix; feat/ fallback)
   --base=<ref>     Start from this ref (default: Worktrunk's detected default branch)
   --dry-run        Resolve and report without creating resources (default: off)
+  --model=<model-selector>:<effort>
+                     Set the child OMP model and thinking effort together (for example, --model=openai-codex/gpt-5.6-terra:xhigh)
   --no-secret      Do not load the user's zsh secret environment automatically (default: automatic secret loading on)
   --                Treat the remaining text as one opaque instruction string
 
@@ -46,6 +48,7 @@ Blank input defaults to context mode. Bare prose defaults to task mode.
 
 type Mode = "context" | "task" | "issue";
 type DoneMode = "plain" | "force" | "delete";
+type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "auto";
 type BranchType = "feat" | "fix" | "docs" | "refactor" | "test" | "chore" | "ci" | "build" | "perf";
 type ExecResult = { stdout: string; stderr: string; exitCode: number; killed: boolean };
 type PromptAcceptedStatus = "working" | "blocked" | "idle" | "done";
@@ -53,11 +56,14 @@ type Ui = { notify(message: string, level?: "info" | "warning" | "error"): void 
 type SessionEntry = { type?: string; role?: string; content?: unknown; summary?: unknown; message?: unknown };
 type SessionManager = { getSessionFile(): string | undefined; getBranch?(): SessionEntry[]; getEntries?(): SessionEntry[] };
 type CommandContext = { cwd: string; ui: Ui; sessionManager: SessionManager };
+const THINKING_LEVELS: readonly ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max", "auto"];
 
 export interface HerdRequest {
 	mode: Mode;
 	branch?: string;
 	base?: string;
+	model?: string;
+	effort?: ThinkingLevel;
 	dryRun: boolean;
 	loadSecrets: boolean;
 	issue?: string;
@@ -143,6 +149,20 @@ function splitDelimiter(raw: string): { head: string; tail: string; found: boole
 	return { head: raw.slice(0, match.index), tail, found: true };
 }
 
+function modelOverride(token: string): { model: string; effort: ThinkingLevel } {
+	const value = token.slice("--model=".length);
+	const finalColon = value.lastIndexOf(":");
+	if (finalColon < 0) throw new HerdError(`--model must include an effort after the final colon: ${token}:<effort>`);
+	const model = value.slice(0, finalColon);
+	const effort = value.slice(finalColon + 1);
+	if (!model) throw new HerdError("--model requires a non-empty model selector before the final colon");
+	if (!effort) throw new HerdError(`--model must include an effort after the final colon: ${token}<effort>`);
+	if (!THINKING_LEVELS.includes(effort as ThinkingLevel)) {
+		throw new HerdError(`--model has unknown thinking effort: ${effort}. Expected one of ${THINKING_LEVELS.join(", ")}`);
+	}
+	return { model, effort: effort as ThinkingLevel };
+}
+
 export function parseHerdArgs(raw: string): HerdRequest {
 	const trimmed = raw.trim();
 	const first = words(trimmed)[0];
@@ -156,6 +176,8 @@ export function parseHerdArgs(raw: string): HerdRequest {
 	else if (tokens[0] && !tokens[0].startsWith("--")) throw new HerdError(`Unknown /herd mode: ${tokens[0]}`);
 	let branch: string | undefined;
 	let base: string | undefined;
+	let model: string | undefined;
+	let effort: ThinkingLevel | undefined;
 	let dryRun = false;
 	let loadSecrets = true;
 	let issue: string | undefined;
@@ -164,13 +186,27 @@ export function parseHerdArgs(raw: string): HerdRequest {
 		else if (token === "--no-secret") loadSecrets = false;
 		else if (token.startsWith("--branch=")) branch = token.slice(9);
 		else if (token.startsWith("--base=")) base = token.slice(7);
+		else if (token === "--model") throw new HerdError("--model must use --model=<model-selector>:<effort>");
+		else if (token.startsWith("--model=")) {
+			if (model !== undefined) throw new HerdError("--model may be specified only once");
+			({ model, effort } = modelOverride(token));
+		}
 		else if (mode === "issue" && issue === undefined) issue = token;
 		else throw new HerdError(`Unexpected /herd argument: ${token}`);
 	}
 	if (mode === "task" && (!split.found || !split.tail.trim())) throw new HerdError("Task mode requires -- <exact task>");
 	if (mode === "issue" && !issue) throw new HerdError("Issue mode requires an issue reference");
 	if (mode === "issue" && issue) issueNumber(issue);
-	return { mode, branch, base, dryRun, loadSecrets, issue, instructions: split.tail };
+	return {
+		mode,
+		branch,
+		base,
+		...(model !== undefined && effort !== undefined ? { model, effort } : {}),
+		dryRun,
+		loadSecrets,
+		issue,
+		instructions: split.tail,
+	};
 }
 
 function parseDoneMode(raw: string): DoneMode {
@@ -1042,7 +1078,10 @@ export default function herd(pi: ExtensionAPI): void {
 					const base = repo.defaultBase
 						? "Worktrunk's detected default branch (resolved during the real handoff)"
 						: repo.base;
-					ctx.ui.notify(`Dry run: would create ${branch} from ${base} in workspace ${caller.workspaceId}. Secret loading would ${request.loadSecrets ? "" : "not "}occur.`, "info");
+					const modelNotice = request.model !== undefined && request.effort !== undefined
+						? ` Model override would be ${request.model}:${request.effort}.`
+						: "";
+					ctx.ui.notify(`Dry run: would create ${branch} from ${base} in workspace ${caller.workspaceId}. Secret loading would ${request.loadSecrets ? "" : "not "}occur.${modelNotice}`, "info");
 					return;
 				}
 				const wtCaller = await freshCaller(ctx, repo.root);
@@ -1104,12 +1143,16 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.ompMayRun = true;
 				owned.lastState = "agent start pending; OMP state unknown";
 				const agentStartTimeout = request.loadSecrets ? SECRET_AGENT_START_TIMEOUT : AGENT_START_TIMEOUT;
+				const ompArgv = request.model !== undefined && request.effort !== undefined
+					? ["--config", overlayPath, "--model", request.model, "--thinking", request.effort]
+					: ["--config", overlayPath];
+				const expectedAgentArgv = ["omp", ...ompArgv];
 				const startArgv = [
 					"agent", "start", attemptedAgent,
 					"--kind", "omp",
 					"--pane", owned.rootPane,
 					"--timeout", String(agentStartTimeout),
-					"--", "--config", overlayPath,
+					"--", ...ompArgv,
 				];
 				let busyDeadline: number | undefined;
 				let startedCommand: ExecResult;
@@ -1136,10 +1179,8 @@ export default function herd(pi: ExtensionAPI): void {
 				const argv = started.argv;
 				if (
 					!Array.isArray(argv)
-					|| argv.length !== 3
-					|| argv[0] !== "omp"
-					|| argv[1] !== "--config"
-					|| argv[2] !== overlayPath
+					|| argv.length !== expectedAgentArgv.length
+					|| argv.some((value, index) => value !== expectedAgentArgv[index])
 				) throw new HerdError("Herdr returned unexpected agent argv");
 				if (
 					returnedName !== attemptedAgent

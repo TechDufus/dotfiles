@@ -500,8 +500,8 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
                 "limit the herd overlay to the large-paste threshold override",
             ),
             (
-                'require Herdr\'s returned native argv to equal `["omp", "--config", "<absolute-overlay-path>"]` exactly',
-                "validate that OMP received only the expected native config argv",
+                "require Herdr's returned native argv to equal the exact dynamic expected array",
+                "validate that OMP received only the expected config and optional model/effort argv",
             ),
             (
                 "applies only to OMP sessions started by `/herd`; never disable the menu globally",

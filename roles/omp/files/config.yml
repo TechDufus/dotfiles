@@ -8,7 +8,7 @@ modelRoles:
   designer: openai-codex/gpt-5.6-terra:high
   vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:medium
-  advisor: cursor/cursor-grok-4.6-medium
+  advisor: openai-codex/gpt-5.6-terra:low
 cycleOrder:
   - smol
   - default
@@ -27,6 +27,12 @@ error:
 compaction:
   thresholdPercent: 25
   asyncEnabled: true
+  methodOrder:
+    - snapcompact
+    - remote
+    - handoff
+    - shake
+    - soft
 hideThinkingBlock: true
 disabledProviders:
   - claude
@@ -77,15 +83,15 @@ commands:
   enableOpencodeProject: false
 mcp:
   enableProjectConfig: false
-setupVersion: 1
+setupVersion: 2
 vault:
   enabled: true
 dev:
   autoqaConsent: granted
 tier:
   openai: default
-  subagent: priority
-  advisor: priority
+  subagent: default
+  advisor: default
 statusLine:
   transparent: true
   compactThinkingLevel: true
@@ -128,3 +134,5 @@ features:
 codexResets:
   autoRedeem: "yes"
 colorBlindMode: false
+composer:
+  shape: box

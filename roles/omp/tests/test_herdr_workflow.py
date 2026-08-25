@@ -538,16 +538,16 @@ class HerdrWorkflowSkillContractTests(unittest.TestCase):
             '  - source: "{{ omp_overlays_source }}/herd.yml"\n'
             '    dest: "{{ omp_overlays_dest }}/herd.yml"',
             defaults,
-            "the herd overlay must be included in the managed local-mode links",
+            "the herd overlay must be included in the managed OMP links",
         )
         link_task = extract_task(
             TASKS_PATH.read_text(encoding="utf-8"),
-            "Link repo-managed local-mode files",
+            "Link repo-managed OMP files",
         )
         self.assertIn(
-            'loop: "{{ omp_local_mode_links }}"',
+            'loop: "{{ omp_managed_links }}"',
             link_task,
-            "the role must deploy every configured local-mode link",
+            "the role must deploy every configured managed OMP link",
         )
 
         self.assertNotIn(

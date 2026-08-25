@@ -4,7 +4,7 @@
 
 ## Managed files
 
-- `config.yml`, `models.yml`, `lsp.json`, and local-mode overlays are repo-managed symlinks under `~/.omp/agent/`; local launchers are repo-managed symlinks under `~/.local/bin/`. `models.yml` supplies static metadata for the derived local model while retaining runtime discovery, so a stale discovery cache cannot prevent a launcher from starting. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
+- `config.yml`, `models.yml`, `lsp.json`, and hosted or local session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; their session launchers are repo-managed symlinks under `~/.local/bin/`. `models.yml` supplies static metadata for the derived local model while retaining runtime discovery, so a stale discovery cache cannot prevent a launcher from starting. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
 - Managed YAML is the authoritative record of current role assignments, context handling, and behavior pins. Preserve only deliberate overrides: omit a setting that matches the upstream default unless retaining it is an intentional reproducibility or behavior decision. Re-audit after OMP upgrades because inherited behavior can change with upstream defaults.
 - `mcp.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges managed servers into existing `mcpServers`, preserves unowned entries, and writes restrictive permissions because OAuth and per-user credentials may land there.
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter and focused prompts. Specialist routing and effort policy belong in their managed sources rather than this overview.
@@ -53,6 +53,27 @@ Both launchers select their managed overlay, publish the derived model's practic
 `omp-local-assist` is the hybrid mode: it keeps the selected fast and supporting work local while retaining the normal cloud roles needed for higher-capability work. Its configuration deliberately leaves those inherited cloud roles available.
 
 These modes use CLI `--config` overlays rather than named profiles. A named profile relocates the complete OMP user base and would lose the normal base's global rules, agents, extensions, skills, authentication, and session state unless all of them were duplicated. An overlay changes only the listed settings while preserving the normal `~/.omp/agent` base.
+
+## Cursor session mode
+
+Launch a Cursor-routed session with:
+
+```sh
+omp-cursor
+omp-cursor --cwd /path/to/repo "Review this change"
+```
+
+`omp-cursor` selects its managed CLI `--config` overlay and forwards session arguments unchanged. It is a session mode, not a wrapper for OMP management subcommands; use `omp` directly for those.
+
+Like the local modes, this uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
+
+The quality-first role mix is a deliberate fit to catalog capabilities, not a benchmark claim:
+
+- GPT-5.6 Sol serves the default role for main work; Claude Opus 4.8 Max serves the slow role for deep work.
+- Composer 2.5 Fast serves the smol role; Gemini 3.7 Flash serves the tiny role.
+- GPT-5.6 Terra serves delegated task work; Grok Code Fast serves commit work.
+- Gemini 3.1 Pro serves planning and vision work; Claude Sonnet 5 serves designer work.
+- Grok 4.6 serves the advisor role.
 
 ## Herdr
 

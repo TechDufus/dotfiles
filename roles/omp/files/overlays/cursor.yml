@@ -1,0 +1,14 @@
+---
+modelRoles:
+  default: cursor/gpt-5.6-sol:xhigh
+  smol: cursor/composer-2.5-fast
+  tiny: cursor/gemini-3.7-flash:low
+  task: cursor/gpt-5.6-terra
+  slow: cursor/claude-opus-4-8-max:high
+  plan: cursor/gemini-3.1-pro:high
+  designer: cursor/claude-sonnet-5-xhigh:high
+  vision: cursor/gemini-3.1-pro:high
+  commit: cursor/grok-code-fast-1:medium
+  advisor: cursor/cursor-grok-4.6:low
+enabledModels:
+  - cursor/*

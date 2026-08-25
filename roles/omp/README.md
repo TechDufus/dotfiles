@@ -67,13 +67,13 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 Like the local modes, this uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
 
-The role mix follows measured price-performance, not Cursor-pool labels or model-family balancing. Cursor's [current list price](https://cursor.com/docs/models-and-pricing) makes Luna the least expensive capable model, while [CursorBench 3.2](https://cursor.com/cursorbench) compares published cost per task on ambiguous multi-file work:
+The overlay mirrors the normal OMP role map one-for-one and changes only the provider from `openai-codex` to `cursor`:
 
-- Luna at `xhigh` serves default work, scoring 57.7% at $0.23/task; Luna at `high` serves designer and vision work, scoring 56.8% at $0.16/task while preserving image handling.
-- Bare Luna serves smol and task work so each caller retains its selected effort; Luna at `low` serves tiny work, and at `medium` serves commit and advisor work. Luna Medium scores 47.7% at $0.08/task, ahead of Terra Low's 46.9% at $0.42/task.
-- Grok 4.6 at `medium` is reserved for slow and plan work. It scores 67.1% at $1.28/task, essentially matching Sol Max's 67.2% at $5.69/task and outperforming Terra Extra High's 59.2% at $1.15/task.
+- Sol at `xhigh` serves default and plan work.
+- Bare Luna serves smol work, Luna at `low` serves tiny work, and Luna at `medium` serves commit work.
+- Bare Terra serves task work, Terra at `xhigh` serves slow work, Terra at `high` serves designer and vision work, and Terra at `low` serves advisor work.
 
-Re-audit the mapping when list rates or CursorBench results change; small score differences may not be statistically meaningful.
+Keep this overlay in lockstep whenever the base `modelRoles` mapping changes.
 
 ## Herdr
 

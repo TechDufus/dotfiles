@@ -1,14 +1,14 @@
 ---
 modelRoles:
-  default: cursor/gpt-5.6-luna:xhigh
+  default: cursor/gpt-5.6-sol:xhigh
   smol: cursor/gpt-5.6-luna
   tiny: cursor/gpt-5.6-luna:low
-  task: cursor/gpt-5.6-luna
-  slow: cursor/cursor-grok-4.6:medium
-  plan: cursor/cursor-grok-4.6:medium
-  designer: cursor/gpt-5.6-luna:high
-  vision: cursor/gpt-5.6-luna:high
+  task: cursor/gpt-5.6-terra
+  slow: cursor/gpt-5.6-terra:xhigh
+  plan: cursor/gpt-5.6-sol:xhigh
+  designer: cursor/gpt-5.6-terra:high
+  vision: cursor/gpt-5.6-terra:high
   commit: cursor/gpt-5.6-luna:medium
-  advisor: cursor/gpt-5.6-luna:medium
+  advisor: cursor/gpt-5.6-terra:low
 enabledModels:
   - cursor/*

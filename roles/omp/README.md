@@ -67,13 +67,13 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 Like the local modes, this uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
 
-The role mix is price-performance routing, not a Cursor-pool or model-family balancing policy. Cursor's [current list price](https://cursor.com/docs/models-and-pricing) is $0.20/M Luna input tokens, $0.02/M cache reads, and $1.20/M output tokens; Terra is 10× each rate. OpenAI's [reported coding results](https://openai.com/index/gpt-5-6/) are close enough for high-volume work (Coding Agent Index: Luna 74.6, Terra 77.4; Terminal-Bench: Luna 84.7, Terra 87.4) that Luna is the cost-conscious default:
+The role mix follows measured price-performance, not Cursor-pool labels or model-family balancing. Cursor's [current list price](https://cursor.com/docs/models-and-pricing) makes Luna the least expensive capable model, while [CursorBench 3.2](https://cursor.com/cursorbench) compares published cost per task on ambiguous multi-file work:
 
-- Luna at `high` serves default, designer, and vision work; its text-and-image support preserves image handling.
-- Bare Luna serves smol and task work so each caller retains its selected effort; Luna at `low` serves tiny and advisor work, and at `medium` serves commit work.
-- Terra at `xhigh` is reserved for slow and plan work, where the modest reported capability uplift is deliberately purchased.
+- Luna at `high` serves default, designer, and vision work; it scores 56.8% at $0.16/task and preserves image handling.
+- Bare Luna serves smol and task work so each caller retains its selected effort; Luna at `low` serves tiny work, and at `medium` serves commit and advisor work. Luna Medium scores 47.7% at $0.08/task, ahead of Terra Low's 46.9% at $0.42/task.
+- Grok 4.6 at `medium` is reserved for slow and plan work. It scores 67.1% at $1.28/task, essentially matching Sol Max's 67.2% at $5.69/task and outperforming Terra Extra High's 59.2% at $1.15/task.
 
-This ignores Cursor's separate-pool labels: they do not determine intrinsic value. Re-audit the mapping when list rates or the cited model results change.
+Re-audit the mapping when list rates or CursorBench results change; small score differences may not be statistically meaningful.
 
 ## Herdr
 

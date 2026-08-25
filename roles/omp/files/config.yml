@@ -130,7 +130,7 @@ snapcompact:
   systemPrompt: all
   toolResults: true
 features:
-  unexpectedStopDetection: true
+  unexpectedStopDetection: smart
 codexResets:
   autoRedeem: "yes"
 colorBlindMode: false

@@ -67,13 +67,13 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 Like the local modes, this uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
 
-The quality-first role mix is a deliberate fit to catalog capabilities, not a benchmark claim:
+The role mix is price-performance routing, not a Cursor-pool or model-family balancing policy. Cursor's [current list price](https://cursor.com/docs/models-and-pricing) is $0.20/M Luna input tokens, $0.02/M cache reads, and $1.20/M output tokens; Terra is 10× each rate. OpenAI's [reported coding results](https://openai.com/index/gpt-5-6/) are close enough for high-volume work (Coding Agent Index: Luna 74.6, Terra 77.4; Terminal-Bench: Luna 84.7, Terra 87.4) that Luna is the cost-conscious default:
 
-- GPT-5.6 Sol serves the default role for main work; Claude Opus 4.8 Max serves the slow role for deep work.
-- Composer 2.5 Fast serves the smol role; Gemini 3.7 Flash serves the tiny role.
-- GPT-5.6 Terra serves delegated task work; Grok Code Fast serves commit work.
-- Gemini 3.1 Pro serves planning and vision work; Claude Sonnet 5 serves designer work.
-- Grok 4.6 serves the advisor role.
+- Luna at `high` serves default, designer, and vision work; its text-and-image support preserves image handling.
+- Bare Luna serves smol and task work so each caller retains its selected effort; Luna at `low` serves tiny and advisor work, and at `medium` serves commit work.
+- Terra at `xhigh` is reserved for slow and plan work, where the modest reported capability uplift is deliberately purchased.
+
+This ignores Cursor's separate-pool labels: they do not determine intrinsic value. Re-audit the mapping when list rates or the cited model results change.
 
 ## Herdr
 

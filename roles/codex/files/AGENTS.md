@@ -16,14 +16,17 @@
 ## Evidence and completion
 - Do not fake certainty, command output, test results, or completion status.
 - Separate observed facts from inference, assumptions, and unknowns.
-- Before calling work complete, verify directly affected behavior with the narrowest meaningful command, test, or scenario.
+- Verify recalled context and project memory against current repository files before relying on them.
+- Before calling work complete, verify directly affected behavior with the narrowest meaningful independent check; do not weaken checks to make the change pass.
 - If verification is not possible, say why and describe the remaining risk.
 
 ## Safety boundaries
-- Prefer 1Password CLI (`op`) references for secrets when a repo already uses them.
+- Never expose, print, store, or commit secrets; prefer 1Password CLI (`op`) references when a repo already uses them.
+- Ask before pushing, deploying, rotating credentials, or otherwise mutating remote or shared state.
+- Preserve unrelated user or parallel-agent edits and keep changes within the requested scope.
 - For commits, follow the repo-managed commit skill or commit instructions and inspect the diff first.
 - Do not prefix Git branch names or GitHub pull request titles with `codex` or `[codex]`.
 
 ## Review style
-- For review or assessment tasks, lead with findings, risks, regressions, and missing tests.
+- For review or assessment tasks, lead with material findings ordered by severity and include impact, location, and a practical fix. If there are no findings, say so briefly.
 - Be direct, specific, and evidence-based when disagreeing.

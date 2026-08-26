@@ -10,5 +10,8 @@ modelRoles:
   vision: cursor/gemini-3.1-pro:high
   commit: cursor/composer-2.5-fast
   advisor: cursor/cursor-grok-4.6:low
+compaction:
+  thresholdPercent: 65
+  thresholdTokens: -1
 enabledModels:
   - cursor/*

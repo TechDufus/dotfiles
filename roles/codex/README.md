@@ -8,7 +8,7 @@ Install and configure the OpenAI Codex CLI with version-controlled user memory.
   - macOS: Homebrew cask (`codex`)
   - Linux (Ubuntu/Fedora/Arch): compares installed version to latest GitHub release and installs `~/.local/bin/codex` when missing or outdated
 - Ensures `~/.codex/AGENTS.md` is a symlink to `roles/codex/files/AGENTS.md`
-- Ensures `~/.codex/config.toml` is a symlink to `roles/codex/files/config.toml`
+- Copies `roles/codex/files/config.toml` to `~/.codex/config.toml`
 - Copies custom agents from `roles/codex/files/agents/` into `~/.codex/agents/`
 - Symlinks custom skills from `roles/codex/files/skills/` into `~/.codex/skills/`
 - Validates repo-managed custom skills before symlinking them into `~/.codex/skills/`
@@ -16,7 +16,7 @@ Install and configure the OpenAI Codex CLI with version-controlled user memory.
 - Removes stale managed custom-agent files that no longer exist in dotfiles
 - Removes stale managed custom-skill symlinks that no longer exist in dotfiles
 - Backs up a pre-existing non-symlink `~/.codex/AGENTS.md` to `~/.codex/AGENTS.md.backup`
-- Backs up a pre-existing non-symlink `~/.codex/config.toml` to `~/.codex/config.toml.backup`
+- Backs up a pre-existing `~/.codex/config.toml` file to `~/.codex/config.toml.backup`
 
 ## Usage
 
@@ -26,7 +26,9 @@ dotfiles -t codex
 
 ## Git Hygiene
 
-`codex` writes local trust and plugin-runtime metadata into [`files/config.toml`](./files/config.toml). The repo-managed hook at `.githooks/pre-commit` strips staged `trust_level = ...` lines, `[projects."..."]` tables, and local absolute-path marketplace tables from the committed version of that file without rewriting your working copy.
+Codex writes local trust and plugin-runtime metadata into `~/.codex/config.toml`. The role deliberately deploys that file as a copy rather than a symlink, keeping generated machine-local state out of [`files/config.toml`](./files/config.toml). Rerun `dotfiles -t codex` to refresh the installed copy from the repo-managed defaults.
+
+The repo-managed hook at `.githooks/pre-commit` remains a fallback: it strips staged `trust_level = ...` lines, `[projects."..."]` tables, and local absolute-path marketplace tables if generated state is ever copied back into the source file.
 
 Enable the hook once per clone:
 

@@ -1,30 +1,27 @@
 # Codex CLI config (managed by dotfiles role)
 # Reference: https://developers.openai.com/codex/config-reference
 
-# Minimal, high-quality defaults.
-model_reasoning_effort = "medium"
-# model_reasoning_summary = "detailed"
-# model_verbosity = "high"
-approval_policy = "on-request"
-sandbox_mode = "danger-full-access"
-web_search = "live"
-# tool_output_token_limit = 120000
+# High-quality primary model; faster models are used for subagents below.
 model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "default"
-suppress_unstable_features_warning = true
 personality = "pragmatic"
 
-notify = ["/Users/MDegarmo/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
+# Keep execution autonomous while retaining automatic review for eligible
+# approval requests. App-tool approvals are configured separately below.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+sandbox_mode = "danger-full-access"
+web_search = "live"
 
 [features]
-hooks = true
 memories = true
-js_repl = false
 
 [agents]
-max_threads = 12
-max_depth = 2
+max_concurrent_threads_per_session = 12
+default_subagent_model = "gpt-5.6-terra"
+default_subagent_reasoning_effort = "high"
 
 # Keep local session history so resume/fork workflows stay useful.
 [history]
@@ -33,7 +30,8 @@ persistence = "save-all"
 [tui]
 notifications = true
 show_tooltips = false
-status_line = ["model-with-reasoning", "git-branch", "pull-request-number", "branch-changes", "current-dir", "context-used", "five-hour-limit"]
+status_line = ["model-with-reasoning", "task-progress", "git-branch", "pull-request-number", "branch-changes", "context-remaining", "five-hour-limit", "weekly-limit", "fast-mode"]
+terminal_title = ["spinner", "project", "git-branch", "task-progress"]
 theme = "catppuccin-mocha"
 
 [tui.keymap.editor]
@@ -42,41 +40,6 @@ insert_newline = "alt-enter"
 [mcp_servers.playwright]
 command = "bunx"
 args = ["@playwright/mcp@latest"]
-
-[mcp_servers.node_repl]
-args = []
-command = "/Applications/Codex.app/Contents/Resources/cua_node/bin/node_repl"
-startup_timeout_sec = 120
-
-[mcp_servers.node_repl.env]
-NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
-NODE_REPL_NODE_MODULE_DIRS = "/Applications/Codex.app/Contents/Resources/cua_node/lib/node_modules"
-NODE_REPL_NODE_PATH = "/Applications/Codex.app/Contents/Resources/cua_node/bin/node"
-NODE_REPL_TRUSTED_CODE_PATHS = "/Users/MDegarmo/.codex:/Applications/Codex.app/Contents/Resources/cua_node/lib/node_modules"
-CODEX_HOME = "/Users/MDegarmo/.codex"
-NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "7fe0e1c59da4bc68f9d6ab81ae8d349b53fee44b074f49be0effbc1105a5f1d3"
-BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
-NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
-NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
-NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE = "Control desktop apps on macOS through Computer Use."
-BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.810.41047"
-SKY_CUA_SERVICE_PATH = "/Users/MDegarmo/.codex/computer-use/Codex Computer Use.app"
-CODEX_CLI_PATH = "/Applications/Codex.app/Contents/Resources/codex"
-
-[mcp_servers.computer-use]
-command = "./Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient"
-args = ["mcp"]
-cwd = "."
-enabled = false
-
-# Export Codex telemetry to OpenMonitor.
-# NOTE: Codex v0.106.0 does not interpolate env vars in [otel] fields.
-# Values below are written literally. Rotate the API key if this file is shared.
-[otel]
-environment = "dev"
-log_user_prompt = true
-trace_exporter = "none"
 
 [plugins."google-calendar@openai-curated"]
 enabled = true
@@ -135,33 +98,7 @@ default_tools_approval_mode = "approve"
 [memories]
 disable_on_external_context = true
 
-[projects."/Users/MDegarmo/dev/redhorse/atlas"]
-trust_level = "trusted"
-
-[projects."/Users/MDegarmo/.dotfiles"]
-trust_level = "trusted"
-
-[marketplaces.openai-primary-runtime]
-last_updated = "2026-08-14T14:33:46Z"
-source_type = "local"
-source = "/Users/MDegarmo/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
-
-[marketplaces.openai-bundled]
-last_updated = "2026-08-17T20:08:58Z"
-source_type = "local"
-source = "/Users/MDegarmo/.codex/.tmp/bundled-marketplaces/openai-bundled"
-
 [desktop]
 followUpQueueMode = "queue"
 dock-icon-preference = "app-default"
 conversationDetailMode = "STEPS_PROSE"
-
-[shell_environment_policy.set]
-BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
-NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "7fe0e1c59da4bc68f9d6ab81ae8d349b53fee44b074f49be0effbc1105a5f1d3"
-NODE_REPL_TRUSTED_CODE_PATHS = "/Users/MDegarmo/.codex:/Applications/Codex.app/Contents/Resources/cua_node/lib/node_modules"
-
-[hooks.state]
-
-[hooks.state."/Users/MDegarmo/.codex/hooks.json:session_start:0:0"]
-trusted_hash = "sha256:3e6da1d379bf2c8c446356f7fb6e0b7995b191b95f6029a4054ded1f3f95dcad"

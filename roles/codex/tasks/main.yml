@@ -253,31 +253,35 @@
     loop_var: codex_skill_source_directory
     label: "{{ codex_skill_source_directory.path | basename }}"
 
-- name: "{{ role_name }} | Symlink | Check if config.toml already exists"
+- name: "{{ role_name }} | Config | Check if config.toml already exists"
   ansible.builtin.stat:
     path: "{{ codex_config_dest }}"
+    follow: false
   register: codex_config_file
 
-- name: "{{ role_name }} | Symlink | Backup existing config.toml if it is not a symlink"
+- name: "{{ role_name }} | Config | Backup existing config.toml if it is not a symlink"
   ansible.builtin.copy:
     src: "{{ codex_config_dest }}"
     dest: "{{ codex_config_dest }}.backup"
     remote_src: true
     mode: "0644"
-  when: codex_config_file.stat.exists and not codex_config_file.stat.islnk
+  when:
+    - codex_config_file.stat.exists
+    - not codex_config_file.stat.islnk
 
-- name: "{{ role_name }} | Symlink | Remove existing config.toml if it is not a symlink"
+- name: "{{ role_name }} | Config | Remove legacy config.toml symlink"
   ansible.builtin.file:
     path: "{{ codex_config_dest }}"
     state: absent
-  when: codex_config_file.stat.exists and not codex_config_file.stat.islnk
+  when:
+    - codex_config_file.stat.exists
+    - codex_config_file.stat.islnk
 
-- name: "{{ role_name }} | Symlink | Create symlink to config.toml"
-  ansible.builtin.file:
+- name: "{{ role_name }} | Config | Deploy managed config.toml copy"
+  ansible.builtin.copy:
     src: "{{ codex_config_source }}"
     dest: "{{ codex_config_dest }}"
-    state: link
-    force: true
+    mode: "0644"
 
 - name: "{{ role_name }} | Symlink | Check if AGENTS.md already exists"
   ansible.builtin.stat:

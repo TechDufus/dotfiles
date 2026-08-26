@@ -1,6 +1,6 @@
 name = "validator"
 description = "Validation agent that runs the smallest credible check set and returns a binary readiness verdict."
-model = "gpt-5.4-mini"
+model = "gpt-5.6-luna"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """

@@ -7,7 +7,7 @@ modelRoles:
   slow: cursor/cursor-grok-4.6:xhigh
   plan: cursor/cursor-grok-4.6:xhigh
   designer: cursor/cursor-grok-4.6:high
-  vision: cursor/default
+  vision: cursor/gemini-3.1-pro:high
   commit: cursor/composer-2.5-fast
   advisor: cursor/cursor-grok-4.6:low
 compaction:

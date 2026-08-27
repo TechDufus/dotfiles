@@ -11,7 +11,7 @@ modelRoles:
   task: ollama/qwen3.6:35b-omp:max
   advisor: ollama/qwen3.6:35b-omp:max
 compaction:
-  thresholdPercent: 80
+  thresholdPercent: 45
   thresholdTokens: -1
 enabledModels:
   - ollama/qwen3.6:35b-omp

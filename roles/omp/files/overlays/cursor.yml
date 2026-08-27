@@ -2,12 +2,12 @@
 modelRoles:
   default: cursor/cursor-grok-4.6:xhigh
   smol: cursor/composer-2.5-fast
-  tiny: cursor/grok-code-fast-1:low
-  task: cursor/composer-2.5
+  tiny: cursor/composer-2.5-fast
+  task: cursor/cursor-grok-4.6
   slow: cursor/cursor-grok-4.6:xhigh
   plan: cursor/cursor-grok-4.6:xhigh
-  designer: cursor/gemini-3.1-pro:high
-  vision: cursor/gemini-3.1-pro:high
+  designer: cursor/cursor-grok-4.6:high
+  vision: cursor/default
   commit: cursor/composer-2.5-fast
   advisor: cursor/cursor-grok-4.6:low
 compaction:

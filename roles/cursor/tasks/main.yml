@@ -1,0 +1,431 @@
+---
+- name: "{{ role_name }} | Check agent candidate binaries"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ cursor_agent_candidate_bins | unique }}"
+  register: cursor_agent_candidates
+
+- name: "{{ role_name }} | Select agent binary"
+  ansible.builtin.set_fact:
+    cursor_effective_agent_bin: >-
+      {{
+        (
+          cursor_agent_candidates.results
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | first
+        )
+        | default('')
+      }}
+
+- name: "{{ role_name }} | Ensure user-local binary directory exists"
+  ansible.builtin.file:
+    path: "{{ cursor_local_bin_dir }}"
+    state: directory
+    mode: "0755"
+  when:
+    - cursor_manage_install | bool
+    - cursor_effective_agent_bin | length == 0
+
+- name: "{{ role_name }} | Download Cursor Agent CLI installer"
+  ansible.builtin.get_url:
+    url: "{{ cursor_install_url }}"
+    dest: "{{ cursor_installer_path }}"
+    mode: "0755"
+    force: true
+  when:
+    - cursor_manage_install | bool
+    - cursor_effective_agent_bin | length == 0
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Install Cursor Agent CLI"
+  ansible.builtin.command:
+    argv:
+      - bash
+      - "{{ cursor_installer_path }}"
+    creates: "{{ cursor_agent_bin }}"
+  register: cursor_install
+  when:
+    - cursor_manage_install | bool
+    - cursor_effective_agent_bin | length == 0
+    - not ansible_check_mode
+
+- name: "{{ role_name }} | Note Cursor Agent CLI install in check mode"
+  ansible.builtin.debug:
+    msg: >-
+      Cursor Agent CLI is missing at {{ cursor_agent_bin }}.
+      Skipping installer in check mode.
+  when:
+    - cursor_manage_install | bool
+    - cursor_effective_agent_bin | length == 0
+    - ansible_check_mode
+
+- name: "{{ role_name }} | Warn if Cursor Agent CLI is missing"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Cursor Agent CLI was not found. Set cursor_manage_install=true
+      or install `agent` to {{ cursor_agent_bin }}.
+  when:
+    - not (cursor_manage_install | bool)
+    - cursor_effective_agent_bin | length == 0
+
+- name: "{{ role_name }} | Refresh selected agent binary after install"
+  ansible.builtin.stat:
+    path: "{{ cursor_agent_bin }}"
+  register: cursor_agent_after_install
+  when:
+    - cursor_manage_install | bool
+    - cursor_effective_agent_bin | length == 0
+
+- name: "{{ role_name }} | Record installed agent binary"
+  ansible.builtin.set_fact:
+    cursor_effective_agent_bin: "{{ cursor_agent_bin }}"
+  when:
+    - cursor_effective_agent_bin | length == 0
+    - cursor_agent_after_install is defined
+    - cursor_agent_after_install.stat.isreg | default(false)
+
+- name: "{{ role_name }} | Verify Cursor Agent CLI"
+  ansible.builtin.command:
+    argv:
+      - "{{ cursor_effective_agent_bin }}"
+      - --version
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - cursor_effective_agent_bin | length > 0
+
+- name: "{{ role_name }} | Ensure Cursor config directories exist"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ cursor_config_root }}"
+    - "{{ cursor_agents_dest }}"
+    - "{{ cursor_skills_dest }}"
+    - "{{ cursor_rules_dest }}"
+
+- name: "{{ role_name }} | Check repo-managed Cursor link sources"
+  ansible.builtin.stat:
+    path: "{{ item.source }}"
+    checksum_algorithm: sha256
+  loop: "{{ cursor_managed_links }}"
+  loop_control:
+    label: "{{ item.source | basename }}"
+  register: cursor_managed_link_sources
+  failed_when: not (cursor_managed_link_sources.stat.isreg | default(false))
+
+- name: "{{ role_name }} | Check installed managed Cursor links"
+  ansible.builtin.stat:
+    path: "{{ item.dest }}"
+    follow: false
+    checksum_algorithm: sha256
+  loop: "{{ cursor_managed_links }}"
+  loop_control:
+    label: "{{ item.dest | basename }}"
+  register: cursor_installed_managed_links
+
+- name: "{{ role_name }} | Refuse to overwrite unmanaged Cursor links"
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.0.item.dest }} is a regular file and differs from
+      {{ item.1.item.source }}. Copy the live changes into the repo file before
+      re-running the role, or remove the file to allow the managed symlink.
+  loop: "{{ cursor_installed_managed_links.results | zip(cursor_managed_link_sources.results) }}"
+  loop_control:
+    label: "{{ item.0.item.dest | basename }}"
+  when:
+    - item.0.stat.exists
+    - item.0.stat.isreg | default(false)
+    - item.0.stat.checksum != item.1.stat.checksum
+
+- name: "{{ role_name }} | Link repo-managed Cursor files"
+  ansible.builtin.file:
+    src: "{{ item.source }}"
+    dest: "{{ item.dest }}"
+    state: link
+    force: true
+  loop: "{{ cursor_managed_links }}"
+  loop_control:
+    label: "{{ item.dest | basename }}"
+
+- name: "{{ role_name }} | Load managed Cursor CLI config"
+  ansible.builtin.include_vars:
+    file: "{{ cursor_cli_config_source }}"
+    name: cursor_managed_cli_config
+
+- name: "{{ role_name }} | Check installed Cursor CLI config"
+  ansible.builtin.stat:
+    path: "{{ cursor_cli_config_dest }}"
+    follow: false
+  register: cursor_installed_cli_config
+  no_log: true
+
+- name: "{{ role_name }} | Refuse symlinked Cursor CLI config"
+  ansible.builtin.fail:
+    msg: >-
+      {{ cursor_cli_config_dest }} is a symlink. Refusing to write CLI config
+      through a symlink because the live file stores auth and machine-local
+      cache. Replace it with a regular file or remove it and rerun the role.
+  when: cursor_installed_cli_config.stat.islnk | default(false)
+
+- name: "{{ role_name }} | Refuse non-file Cursor CLI config"
+  ansible.builtin.fail:
+    msg: >-
+      {{ cursor_cli_config_dest }} exists but is not a regular file. Move it
+      aside or replace it with a regular JSON file before re-running the role.
+  when:
+    - cursor_installed_cli_config.stat.exists
+    - not (cursor_installed_cli_config.stat.isreg | default(false))
+
+- name: "{{ role_name }} | Initialize existing Cursor CLI config"
+  ansible.builtin.set_fact:
+    cursor_existing_cli_config: {}
+  no_log: true
+
+- name: "{{ role_name }} | Read existing Cursor CLI config"
+  ansible.builtin.slurp:
+    src: "{{ cursor_cli_config_dest }}"
+  register: cursor_existing_cli_config_slurp
+  when: cursor_installed_cli_config.stat.exists
+  no_log: true
+
+- name: "{{ role_name }} | Parse existing Cursor CLI config"
+  ansible.builtin.set_fact:
+    cursor_existing_cli_config: "{{ cursor_existing_cli_config_slurp.content | b64decode | from_json }}"
+  when: cursor_installed_cli_config.stat.exists
+  no_log: true
+
+- name: "{{ role_name }} | Merge managed Cursor CLI config"
+  ansible.builtin.set_fact:
+    cursor_merged_cli_config: >-
+      {{
+        cursor_existing_cli_config
+        | combine(cursor_managed_cli_config, recursive=true)
+      }}
+  no_log: true
+
+- name: "{{ role_name }} | Validate managed Cursor CLI config"
+  ansible.builtin.assert:
+    that:
+      - cursor_merged_cli_config.permissions.allow == cursor_managed_cli_config.permissions.allow
+      - cursor_merged_cli_config.permissions.deny == cursor_managed_cli_config.permissions.deny
+      - cursor_merged_cli_config.approvalMode == cursor_managed_cli_config.approvalMode
+      - cursor_merged_cli_config.sandbox.mode == cursor_managed_cli_config.sandbox.mode
+    quiet: true
+
+- name: "{{ role_name }} | Deploy Cursor CLI config"
+  ansible.builtin.copy:
+    content: "{{ cursor_merged_cli_config | to_nice_json }}\n"
+    dest: "{{ cursor_cli_config_dest }}"
+    mode: "0600"
+  no_log: true
+
+- name: "{{ role_name }} | Agents | Check repo-managed Cursor agents source"
+  ansible.builtin.stat:
+    path: "{{ cursor_agents_source }}"
+  register: cursor_agents_source_dir
+
+- name: "{{ role_name }} | Agents | Find repo-managed Cursor agents"
+  ansible.builtin.find:
+    paths: "{{ cursor_agents_source }}"
+    file_type: file
+    patterns: "*.md"
+    recurse: false
+  register: cursor_agent_source_files
+  when: cursor_agents_source_dir.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Agents | Find installed Cursor agent symlinks"
+  ansible.builtin.find:
+    paths: "{{ cursor_agents_dest }}"
+    file_type: link
+    recurse: false
+  register: cursor_installed_agent_symlinks
+
+- name: "{{ role_name }} | Agents | Inspect installed Cursor agent symlinks"
+  ansible.builtin.stat:
+    path: "{{ cursor_installed_agent_symlink.path }}"
+    follow: false
+  loop: "{{ cursor_installed_agent_symlinks.files | default([]) }}"
+  loop_control:
+    loop_var: cursor_installed_agent_symlink
+    label: "{{ cursor_installed_agent_symlink.path | basename }}"
+  register: cursor_installed_agent_symlink_stats
+
+- name: "{{ role_name }} | Agents | Remove stale repo-managed Cursor agent symlinks"
+  ansible.builtin.file:
+    path: "{{ item.cursor_installed_agent_symlink.path }}"
+    state: absent
+  loop: "{{ cursor_installed_agent_symlink_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_installed_agent_symlink.path | basename }}"
+  when:
+    - item.stat.islnk | default(false)
+    - >-
+      (item.stat.lnk_source | default('')).startswith((cursor_agents_source | realpath) ~ '/')
+      or (item.stat.lnk_source | default('')).startswith(cursor_agents_source ~ '/')
+    - >-
+      (item.cursor_installed_agent_symlink.path | basename) not in
+      (cursor_agent_source_files.files | default([]) | map(attribute='path')
+      | map('basename') | list)
+
+- name: "{{ role_name }} | Agents | Check repo-managed Cursor agent destinations"
+  ansible.builtin.stat:
+    path: "{{ cursor_agents_dest }}/{{ cursor_agent_source_file.path | basename }}"
+    follow: false
+  loop: "{{ cursor_agent_source_files.files | default([]) }}"
+  loop_control:
+    loop_var: cursor_agent_source_file
+    label: "{{ cursor_agent_source_file.path | basename }}"
+  register: cursor_agent_destinations
+
+- name: "{{ role_name }} | Agents | Remove copied Cursor agent destinations before symlinking"
+  ansible.builtin.file:
+    path: "{{ cursor_agents_dest }}/{{ item.cursor_agent_source_file.path | basename }}"
+    state: absent
+  loop: "{{ cursor_agent_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_agent_source_file.path | basename }}"
+  when:
+    - item.stat.exists
+    - not (item.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Agents | Symlink repo-managed Cursor agents"
+  ansible.builtin.file:
+    src: "{{ item.cursor_agent_source_file.path }}"
+    dest: "{{ cursor_agents_dest }}/{{ item.cursor_agent_source_file.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ cursor_agent_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_agent_source_file.path | basename }}"
+  when: >-
+    not (
+      ansible_check_mode
+      and item.stat.exists
+      and not (item.stat.islnk | default(false))
+    )
+
+- name: "{{ role_name }} | Skills | Find repo-managed Cursor skills"
+  ansible.builtin.find:
+    paths: "{{ cursor_skills_source }}"
+    file_type: directory
+    recurse: false
+  register: cursor_skill_source_directories
+
+- name: "{{ role_name }} | Skills | Check repo-managed Cursor skill destinations"
+  ansible.builtin.stat:
+    path: "{{ cursor_skills_dest }}/{{ cursor_skill_source_directory.path | basename }}"
+    follow: false
+  loop: "{{ cursor_skill_source_directories.files | default([]) }}"
+  loop_control:
+    loop_var: cursor_skill_source_directory
+    label: "{{ cursor_skill_source_directory.path | basename }}"
+  register: cursor_skill_destinations
+
+- name: "{{ role_name }} | Skills | Remove copied Cursor skill destinations before symlinking"
+  ansible.builtin.file:
+    path: "{{ cursor_skills_dest }}/{{ item.cursor_skill_source_directory.path | basename }}"
+    state: absent
+  loop: "{{ cursor_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_skill_source_directory.path | basename }}"
+  when:
+    - item.stat.exists
+    - not (item.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Skills | Symlink repo-managed Cursor skills"
+  ansible.builtin.file:
+    src: "{{ item.cursor_skill_source_directory.path }}"
+    dest: "{{ cursor_skills_dest }}/{{ item.cursor_skill_source_directory.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ cursor_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_skill_source_directory.path | basename }}"
+  when: >-
+    not (
+      ansible_check_mode
+      and item.stat.exists
+      and not (item.stat.islnk | default(false))
+    )
+
+- name: "{{ role_name }} | Rules | Find repo-managed Cursor rules"
+  ansible.builtin.find:
+    paths: "{{ cursor_rules_source }}"
+    file_type: file
+    patterns: "*.mdc"
+    recurse: false
+  register: cursor_rule_source_files
+
+- name: "{{ role_name }} | Rules | Find installed Cursor rule symlinks"
+  ansible.builtin.find:
+    paths: "{{ cursor_rules_dest }}"
+    file_type: link
+    recurse: false
+  register: cursor_installed_rule_symlinks
+
+- name: "{{ role_name }} | Rules | Inspect installed Cursor rule symlinks"
+  ansible.builtin.stat:
+    path: "{{ cursor_installed_rule_symlink.path }}"
+    follow: false
+  loop: "{{ cursor_installed_rule_symlinks.files | default([]) }}"
+  loop_control:
+    loop_var: cursor_installed_rule_symlink
+    label: "{{ cursor_installed_rule_symlink.path | basename }}"
+  register: cursor_installed_rule_symlink_stats
+
+- name: "{{ role_name }} | Rules | Remove stale repo-managed Cursor rule symlinks"
+  ansible.builtin.file:
+    path: "{{ item.cursor_installed_rule_symlink.path }}"
+    state: absent
+  loop: "{{ cursor_installed_rule_symlink_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_installed_rule_symlink.path | basename }}"
+  when:
+    - item.stat.islnk | default(false)
+    - >-
+      (item.stat.lnk_source | default('')).startswith((cursor_rules_source | realpath) ~ '/')
+      or (item.stat.lnk_source | default('')).startswith(cursor_rules_source ~ '/')
+    - >-
+      (item.cursor_installed_rule_symlink.path | basename) not in
+      (cursor_rule_source_files.files | default([]) | map(attribute='path')
+      | map('basename') | list)
+
+- name: "{{ role_name }} | Rules | Check repo-managed Cursor rule destinations"
+  ansible.builtin.stat:
+    path: "{{ cursor_rules_dest }}/{{ cursor_rule_source_file.path | basename }}"
+    follow: false
+  loop: "{{ cursor_rule_source_files.files | default([]) }}"
+  loop_control:
+    loop_var: cursor_rule_source_file
+    label: "{{ cursor_rule_source_file.path | basename }}"
+  register: cursor_rule_destinations
+
+- name: "{{ role_name }} | Rules | Remove copied Cursor rule destinations before symlinking"
+  ansible.builtin.file:
+    path: "{{ cursor_rules_dest }}/{{ item.cursor_rule_source_file.path | basename }}"
+    state: absent
+  loop: "{{ cursor_rule_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_rule_source_file.path | basename }}"
+  when:
+    - item.stat.exists
+    - not (item.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Rules | Symlink repo-managed Cursor rules"
+  ansible.builtin.file:
+    src: "{{ item.cursor_rule_source_file.path }}"
+    dest: "{{ cursor_rules_dest }}/{{ item.cursor_rule_source_file.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ cursor_rule_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.cursor_rule_source_file.path | basename }}"
+  when: >-
+    not (
+      ansible_check_mode
+      and item.stat.exists
+      and not (item.stat.islnk | default(false))
+    )

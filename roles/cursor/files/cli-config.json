@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "permissions": {
+    "allow": [
+      "Shell(**)",
+      "Read(**)",
+      "Write(**)",
+      "WebFetch(*)",
+      "Mcp(*:*)"
+    ],
+    "deny": []
+  },
+  "editor": {
+    "vimMode": false
+  },
+  "channel": "prod",
+  "notifications": true,
+  "hints": false,
+  "rewind": true,
+  "suggestNextPrompt": false,
+  "modelSlashCommands": true,
+  "autoAcceptWebSearch": true,
+  "hasChangedDefaultModel": true,
+  "model": {
+    "modelId": "grok-4.6"
+  },
+  "selectedModel": {
+    "modelId": "grok-4.6",
+    "parameters": [
+      {
+        "id": "effort",
+        "value": "xhigh"
+      },
+      {
+        "id": "fast",
+        "value": "false"
+      }
+    ]
+  },
+  "modelParameters": {
+    "grok-4.6": [
+      {
+        "id": "effort",
+        "value": "xhigh"
+      },
+      {
+        "id": "fast",
+        "value": "false"
+      }
+    ]
+  },
+  "exploreSubagentModel": "default",
+  "subagentModels": {
+    "explore": "default"
+  },
+  "display": {
+    "showLineNumbers": true,
+    "showThinkingBlocks": false,
+    "showStatusIndicators": true,
+    "showStatusLineRunningTime": true,
+    "mode": "zen"
+  },
+  "approvalMode": "unrestricted",
+  "sandbox": {
+    "mode": "disabled",
+    "networkAccess": "allow_all"
+  },
+  "network": {
+    "useHttp1ForAgent": false
+  },
+  "attribution": {
+    "attributeCommitsToAgent": false,
+    "attributePRsToAgent": false
+  }
+}

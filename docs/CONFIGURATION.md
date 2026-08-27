@@ -139,6 +139,7 @@ Everything else is configured by editing the actual config files directly:
 | kitty | `roles/kitty/files/kitty.conf` |
 | ghostty | `roles/ghostty/files/config` |
 | herdr | `roles/herdr/files/config.toml` |
+| cursor | `roles/cursor/files/` |
 | lfk | `roles/lfk/files/config.yaml` |
 | git | `roles/git/files/gitconfig` |
 | plasma desktop settings | `roles/plasma/defaults/main.yml` (`plasma_desktop_kconfig_settings`) |

@@ -1,0 +1,27 @@
+---
+role_name: cursor
+
+cursor_manage_install: true
+cursor_install_url: "https://cursor.com/install"
+cursor_local_bin_dir: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+cursor_agent_bin: "{{ cursor_local_bin_dir }}/agent"
+cursor_installer_path: "/tmp/cursor-agent-install-{{ ansible_facts['user_id'] }}.sh"
+cursor_agent_candidate_bins:
+  - "{{ cursor_agent_bin }}"
+  - /opt/homebrew/bin/agent
+  - /usr/local/bin/agent
+
+cursor_config_root: "{{ ansible_facts['env']['HOME'] }}/.cursor"
+cursor_cli_config_source: "{{ role_path }}/files/cli-config.json"
+cursor_cli_config_dest: "{{ cursor_config_root }}/cli-config.json"
+cursor_agents_md_source: "{{ role_path }}/files/AGENTS.md"
+cursor_agents_md_dest: "{{ cursor_config_root }}/AGENTS.md"
+cursor_agents_source: "{{ role_path }}/files/agents"
+cursor_agents_dest: "{{ cursor_config_root }}/agents"
+cursor_skills_source: "{{ role_path }}/files/skills"
+cursor_skills_dest: "{{ cursor_config_root }}/skills"
+cursor_rules_source: "{{ role_path }}/files/rules"
+cursor_rules_dest: "{{ cursor_config_root }}/rules"
+cursor_managed_links:
+  - source: "{{ cursor_agents_md_source }}"
+    dest: "{{ cursor_agents_md_dest }}"

@@ -1,2 +1,16 @@
 ---
 role_name: opencode
+
+opencode_bin_candidates:
+  - "{{ ansible_facts['env']['HOME'] }}/.opencode/bin/opencode"
+  - "{{ ansible_facts['env']['HOME'] }}/.local/bin/opencode"
+  - "{{ ansible_facts['env']['HOME'] }}/.bun/bin/opencode"
+  - /opt/homebrew/bin/opencode
+  - /usr/local/bin/opencode
+  - /usr/bin/opencode
+
+opencode_bun_bin_candidates:
+  - "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
+  - /opt/homebrew/bin/bun
+  - /usr/local/bin/bun
+  - /usr/bin/bun

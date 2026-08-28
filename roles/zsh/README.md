@@ -50,7 +50,7 @@ graph TD
 
 | File/Directory | Destination | Purpose |
 |----------------|-------------|---------|
-| `.zshenv` | `~/.zshenv` | PATH + Cursor agent glob compatibility for non-interactive shells |
+| `.zshenv` | `~/.zshenv` | Homebrew, then the shared PATH list in `paths_vars.zsh`, plus agent glob compatibility |
 | `.zshrc` | `~/.zshrc` | Main ZSH configuration entry point |
 | `.p10k.zsh` | `~/.p10k.zsh` | Powerlevel10k prompt customization |
 | `zsh/` | `~/.config/zsh/` | 30+ modular function files |
@@ -114,9 +114,7 @@ Applied to:
 
 ### 4. Completions and Herdr
 
-Interactive shells run in Herdr panes, which are normal TTYs. Completions register immediately after `compinit`. Heavy generators (`kubectl`, `jj`, `kwctl`, `omp`, `pnpm`) are wired with lazy `compdef` wrappers so they do not spawn at startup.
-
-Cursor agent sessions set `CURSOR_AGENT`. Those shells skip Powerlevel10k, zinit widgets, and fzf keybindings. `~/.zshenv` still puts Homebrew on `PATH` and sets `NO_NOMATCH` so bash-style globs do not abort the command.
+Interactive shells run in Herdr panes, which are normal TTYs. Cursor, Claude Code, and Codex agent shells skip Powerlevel10k, zinit widgets, and fzf keybindings, and do not write `~/.zsh_history`. `~/.zshenv` applies Homebrew and the shared PATH list in `paths_vars.zsh` so non-interactive `zsh -c` sees the same bins as an interactive shell. `.zshrc` skips `paths_*.zsh` so that list is not sourced twice. `NO_NOMATCH` still applies for agent glob compatibility. Heavy generators (`kubectl`, `jj`, `kwctl`, `omp`, `pnpm`, `kind`, `minikube`) are wired with lazy `compdef` wrappers so they do not spawn at startup.
 
 ### 5. Plugin Management with Zinit
 

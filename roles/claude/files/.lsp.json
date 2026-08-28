@@ -1,7 +1,7 @@
 {
   "python": {
-    "command": "pyright",
-    "args": ["--outputjson"],
+    "command": "pyright-langserver",
+    "args": ["--stdio"],
     "extensionToLanguage": {
       ".py": "python"
     }

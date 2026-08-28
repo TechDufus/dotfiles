@@ -16,10 +16,13 @@ These are the only things you configure in `group_vars/all.yml`:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `git_user_name` | Yes | Your name for git commits |
+| `op_account` | No | 1Password CLI account, default `my.1password.com` |
 | `op.git.user.email` | Yes | 1Password path to your email |
 
 ```yaml
 git_user_name: "Your Name"
+
+op_account: my.1password.com
 
 op:
   git:

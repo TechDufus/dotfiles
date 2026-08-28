@@ -34,7 +34,7 @@ cp "$repo_root/roles/zsh/files/.zshrc" "$home_dir/.zshrc"
 cat > "$zinit_dir/zinit.zsh" <<'ZINIT'
 zinit() {
   if [[ "$*" == "light romkatv/powerlevel10k" ]]; then
-    print -ru2 "powerlevel10k loaded under CURSOR_AGENT"
+    print -ru2 "powerlevel10k loaded under agent shell"
     exit 126
   fi
 }
@@ -51,3 +51,4 @@ run_pty() {
 }
 
 run_pty "env CURSOR_AGENT=1 HOME='$home_dir' XDG_DATA_HOME='$data_dir' XDG_CACHE_HOME='$cache_dir' ZDOTDIR='$home_dir' PATH='/usr/bin:/bin' '$zsh_bin' -i -c '$check'"
+run_pty "env CLAUDECODE=1 HOME='$home_dir' XDG_DATA_HOME='$data_dir' XDG_CACHE_HOME='$cache_dir' ZDOTDIR='$home_dir' PATH='/usr/bin:/bin' '$zsh_bin' -i -c '$check'"

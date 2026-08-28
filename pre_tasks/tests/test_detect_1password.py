@@ -21,7 +21,8 @@ class Detect1PasswordTests(unittest.TestCase):
         self.assertIn("sys.exit(124)", self.tasks)
         self.assertIn("failed_when: false", self.tasks)
         self.assertNotIn("async:", self.tasks)
-        self.assertNotIn("poll:", self.tasks)
+        self.assertIn("check_mode: false", self.tasks)
+        self.assertIn("os.environ.get(\"OP_ACCOUNT\"", self.tasks)
 
     def test_auth_fact_depends_only_on_successful_probe(self) -> None:
         self.assertIn("op_authenticated: \"{{ op_whoami.rc | default(1) == 0 }}\"", self.tasks)

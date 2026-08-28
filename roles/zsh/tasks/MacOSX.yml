@@ -11,3 +11,11 @@
     name: "{{ host_user }}"
     shell: /opt/homebrew/bin/zsh
   become: true
+  when: can_become | default(false)
+
+- name: "Zsh | Default shell skipped (no sudo)"
+  ansible.builtin.debug:
+    msg:
+      - "⚠️  Default shell was not changed because sudo is unavailable."
+      - "zsh is still installed via Homebrew. Run `chsh -s /opt/homebrew/bin/zsh` after unlocking sudo."
+  when: not (can_become | default(false))

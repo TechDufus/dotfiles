@@ -8,6 +8,18 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "{{ role_name }} | Refresh 1Password CLI detection after install"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/pre_tasks/detect_1password.yml"
+
+- name: "{{ role_name }} | Explain next step when not authenticated"
+  ansible.builtin.debug:
+    msg:
+      - "1Password is installed, but the CLI is not authenticated yet."
+      - "Open 1Password, sign in or unlock it, then rerun: dotfiles -t 1password,ssh,git,jj,fonts"
+  when:
+    - op_installed | default(false)
+    - not (op_authenticated | default(false))
+
 - name: "{{ role_name }} | Ensure config dir exists"
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config"
@@ -30,4 +42,4 @@
   ansible.builtin.copy:
     src: agent.toml
     dest: "{{ ansible_facts['user_dir'] }}/.config/1Password/ssh/agent.toml"
-    mode: "0644"
+    mode: "0600"

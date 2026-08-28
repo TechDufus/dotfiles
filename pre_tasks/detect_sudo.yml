@@ -14,6 +14,9 @@
     sudo_credentials_cached: false
     become_password_available: false
     sudo_password_based_available: false
+    pkexec_available: false
+    can_use_homebrew: false
+    can_become: false
 
 - name: Detect package manager based on OS
   block:
@@ -147,12 +150,9 @@
       when: not has_sudo
       no_log: true
 
-    - name: Set pkexec facts (but use sudo for Ansible)
+    - name: Record pkexec availability
       set_fact:
-        has_sudo: true
-        sudo_method: 'sudo'  # Use sudo for Ansible even if pkexec works
-        sudo_requires_password: true
-        privilege_escalation_available: true
+        pkexec_available: true
       when:
         - not has_sudo
         - pkexec_test.rc | default(1) == 0
@@ -191,6 +191,12 @@
 
 - name: Determine package installation capability
   set_fact:
+    can_use_homebrew: "{{ detected_package_manager == 'brew' }}"
+    can_become: >-
+      {{ has_sudo and
+         ((not (sudo_requires_password | bool)) or
+          (sudo_credentials_cached | default(false) | bool) or
+          (become_password_available | default(false) | bool)) }}
     can_install_packages: >-
       {{ (detected_package_manager == 'brew') or
          (has_sudo and
@@ -218,6 +224,7 @@
       - "Has sudo/privilege access: {{ has_sudo }}"
       - "Method available: {{ sudo_method }}"
       - "Requires password: {{ sudo_requires_password }}"
+      - "Can become: {{ can_become }}"
       - "Package manager: {{ detected_package_manager }}"
       - "Can install packages: {{ can_install_packages }}"
       - "============================================="
@@ -243,4 +250,6 @@
       - "⚠️  WARNING: No privilege escalation method detected!"
       - "The playbook will continue but some tasks may be skipped."
       - "Package installation and system modifications will not be possible."
-  when: not has_sudo
+  when:
+    - not has_sudo
+    - detected_package_manager != 'brew'

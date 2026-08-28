@@ -5,3 +5,9 @@
     state: present
     update_cache: true
   become: true
+  when: can_install_packages | default(false)
+
+- name: "SSH | Ubuntu | openssh-client skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "⚠️  Skipping openssh-client install - sudo is not available for package installation."
+  when: not (can_install_packages | default(false))

@@ -52,4 +52,5 @@ bun --version
 - Ubuntu installation requires `unzip` (installed automatically if sudo available)
 - macOS installation uses `brew tap oven-sh/bun` before installing Bun
 - Bun auto-upgrades on subsequent runs if already installed
-- PATH setup handled by shell role (zsh/bash)
+- Global LSP packages are reinstalled/updated on every bun role run (`bun install -g …`)
+- PATH for every zsh, including agent `zsh -c`, is `paths_vars.zsh` sourced from `~/.zshenv`. Interactive `.zshrc` skips `paths_*.zsh`. Non-interactive zsh never loads the rest of `~/.config/zsh/*.zsh`.

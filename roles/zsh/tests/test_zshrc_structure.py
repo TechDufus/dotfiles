@@ -26,10 +26,23 @@ class ZshrcStructureTests(unittest.TestCase):
 
     def test_cursor_agent_and_herdr_helpers_exist(self) -> None:
         self.assertIn("is_cursor_agent()", self.zshrc)
+        self.assertIn("is_agent_shell()", self.zshrc)
         self.assertIn("is_herdr_session()", self.zshrc)
         self.assertIn("CURSOR_AGENT", self.zshrc)
+        self.assertIn("CLAUDECODE", self.zshrc)
         self.assertIn("NO_NOMATCH", self.zshenv)
         self.assertIn("brew shellenv", self.zshenv)
+        self.assertIn("paths_functions.zsh", self.zshenv)
+        self.assertIn("paths_vars.zsh", self.zshenv)
+        self.assertNotIn('eval "$(/opt/homebrew/bin/brew shellenv)"', self.zshrc)
+        self.assertIn("paths_functions.zsh|paths_vars.zsh", self.zshrc)
+
+    def test_nvm_hook_does_not_auto_install(self) -> None:
+        nvm_config = (REPO_ROOT / "roles" / "zsh" / "files" / "zsh" / "nvm_config.zsh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('echo "nvm: node $(cat "${nvmrc_path}") is not installed. Run: nvm install"', nvm_config)
+        self.assertNotIn("\n        nvm install\n", nvm_config)
 
     def test_fzf_is_initialized_once(self) -> None:
         self.assertIn('eval "$(fzf --zsh)"', self.zshrc)

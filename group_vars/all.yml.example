@@ -185,6 +185,9 @@ exclude_roles_by_distribution:
 # This will be used for git config user.name
 git_user_name: "Your Full Name"
 
+# 1Password CLI account used by pre_tasks and secret-bearing roles.
+# op_account: my.1password.com
+
 # Optional keyboard layout for Linux system/X11 paths. Plasma desktop keyboard
 # preferences live in `roles/plasma/defaults/main.yml`.
 #

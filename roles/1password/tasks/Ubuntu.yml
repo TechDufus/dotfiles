@@ -5,6 +5,7 @@
     keyring: /usr/share/keyrings/1password-archive-keyring.gpg
     state: present
   become: true
+  when: can_become | default(false)
 
 - name: "1Password | Add APT Repo"
   ansible.builtin.apt_repository:
@@ -13,9 +14,11 @@
     state: present
     mode: "0644"
   become: true
+  when: can_become | default(false)
 
 - name: "1Password | Add debsig-verify policy"
   become: true
+  when: can_become | default(false)
   block:
     - name: "1Password | Ensure policy directory exists"
       ansible.builtin.file:
@@ -48,3 +51,9 @@
     state: present
     update_cache: true
   become: true
+  when: can_become | default(false)
+
+- name: "1Password | Ubuntu | Package install skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "1Password package installation skipped because sudo is not available."
+  when: not (can_become | default(false))

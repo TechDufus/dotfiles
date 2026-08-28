@@ -31,7 +31,7 @@
       - get
       - "{{ op.fonts.berkeley_mono.item }}"
       - --account
-      - my.1password.com
+      - "{{ op_account | default('my.1password.com') }}"
       - --vault
       - "{{ op.fonts.berkeley_mono.vault }}"
       - --format
@@ -39,6 +39,7 @@
   changed_when: false
   failed_when: false
   register: berkeley_mono_item
+  no_log: true
   when:
     - berkeley_mono_missing_fonts | length > 0
     - op_authenticated | default(false)
@@ -49,7 +50,7 @@
       - op
       - read
       - --account
-      - my.1password.com
+      - "{{ op_account | default('my.1password.com') }}"
       - --file-mode
       - "0644"
       - --out-file
@@ -59,6 +60,8 @@
   register: berkeley_mono_downloads
   loop_control:
     label: "{{ item.filename }}"
+  failed_when: false
+  no_log: true
   when:
     - berkeley_mono_missing_fonts | length > 0
     - op_authenticated | default(false)

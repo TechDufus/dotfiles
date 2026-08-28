@@ -34,28 +34,14 @@
     - (bun_global_packages + bun_extra_packages) | length > 0
     - bun_effective_bin | length == 0
 
-- name: "{{ role_name }} | Check Bun global package directories"
-  ansible.builtin.stat:
-    path: "{{ bun_global_node_modules_dir }}/{{ bun_global_package }}"
-  loop: "{{ bun_global_packages + bun_extra_packages }}"
-  loop_control:
-    loop_var: bun_global_package
-    label: "{{ bun_global_package }}"
-  register: bun_global_package_dirs
-  when: bun_effective_bin | length > 0
-
-- name: "{{ role_name }} | Install Bun global packages"
+- name: "{{ role_name }} | Install or update Bun global packages"
   ansible.builtin.command:
-    argv:
-      - "{{ bun_effective_bin }}"
-      - install
-      - -g
-      - "{{ bun_global_package_dir.bun_global_package }}"
-  loop: "{{ bun_global_package_dirs.results | default([]) }}"
-  loop_control:
-    loop_var: bun_global_package_dir
-    label: "{{ bun_global_package_dir.bun_global_package }}"
-  changed_when: true
+    argv: "{{ [bun_effective_bin, 'install', '-g'] + (bun_global_packages + bun_extra_packages) }}"
+  register: bun_global_install
+  changed_when: >-
+    ('package installed' in (bun_global_install.stdout | default('')))
+    or ('packages installed' in (bun_global_install.stdout | default('')))
+    or ('Saved lockfile' in (bun_global_install.stdout | default('')))
   when:
     - bun_effective_bin | length > 0
-    - not bun_global_package_dir.stat.exists
+    - (bun_global_packages + bun_extra_packages) | length > 0

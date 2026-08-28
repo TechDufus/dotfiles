@@ -15,8 +15,6 @@ default_roles:
   - btop
   - brave
   - bun
-  - claude
-  - codex
   - herdr
   - ollama
   - omp
@@ -94,6 +92,8 @@ exclude_roles_by_distribution:
     - starship
 
 git_user_name: "TechDufus"
+
+op_account: my.1password.com
 
 keyboard:
   model: pc105

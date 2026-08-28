@@ -1,28 +1,90 @@
 ---
-- name: "{{ role_name }} | Check if bun is installed"
-  ansible.builtin.command: which bun
-  register: bun_check
-  failed_when: false
-  changed_when: false
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
 
-- name: "{{ role_name }} | Check if opencode is installed"
-  ansible.builtin.command: which opencode
-  register: opencode_check
-  failed_when: false
-  changed_when: false
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
 
-- name: "{{ role_name }} | Install opencode via bun"
-  ansible.builtin.command: bun install -g opencode-ai
+- name: "{{ role_name }} | Check OpenCode candidate binaries"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ opencode_bin_candidates | unique }}"
+  register: opencode_bin_checks
+
+- name: "{{ role_name }} | Select OpenCode binary"
+  ansible.builtin.set_fact:
+    opencode_effective_bin: >-
+      {{
+        (
+          opencode_bin_checks.results
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | first
+        )
+        | default('')
+      }}
+
+- name: "{{ role_name }} | Check bun candidate binaries"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ opencode_bun_bin_candidates | unique }}"
+  register: opencode_bun_checks
+  when: opencode_effective_bin | length == 0
+
+- name: "{{ role_name }} | Select bun binary"
+  ansible.builtin.set_fact:
+    opencode_bun_bin: >-
+      {{
+        (
+          (opencode_bun_checks.results | default([]))
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | first
+        )
+        | default('')
+      }}
+  when: opencode_effective_bin | length == 0
+
+- name: "{{ role_name }} | Install OpenCode via bun"
+  ansible.builtin.command:
+    argv:
+      - "{{ opencode_bun_bin }}"
+      - install
+      - -g
+      - opencode-ai
   when:
-    - bun_check.rc == 0
-    - opencode_check.rc != 0
-  register: opencode_install_result
-  changed_when: "'installed' in opencode_install_result.stdout"
+    - opencode_effective_bin | length == 0
+    - (opencode_bun_bin | default('')) | length > 0
+  register: opencode_bun_install
+  changed_when: "'installed' in (opencode_bun_install.stdout | default(''))"
 
-- name: "{{ role_name }} | Warn if bun is not installed"
+- name: "{{ role_name }} | Resolve OpenCode on PATH after install"
+  ansible.builtin.command: which opencode
+  environment:
+    PATH: "{{ ansible_facts['env']['HOME'] }}/.opencode/bin:{{ ansible_facts['env']['HOME'] }}/.local/bin:{{ ansible_facts['env']['HOME'] }}/.bun/bin:/opt/homebrew/bin:/usr/local/bin:{{ ansible_facts['env']['PATH'] }}"
+  register: opencode_which
+  changed_when: false
+  failed_when: false
+  when: opencode_effective_bin | length == 0
+
+- name: "{{ role_name }} | Record OpenCode from PATH"
+  ansible.builtin.set_fact:
+    opencode_effective_bin: "{{ opencode_which.stdout }}"
+  when:
+    - opencode_effective_bin | length == 0
+    - (opencode_which.rc | default(1)) == 0
+
+- name: "{{ role_name }} | Warn if OpenCode is unavailable"
   ansible.builtin.debug:
-    msg: "WARNING: bun is not installed. Please run the bun role first or add it to default_roles before opencode."
-  when: bun_check.rc != 0
+    msg: >-
+      WARNING: OpenCode is not installed. On macOS install via Homebrew tap sst/tap,
+      on Ubuntu via npm, or install bun and rerun this role.
+  when:
+    - opencode_effective_bin | length == 0
+    - (opencode_bun_bin | default('')) | length == 0
 
 # Configure opencode
 - name: "{{ role_name }} | Ensure ~/.config/opencode directory exists"

@@ -152,7 +152,7 @@ For tool-specific behavior, prefer the README and defaults inside each role dire
 
 1Password is recommended for secret-backed configuration, but the whole playbook no longer hard-fails just because 1Password is missing or locked. The bootstrap detects whether `op` is installed and authenticated; roles that need secrets should skip or warn when secrets are unavailable.
 
-The default 1Password account used by current tasks is `my.1password.com` unless a role documents otherwise.
+The default 1Password account is `op_account` (`my.1password.com` when unset). Roles that need secrets skip or warn when the CLI is missing or locked.
 
 #### Git identity and SSH signing
 

@@ -6,12 +6,15 @@ This guide explains how to use the sudo detection system in your Ansible roles.
 
 After the sudo detection pre-task runs, the following facts are available:
 
-- `has_sudo`: Boolean indicating if any sudo/privilege escalation method works
-- `sudo_method`: The working method (`'sudo'`, `'doas'`, `'pkexec'`, or `'none'`)
+- `has_sudo`: Boolean indicating if Ansible can escalate with sudo or doas
+- `sudo_method`: The working method (`'sudo'`, `'doas'`, or `'none'`). pkexec is recorded separately and is not treated as Ansible become.
 - `sudo_requires_password`: Boolean indicating if password is required
-- `can_install_packages`: Boolean indicating if package installation is possible
-- `detected_package_manager`: String with the package manager (`'brew'`, `'apt'`, `'pacman'`, or `'none'`)
+- `can_become`: Boolean for tasks that need `become: true` (not Homebrew)
+- `can_use_homebrew`: Boolean when the detected package manager is Homebrew
+- `can_install_packages`: Boolean indicating if package installation is possible (Homebrew without sudo, or a Linux package manager when `can_become` is true)
+- `detected_package_manager`: String with the package manager (`'brew'`, `'apt'`, `'pacman'`, `'dnf'`, `'yum'`, or `'none'`)
 - `privilege_escalation_available`: Boolean for overall privilege status
+- `pkexec_available`: Informational only; does not enable `become`
 
 ## Usage Examples
 
@@ -106,9 +109,9 @@ After the sudo detection pre-task runs, the following facts are available:
 
 ### 5. Role-Level Conditions
 
-Each role should handle its own sudo requirements internally. Roles that absolutely require sudo (like Docker) should check for `has_sudo` at the beginning and skip gracefully with clear messages if it's not available.
+Each role should handle its own sudo requirements internally. Roles that absolutely require sudo (like Docker) should check for `can_become` at the beginning and skip gracefully with clear messages if it's not available.
 
-For roles that can partially function without sudo, add conditions to individual tasks that require elevated privileges.
+For roles that can partially function without sudo, add conditions to individual tasks that require elevated privileges. On macOS, Homebrew tasks should use `can_install_packages` or `can_use_homebrew`; `become: true` tasks must use `can_become`, never brew.
 
 ## Best Practices
 

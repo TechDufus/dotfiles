@@ -30,9 +30,13 @@
   ansible.builtin.copy:
     dest: "{{ ansible_facts['user_dir'] }}/.config/"
     src: "zsh"
-    mode: "0644"
     directory_mode: "0755"
     force: true
+
+- name: "ZSH | Restrict vars.secret mode"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/zsh/vars.secret"
+    mode: "0600"
 
 - name: "ZSH | {{ ansible_facts['distribution'] }} | Identify distribution config"
   ansible.builtin.stat:

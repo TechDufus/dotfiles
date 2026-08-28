@@ -38,7 +38,21 @@ printf 'nvm.sh sourced\n' >> "$TOOL_CALLS"
 nvm() { :; }
 nvm_find_nvmrc() { :; }
 NVM
-chmod +x "$bin_dir/kubectl" "$bin_dir/jj"
+cat > "$bin_dir/kind" <<'KIND'
+#!/usr/bin/env sh
+printf 'kind %s\n' "$*" >> "$TOOL_CALLS"
+if [ "$1" = "completion" ] && [ "$2" = "zsh" ]; then
+  printf '%s\n' '_kind() { print -r -- kind-completed >> "$TOOL_CALLS"; }'
+fi
+KIND
+cat > "$bin_dir/minikube" <<'MINIKUBE'
+#!/usr/bin/env sh
+printf 'minikube %s\n' "$*" >> "$TOOL_CALLS"
+if [ "$1" = "completion" ] && [ "$2" = "zsh" ]; then
+  printf '%s\n' '_minikube() { print -r -- minikube-completed >> "$TOOL_CALLS"; }'
+fi
+MINIKUBE
+chmod +x "$bin_dir/kubectl" "$bin_dir/jj" "$bin_dir/kind" "$bin_dir/minikube"
 
 TOOL_CALLS="$calls" \
 PATH="$bin_dir:$PATH" \
@@ -49,6 +63,8 @@ set -e
 compdef() { :; }
 source "$REPO_ROOT/roles/zsh/files/zsh/k8s_aliases.zsh"
 source "$REPO_ROOT/roles/zsh/files/zsh/jj_completions.zsh"
+source "$REPO_ROOT/roles/zsh/files/zsh/kind_functions.zsh"
+source "$REPO_ROOT/roles/zsh/files/zsh/minikube_functions.zsh"
 source "$REPO_ROOT/roles/zsh/files/zsh/nvm_config.zsh"
 if [[ -s "$TOOL_CALLS" ]]; then
   print -ru2 "tools ran during source: $(<"$TOOL_CALLS")"

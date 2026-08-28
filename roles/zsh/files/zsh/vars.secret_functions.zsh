@@ -24,12 +24,12 @@ function __secret_usage() {
 function __op_check() {
   if ! command -v op &>/dev/null; then
     echo -e "${RED}Error: 1Password CLI (op) not found${NC}" >&2
-    echo -e "${YELLOW}Install with: ${CYAN}curl -sS https://downloads.1password.com/linux/edge/op.zip | gunzip -c > op && sudo mv op /usr/local/bin/op && sudo chmod +x /usr/local/bin/op${NC}" >&2
+    echo -e "${YELLOW}Install 1Password CLI with Homebrew (brew install --cask 1password-cli) or your distro package, then rerun the 1password role.${NC}" >&2
     return 1
   fi
 
-  # Check if signed in
-  if ! op account list &>/dev/null; then
+  local op_account="${OP_ACCOUNT:-my.1password.com}"
+  if ! op vault list --account "$op_account" --format json >/dev/null 2>&1; then
     echo -e "${RED}Error: Not signed in to 1Password${NC}" >&2
     echo -e "${YELLOW}Sign in with: ${CYAN}eval \$(op signin)${NC}" >&2
     return 1
@@ -189,21 +189,19 @@ function secret() {
       fi
       
       __task "Loading secrets..."
-      
-      # Create a temporary file to capture errors
-      local error_log=$(mktemp)
-      
-      # Source the secrets file and capture any errors
+
+      local error_log
+      error_log="$(mktemp)"
+      local xtrace_on=0
+      [[ -o xtrace ]] && xtrace_on=1
+      unsetopt xtrace
+
       if source "$secret_file" 2>"$error_log"; then
+        (( xtrace_on )) && setopt xtrace
         if [[ -s "$error_log" ]]; then
-          # There were warnings but it succeeded
           _task_done
-          echo -e " ${YELLOW}[${WARNING}${YELLOW}] Loaded with warnings:${NC}"
-          while IFS= read -r line; do
-            echo -e "   ${YELLOW}${line}${NC}"
-          done < "$error_log"
+          echo -e " ${YELLOW}[${WARNING}${YELLOW}] Loaded with 1Password warnings (secret values were not printed).${NC}"
         else
-          # Clean success
           _task_done
         fi
         
@@ -220,14 +218,11 @@ function secret() {
         fi
         echo -e " ${GREEN}Loaded ${count} secret variable(s)${NC}"
       else
-        # Failed to source
+        (( xtrace_on )) && setopt xtrace
         __task "${X_MARK}${RED} Failed to load secrets"
         _clear_task
         if [[ -s "$error_log" ]]; then
-          echo -e "${RED}Errors:${NC}"
-          while IFS= read -r line; do
-            echo -e "  ${RED}${line}${NC}"
-          done < "$error_log"
+          echo -e "${RED}1Password reported errors while loading secrets. Values were not printed.${NC}"
         fi
         rm -f "$error_log"
         return 1

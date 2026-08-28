@@ -76,11 +76,11 @@
   when: op_authenticated | default(false)
   block:
     - name: "1Password | Get user.email"
-      ansible.builtin.command: "op --account my.1password.com read '{{ op.git.user.email }}'"
+      ansible.builtin.command: "op --account {{ op_account | default('my.1password.com') }} read '{{ op.git.user.email }}'"
       register: op_git_user_email
       changed_when: false
       failed_when: false
-      # no_log: true
+      no_log: true
 
     - name: "1Password | Set git_user_email from vault"
       ansible.builtin.set_fact:
@@ -153,7 +153,7 @@
     mode: "0755"
 
 - name: "1Password | Get allowed_signers"
-  ansible.builtin.command: "op read '{{ op.git.allowed_signers }}'"
+  ansible.builtin.command: "op --account {{ op_account | default('my.1password.com') }} read '{{ op.git.allowed_signers }}'"
   register: op_git_ssh_allowed_signers
   changed_when: false
   failed_when: false

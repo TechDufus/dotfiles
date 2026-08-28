@@ -1,0 +1,10 @@
+---
+- name: "{{ role_name }} | MacOSX | Add OpenCode Homebrew tap"
+  community.general.homebrew_tap:
+    name: sst/tap
+    state: present
+
+- name: "{{ role_name }} | MacOSX | Install OpenCode via Homebrew"
+  community.general.homebrew:
+    name: sst/tap/opencode
+    state: present

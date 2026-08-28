@@ -13,6 +13,10 @@ is_cursor_agent() {
   [[ -n "${CURSOR_AGENT:-}" ]]
 }
 
+is_agent_shell() {
+  [[ -n "${CURSOR_AGENT:-}" || -n "${CLAUDECODE:-}" || -n "${CODEX_CI:-}" || -n "${CODEX_SANDBOX:-}" ]]
+}
+
 is_herdr_session() {
   [[ -n "${HERDR_ENV:-}" || -n "${HERDR_WORKSPACE_ID:-}" ]]
 }
@@ -29,15 +33,11 @@ export VISUAL="nvim"
 setopt EXTENDED_GLOB
 setopt INTERACTIVE_COMMENTS
 
-# Instant prompt and p10k both need a real TTY and break Cursor agent output.
-if ! is_cursor_agent && is_tty; then
+# Instant prompt and p10k both need a real TTY and break agent output.
+if ! is_agent_shell && is_tty; then
   if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
   fi
-fi
-
-if [[ -x /opt/homebrew/bin/brew ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
 # Herdr (and tmux, if present) can preserve an exported FPATH from an older
@@ -72,7 +72,7 @@ unset _dotfiles_zsh_function_dirs
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
-if ! is_cursor_agent; then
+if ! is_agent_shell; then
   if [[ ! -d "$ZINIT_HOME" ]]; then
     mkdir -p "$(dirname "$ZINIT_HOME")"
     git clone --depth 1 https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
@@ -119,7 +119,7 @@ else
 fi
 unset _zcompdump
 
-if ! is_cursor_agent; then
+if ! is_agent_shell; then
   zinit cdreplay -q
 
   if is_tty; then
@@ -144,20 +144,25 @@ if ! is_cursor_agent; then
   fi
 fi
 
-HISTSIZE=50000
-HISTFILE=~/.zsh_history
-SAVEHIST=$HISTSIZE
-HISTDUP=erase
-setopt appendhistory
-setopt sharehistory
-setopt EXTENDED_HISTORY
-setopt HIST_EXPIRE_DUPS_FIRST
-setopt hist_ignore_space
-setopt hist_ignore_all_dups
-setopt hist_save_no_dups
-setopt hist_ignore_dups
-setopt hist_find_no_dups
-setopt HIST_REDUCE_BLANKS
+if is_agent_shell; then
+  unset HISTFILE
+  SAVEHIST=0
+else
+  HISTSIZE=50000
+  HISTFILE=~/.zsh_history
+  SAVEHIST=$HISTSIZE
+  HISTDUP=erase
+  setopt appendhistory
+  setopt sharehistory
+  setopt EXTENDED_HISTORY
+  setopt HIST_EXPIRE_DUPS_FIRST
+  setopt hist_ignore_space
+  setopt hist_ignore_all_dups
+  setopt hist_save_no_dups
+  setopt hist_ignore_dups
+  setopt hist_find_no_dups
+  setopt HIST_REDUCE_BLANKS
+fi
 
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
@@ -166,6 +171,9 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
 zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
 
 for file in $HOME/.config/zsh/*.zsh(N); do
+  case "${file:t}" in
+    paths_functions.zsh|paths_vars.zsh) continue ;;
+  esac
   source "$file"
 done
 

@@ -1,0 +1,33 @@
+---
+- name: "{{ role_name }} | Ubuntu | Check if OpenCode is installed"
+  ansible.builtin.command: which opencode
+  register: opencode_installed
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Ubuntu | Check if npm is installed"
+  ansible.builtin.command: which npm
+  register: opencode_npm
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Ubuntu | Install OpenCode via npm"
+  ansible.builtin.command:
+    argv:
+      - "{{ opencode_npm.stdout }}"
+      - install
+      - -g
+      - opencode-ai
+  when:
+    - opencode_installed.rc != 0
+    - opencode_npm.rc == 0
+  register: opencode_npm_install
+  changed_when: "'added' in (opencode_npm_install.stdout | default('')) or 'changed' in (opencode_npm_install.stdout | default(''))"
+
+- name: "{{ role_name }} | Ubuntu | Install OpenCode via official script"
+  ansible.builtin.shell: curl -fsSL https://opencode.ai/install | bash
+  args:
+    creates: "{{ ansible_facts['env']['HOME'] }}/.opencode/bin/opencode"
+  when:
+    - opencode_installed.rc != 0
+    - opencode_npm.rc != 0

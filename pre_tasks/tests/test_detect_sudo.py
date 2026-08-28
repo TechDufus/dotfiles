@@ -73,6 +73,23 @@ class DetectSudoTests(unittest.TestCase):
         self.assertNotIn("sudo_method == 'sudo'", warning_block)
         self.assertIn("--ask-become-pass", warning_block)
 
+    def test_pkexec_does_not_grant_ansible_become(self) -> None:
+        pkexec_block = self.tasks.split(
+            "- name: Test pkexec (PolicyKit)", 1
+        )[1].split("- name: Detect provided become password", 1)[0]
+        self.assertIn("pkexec_available: true", pkexec_block)
+        self.assertNotIn("has_sudo: true", pkexec_block)
+        self.assertNotIn("sudo_method: 'sudo'", pkexec_block)
+
+    def test_brew_does_not_imply_can_become(self) -> None:
+        capability_block = self.tasks.split(
+            "- name: Determine package installation capability", 1
+        )[1].split("- name: Warn when sudo password is required", 1)[0]
+        self.assertIn("can_use_homebrew", capability_block)
+        self.assertIn("can_become", capability_block)
+        self.assertIn("detected_package_manager == 'brew'", capability_block)
+        self.assertIn("has_sudo and", capability_block)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -42,7 +42,7 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
       local nvmrc_node_version
       nvmrc_node_version="$(nvm version "$(cat "${nvmrc_path}")")"
       if [[ "$nvmrc_node_version" = "N/A" ]]; then
-        nvm install
+        echo "nvm: node $(cat "${nvmrc_path}") is not installed. Run: nvm install"
       elif [[ "$nvmrc_node_version" != "$(nvm version)" ]]; then
         nvm use
       fi

@@ -12,10 +12,11 @@
   when: op_authenticated | default(false)
   block:
     - name: "1Password | Get user.email for JJ"
-      ansible.builtin.command: "op --account my.1password.com read '{{ op.git.user.email }}'"
+      ansible.builtin.command: "op --account {{ op_account | default('my.1password.com') }} read '{{ op.git.user.email }}'"
       register: op_jj_user_email
       changed_when: false
       failed_when: false
+      no_log: true
 
     - name: "1Password | Set jj_user_email"
       ansible.builtin.set_fact:

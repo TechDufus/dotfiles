@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh Notification"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh Notification"
           }
         ]
       }
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh PostToolUse"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh PostToolUse"
           }
         ]
       }
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh PostToolUseFailure"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh PostToolUseFailure"
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh PreToolUse"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh PreToolUse"
           }
         ]
       }
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh SessionEnd"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh SessionEnd"
           }
         ]
       }
@@ -81,7 +81,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh SessionStart"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh SessionStart"
           }
         ]
       },
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/Users/MDegarmo/.claude/hooks/herdr-agent-state.sh' session",
+            "command": "bash $HOME/.claude/hooks/herdr-agent-state.sh session",
             "timeout": 10
           }
         ],
@@ -101,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh Stop"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh Stop"
           }
         ]
       }
@@ -111,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh SubagentStart"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh SubagentStart"
           }
         ]
       }
@@ -121,7 +121,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh SubagentStop"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh SubagentStop"
           }
         ]
       }
@@ -131,7 +131,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh TaskCompleted"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh TaskCompleted"
           }
         ]
       }
@@ -141,7 +141,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/techdufus/.openmonitor/hook.sh UserPromptSubmit"
+            "command": "bash $HOME/.claude/hooks/openmonitor.sh UserPromptSubmit"
           }
         ]
       }

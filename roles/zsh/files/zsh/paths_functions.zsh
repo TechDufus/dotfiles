@@ -1,22 +1,22 @@
 #!/usr/bin/env zsh
 
 addToPath() {
-    if [[ "$PATH" != *"$1"* ]]; then
-        export PATH=$PATH:$1
-    fi
+  [[ -n "$1" && -d "$1" ]] || return
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) export PATH="$PATH:$1" ;;
+  esac
 }
 
 addToPathFront() {
-    if [[ "$PATH" != *"$1"* ]]; then
-        export PATH=$1:$PATH
-    fi
+  [[ -n "$1" && -d "$1" ]] || return
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) export PATH="$1:$PATH" ;;
+  esac
 }
 
-change_background() {
-    dconf write /org/mate/desktop/background/picture-filename "'$HOME/anime/$(ls ~/anime| fzf)'"
-}
-
-die () {
-    echo >&2 "$@"
-    exit 1
+die() {
+  print -ru2 -- "$@"
+  return 1
 }

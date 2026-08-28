@@ -4,13 +4,11 @@
 function gke-GetAllCreds() {
   local project cluster_name cluster_location location_type location_flag
 
-  for project in $(gcloud projects list --format='value(projectId)' --quiet); do
+  while IFS= read -r project; do
+    [[ -n "$project" ]] || continue
     echo -e "${GREEN}Processing project: ${BOLD}${project}${RESTORE}"
-    clusters=$(gcloud container clusters list --project="$project" --format='value(name,location,locationType)' --quiet)
-    for cluster in $clusters; do
-      cluster_name=$(echo $cluster | awk '{print $1}')
-      cluster_location=$(echo $cluster | awk '{print $2}')
-      location_type=$(echo $cluster | awk '{print $3}')
+    while IFS=$'\t' read -r cluster_name cluster_location location_type; do
+      [[ -n "$cluster_name" ]] || continue
 
       location_flag="--region"
       if [[ $location_type == "ZONAL" ]]; then
@@ -21,6 +19,6 @@ function gke-GetAllCreds() {
       gcloud container clusters get-credentials \
         "$cluster_name" $location_flag "$cluster_location" \
         --project="$project"
-    done
-  done
+    done < <(gcloud container clusters list --project="$project" --format='value(name,location,locationType)' --quiet)
+  done < <(gcloud projects list --format='value(projectId)' --quiet)
 }

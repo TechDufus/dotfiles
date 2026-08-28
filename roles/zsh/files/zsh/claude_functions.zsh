@@ -54,13 +54,21 @@ cc.settings-save() {
     return 0
   fi
 
-  echo -e "  ${CAT_PEACH}⚡ Action:${NC} ${CAT_YELLOW}Committing settings changes...${NC}"
+  echo -e "  ${CAT_PEACH}⚡ Action:${NC} ${CAT_YELLOW}Staged settings changes:${NC}"
   echo ""
 
-  # Show what's being committed
   local changes=$(git diff --shortstat roles/claude/files/settings.json)
   echo -e "  ${CAT_OVERLAY1}$changes${NC}"
   echo ""
+  echo -n "  Commit these settings to dotfiles? [y/N] "
+  local response
+  read -r response
+  if [[ "$response" != [yY] ]]; then
+    echo -e "  ${CAT_OVERLAY1}Cancelled${NC}"
+    echo ""
+    popd > /dev/null 2>&1
+    return 0
+  fi
 
   git add roles/claude/files/settings.json
   git commit -m "feat: update claude settings

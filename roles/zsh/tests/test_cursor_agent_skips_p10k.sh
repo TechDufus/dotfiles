@@ -34,18 +34,14 @@ cp "$repo_root/roles/zsh/files/.zshrc" "$home_dir/.zshrc"
 cat > "$zinit_dir/zinit.zsh" <<'ZINIT'
 zinit() {
   if [[ "$*" == "light romkatv/powerlevel10k" ]]; then
-    p10k() { :; }
-    _p9k_precmd() { :; }
-    PROMPT='p10k> '
+    print -ru2 "powerlevel10k loaded under CURSOR_AGENT"
+    exit 126
   fi
 }
 alias zi='zinit'
 ZINIT
 
-stdin_file="$tmp_dir/stdin.zsh"
-: > "$stdin_file"
-check='(( $+functions[p10k] )) && (( $+functions[_p9k_precmd] )) && [[ $PROMPT == p10k\>\  ]]'
-
+check=':'
 run_pty() {
   local cmd="$1"
   case "$(uname -s)" in
@@ -54,7 +50,4 @@ run_pty() {
   esac
 }
 
-# shellcheck disable=SC2016
-run_pty "env -u CURSOR_AGENT HOME='$home_dir' XDG_DATA_HOME='$data_dir' XDG_CACHE_HOME='$cache_dir' ZDOTDIR='$home_dir' PATH='/usr/bin:/bin' '$zsh_bin' -i -c '$check'"
-run_pty "env -u CURSOR_AGENT HOME='$home_dir' XDG_DATA_HOME='$data_dir' XDG_CACHE_HOME='$cache_dir' ZDOTDIR='$home_dir' PATH='/usr/bin:/bin' '$zsh_bin' -i -c '$check' < '$stdin_file'"
-run_pty "env -u CURSOR_AGENT HOME='$home_dir' XDG_DATA_HOME='$data_dir' XDG_CACHE_HOME='$cache_dir' ZDOTDIR='$home_dir' PATH='/usr/bin:/bin' '$zsh_bin' -i -c '$check' > '$tmp_dir/stdout' 2> '$tmp_dir/stderr'"
+run_pty "env CURSOR_AGENT=1 HOME='$home_dir' XDG_DATA_HOME='$data_dir' XDG_CACHE_HOME='$cache_dir' ZDOTDIR='$home_dir' PATH='/usr/bin:/bin' '$zsh_bin' -i -c '$check'"

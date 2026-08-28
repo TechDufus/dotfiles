@@ -1,26 +1,46 @@
 #!/usr/bin/env zsh
 
-# NVM (Node Version Manager) Configuration
-# Direct loading - more reliable for MCP servers and subprocesses
+# NVM is expensive. Load it on first use or when entering a directory with
+# .nvmrc, not on every shell start. MCP servers do not source this file.
 
 export NVM_DIR="$HOME/.nvm"
 
-# Load NVM directly if available
 if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-  source "$NVM_DIR/nvm.sh"
+  _dotfiles_load_nvm() {
+    unset -f nvm node npm npx _dotfiles_load_nvm
+    source "$NVM_DIR/nvm.sh"
+    [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+  }
 
-  # Load bash completion
-  [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+  nvm() {
+    _dotfiles_load_nvm
+    nvm "$@"
+  }
+  node() {
+    _dotfiles_load_nvm
+    node "$@"
+  }
+  npm() {
+    _dotfiles_load_nvm
+    npm "$@"
+  }
+  npx() {
+    _dotfiles_load_nvm
+    npx "$@"
+  }
 
-  # Setup .nvmrc auto-switching
   autoload -U add-zsh-hook
-
   load-nvmrc() {
-    local nvmrc_path="$(nvm_find_nvmrc)"
+    if (( ! $+functions[nvm_find_nvmrc] )); then
+      [[ -f .nvmrc ]] || return 0
+      _dotfiles_load_nvm
+    fi
 
+    local nvmrc_path
+    nvmrc_path="$(nvm_find_nvmrc)"
     if [[ -n "$nvmrc_path" ]]; then
-      local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
-
+      local nvmrc_node_version
+      nvmrc_node_version="$(nvm version "$(cat "${nvmrc_path}")")"
       if [[ "$nvmrc_node_version" = "N/A" ]]; then
         nvm install
       elif [[ "$nvmrc_node_version" != "$(nvm version)" ]]; then
@@ -31,8 +51,5 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
       nvm use default
     fi
   }
-
   add-zsh-hook chpwd load-nvmrc
-  # Check current directory on initial load
-  load-nvmrc
 fi

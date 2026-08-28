@@ -13,5 +13,13 @@ alias ka='kubectl apply'
 alias ktp='kubectl top pods'
 alias kexec='kubectl exec -it --'
 
-source <(kubectl completion zsh)
+_kubectl_lazy_completion() {
+  local script
+  script="$(command kubectl completion zsh 2>/dev/null)" || return
+  eval "$script"
+  (( $+functions[_kubectl] )) && _kubectl "$@"
+}
 
+if command -v kubectl >/dev/null 2>&1 && (( $+functions[compdef] )); then
+  compdef _kubectl_lazy_completion kubectl k
+fi

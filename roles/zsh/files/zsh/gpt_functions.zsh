@@ -61,8 +61,11 @@ Output ONLY the commit message, nothing else.")
       rm -f "$tmpfile"
       ;;
     *)
-      # Default to yes
-      git commit -m "$commit_msg"
+      local tmpfile
+      tmpfile=$(mktemp)
+      print -r -- "$commit_msg" > "$tmpfile"
+      git commit -F "$tmpfile"
+      rm -f "$tmpfile"
       ;;
   esac
 }

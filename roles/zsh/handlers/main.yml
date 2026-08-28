@@ -1,5 +1,2 @@
 ---
-- name: ZSH | Cleanup oh-my-zsh install script
-  ansible.builtin.file:
-    path: /{{ ansible_facts['user_dir'] }}/oh-my-zsh.install.sh
-    state: absent
+# Intentionally empty. Zinit is cloned in tasks; there is no oh-my-zsh install script.

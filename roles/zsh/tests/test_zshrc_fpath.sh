@@ -72,6 +72,7 @@ XDG_DATA_HOME="$data_dir" \
 ZDOTDIR="$home_dir" \
 PATH="$bin_dir:$PATH" \
 FPATH="$stale_fpath" \
+CURSOR_AGENT= \
 "$zsh_bin" -i -c '
   for fn in is-at-least colors add-zsh-hook bashcompinit compinit _main_complete _approximate; do
     found=0
@@ -101,6 +102,7 @@ startup_output="$(
   ZDOTDIR="$home_dir" \
   PATH="$no_zoxide_bin" \
   FPATH="$stale_fpath" \
+  CURSOR_AGENT= \
   "$zsh_bin" -i -c ':' 2>&1
 )"
 if [[ "$startup_output" == *zoxide* ]]; then

@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import unittest
+
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+ZSHRC = REPO_ROOT / "roles" / "zsh" / "files" / ".zshrc"
+ZSHENV = REPO_ROOT / "roles" / "zsh" / "files" / ".zshenv"
+TASKS = REPO_ROOT / "roles" / "zsh" / "tasks" / "main.yml"
+
+
+class ZshrcStructureTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.zshrc = ZSHRC.read_text(encoding="utf-8")
+        cls.zshenv = ZSHENV.read_text(encoding="utf-8")
+        cls.tasks = TASKS.read_text(encoding="utf-8")
+
+    def test_plugin_load_order(self) -> None:
+        self.assertLess(self.zshrc.index("compinit"), self.zshrc.index("Aloxaf/fzf-tab"))
+        self.assertLess(self.zshrc.index("Aloxaf/fzf-tab"), self.zshrc.index("zsh-autosuggestions"))
+        self.assertLess(
+            self.zshrc.index("zsh-autosuggestions"),
+            self.zshrc.index("zsh-syntax-highlighting"),
+        )
+
+    def test_cursor_agent_and_herdr_helpers_exist(self) -> None:
+        self.assertIn("is_cursor_agent()", self.zshrc)
+        self.assertIn("is_herdr_session()", self.zshrc)
+        self.assertIn("CURSOR_AGENT", self.zshrc)
+        self.assertIn("NO_NOMATCH", self.zshenv)
+        self.assertIn("brew shellenv", self.zshenv)
+
+    def test_fzf_is_initialized_once(self) -> None:
+        self.assertIn('eval "$(fzf --zsh)"', self.zshrc)
+        self.assertNotIn(".fzf.zsh", self.zshrc)
+        self.assertEqual(self.zshrc.count("bindkey '^n'"), 1)
+
+    def test_dropped_omz_snippets(self) -> None:
+        self.assertNotIn("OMZP::globalias", self.zshrc)
+        self.assertNotIn("OMZP::kubectl", self.zshrc)
+        self.assertNotIn("OMZP::kubectx", self.zshrc)
+
+    def test_ansible_deploys_zshenv_and_zinit(self) -> None:
+        self.assertIn('src: ".zshenv"', self.tasks)
+        self.assertIn("zdharma-continuum/zinit.git", self.tasks)
+        self.assertIn("depth: 1", self.tasks)
+
+
+if __name__ == "__main__":
+    unittest.main()

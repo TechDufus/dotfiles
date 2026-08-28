@@ -37,7 +37,7 @@ ghelp() {
   echo -e "${BOLD}${GREEN}Quick Commands:${NC}"
   echo -e "  ${YELLOW}gacp${NC} <msg>  - Add all, commit (signed), and push in one command"
   echo -e "  ${YELLOW}gacpgh${NC} <msg>- Same as gacp + create PR, approve, and merge"
-  echo -e "  ${YELLOW}ai-commit${NC}   - Generate commit message using Claude (stages changes first)"
+  echo -e "  ${YELLOW}ai-commit${NC}   - Generate commit message using Claude (requires staged changes)"
   echo -e "  ${YELLOW}gtags${NC}       - Interactive tag browser with preview"
   echo ""
   

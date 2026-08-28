@@ -8,6 +8,12 @@
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
 
+- name: "ZSH | Copy .zshenv"
+  ansible.builtin.copy:
+    src: ".zshenv"
+    dest: "{{ ansible_facts['user_dir'] }}/.zshenv"
+    mode: "0644"
+
 - name: "ZSH | Copy .zshrc"
   ansible.builtin.copy:
     src: ".zshrc"
@@ -58,3 +64,11 @@
     force: true
   when:
     - zsh_os_config_exists
+
+- name: "ZSH | Ensure zinit is cloned"
+  ansible.builtin.git:
+    repo: https://github.com/zdharma-continuum/zinit.git
+    dest: "{{ ansible_facts['user_dir'] }}/.local/share/zinit/zinit.git"
+    version: HEAD
+    depth: 1
+  become: false

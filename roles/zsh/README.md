@@ -10,7 +10,7 @@ This role installs and configures ZSH with a modern, feature-rich setup includin
 - **Powerlevel10k Prompt** - Beautiful, informative two-line prompt with instant rendering
 - **30+ Tool Modules** - Specialized functions for Git, Docker, Kubernetes, Claude AI, and more
 - **Catppuccin Mocha Theme** - Consistent color scheme across shell, FZF, and all integrations
-- **Smart Completions** - Advanced tab completion with tmux timing fixes
+- **Smart Completions** - Lazy kubectl/jj/kwctl/omp/pnpm completions so startup stays cheap
 - **OS-Specific Configs** - Automatic detection and loading of platform-specific settings
 
 ## Supported Platforms
@@ -50,6 +50,7 @@ graph TD
 
 | File/Directory | Destination | Purpose |
 |----------------|-------------|---------|
+| `.zshenv` | `~/.zshenv` | PATH + Cursor agent glob compatibility for non-interactive shells |
 | `.zshrc` | `~/.zshrc` | Main ZSH configuration entry point |
 | `.p10k.zsh` | `~/.p10k.zsh` | Powerlevel10k prompt customization |
 | `zsh/` | `~/.config/zsh/` | 30+ modular function files |
@@ -111,47 +112,23 @@ Applied to:
 - Box drawing and dividers
 - Error/success indicators
 
-### 4. Intelligent Completion System
+### 4. Completions and Herdr
 
-**The tmux Timing Problem - Solved:**
+Interactive shells run in Herdr panes, which are normal TTYs. Completions register immediately after `compinit`. Heavy generators (`kubectl`, `jj`, `kwctl`, `omp`, `pnpm`) are wired with lazy `compdef` wrappers so they do not spawn at startup.
 
-ZSH completions can fail in tmux due to initialization race conditions. This role implements a deferred registration system:
-
-```mermaid
-sequenceDiagram
-    participant T as tmux
-    participant Z as .zshrc
-    participant C as compinit
-    participant D as dotfiles_completions.zsh
-    participant H as precmd hook
-
-    T->>Z: Spawn shell
-    Z->>C: Initialize completion system
-    Z->>D: Source custom completions
-    D->>H: Register precmd hook (deferred)
-    Z->>T: Shell ready
-    T->>H: First prompt appears
-    H->>D: Now register completions ✓
-```
-
-**Regular terminal**: Completions register immediately
-**tmux pane**: Completions defer until shell is fully initialized via `precmd` hook
+Cursor agent sessions set `CURSOR_AGENT`. Those shells skip Powerlevel10k, zinit widgets, and fzf keybindings. `~/.zshenv` still puts Homebrew on `PATH` and sets `NO_NOMATCH` so bash-style globs do not abort the command.
 
 ### 5. Plugin Management with Zinit
 
-Optimized plugin loading for fast startup:
+Load order matches fzf-tab / syntax-highlighting requirements:
 
 ```zsh
-# Critical plugins loaded first
-zinit ice depth=1; zinit light romkatv/powerlevel10k
-zinit light zsh-users/zsh-syntax-highlighting
-zinit light zsh-users/zsh-autosuggestions
-zinit light Aloxaf/fzf-tab
-
-# Oh My Zsh snippets (only what's needed)
+zinit light zsh-users/zsh-completions
 zinit snippet OMZP::git
-zinit snippet OMZP::kubectl
-zinit snippet OMZP::aws
+# compinit, then:
+zinit light Aloxaf/fzf-tab
+zinit light zsh-users/zsh-autosuggestions
+zinit light zsh-users/zsh-syntax-highlighting  # last
 ```
 
 ### 6. FZF Integration
@@ -188,18 +165,20 @@ alias update='sudo dnf upgrade -y'
 
 ```mermaid
 flowchart LR
-    A[Shell Start] --> B{Check SSH Session}
+    A[Shell Start] --> Zenv[".zshenv PATH / CURSOR_AGENT"]
+    Zenv --> B{Check SSH Session}
     B -->|Yes| C[Set TERM=xterm-256color]
     B -->|No| D[Continue]
     C --> D
-    D --> E[Load P10k Instant Prompt]
-    E --> F[Initialize Homebrew macOS]
-    F --> G[Install/Load Zinit]
-    G --> H[Load Plugins]
-    H --> I[Load Completions]
-    I --> J[Source Custom Modules]
-    J --> K[Load OS-Specific Configs]
-    K --> L[Initialize FZF & Zoxide]
+    D --> E{TTY and not Cursor agent?}
+    E -->|Yes| F[P10k Instant Prompt]
+    E -->|No| G[Skip prompt widgets]
+    F --> H[Zinit + completions]
+    G --> I[compinit only]
+    H --> J[fzf-tab / autosuggest / highlighting]
+    I --> K[Source Custom Modules]
+    J --> K
+    K --> L[Zoxide]
     L --> M[Shell Ready]
 ```
 
@@ -218,7 +197,7 @@ flowchart LR
 - **1password-cli** - Secret management integration
 
 ### Optional
-- **nvm** - Node version manager (auto-switching support)
+- **nvm** - Node version manager (lazy-loaded on first `node`/`nvm` use or `.nvmrc` chpwd)
 - **kubectl** - Kubernetes CLI (for k8s functions)
 - **terraform** - Infrastructure as Code (for tf functions)
 - **docker/podman** - Container management
@@ -339,10 +318,11 @@ export FZF_DEFAULT_OPTS="--color=bg+:#313244,..."
 ## Performance Optimizations
 
 - **Zinit caching**: Plugin completions are captured and replayed
-- **Lazy loading**: Heavy tools (NVM) can use deferred loading pattern
-- **History management**: 10,000 lines with duplicate erasure
-- **Efficient sourcing**: Modules loaded via loop instead of individual sources
-- **Instant prompt**: Powerlevel10k renders prompt before full initialization
+- **Lazy loading**: NVM, kubectl/jj/kwctl/omp/pnpm completions
+- **History management**: 50,000 lines with extended history and duplicate erasure
+- **Efficient sourcing**: Modules loaded via glob loop with nullglob
+- **Instant prompt**: Powerlevel10k renders prompt before full initialization, skipped for Cursor agents
+- **compinit -C**: Skip dump rebuild when `.zcompdump` is less than a day old
 
 **Startup time**: Typically 50-150ms on modern hardware
 
@@ -411,6 +391,7 @@ update             # Update system packages (OS-specific)
 ### Configuration Files
 
 ```bash
+~/.zshenv                     # Non-interactive PATH + agent glob settings
 ~/.zshrc                      # Main configuration
 ~/.p10k.zsh                   # Prompt customization
 ~/.config/zsh/vars.zsh        # Colors and environment

@@ -38,7 +38,7 @@ c.review() {
   codex review "$@"
 }
 
-# Summon/dismiss the tmux Codex pane dashboard.
+# Summon/dismiss the Codex pane dashboard.
 c.dashboard() {
   "$HOME/.codex/scripts/codex-dashboard" "$@"
 }
@@ -59,7 +59,7 @@ c.help() {
   echo -e "  ${CAT_YELLOW}Automation${NC}"
   echo -e "  ${CAT_GREEN}  c.exec${NC}              ${CAT_SURFACE2}│${NC} Run Codex non-interactively"
   echo -e "  ${CAT_GREEN}  c.review${NC}            ${CAT_SURFACE2}│${NC} Run Codex code review mode"
-  echo -e "  ${CAT_GREEN}  c.dashboard${NC}         ${CAT_SURFACE2}│${NC} Summon/dismiss tmux Codex dashboard"
+  echo -e "  ${CAT_GREEN}  c.dashboard${NC}         ${CAT_SURFACE2}│${NC} Summon/dismiss Codex dashboard"
   echo -e "  ${CAT_GREEN}  c.dash${NC}              ${CAT_SURFACE2}│${NC} Alias for c.dashboard"
   echo ""
   echo -e "  ${CAT_YELLOW}Help${NC}"

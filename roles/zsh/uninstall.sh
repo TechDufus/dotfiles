@@ -12,6 +12,13 @@ if [ -d "${HOME}/.local/share/zinit" ]; then
 fi
 
 # Remove zsh configurations
+if [ -f "$HOME/.zshenv" ]; then
+  __task "Removing .zshenv"
+  _cmd "cp $HOME/.zshenv $HOME/.zshenv.uninstall-backup"
+  _cmd "rm -f $HOME/.zshenv"
+  _task_done
+fi
+
 if [ -f "$HOME/.zshrc" ]; then
   __task "Removing .zshrc"
   # Backup just in case

@@ -8,6 +8,7 @@ function nisshfs() {
     local remote_dir='/'
     local server=''
     local OPTIND=1
+    local mountpoint
     while getopts "hd:s:" opt; do
         case ${opt} in
             h )
@@ -15,10 +16,10 @@ function nisshfs() {
                 return 0
                 ;;
             d )
-                local remote_dir=$OPTARG
+                remote_dir=$OPTARG
                 ;;
             s )
-                local server=$OPTARG
+                server=$OPTARG
                 ;;
             \? )
                 echo -e "${WARNING} ${YELLOW}Invalid option${NC}"
@@ -27,27 +28,28 @@ function nisshfs() {
                 ;;
         esac
     done
-    if [ -z $server ]; then
+    if [[ -z $server ]]; then
         __nisshfs_usage
         return 1
     fi
-    if [ ! -d ~/.sshfs ]; then mkdir ~/.sshfs > /dev/null 2>&1; fi
-    if [ ! -d ~/.sshfs/$server ]; then mkdir ~/.sshfs/$server > /dev/null 2>&1; fi
-    sshfs -o default_permissions $server:$remote_dir $HOME/.sshfs/$server
-    nvim $HOME/.sshfs/$server
-    fusermount -zu $HOME/.sshfs/$server
-    rm -rf $HOME/.sshfs/$server
+    mkdir -p "$HOME/.sshfs/$server"
+    mountpoint="$HOME/.sshfs/$server"
+    sshfs -o default_permissions "$server:$remote_dir" "$mountpoint"
+    nvim "$mountpoint"
+    if [[ "$OSTYPE" == darwin* ]]; then
+        umount "$mountpoint"
+    else
+        fusermount -zu "$mountpoint"
+    fi
+    rm -rf "$mountpoint"
 }
 
-
-# give nisshfs ssh tab completion for servers in ~/.ssh/config
-function _nisshfs() {
-    local cur prev opts
-    COMPREPLY=()
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts=$(grep -E '^Host ' ~/.ssh/config | awk '{print $2}')
-    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
-    return 0
+_nisshfs() {
+    local -a hosts
+    hosts=(${(f)"$(awk '/^Host / && $2 !~ /[*?]/ { print $2 }' "$HOME/.ssh/config" 2>/dev/null)"})
+    _describe 'host' hosts
 }
-complete -F _nisshfs nisshfs
+
+if (( $+functions[compdef] )); then
+    compdef _nisshfs nisshfs
+fi

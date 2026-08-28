@@ -170,7 +170,7 @@ export NVM_DIR="$HOME/.nvm"
 
 greetings="neofetch nerdfetch"
 # if greeting bin exists, run it and stop evaluating the rest
-if [[ -z "$TMUX" ]]; then
+if [[ -z "$TMUX" && -z "${HERDR_ENV:-}" ]]; then
   for greeting in $greetings; do
     if command -v $greeting &> /dev/null; then
       $greeting

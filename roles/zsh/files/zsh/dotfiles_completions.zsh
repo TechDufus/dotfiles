@@ -1,49 +1,16 @@
 #!/usr/bin/env zsh
 #
-# Dotfiles Tab Completion
-#
-# This file provides tab completion for the dotfiles command.
-# It includes special handling for tmux environments where the completion
-# system initialization timing can cause registration failures.
-#
-# THE TMUX TIMING PROBLEM:
-# =======================
-# In regular terminals, the ZSH initialization sequence is predictable:
-#   Terminal → .zshrc → compinit → custom completions → shell ready
-#
-# In tmux panes, the sequence can have timing issues:
-#   tmux → new PTY → .zshrc → compinit (async?) → custom completions → FAIL
-#
-# This happens because:
-# 1. tmux spawns shells differently with faster initialization
-# 2. Multiple panes starting simultaneously can cause race conditions  
-# 3. The _comps array (created by compinit) might not exist when we try to use it
-#
-# THE SOLUTION:
-# ============
-# We defer completion registration in tmux using the precmd hook:
-#
-# REGULAR TERMINAL:                    TMUX PANE:
-# ─────────────────                    ──────────
-# 1. Source this file                  1. Source this file
-# 2. Register immediately ✓            2. Set up precmd hook
-# 3. Tab completion works              3. Shell finishes init
-#                                      4. First prompt appears
-#                                      5. precmd runs → register ✓
-#                                      6. Tab completion works
-#
-# The precmd hook guarantees the shell is fully initialized before
-# we attempt to register completions, solving the timing issue.
+# Tab completion for the dotfiles command.
+# Register after compinit in ~/.zshrc. Herdr panes are normal interactive
+# zsh sessions, so no multiplexer-specific deferral is required.
 
 DOTFILES_ROLES_DIR="$HOME/.dotfiles/roles"
 
-# Function to handle tab completion for dotfiles command
 __dotfiles_completion() {
     local -a roles uninstallable_roles
     local curcontext="$curcontext" state line
     typeset -A opt_args
 
-    # Define the command line options
     _arguments -C \
         '-h[Show help message]' \
         '--help[Show help message]' \
@@ -61,31 +28,24 @@ __dotfiles_completion() {
 
     case $state in
         roles)
-            # Get list of roles from the roles directory
             roles=(${(f)"$(find $DOTFILES_ROLES_DIR -maxdepth 1 -type d -exec basename {} \; | grep -v '^roles$' | sort)"})
 
-            # Support comma-separated values
             if [[ -n "${words[CURRENT]}" && "${words[CURRENT]}" == *,* ]]; then
-                # Handle comma-separated completions
                 local prefix="${words[CURRENT]%,*},"
-                local suffix="${words[CURRENT]##*,}"
                 _describe -t roles 'role' roles -P "$prefix" -S ','
             else
                 _describe -t roles 'role' roles -S ','
             fi
             ;;
         uninstall)
-            # Get only roles with uninstall.sh scripts
             uninstallable_roles=(${(f)"$(find $DOTFILES_ROLES_DIR -maxdepth 1 -type d -exec test -f {}/uninstall.sh \; -print | xargs -n1 basename | sort)"})
             _describe -t roles 'uninstallable role' uninstallable_roles
             ;;
         delete)
-            # Get all roles (delete works with or without uninstall.sh)
             roles=(${(f)"$(find $DOTFILES_ROLES_DIR -maxdepth 1 -type d -exec basename {} \; | grep -v '^roles$' | sort)"})
             _describe -t roles 'role' roles
             ;;
     esac
 }
 
-# Register the completion function
 compdef __dotfiles_completion dotfiles

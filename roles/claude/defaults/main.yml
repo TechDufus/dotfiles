@@ -1,0 +1,6 @@
+---
+role_name: claude
+
+claude_config_root: "{{ ansible_facts['env']['HOME'] }}/.claude"
+claude_skills_source: "{{ role_path }}/files/skills"
+claude_skills_dest: "{{ claude_config_root }}/skills"

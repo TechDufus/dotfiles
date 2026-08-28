@@ -58,7 +58,7 @@ All configuration files are symlinked from this role to enable version control:
 ├── settings.json         # Core settings (permissions, hooks, 900+ allowed operations)
 ├── AGENTS.md            # Global user memory and project standards
 ├── commands/            # 17 slash command definitions
-├── skills/              # 3 built-in skills (git-commit-validator, workflow-router, skill-creator)
+├── skills/              # real directory: per-skill copies from this role, plus local plugin installs
 ├── scripts/             # 11 GitHub workflow scripts (1,634 lines of shell)
 ├── hooks/               # Lifecycle hooks (PreToolUse, Stop, SubagentStop, Notification)
 ├── agents/              # Custom agent configurations
@@ -172,7 +172,7 @@ claude
 └── agents/            → Custom agent definitions
 ```
 
-All paths are symlinked from this role, enabling version control and cross-machine sync.
+Most paths are symlinked from this role. `~/.claude/skills` is a real directory: the role copies each repo-managed skill into it and leaves unrelated destination skills alone.
 
 ---
 
@@ -287,14 +287,8 @@ ansible-playbook -t claude ~/.dotfiles/main.yml
 
 1. **Installs claude-code** via Homebrew Cask (macOS only)
 2. **Creates ~/.claude directory** if it doesn't exist
-3. **Symlinks configuration** from role files to `~/.claude/`:
-   - `settings.json` (permissions, hooks, environment)
-   - `commands/` (17 slash commands)
-   - `scripts/` (11 workflow scripts)
-   - `skills/` (3 built-in skills)
-   - `hooks/` (lifecycle hooks)
-   - `agents/` (agent configs)
-4. **Removes non-symlink files** to ensure version control
+3. **Symlinks configuration** from role files to `~/.claude/` for settings, commands, scripts, hooks, and agents.
+4. **Copies `files/skills/<name>/` into `~/.claude/skills/<name>/`**. Never symlink the whole directory. Plugin-installed skills stay in the destination only. The role does not delete destination skills when you remove them from `files/skills/`; delete `~/.claude/skills/<name>` yourself.
 
 ### Prerequisites
 
@@ -313,9 +307,10 @@ ansible-playbook -t claude ~/.dotfiles/main.yml
 which claude
 # → /Applications/Claude Code.app/Contents/MacOS/claude
 
-# Verify configuration symlinks
+# Verify configuration
 ls -la ~/.claude/
-# All directories should show → pointing to ~/.dotfiles/roles/claude/files/
+# settings, commands, scripts, hooks, and agents should be symlinks into this role.
+# skills should be a real directory with copied skill folders, not a whole-tree symlink.
 
 # Test a command
 claude /work --status
@@ -354,26 +349,13 @@ After creating, re-run `dotfiles -t claude` to symlink the new command.
 
 ### Adding Skills
 
-**Option 1: Use skill-creator (recommended)**
-```bash
-claude
-> /work create a new skill for validating API responses
-```
+Add a directory under `files/skills/<skill-name>/` with `SKILL.md`, then rerun `dotfiles -t claude`. The role copies that directory into `~/.claude/skills/<skill-name>/`. Removing a skill from `files/skills/` does not delete the destination copy.
 
-**Option 2: Manual creation**
-```bash
-mkdir -p files/skills/my-skill/scripts
-touch files/skills/my-skill/skill.md
-```
+Current repo-managed skills:
 
-Structure:
-```
-files/skills/my-skill/
-├── skill.md              # Main skill documentation
-├── scripts/              # Supporting scripts
-│   └── helper.sh
-└── resources/            # Optional resources
-```
+| Skill | Purpose |
+|------|---------|
+| `skill-creator` | Guided workflow for authoring new Claude skills |
 
 ### Modifying Permissions
 
@@ -456,11 +438,9 @@ gh auth login
 
 ### Why Symlinks vs Copy?
 
-**Symlinks enable:**
-- Version control of all configuration
-- Instant updates when role files change
-- Cross-machine sync via git
-- Single source of truth
+**Symlinks enable** version-controlled settings, commands, scripts, hooks, and agents with a single source of truth.
+
+**Skills are copied**, not whole-tree or per-skill symlinks, so installing a Claude or Cursor plugin into `~/.claude/skills` cannot write back into this repo. Destination-only skills stay local until you copy them into `files/skills/` on purpose.
 
 ### Why Bash Scripts vs Pure Claude?
 

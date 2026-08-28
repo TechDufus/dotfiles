@@ -117,23 +117,91 @@
     force: true
   when: claude_agents_source.stat.isdir | default(false)
 
-- name: "{{ role_name }} | Check if ~/.claude/skills exists and is not a symlink"
+- name: "{{ role_name }} | Skills | Check Claude skills destination"
   ansible.builtin.stat:
-    path: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
-  register: skills_dir
+    path: "{{ claude_skills_dest }}"
+    follow: false
+  register: claude_skills_dest_stat
 
-- name: "{{ role_name }} | Remove existing skills directory if it's not a symlink"
+- name: "{{ role_name }} | Skills | Refuse unmanaged Claude skills destination"
+  ansible.builtin.fail:
+    msg: >-
+      {{ claude_skills_dest }} exists and is not a directory or symlink.
+      Move or remove it, then rerun `dotfiles -t claude`.
+  when:
+    - claude_skills_dest_stat.stat.exists
+    - not (claude_skills_dest_stat.stat.isdir | default(false))
+    - not (claude_skills_dest_stat.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Skills | Replace leftover Claude skills directory symlink"
   ansible.builtin.file:
-    path: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
+    path: "{{ claude_skills_dest }}"
     state: absent
-  when: skills_dir.stat.exists and not skills_dir.stat.islnk
+  when:
+    - claude_skills_dest_stat.stat.exists
+    - claude_skills_dest_stat.stat.islnk | default(false)
 
-- name: "{{ role_name }} | Create symlink to Claude skills"
+- name: "{{ role_name }} | Skills | Ensure Claude skills directory exists"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/skills"
-    dest: "{{ ansible_facts['env']['HOME'] }}/.claude/skills"
-    state: link
-    force: true
+    path: "{{ claude_skills_dest }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Skills | Check repo-managed Claude skills source"
+  ansible.builtin.stat:
+    path: "{{ claude_skills_source }}"
+  register: claude_skills_source_directory
+
+- name: "{{ role_name }} | Skills | Find repo-managed Claude skills"
+  ansible.builtin.find:
+    paths: "{{ claude_skills_source }}"
+    file_type: directory
+    recurse: false
+  register: claude_skill_source_directories
+  when:
+    - claude_skills_source_directory.stat.exists | default(false)
+    - claude_skills_source_directory.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Skills | Check repo-managed Claude skill destinations"
+  ansible.builtin.stat:
+    path: "{{ claude_skills_dest }}/{{ claude_skill_source_directory.path | basename }}"
+    follow: false
+  loop: "{{ claude_skill_source_directories.files | default([]) }}"
+  loop_control:
+    loop_var: claude_skill_source_directory
+    label: "{{ claude_skill_source_directory.path | basename }}"
+  register: claude_skill_destinations
+
+- name: "{{ role_name }} | Skills | Remove leftover Claude skill destination symlinks"
+  ansible.builtin.file:
+    path: "{{ claude_skills_dest }}/{{ item.claude_skill_source_directory.path | basename }}"
+    state: absent
+  loop: "{{ claude_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.claude_skill_source_directory.path | basename }}"
+  when:
+    - item.stat.exists | default(false)
+    - item.stat.islnk | default(false)
+
+- name: "{{ role_name }} | Skills | Copy repo-managed Claude skills"
+  ansible.builtin.copy:
+    src: "{{ item.claude_skill_source_directory.path }}/"
+    dest: "{{ claude_skills_dest }}/{{ item.claude_skill_source_directory.path | basename }}/"
+    mode: preserve
+  loop: "{{ claude_skill_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.claude_skill_source_directory.path | basename }}"
+  when: >-
+    not (
+      ansible_check_mode
+      and (
+        (claude_skills_dest_stat.stat.islnk | default(false))
+        or (
+          (item.stat.exists | default(false))
+          and (item.stat.islnk | default(false))
+        )
+      )
+    )
 
 - name: "{{ role_name }} | Check if .lsp.json exists and is not a symlink"
   ansible.builtin.stat:

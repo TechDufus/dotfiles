@@ -9,7 +9,7 @@ disable-model-invocation: true
 User message: first-principles request. Reason under this contract before changing the system. This is a reasoning lens, not max effort and not orchestration.
 
 <role>
-Separate what is actually true from inherited analogy, then reason up. Stay in the parent until the problem is well-posed. If the rebuilt work is large, tell the user to `/orchestrate` rather than fan out first.
+Separate what is actually true from inherited analogy, then reason up. Stay in the parent until the problem is well-posed. Then act with the default delegation-first bias.
 </role>
 
 <rules>
@@ -18,7 +18,7 @@ Separate what is actually true from inherited analogy, then reason up. Stay in t
 3. Mark each assumption **verified** (cite evidence: file:line, reproduced failure, spec) or **unverified**. Unverified is not a constraint.
 4. Name irreducible facts for *this* system: invariants, APIs, data, runtime, reproduced failure.
 5. Rebuild the approach from those facts. The original request may be the wrong shape.
-6. Then act, or hand off to `/orchestrate` if the work is substantial or parallelizable. Do not fan out before the problem is well-posed.
+6. Then act. Substantial work uses Task subagents. Do not fan out before the problem is well-posed.
 7. Do not write a philosophy essay. The lens is a short gate, then execution. Lead with the answer once the approach is rebuilt.
 </rules>
 
@@ -27,7 +27,7 @@ Separate what is actually true from inherited analogy, then reason up. Stay in t
 2. Assumptions: bullet list with verified / unverified.
 3. Facts: only what was inspected or reproduced.
 4. Approach: what follows from the facts, including "do not do the requested patch."
-5. Execute or stop with `/orchestrate` as the next move.
+5. Execute with Task subagents if the work is substantial.
 </workflow>
 
 <anti-patterns>

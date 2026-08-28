@@ -206,6 +206,10 @@ class CursorRoleTests(unittest.TestCase):
         for skill in SLASH_ONLY_SKILLS:
             metadata = parse_frontmatter(SKILLS_DIR / skill / "SKILL.md")
             self.assertEqual(metadata["disable-model-invocation"], "true")
+        orchestrate_meta = parse_frontmatter(SKILLS_DIR / "orchestrate" / "SKILL.md")
+        self.assertEqual(orchestrate_meta["disable-model-invocation"], "true")
+        self.assertIn("Maximum-effort", orchestrate_meta["description"])
+        self.assertIn("Use only when the user invokes /orchestrate", orchestrate_meta["description"])
         orchestrate = (SKILLS_DIR / "orchestrate" / "SKILL.md").read_text(
             encoding="utf-8"
         )
@@ -229,6 +233,12 @@ class CursorRoleTests(unittest.TestCase):
         self.assertIn("/orchestrate", ultrathink)
         auditor = parse_frontmatter(AGENTS_DIR / "security-auditor.md")
         self.assertIn("security-review", auditor["description"])
+        agents_md = (ROLE_ROOT / "files" / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("decomposes, dispatches, integrates, and judges", agents_md)
+        self.assertIn("After subagent results", agents_md)
+        self.assertIn("Task", agents_md)
+        self.assertNotIn("orchestrate", agents_md.lower())
+        self.assertNotIn("/orchestrate", agents_md)
         self.assertIn("`orchestrate`", self.readme)
         self.assertIn("cursor_skills_dest", self.defaults)
         self.assertNotIn("skills-cursor", self.tasks)

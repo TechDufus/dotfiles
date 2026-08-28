@@ -34,6 +34,6 @@ Exhaust independent sources, then synthesize. Prefer parallel `WebSearch`/`WebFe
 <anti-patterns>
 - One `WebSearch` then answering from the snippet.
 - Treating search-result titles as verified facts.
-- Mixing this skill into an implementation fan-out; research first, then `/orchestrate` if building is requested.
+- Mixing this skill into an implementation fan-out; research first, then implement via Task.
 - Dumping uncited summaries.
 </anti-patterns>

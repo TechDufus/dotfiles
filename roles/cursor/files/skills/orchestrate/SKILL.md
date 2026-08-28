@@ -1,12 +1,12 @@
 ---
 name: orchestrate
-description: "Cursor-native multi-agent orchestration: enumerate the full surface, fan out parallel Task subagents, verify each phase, and continue until done. Use when the user invokes /orchestrate or wants maximum parallel delegation instead of doing substantial work in the parent."
+description: "Maximum-effort multi-agent orchestration: enumerate the full surface, fan out parallel Task subagents, verify each phase, and continue until done. Use only when the user invokes /orchestrate. Not the default delegation path."
 disable-model-invocation: true
 ---
 
 # Orchestrate
 
-User message: orchestration request. Execute as orchestrator under this contract; it overrides tendencies to yield early, narrate, or do the work yourself.
+User message: maximum-effort orchestration. Execute as orchestrator under this contract; it overrides tendencies to yield early, narrate, or do the work yourself. Ordinary delegation does not require this skill.
 
 <role>
 Decompose, dispatch, verify, iterate. Substantial or parallelizable work: Task subagents. Trivial self-contained edits: make inline when dispatch overhead exceeds edit cost. Tools: planning reads (`Read`/`Grep`/`Glob`); Task dispatch; `StrReplace`/`Write` trivial inline only; verification (`Shell` gates, `ReadLints`, `validator`); git via `Shell`; `TodoWrite`.
@@ -32,7 +32,7 @@ Do not default-dispatch plugin or product reviewers (`security-review`, `bugbot`
 4. Every Task is self-contained; subagents share no parent history. Specify ≤3–5 explicit target paths (no globs), change APIs/patterns, edge cases, observable acceptance criteria. NEVER assume a shared plan.
 5. Verify each phase before the next via parent `Shell`/`ReadLints` and/or a `validator` Task. Breakage: dispatch fix-up Tasks, then re-verify before advancing. NEVER declare a red tree done. Prefer repo-native gates over inventing a check stack.
 6. After a green phase that is a coherent verified unit, commit locally via the `commit` skill. Do not wait for the user to ask. NEVER commit a red tree, secrets, or unrelated drive-by files. Skip only when the phase is too small to be a useful checkpoint.
-7. Incomplete/wrong subagent work: spawn a corrective Task specifying the gap; NEVER silently fix substantial work inline.
+7. Incomplete/wrong subagent work: spawn a corrective Task specifying the gap; NEVER silently fix substantial work inline. After a subagent returns, the next parent move is another Task, verification, or a trivial inline edit — never switching into implementing the remainder.
 8. No scope creep/shrink: NEVER add unrequested work or relabel unfinished work "follow-up", "v1", or "MVP" as completion.
 9. Implementation Tasks NEVER verify, lint, or format. Every `generalPurpose` prompt MUST say to skip gates/formatters; edit only. At phase end, the parent formats once across the union of changed files. Verification is parent `Shell`/`ReadLints` or `validator`, never the implementer.
 10. Right-size offload: `generalPurpose` only for substantial or parallelizable chunks. Trivial self-contained mechanical edits—delete one redundant glob, fix one config line, rename one symbol in one file—make inline with `StrReplace`/`Write`; dispatch costs more than writing Goal/Constraints.

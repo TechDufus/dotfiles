@@ -17,7 +17,7 @@
 Keep always-visible context small and assign each concern one owner:
 
 - Cursor's bundled system prompt owns generic agent behavior.
-- `AGENTS.md` contains only true user interaction and review preferences.
+- `AGENTS.md` contains only true user interaction, review, and workstyle preferences, including always-on delegation-first. It does not name slash skills.
 - `rules/user.mdc` contains only hard user invariants such as repository-memory verification, secret handling, autonomous local checkpoints, and approval before remote or shared-state mutations.
 - Skill bodies stay out of always-on context until Cursor selects them.
 
@@ -52,7 +52,7 @@ Current repo-managed skills:
 |------|---------|
 | `commit` | Local conventional commits at verified checkpoints |
 | `verification` | Effective-state checks for Ansible and repo-managed config |
-| `orchestrate` | Slash-only OMP-shaped fan-out contract using Cursor Task types |
+| `orchestrate` | Slash-only maximum-effort fan-out: full surface, no early yield |
 | `ultrathink` | Slash-only first-principles reasoning lens for this turn |
 | `ultraresearch` | Slash-only parallel web plus `explore` research |
 

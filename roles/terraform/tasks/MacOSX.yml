@@ -1,10 +1,19 @@
 ---
+- name: "Terraform | MacOSX | Add HashiCorp Homebrew tap"
+  community.general.homebrew_tap:
+    name: hashicorp/tap
+    state: present
+
 - name: "Terraform | MacOSX | Install Terraform"
+  community.general.homebrew:
+    name: hashicorp/tap/terraform
+    state: present
+
+- name: "Terraform | MacOSX | Install Terraform ecosystem tools"
   community.general.homebrew:
     name: "{{ item }}"
     state: present
   loop:
-    - terraform
     - terraform-ls
     - tfsec
     - terraform-docs

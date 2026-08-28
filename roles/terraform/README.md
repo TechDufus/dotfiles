@@ -31,7 +31,7 @@ graph TD
     B -->|Ubuntu/Debian| D[HashiCorp APT Repo]
     B -->|Arch Linux| E[Pacman]
 
-    C --> F[Install: terraform, tfsec, terraform-docs, terragrunt]
+    C --> F[Tap hashicorp/tap, then install terraform plus tfsec, terraform-docs, terragrunt]
     D --> G[Add GPG Key] --> H[Add APT Repository] --> I[Install: terraform]
     E --> J[Install: terraform]
 
@@ -75,7 +75,7 @@ dotfiles --uninstall terraform
 
 ## 📚 Dependencies
 
-- **macOS**: Homebrew must be installed
+- **macOS**: Homebrew must be installed; Terraform comes from `hashicorp/tap` because homebrew-core no longer ships it
 - **Ubuntu/Debian**: Requires sudo privileges for apt operations
 - **Arch Linux**: Requires sudo privileges for pacman operations
 

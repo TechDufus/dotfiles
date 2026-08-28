@@ -5,9 +5,9 @@ set -e
 case "$(uname -s)" in
   Darwin)
     # Uninstall via Homebrew
-    if command -v brew >/dev/null 2>&1 && brew list terraform >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1 && brew list --formula terraform >/dev/null 2>&1; then
       __task "Removing terraform via Homebrew"
-      _cmd "brew uninstall terraform"
+      _cmd "brew uninstall --formula terraform"
       _task_done
     fi
     ;;

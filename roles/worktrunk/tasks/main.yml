@@ -7,3 +7,15 @@
 - name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Ensure Worktrunk config directory exists"
+  ansible.builtin.file:
+    path: "{{ worktrunk_config_dest | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Copy config"
+  ansible.builtin.copy:
+    dest: "{{ worktrunk_config_dest }}"
+    src: "config.toml"
+    mode: "0644"

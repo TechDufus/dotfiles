@@ -1,0 +1,4 @@
+---
+role_name: worktrunk
+
+worktrunk_config_dest: "{{ ansible_facts['user_dir'] }}/.config/worktrunk/config.toml"

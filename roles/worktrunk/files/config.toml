@@ -1,0 +1,5 @@
+skip-commit-generation-prompt = true
+
+# Sibling layout: <repo-parent>/.worktrees/<repo-dir>/<sanitized-branch>
+# Unique per clone (parent + directory name), including ~/.dotfiles → ~/.worktrees/.dotfiles/
+worktree-path = "{{ repo_path }}/../.worktrees/{{ repo }}/{{ branch | sanitize }}"

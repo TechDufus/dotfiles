@@ -14,6 +14,7 @@ ghelp() {
   
   echo -e "${BOLD}${GREEN}Worktree Commands:${NC}"
   echo -e "  ${YELLOW}wt${NC}          - Worktrunk worktree manager"
+  echo -e "  ${YELLOW}herd${NC}        - Create a Worktrunk checkout and a no-focus Herdr tab"
   echo -e "  ${YELLOW}wto${NC} [branch] - Switch/pick worktree and run omp -c"
   echo -e "  ${YELLOW}wton${NC} <branch>- Create worktree and run omp -c"
   echo -e "  ${YELLOW}wt.help${NC}     - Show Worktrunk helper usage"

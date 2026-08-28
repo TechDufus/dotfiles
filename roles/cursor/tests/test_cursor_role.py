@@ -11,7 +11,13 @@ ROLE_ROOT = REPO_ROOT / "roles" / "cursor"
 TASKS_PATH = ROLE_ROOT / "tasks" / "main.yml"
 DEFAULTS_PATH = ROLE_ROOT / "defaults" / "main.yml"
 AGENTS_DIR = ROLE_ROOT / "files" / "agents"
+RULES_DIR = ROLE_ROOT / "files" / "rules"
 SKILLS_DIR = ROLE_ROOT / "files" / "skills"
+EXPECTED_RULES = {
+    "delegation",
+    "interaction",
+    "user",
+}
 GROUP_VARS_ROOT = REPO_ROOT / "group_vars"
 RESERVED_AGENT_NAMES = {"explore", "bash", "browser"}
 EXPECTED_AGENTS = {
@@ -195,6 +201,31 @@ class CursorRoleTests(unittest.TestCase):
             self.assertNotIn("tools", metadata)
             self.assertNotIn("@task", path.read_text(encoding="utf-8"))
 
+    def test_always_on_rules_carry_user_workstyle(self) -> None:
+        rule_files = sorted(RULES_DIR.glob("*.mdc"))
+        names = {path.stem for path in rule_files}
+        self.assertEqual(names, EXPECTED_RULES)
+        for path in rule_files:
+            metadata = parse_frontmatter(path)
+            self.assertEqual(metadata["alwaysApply"], "true")
+        interaction = (RULES_DIR / "interaction.mdc").read_text(encoding="utf-8")
+        delegation = (RULES_DIR / "delegation.mdc").read_text(encoding="utf-8")
+        user_rule = (RULES_DIR / "user.mdc").read_text(encoding="utf-8")
+        self.assertIn("Lead with the answer or outcome.", interaction)
+        self.assertIn("For reviews, lead with material findings", interaction)
+        self.assertIn("decomposes, dispatches, integrates, and judges", delegation)
+        self.assertIn("After subagent results", delegation)
+        self.assertIn("Task", delegation)
+        self.assertNotIn("orchestrate", interaction.lower())
+        self.assertNotIn("orchestrate", delegation.lower())
+        self.assertNotIn("Lead with the answer", user_rule)
+        self.assertIn("cursor_agents_md_dest", self.defaults)
+        self.assertNotIn("cursor_agents_md_source", self.defaults)
+        self.assertIn("Remove retired user-level AGENTS.md symlink", self.tasks)
+        self.assertIn("rules/interaction.mdc", self.readme)
+        self.assertIn("rules/delegation.mdc", self.readme)
+        self.assertIn("Cursor does not load `~/.cursor/AGENTS.md`", self.readme)
+
     def test_skills_are_per_directory_and_ignore_builtin_cache(self) -> None:
         skill_names = {path.name for path in SKILLS_DIR.iterdir() if path.is_dir()}
         self.assertEqual(skill_names, EXPECTED_SKILLS)
@@ -233,12 +264,7 @@ class CursorRoleTests(unittest.TestCase):
         self.assertIn("/orchestrate", ultrathink)
         auditor = parse_frontmatter(AGENTS_DIR / "security-auditor.md")
         self.assertIn("security-review", auditor["description"])
-        agents_md = (ROLE_ROOT / "files" / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("decomposes, dispatches, integrates, and judges", agents_md)
-        self.assertIn("After subagent results", agents_md)
-        self.assertIn("Task", agents_md)
-        self.assertNotIn("orchestrate", agents_md.lower())
-        self.assertNotIn("/orchestrate", agents_md)
+        self.assertFalse((ROLE_ROOT / "files" / "AGENTS.md").exists())
         self.assertIn("`orchestrate`", self.readme)
         self.assertIn("cursor_skills_dest", self.defaults)
         self.assertNotIn("skills-cursor", self.tasks)

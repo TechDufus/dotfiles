@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: Security-focused reviewer for exploitable risks, trust boundaries, and dependency signals. Use proactively when touching auth, secrets, parsers, user input, or trust boundaries.
+description: Security-focused reviewer for exploitable risks, trust boundaries, and dependency signals. Use proactively when touching auth, secrets, parsers, user input, or trust boundaries. Not Cursor's security-review branch-diff reviewer; launch this Task for a scoped exploitability audit.
 model: composer-2.5
 readonly: true
 ---

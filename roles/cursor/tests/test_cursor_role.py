@@ -21,6 +21,18 @@ EXPECTED_AGENTS = {
     "security-auditor",
     "validator",
 }
+EXPECTED_SKILLS = {
+    "commit",
+    "orchestrate",
+    "ultraresearch",
+    "ultrathink",
+    "verification",
+}
+SLASH_ONLY_SKILLS = {
+    "orchestrate",
+    "ultraresearch",
+    "ultrathink",
+}
 
 
 def load_task_blocks(path: Path) -> list[str]:
@@ -185,9 +197,39 @@ class CursorRoleTests(unittest.TestCase):
 
     def test_skills_are_per_directory_and_ignore_builtin_cache(self) -> None:
         skill_names = {path.name for path in SKILLS_DIR.iterdir() if path.is_dir()}
-        self.assertEqual(skill_names, {"commit", "verification"})
+        self.assertEqual(skill_names, EXPECTED_SKILLS)
         for skill in skill_names:
             self.assertTrue((SKILLS_DIR / skill / "SKILL.md").is_file())
+            metadata = parse_frontmatter(SKILLS_DIR / skill / "SKILL.md")
+            self.assertEqual(metadata["name"], skill)
+            self.assertTrue(metadata["description"])
+        for skill in SLASH_ONLY_SKILLS:
+            metadata = parse_frontmatter(SKILLS_DIR / skill / "SKILL.md")
+            self.assertEqual(metadata["disable-model-invocation"], "true")
+        orchestrate = (SKILLS_DIR / "orchestrate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("generalPurpose", orchestrate)
+        self.assertIn("explore", orchestrate)
+        self.assertIn("Do not Task-spawn them", orchestrate)
+        self.assertIn("optional", orchestrate)
+        self.assertIn("validator", orchestrate)
+        self.assertIn("StrReplace", orchestrate)
+        self.assertIn("TodoWrite", orchestrate)
+        self.assertIn("Do not wait for the user to ask", orchestrate)
+        self.assertNotIn("`sonic`", orchestrate)
+        self.assertNotIn("`scout`", orchestrate)
+        self.assertNotIn("`librarian`", orchestrate)
+        self.assertNotIn("`oracle`", orchestrate)
+        self.assertNotIn("bun check", orchestrate)
+        ultrathink = (SKILLS_DIR / "ultrathink" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("first-principles", ultrathink.lower())
+        self.assertIn("/orchestrate", ultrathink)
+        auditor = parse_frontmatter(AGENTS_DIR / "security-auditor.md")
+        self.assertIn("security-review", auditor["description"])
+        self.assertIn("`orchestrate`", self.readme)
         self.assertIn("cursor_skills_dest", self.defaults)
         self.assertNotIn("skills-cursor", self.tasks)
         self.assertIn("never manage `~/.cursor/skills-cursor/`", self.readme.lower())

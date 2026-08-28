@@ -52,6 +52,9 @@ Current repo-managed skills:
 |------|---------|
 | `commit` | Local conventional commits at verified checkpoints |
 | `verification` | Effective-state checks for Ansible and repo-managed config |
+| `orchestrate` | Slash-only OMP-shaped fan-out contract using Cursor Task types |
+| `ultrathink` | Slash-only first-principles reasoning lens for this turn |
+| `ultraresearch` | Slash-only parallel web plus `explore` research |
 
 ## Usage
 

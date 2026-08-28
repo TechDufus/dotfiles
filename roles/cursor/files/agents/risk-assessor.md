@@ -1,6 +1,6 @@
 ---
 name: risk-assessor
-description: Cross-stack change-risk assessor for plans, diffs, and implemented changes.
+description: Cross-stack change-risk assessor. Use proactively on plans, diffs, and implementations that change behavior, data, security, or operations.
 model: composer-2.5
 readonly: true
 ---

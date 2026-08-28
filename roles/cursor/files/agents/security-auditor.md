@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: Security-focused reviewer for exploitable code risks, trust boundaries, and dependency signals.
+description: Security-focused reviewer for exploitable risks, trust boundaries, and dependency signals. Use proactively when touching auth, secrets, parsers, user input, or trust boundaries.
 model: composer-2.5
 readonly: true
 ---

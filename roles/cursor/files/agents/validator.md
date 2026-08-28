@@ -1,6 +1,6 @@
 ---
 name: validator
-description: Validation agent that runs the smallest credible check set and returns a binary readiness verdict.
+description: Validation agent that runs the smallest credible check set and returns a binary readiness verdict. Use proactively after implementation and before claiming work is done.
 model: composer-2.5
 readonly: true
 ---

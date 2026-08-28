@@ -1,6 +1,6 @@
 ---
 name: gap-advisor
-description: Pre-plan gap analyst that surfaces hidden requirements, missing context, and scope risk before planning starts.
+description: Pre-plan gap analyst. Use proactively before planning or implementation starts, and whenever requirements, success criteria, or scope look incomplete.
 model: composer-2.5
 readonly: true
 ---

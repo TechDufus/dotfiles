@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 import re
+import subprocess
 import unittest
 
 
@@ -135,17 +136,38 @@ class CursorRoleTests(unittest.TestCase):
         self.assertIn("no_log: true", merge[0])
         self.assertIn("no_log: true", deploy[0])
         self.assertIn('mode: "0600"', deploy[0])
+        self.assertIn(
+            "cursor_existing_cli_config_canonical != cursor_merged_cli_config_canonical",
+            deploy[0],
+        )
         self.assertNotIn("authInfo", json.dumps(self.managed_cli_config))
         self.assertNotIn("privacyCache", json.dumps(self.managed_cli_config))
         self.assertEqual(self.managed_cli_config["approvalMode"], "unrestricted")
         self.assertEqual(self.managed_cli_config["sandbox"]["mode"], "disabled")
         self.assertEqual(self.managed_cli_config["selectedModel"]["modelId"], "grok-4.6")
         self.assertEqual(
+            self.managed_cli_config["model"]["displayName"],
+            "Cursor Grok 4.6 Extra High",
+        )
+        self.assertEqual(
             self.managed_cli_config["permissions"]["allow"],
             ["Shell(**)", "Read(**)", "Write(**)", "WebFetch(*)", "Mcp(*:*)"],
         )
         self.assertNotIn("Grep(**)", self.managed_cli_config["permissions"]["allow"])
         self.assertFalse(self.managed_cli_config["attribution"]["attributeCommitsToAgent"])
+        self.assertEqual(self.managed_cli_config["statusLine"]["type"], "command")
+        self.assertEqual(
+            self.managed_cli_config["statusLine"]["command"],
+            "~/.cursor/statusline.sh",
+        )
+        self.assertIn(
+            "cursor_managed_cli_config.model)",
+            merge[0],
+        )
+        self.assertIn(
+            "'statusLine': cursor_managed_cli_config.statusLine",
+            merge[0],
+        )
 
     def test_agents_are_omp_specialists_with_cursor_frontmatter(self) -> None:
         agent_files = sorted(AGENTS_DIR.glob("*.md"))
@@ -157,6 +179,7 @@ class CursorRoleTests(unittest.TestCase):
             self.assertEqual(metadata["name"], path.stem)
             self.assertEqual(metadata["model"], "composer-2.5")
             self.assertEqual(metadata["readonly"], "true")
+            self.assertIn("proactively", metadata["description"].lower())
             self.assertNotIn("tools", metadata)
             self.assertNotIn("@task", path.read_text(encoding="utf-8"))
 
@@ -168,6 +191,69 @@ class CursorRoleTests(unittest.TestCase):
         self.assertIn("cursor_skills_dest", self.defaults)
         self.assertNotIn("skills-cursor", self.tasks)
         self.assertIn("never manage `~/.cursor/skills-cursor/`", self.readme.lower())
+        statusline = ROLE_ROOT / "files" / "statusline.sh"
+        self.assertTrue(statusline.is_file())
+        self.assertTrue(statusline.stat().st_mode & 0o111)
+        self.assertIn("cursor_statusline_dest", self.defaults)
+        self.assertIn("statusline.sh", self.readme.lower())
+
+    def test_statusline_renders_cursor_payload(self) -> None:
+        script = ROLE_ROOT / "files" / "statusline.sh"
+        payload = {
+            "session_name": "auth-fix",
+            "cwd": str(REPO_ROOT),
+            "autorun": True,
+            "model": {
+                "id": "grok-4.6",
+                "display_name": "Cursor Grok 4.6 Extra High",
+                "param_summary": "Extra High",
+                "max_mode": False,
+            },
+            "workspace": {
+                "current_dir": str(REPO_ROOT),
+                "project_dir": str(REPO_ROOT),
+            },
+            "version": "2026.08.25-test",
+            "output_style": {"name": "compact"},
+            "context_window": {
+                "total_input_tokens": 15234,
+                "total_output_tokens": 1200,
+                "context_window_size": 200000,
+                "used_percentage": 34.5,
+                "remaining_percentage": 65.5,
+            },
+            "worktree": {"name": "auth-fix", "path": "/tmp/auth-fix"},
+            "render_width_chars": 120,
+        }
+        result = subprocess.run(
+            [str(script)],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Cursor Grok 4.6 Extra High", result.stdout)
+        self.assertEqual(result.stdout.count("Extra High"), 1)
+        self.assertNotIn("2026.08.25-test", result.stdout)
+        self.assertIn("YOLO", result.stdout)
+        self.assertIn("compact", result.stdout)
+        self.assertIn("34%", result.stdout)
+        self.assertIn("wt auth-fix", result.stdout)
+        self.assertIn(str(REPO_ROOT).replace(str(Path.home()), "~"), result.stdout)
+
+        payload["model"]["display_name"] = "Claude 4 Opus"
+        payload["model"]["param_summary"] = "(Thinking)"
+        thinking = subprocess.run(
+            [str(script)],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(thinking.returncode, 0, thinking.stderr)
+        self.assertIn("Claude 4 Opus", thinking.stdout)
+        self.assertIn("(Thinking)", thinking.stdout)
 
     def test_readme_stays_omp_aligned_and_cursor_specific(self) -> None:
         self.assertIn("`roles/omp`", self.readme)

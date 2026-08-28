@@ -203,6 +203,13 @@
       {{
         cursor_existing_cli_config
         | combine(cursor_managed_cli_config, recursive=true)
+        | combine({
+            'model': (cursor_existing_cli_config.model | default({}))
+              | combine(cursor_managed_cli_config.model),
+            'selectedModel': cursor_managed_cli_config.selectedModel,
+            'modelParameters': cursor_managed_cli_config.modelParameters,
+            'statusLine': cursor_managed_cli_config.statusLine
+          })
       }}
   no_log: true
 
@@ -213,7 +220,17 @@
       - cursor_merged_cli_config.permissions.deny == cursor_managed_cli_config.permissions.deny
       - cursor_merged_cli_config.approvalMode == cursor_managed_cli_config.approvalMode
       - cursor_merged_cli_config.sandbox.mode == cursor_managed_cli_config.sandbox.mode
+      - cursor_merged_cli_config.model.modelId == cursor_managed_cli_config.model.modelId
+      - cursor_merged_cli_config.model.displayName == cursor_managed_cli_config.model.displayName
+      - cursor_merged_cli_config.selectedModel == cursor_managed_cli_config.selectedModel
+      - cursor_merged_cli_config.statusLine == cursor_managed_cli_config.statusLine
     quiet: true
+
+- name: "{{ role_name }} | Canonicalize Cursor CLI config for comparison"
+  ansible.builtin.set_fact:
+    cursor_existing_cli_config_canonical: "{{ cursor_existing_cli_config | to_json(sort_keys=True) }}"
+    cursor_merged_cli_config_canonical: "{{ cursor_merged_cli_config | to_json(sort_keys=True) }}"
+  no_log: true
 
 - name: "{{ role_name }} | Deploy Cursor CLI config"
   ansible.builtin.copy:
@@ -221,6 +238,7 @@
     dest: "{{ cursor_cli_config_dest }}"
     mode: "0600"
   no_log: true
+  when: cursor_existing_cli_config_canonical != cursor_merged_cli_config_canonical
 
 - name: "{{ role_name }} | Agents | Check repo-managed Cursor agents source"
   ansible.builtin.stat:

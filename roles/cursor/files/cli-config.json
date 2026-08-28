@@ -17,12 +17,15 @@
   "notifications": true,
   "hints": false,
   "rewind": true,
-  "suggestNextPrompt": false,
   "modelSlashCommands": true,
   "autoAcceptWebSearch": true,
   "hasChangedDefaultModel": true,
   "model": {
-    "modelId": "grok-4.6"
+    "modelId": "grok-4.6",
+    "displayModelId": "grok-4.6",
+    "displayName": "Cursor Grok 4.6 Extra High",
+    "displayNameShort": "Cursor Grok 4.6 Extra High",
+    "maxMode": false
   },
   "selectedModel": {
     "modelId": "grok-4.6",
@@ -71,5 +74,12 @@
   "attribution": {
     "attributeCommitsToAgent": false,
     "attributePRsToAgent": false
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.cursor/statusline.sh",
+    "padding": 0,
+    "updateIntervalMs": 300,
+    "timeoutMs": 2000
   }
 }

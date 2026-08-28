@@ -1,6 +1,6 @@
 ---
 name: plan-critic
-description: Plan reviewer that stress-tests execution readiness, sequencing, and missing validation before work starts.
+description: Plan reviewer for execution readiness, sequencing, and missing validation. Use proactively after a plan is produced and before implementation starts.
 model: composer-2.5
 readonly: true
 ---

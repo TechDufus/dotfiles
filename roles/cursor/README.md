@@ -5,9 +5,9 @@
 ## Managed files
 
 - The Agent CLI installer is official and user-local: `curl https://cursor.com/install | bash` writes `~/.local/bin/agent`. If that binary already exists, the role leaves it alone. Cursor CLI auto-updates itself; this role does not force upgrades.
-- `cli-config.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges repo-managed keys into the live file, preserves unowned entries such as auth and caches, and writes restrictive permissions because credentials may land there. Managed policy is unrestricted (Run Everything), unsandboxed, and pinned to Cursor Grok 4.6 Extra High. A later `/model` change is overwritten the next time this role runs.
-- Custom subagents pin `composer-2.5`, matching the OMP Cursor overlay's task role. Built-in Explore stays on Cursor's default fast model.
-- `AGENTS.md` is a repo-managed symlink. If a destination regular file differs, the role fails: copy intended live changes back into `roles/cursor/files/` or remove the unmanaged file before rerunning.
+- `cli-config.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges repo-managed keys into the live file, then overlays `model` and replaces `selectedModel`, `modelParameters`, and `statusLine` so a stale CLI display cache cannot keep an old pin. Extra CLI-owned `model` keys such as `aliases` are preserved. Unowned entries such as auth and caches are preserved. The file is written with restrictive permissions because credentials may land there. Managed policy is unrestricted (Run Everything), unsandboxed, and pinned to Cursor Grok 4.6 Extra High. A later `/model` change is overwritten the next time this role runs.
+- Custom subagents pin `composer-2.5`, matching the OMP Cursor overlay's task role. Built-in Explore stays on Cursor's default fast model. Specialist descriptions ask the parent to delegate proactively.
+- `AGENTS.md` and `statusline.sh` are repo-managed symlinks. If a destination regular file differs, the role fails: copy intended live changes back into `roles/cursor/files/` or remove the unmanaged file before rerunning. The status line is a three-line dashboard (path/git, context window, model/run mode). It needs `jq`.
 - `rules/*.mdc` is deployed as per-file symlinks into `~/.cursor/rules/`; never symlink the whole directory. Unrelated user rules are preserved. Cleanup removes only stale repo-owned rule symlinks whose managed source no longer exists.
 - `agents/*.md` defines additional global Cursor subagents with Cursor frontmatter and focused prompts. Specialist routing belongs in those files rather than this overview.
 - `skills/*` is deployed as per-skill directory symlinks into `~/.cursor/skills/`. Never manage `~/.cursor/skills-cursor/`; that tree is Cursor's built-in skill cache.
@@ -25,7 +25,7 @@ Keep always-visible context small and assign each concern one owner:
 
 Global custom subagents must extend Cursor's built-ins, not replace them. Do not create global agents named `explore`, `bash`, or `browser`; those names belong to Cursor.
 
-Preferred repo-managed additions are the same specialists as OMP: `gap-advisor`, `plan-critic`, `risk-assessor`, `validator`, and `security-auditor`. Their prompts add focused review, risk, and validation behavior while leaving ordinary exploration, planning, implementation, and review to Cursor itself.
+Preferred repo-managed additions are the same specialists as OMP: `gap-advisor`, `plan-critic`, `risk-assessor`, `validator`, and `security-auditor`. Their prompts add focused review, risk, and validation behavior while leaving ordinary exploration, planning, implementation, and review to Cursor itself. Descriptions include "use proactively" so the parent actually delegates instead of doing that work in the main window.
 
 ## Model and run-mode policy
 
@@ -40,6 +40,7 @@ This role pins:
 | Built-in Explore | Cursor default | Fast search should not inherit Extra High |
 | Approval | `unrestricted` | Same YOLO posture as Codex `danger-full-access` / OMP full tool access |
 | Sandbox | disabled | Matches that autonomy; deny lists stay empty on purpose |
+| Status line | `~/.cursor/statusline.sh` | Path, git, context window, model/params, YOLO vs ASK, worktree |
 
 Switch with `/model grok-4.6` or `--model 'grok-4.6[effort=xhigh,fast=false]'` only as a session escape hatch. Edit `files/cli-config.json` when the pin itself should change.
 

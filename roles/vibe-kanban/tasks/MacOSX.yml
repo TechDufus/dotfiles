@@ -1,0 +1,43 @@
+---
+# macOS-specific tasks for Vibe Kanban
+
+# Vibe-kanban is distributed as an npm package that self-extracts binaries
+# It requires Node.js/npm or Bun to run
+
+- name: "{{ role_name }} | Check if bun is installed"
+  ansible.builtin.command: which bun
+  register: bun_check
+  changed_when: false
+  failed_when: false
+
+- name: "{{ role_name }} | Set bun path"
+  ansible.builtin.set_fact:
+    bun_path: "{{ bun_check.stdout }}"
+  when: bun_check.rc == 0
+
+- name: "{{ role_name }} | Warn if bun not found"
+  ansible.builtin.debug:
+    msg: "Bun not found. Vibe Kanban MCP server requires bun or npx to run."
+  when: bun_check.rc != 0
+
+# Note: macOS uses launchd instead of systemd
+# For remote hosting on macOS, use launchd plist
+- name: "{{ role_name }} | Deploy launchd service"
+  when: vibe_kanban.server.enabled | default(false)
+  block:
+    - name: "{{ role_name }} | Create LaunchAgents directory"
+      ansible.builtin.file:
+        path: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents"
+        state: directory
+        mode: '0755'
+
+    - name: "{{ role_name }} | Create launchd plist"
+      ansible.builtin.template:
+        src: com.vibekanban.plist.j2
+        dest: "{{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.vibekanban.plist"
+        mode: '0644'
+
+    - name: "{{ role_name }} | Load launchd service"
+      ansible.builtin.command: launchctl load {{ ansible_facts['env']['HOME'] }}/Library/LaunchAgents/com.vibekanban.plist
+      changed_when: true
+      failed_when: false

@@ -1,0 +1,85 @@
+---
+# Vibe Kanban - AI Coding Agent Orchestration Tool
+# https://github.com/BloopAI/vibe-kanban
+
+# Check for OS-specific configuration
+- name: "{{ role_name }} | Checking for Distribution Config: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/{{ ansible_facts['distribution'] }}.yml"
+  register: distribution_config
+
+- name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
+  ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
+  when: distribution_config.stat.exists
+
+# Check for macOS-specific configuration
+- name: "{{ role_name }} | Checking for macOS Config"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/tasks/MacOSX.yml"
+  register: macos_config
+  when: ansible_facts['os_family'] == 'Darwin'
+
+- name: "{{ role_name }} | Run Tasks: macOS"
+  ansible.builtin.include_tasks: "MacOSX.yml"
+  when:
+    - ansible_facts['os_family'] == 'Darwin'
+    - macos_config.stat.exists
+
+# Common configuration for all platforms
+- name: "{{ role_name }} | Ensure data directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/share/vibe-kanban"
+    state: directory
+    mode: '0755'
+
+- name: "{{ role_name }} | Check if config.json exists"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/share/vibe-kanban/config.json"
+  register: vibe_kanban_config
+
+- name: "{{ role_name }} | Deploy configuration"
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/share/vibe-kanban/config.json"
+    mode: '0644'
+    backup: true
+  when: not vibe_kanban_config.stat.exists or vibe_kanban_force_config | default(false)
+
+- name: "{{ role_name }} | Update existing config (preserve user data)"
+  when: vibe_kanban_config.stat.exists and not (vibe_kanban_force_config | default(false))
+  block:
+    - name: "{{ role_name }} | Read existing config"
+      ansible.builtin.slurp:
+        src: "{{ ansible_facts['env']['HOME'] }}/.local/share/vibe-kanban/config.json"
+      register: existing_config_raw
+
+    - name: "{{ role_name }} | Parse existing config"
+      ansible.builtin.set_fact:
+        existing_config: "{{ existing_config_raw.content | b64decode | from_json }}"
+
+    - name: "{{ role_name }} | Merge configuration settings"
+      ansible.builtin.copy:
+        content: |
+          {{ existing_config | combine({
+            'theme': vibe_kanban.theme | default(existing_config.theme),
+            'executor_profile': {
+              'executor': vibe_kanban.executor.type | default(existing_config.executor_profile.executor),
+              'variant': vibe_kanban.executor.variant | default(existing_config.executor_profile.variant)
+            },
+            'editor': {
+              'editor_type': vibe_kanban.editor.type | default(existing_config.editor.editor_type),
+              'custom_command': vibe_kanban.editor.custom_command | default(existing_config.editor.custom_command),
+              'remote_ssh_host': vibe_kanban.editor.remote_ssh_host | default(existing_config.editor.remote_ssh_host),
+              'remote_ssh_user': vibe_kanban.editor.remote_ssh_user | default(existing_config.editor.remote_ssh_user)
+            },
+            'git_branch_prefix': vibe_kanban.git.branch_prefix | default(existing_config.git_branch_prefix),
+            'analytics_enabled': vibe_kanban.analytics_enabled | default(existing_config.analytics_enabled),
+            'notifications': {
+              'sound_enabled': vibe_kanban.notifications.sound_enabled | default(existing_config.notifications.sound_enabled),
+              'push_enabled': vibe_kanban.notifications.push_enabled | default(existing_config.notifications.push_enabled),
+              'sound_file': vibe_kanban.notifications.sound_file | default(existing_config.notifications.sound_file)
+            }
+          }, recursive=true) | to_nice_json }}
+        dest: "{{ ansible_facts['env']['HOME'] }}/.local/share/vibe-kanban/config.json"
+        mode: '0644'
+        backup: true

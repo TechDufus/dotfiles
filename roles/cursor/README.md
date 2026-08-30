@@ -68,4 +68,4 @@ Edit tracked sources under `roles/cursor/files/`, then rerun the role. Do not co
 
 ## Out of scope
 
-This role does not manage the Cursor desktop app, `~/.cursor/projects`, chat history, or OMP's `omp-cursor` launcher.
+This role does not manage the Cursor desktop app, `~/.cursor/projects`, chat history, OMP's `omp-cursor` launcher, or the `/orca` spawn-prompt skill (owned by `roles/orca`).

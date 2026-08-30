@@ -5,3 +5,11 @@ orca_cask: stablyai/orca/orca
 orca_app_path: /Applications/Orca.app
 orca_bundle_id: com.stablyai.orca
 orca_arch_package: stably-orca-bin
+orca_prompt_skill_name: orca
+orca_prompt_skill_source: "{{ role_path }}/files/skills/{{ orca_prompt_skill_name }}"
+# Append a harness dest here. Skip/link rules: README "Spawn-prompt skill".
+orca_prompt_skill_dests:
+  - "{{ ansible_facts['env']['HOME'] }}/.cursor/skills/{{ orca_prompt_skill_name }}"
+  - "{{ ansible_facts['env']['HOME'] }}/.omp/agent/skills/{{ orca_prompt_skill_name }}"
+  - "{{ ansible_facts['env']['HOME'] }}/.codex/skills/{{ orca_prompt_skill_name }}"
+  - "{{ ansible_facts['env']['HOME'] }}/.claude/skills/{{ orca_prompt_skill_name }}"

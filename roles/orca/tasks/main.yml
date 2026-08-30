@@ -7,3 +7,54 @@
 - name: "{{ role_name }} | Run Tasks: {{ ansible_facts['distribution'] }}"
   ansible.builtin.include_tasks: "{{ ansible_facts['distribution'] }}.yml"
   when: distribution_config.stat.exists
+
+- name: "{{ role_name }} | Skills | Check spawn-prompt skill homes"
+  ansible.builtin.stat:
+    path: "{{ orca_skill_dest | dirname }}"
+  loop: "{{ orca_prompt_skill_dests }}"
+  loop_control:
+    loop_var: orca_skill_dest
+    label: "{{ orca_skill_dest }}"
+  register: orca_skill_homes
+
+- name: "{{ role_name }} | Skills | Check existing spawn-prompt skill destinations"
+  ansible.builtin.stat:
+    path: "{{ orca_skill_home.orca_skill_dest }}"
+    follow: false
+  loop: "{{ orca_skill_homes.results }}"
+  loop_control:
+    loop_var: orca_skill_home
+    label: "{{ orca_skill_home.orca_skill_dest }}"
+  register: orca_skill_destinations
+  when: orca_skill_home.stat.isdir | default(false)
+
+- name: "{{ role_name }} | Skills | Skip unmanaged spawn-prompt skill destinations"
+  ansible.builtin.debug:
+    msg: >-
+      Skipping {{ orca_skill_destination.orca_skill_home.orca_skill_dest }}:
+      exists and is not a symlink. Move or remove it, then rerun `dotfiles -t orca`.
+  loop: "{{ orca_skill_destinations.results }}"
+  loop_control:
+    loop_var: orca_skill_destination
+    label: "{{ orca_skill_destination.orca_skill_home.orca_skill_dest | default('skipped') }}"
+  when:
+    - orca_skill_destination.stat is defined
+    - orca_skill_destination.stat.exists
+    - not (orca_skill_destination.stat.islnk | default(false))
+
+- name: "{{ role_name }} | Skills | Symlink spawn-prompt skill into agent homes"
+  ansible.builtin.file:
+    src: "{{ orca_prompt_skill_source }}"
+    dest: "{{ orca_skill_destination.orca_skill_home.orca_skill_dest }}"
+    state: link
+    force: true
+  loop: "{{ orca_skill_destinations.results }}"
+  loop_control:
+    loop_var: orca_skill_destination
+    label: "{{ orca_skill_destination.orca_skill_home.orca_skill_dest | default('skipped') }}"
+  when:
+    - orca_skill_destination.stat is defined
+    - not (
+        orca_skill_destination.stat.exists
+        and not (orca_skill_destination.stat.islnk | default(false))
+      )

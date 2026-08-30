@@ -1,0 +1,82 @@
+---
+- name: "{{ role_name }} | MacOSX | Add stablyai Homebrew tap"
+  community.general.homebrew_tap:
+    name: "{{ orca_homebrew_tap }}"
+    state: present
+
+- name: "{{ role_name }} | MacOSX | Inspect installed Homebrew casks"
+  ansible.builtin.command:
+    cmd: brew info --json=v2 --installed --casks
+  register: orca_installed_casks_cmd
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | MacOSX | Set installed orca cask fact"
+  ansible.builtin.set_fact:
+    orca_installed_cask: "{{ orca_cask_matches | first | default({}) }}"
+  vars:
+    orca_cask_matches: >-
+      {{
+        (
+          (orca_installed_casks_cmd.stdout | from_json).casks
+          if orca_installed_casks_cmd.rc == 0
+          else []
+        )
+        | selectattr('token', 'equalto', 'orca')
+        | list
+      }}
+
+- name: "{{ role_name }} | MacOSX | Refuse the Plotly orca cask"
+  ansible.builtin.fail:
+    msg: >-
+      Homebrew has an `orca` cask installed from
+      {{ orca_installed_cask.tap | default('unknown') }}
+      ({{ orca_installed_cask.homepage | default('no homepage') }}),
+      not {{ orca_cask }}. Uninstall it with `brew uninstall --cask orca`,
+      then rerun this role.
+  when:
+    - orca_installed_cask | length > 0
+    - (orca_installed_cask.tap | default('')) != orca_homebrew_tap
+
+- name: "{{ role_name }} | MacOSX | Check if Orca.app already exists"
+  ansible.builtin.stat:
+    path: "{{ orca_app_path }}"
+  register: orca_app_bundle
+
+- name: "{{ role_name }} | MacOSX | Read Orca.app bundle identifier"
+  ansible.builtin.command:
+    cmd: defaults read {{ orca_app_path }}/Contents/Info.plist CFBundleIdentifier
+  register: orca_app_bundle_id
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: orca_app_bundle.stat.exists
+
+- name: "{{ role_name }} | MacOSX | Refuse a non-Stably Orca.app"
+  ansible.builtin.fail:
+    msg: >-
+      {{ orca_app_path }} is {{ orca_app_bundle_id.stdout | trim }}
+      but this role installs {{ orca_bundle_id }} from {{ orca_cask }}.
+      Remove the existing app before rerunning.
+  when:
+    - orca_app_bundle.stat.exists
+    - orca_app_bundle_id.rc == 0
+    - (orca_app_bundle_id.stdout | trim) != orca_bundle_id
+
+- name: "{{ role_name }} | MacOSX | Install Orca"
+  community.general.homebrew_cask:
+    name: "{{ orca_cask }}"
+    state: present
+  when:
+    - (orca_installed_cask.tap | default('')) != orca_homebrew_tap
+    - not orca_app_bundle.stat.exists
+
+- name: "{{ role_name }} | MacOSX | Skip Homebrew install when manual app already exists"
+  ansible.builtin.debug:
+    msg: >-
+      Orca.app already exists in /Applications but is not managed by Homebrew.
+      Skipping cask install.
+  when:
+    - (orca_installed_cask.tap | default('')) != orca_homebrew_tap
+    - orca_app_bundle.stat.exists

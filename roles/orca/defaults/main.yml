@@ -1,0 +1,6 @@
+---
+role_name: orca
+orca_homebrew_tap: stablyai/orca
+orca_cask: stablyai/orca/orca
+orca_app_path: /Applications/Orca.app
+orca_bundle_id: com.stablyai.orca

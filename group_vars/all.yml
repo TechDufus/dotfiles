@@ -50,6 +50,7 @@ default_roles:
   - clawpatch
   - obsidian
   - opencode
+  - orca
   - podman
   # - pwsh
   - python
@@ -84,6 +85,7 @@ exclude_roles_by_distribution:
     - hammerspoon
     - ollama
     - nala
+    - orca
     - raycast
     - slides
     - superwhisper

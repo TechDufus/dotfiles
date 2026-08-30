@@ -26,7 +26,7 @@ return {
   ChatGPT     = {
     id = 'com.openai.codex',
     launchOnly = true,
-    summon = 'g', -- [G]enAI / ChatGPT
+    summon = 'G', -- ChatGPT
   },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',
@@ -42,7 +42,7 @@ return {
   },
   Orca        = {
     id = 'com.stablyai.orca',
-    summon = 'c', -- Or[c]a
+    summon = 't', -- Orca
   },
   OnePassword = {
     id = 'com.1password.1password',
@@ -55,7 +55,7 @@ return {
   },
   Terminal    = {
     id = 'com.mitchellh.ghostty',
-    summon = 't', -- [T]erminal
+    summon = 'g', -- [G]hostty
   },
   WorkSpaces  = {
     id = 'com.amazon.workspaces',

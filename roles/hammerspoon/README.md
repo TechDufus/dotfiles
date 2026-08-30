@@ -92,7 +92,9 @@ release-managed bundles.
 Current bindings from [files/config/init.lua](files/config/init.lua):
 
 - `F13`: summon modal
-- `F13`, then `g`: summon the merged ChatGPT/Codex desktop app (`com.openai.codex`)
+- `F13`, then `G`: summon ChatGPT (`com.openai.codex`)
+- `F13`, then `g`: summon Ghostty
+- `F13`, then `t`: summon Orca
 - `F13` twice: switch from summon modal to macro modal
 - `F16`: macro modal
 - `Hyper+a`: focus the frontmost app

@@ -40,6 +40,10 @@ return {
     id = 'md.obsidian',
     summon = 'n', -- [N]otes
   },
+  Orca        = {
+    id = 'com.stablyai.orca',
+    summon = 'c', -- Or[c]a
+  },
   OnePassword = {
     id = 'com.1password.1password',
     summon = 'o', -- [O]nePassword

@@ -29,5 +29,7 @@ env -u CURSOR_AGENT PATH="/usr/bin:/bin" "$zsh_bin" -c '
   [[ "$PATH" == *"$HOME/.local/bin"* ]] || { print -ru2 "missing local bin"; exit 1; }
   [[ "$PATH" == *"$HOME/go/bin"* ]] || { print -ru2 "missing go bin"; exit 1; }
   (( $+functions[load-nvmrc] )) && { print -ru2 "zshenv sourced nvm hook"; exit 1; }
+  (( $+functions[secret] )) && { print -ru2 "zshenv loaded secret"; exit 1; }
+  (( $+functions[with-secrets] )) && { print -ru2 "zshenv loaded with-secrets"; exit 1; }
   exit 0
 '

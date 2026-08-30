@@ -38,6 +38,18 @@
     path: "{{ ansible_facts['user_dir'] }}/.config/zsh/vars.secret"
     mode: "0600"
 
+- name: "ZSH | Ensure user local bin directory exists"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: "ZSH | Install with-secrets launcher"
+  ansible.builtin.copy:
+    src: bin/with-secrets
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/with-secrets"
+    mode: "0755"
+
 - name: "ZSH | {{ ansible_facts['distribution'] }} | Identify distribution config"
   ansible.builtin.stat:
     path: "{{ role_path }}/files/os/{{ ansible_facts['distribution'] }}"

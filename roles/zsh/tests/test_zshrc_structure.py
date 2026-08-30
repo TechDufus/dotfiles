@@ -59,6 +59,19 @@ class ZshrcStructureTests(unittest.TestCase):
         self.assertIn("zdharma-continuum/zinit.git", self.tasks)
         self.assertIn("depth: 1", self.tasks)
 
+    def test_secrets_are_not_autoloaded(self) -> None:
+        self.assertNotIn("secret", self.zshenv)
+        self.assertNotIn("with-secrets", self.zshenv)
+        self.assertNotIn("__secret_ensure_loaded", self.zshrc)
+        self.assertNotIn("secret --quiet", self.zshrc)
+        self.assertIn("src: bin/with-secrets", self.tasks)
+        secret_functions = (
+            REPO_ROOT / "roles" / "zsh" / "files" / "zsh" / "vars.secret_functions.zsh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("function with-secrets()", secret_functions)
+        self.assertIn("function __secret_ensure_loaded()", secret_functions)
+        self.assertIn("ORCA_SKIP_SECRETS", secret_functions)
+
 
 if __name__ == "__main__":
     unittest.main()

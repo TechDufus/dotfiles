@@ -65,7 +65,7 @@ Each tool/workflow has its own dedicated module in `~/.config/zsh/`:
 ```
 ~/.config/zsh/
 ├── vars.zsh                    # Catppuccin color scheme & environment variables
-├── vars.secret_functions.zsh   # 1Password integration functions
+├── vars.secret_functions.zsh   # 1Password integration (`secret`, `with-secrets`)
 ├── git_functions.zsh           # Enhanced Git workflows (gss, gco, glog)
 ├── git_bisect_functions.zsh    # Interactive git bisect with visual progress
 ├── k8s_functions.zsh           # Kubernetes tooling & shortcuts
@@ -112,11 +112,28 @@ Applied to:
 - Box drawing and dividers
 - Error/success indicators
 
-### 4. Completions and Herdr
+### 4. 1Password secrets
+
+Do not autoload secrets from `.zshenv` or `.zshrc`. 1Password CLI authorizes each new TTY, so a startup hook would prompt every pane.
+
+- `secret` — opt-in load into the current interactive shell
+- `with-secrets <command>` — load once, then `exec` the command so children inherit the values
+- Interactive `gh` / `aws` — one-shot wrap on first use; never in agent `zsh -c` shells
+- Herd `/herd` — still loads on the first `omp` in a marked tab
+- Opt out: `ORCA_SKIP_SECRETS=1` or `SECRET_SKIP=1`
+
+Orca launches `agent` / `omp` as the terminal command, so point those launches at the PATH wrapper:
+
+```sh
+with-secrets agent
+with-secrets omp
+```
+
+### 5. Completions and Herdr
 
 Interactive shells run in Herdr panes, which are normal TTYs. Cursor, Claude Code, and Codex agent shells skip Powerlevel10k, zinit widgets, and fzf keybindings, and do not write `~/.zsh_history`. `~/.zshenv` applies Homebrew and the shared PATH list in `paths_vars.zsh` so non-interactive `zsh -c` sees the same bins as an interactive shell. `.zshrc` skips `paths_*.zsh` so that list is not sourced twice. `NO_NOMATCH` still applies for agent glob compatibility. Heavy generators (`kubectl`, `jj`, `kwctl`, `omp`, `pnpm`, `kind`, `minikube`) are wired with lazy `compdef` wrappers so they do not spawn at startup.
 
-### 5. Plugin Management with Zinit
+### 6. Plugin Management with Zinit
 
 Load order matches fzf-tab / syntax-highlighting requirements:
 
@@ -129,7 +146,7 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light zsh-users/zsh-syntax-highlighting  # last
 ```
 
-### 6. FZF Integration
+### 7. FZF Integration
 
 Enhanced fuzzy finding with preview windows:
 
@@ -138,7 +155,7 @@ Enhanced fuzzy finding with preview windows:
 - **SSH hosts**: DNS lookup preview
 - **Environment variables**: Value preview
 
-### 7. OS-Specific Functions
+### 8. OS-Specific Functions
 
 Platform-specific utilities automatically loaded:
 
@@ -374,6 +391,8 @@ ls -la ~/.config/zsh/os_functions.zsh
 ### Most Useful Commands
 
 ```bash
+secret             # Load 1Password env into this shell
+with-secrets omp   # Load once, then exec an Orca/Herd agent
 ghelp              # Show all custom Git functions
 gss                # Enhanced git status
 gco                # Interactive branch checkout

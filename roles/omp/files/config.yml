@@ -33,7 +33,7 @@ compaction:
     - handoff
     - shake
     - soft
-hideThinkingBlock: false
+hideThinkingBlock: true
 disabledProviders:
   - claude
   - claude-plugins

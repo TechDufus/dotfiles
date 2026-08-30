@@ -85,7 +85,6 @@ exclude_roles_by_distribution:
     - hammerspoon
     - ollama
     - nala
-    - orca
     - raycast
     - slides
     - superwhisper

@@ -81,7 +81,7 @@ default_roles:
   # - warp         # Modern terminal with AI features
   # - herdr        # Terminal workspace for parallel coding agents
   # - cursor       # Cursor Agent CLI and user-level agent config
-  # - orca         # Agent IDE via stablyai/orca Homebrew cask
+  # - orca         # Agent IDE via Homebrew cask (macOS) or AUR stably-orca-bin (Arch)
   
   # === Productivity Tools ===
   # - obsidian     # Knowledge management and note-taking
@@ -171,7 +171,6 @@ exclude_roles_by_distribution:
     - borders
     - hammerspoon
     - nala
-    - orca
     - raycast
     - slides
     - superwhisper

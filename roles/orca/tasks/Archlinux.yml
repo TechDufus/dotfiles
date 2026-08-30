@@ -1,0 +1,46 @@
+---
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Check pacman Orca package"
+  ansible.builtin.command:
+    argv:
+      - pacman
+      - -Si
+      - "{{ orca_arch_package }}"
+  register: orca_pacman_package
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Orca from pacman"
+  community.general.pacman:
+    name:
+      - "{{ orca_arch_package }}"
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - orca_pacman_package.rc == 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install AUR build dependencies"
+  community.general.pacman:
+    name:
+      - base-devel
+      - git
+    state: present
+  become: true
+  when:
+    - can_install_packages | default(false)
+    - orca_pacman_package.rc != 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Install Orca from AUR"
+  kewlfft.aur.aur:
+    name:
+      - "{{ orca_arch_package }}"
+    state: present
+  when:
+    - can_install_packages | default(false)
+    - orca_pacman_package.rc != 0
+
+- name: "{{ role_name }} | {{ ansible_facts['distribution'] }} | Packages skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: {{ orca_arch_package }}"
+  when: not (can_install_packages | default(false))

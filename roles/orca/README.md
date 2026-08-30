@@ -1,12 +1,13 @@
 # orca
 
-Installs [Orca](https://www.onorca.dev/) on macOS via the official Homebrew tap.
+Installs [Orca](https://www.onorca.dev/) on macOS via the official Homebrew tap
+and on Archlinux/CachyOS via `stably-orca-bin`.
 
 ## What this role does
 
-- Taps `stablyai/orca`
-- Installs the `stablyai/orca/orca` cask (app + `orca` CLI)
-- Skips the cask when `Orca.app` is already present but not Homebrew-managed
+- **macOS:** Taps `stablyai/orca` and installs the `stablyai/orca/orca` cask (app + `orca` CLI)
+- **Archlinux/CachyOS:** Installs `stably-orca-bin` from pacman when the package is in a configured repo, otherwise from the AUR
+- Skips the macOS cask when `Orca.app` is already present but not Homebrew-managed
 - Fails if Homebrew or `/Applications/Orca.app` is the unrelated Plotly `orca` cask
 
 ## What this role does not do
@@ -17,6 +18,8 @@ Installs [Orca](https://www.onorca.dev/) on macOS via the official Homebrew tap.
 - It does not upgrade Orca; the app auto-updates in place
 
 Bare `brew install --cask orca` installs deprecated Plotly Orca. This role always uses the fully qualified tap.
+
+On Arch, the AUR package installs the `stably-orca` launcher (not the GNOME screen-reader `orca` package). Upstream's source/git AUR packages (`stably-orca`, `stably-orca-git`) conflict with `stably-orca-bin`; this role does not switch between them.
 
 ## Usage
 

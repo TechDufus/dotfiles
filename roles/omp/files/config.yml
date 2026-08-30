@@ -25,7 +25,7 @@ advisor:
 error:
   notify: "on"
 compaction:
-  thresholdPercent: 25
+  thresholdPercent: 85
   asyncEnabled: true
   methodOrder:
     - snapcompact

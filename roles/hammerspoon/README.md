@@ -101,7 +101,7 @@ Current bindings from [files/config/init.lua](files/config/init.lua):
 - `Hyper+p`: pick a layout for the focused screen
 - `Hyper+;`: cycle the focused screen's layout variant
 - `Hyper+'`: reset the focused screen's layout overrides
-- `cmd+u`: bind the focused window to a cell on its current screen
+- `cmd+u`: bind the focused window to a cell on its current screen (Standard Dev cell 4 is fullscreen)
 - `cmd+o`: move the focused window to the next screen
 - `shift+cmd+o`: move the focused window to the previous screen
 

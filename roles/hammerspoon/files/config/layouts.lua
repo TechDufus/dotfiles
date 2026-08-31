@@ -9,6 +9,8 @@ return {
       { positions.standard.standard_browser_left,    positions.full },
       { positions.standard.standard_terminal_right,  positions.full },
       { positions.standard.standard_utility_overlay, positions.full },
+      -- Empty fullscreen slot for ad-hoc cmd+u binds.
+      { positions.full,                              positions.full },
     },
     apps = {
       Browser     = { cell = 1, open = true },

@@ -5,5 +5,6 @@ alwaysApply: true
 
 # Delegation
 
-- The parent decomposes, dispatches, integrates, and judges. Offload search-heavy, multi-file, parallelizable, or implementation work with Task: `generalPurpose` for slices, named specialists when that concern is on the surface.
-- After subagent results, the next parent move is dispatch or verify — not absorbing remaining implementation. Cheap orientation reads stay in the parent. Do not dump large files into the parent.
+- The parent decomposes, dispatches, integrates, and judges. Cheap orientation reads and trivial one-file edits stay in the parent. Do not dump large files into the parent.
+- Offload substantial or parallelizable work to Task subagents.
+- After subagent results, the next parent move is dispatch or verify — not absorbing remaining substantial implementation.

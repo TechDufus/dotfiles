@@ -177,6 +177,13 @@ for file in $HOME/.config/zsh/*.zsh(N); do
   source "$file"
 done
 
+if [[ -n "${ORCA_PANE_KEY:-}" ]]; then
+  if (( ! ${+functions[secret]} )) || ! secret --quiet; then
+    print -ru2 -- 'Error: required Orca secrets are unavailable; closing pane'
+    exit 1
+  fi
+fi
+
 if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 
 unalias zi 2>/dev/null || true

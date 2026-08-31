@@ -33,12 +33,6 @@ if [ -f "$HOME/.p10k.zsh" ]; then
   _task_done
 fi
 
-if [ -f "$HOME/.local/bin/with-secrets" ]; then
-  __task "Removing with-secrets launcher"
-  _cmd "rm -f $HOME/.local/bin/with-secrets"
-  _task_done
-fi
-
 # Remove custom zsh configurations
 if [ -d "$HOME/.config/zsh" ]; then
   __task "Removing custom zsh configurations"

@@ -21,15 +21,15 @@ cp "$repo_root/roles/zsh/files/zsh/paths_functions.zsh" "$HOME/.config/zsh/paths
 cp "$repo_root/roles/zsh/files/zsh/paths_vars.zsh" "$HOME/.config/zsh/paths_vars.zsh"
 cp "$repo_root/roles/zsh/files/zsh/nvm_config.zsh" "$HOME/.config/zsh/nvm_config.zsh"
 
-env -u CURSOR_AGENT PATH="/usr/bin:/bin" CURSOR_AGENT=1 "$zsh_bin" -c '[[ -o nomatch ]] && exit 1 || exit 0'
-env -u CURSOR_AGENT PATH="/usr/bin:/bin" CLAUDECODE=1 "$zsh_bin" -c '[[ -o nomatch ]] && exit 1 || exit 0'
-env -u CURSOR_AGENT PATH="/usr/bin:/bin" "$zsh_bin" -c '[[ -o nomatch ]] || exit 1'
-env -u CURSOR_AGENT PATH="/usr/bin:/bin" "$zsh_bin" -c '
+clean_agent_env=(env -u CURSOR_AGENT -u CLAUDECODE -u CODEX_CI -u CODEX_SANDBOX)
+"${clean_agent_env[@]}" PATH="/usr/bin:/bin" CURSOR_AGENT=1 "$zsh_bin" -c '[[ -o nomatch ]] && exit 1 || exit 0'
+"${clean_agent_env[@]}" PATH="/usr/bin:/bin" CLAUDECODE=1 "$zsh_bin" -c '[[ -o nomatch ]] && exit 1 || exit 0'
+"${clean_agent_env[@]}" PATH="/usr/bin:/bin" "$zsh_bin" -c '[[ -o nomatch ]] || exit 1'
+"${clean_agent_env[@]}" PATH="/usr/bin:/bin" "$zsh_bin" -c '
   [[ "$PATH" == *"$HOME/.bun/bin"* ]] || { print -ru2 "missing bun bin"; exit 1; }
   [[ "$PATH" == *"$HOME/.local/bin"* ]] || { print -ru2 "missing local bin"; exit 1; }
   [[ "$PATH" == *"$HOME/go/bin"* ]] || { print -ru2 "missing go bin"; exit 1; }
   (( $+functions[load-nvmrc] )) && { print -ru2 "zshenv sourced nvm hook"; exit 1; }
   (( $+functions[secret] )) && { print -ru2 "zshenv loaded secret"; exit 1; }
-  (( $+functions[with-secrets] )) && { print -ru2 "zshenv loaded with-secrets"; exit 1; }
   exit 0
 '

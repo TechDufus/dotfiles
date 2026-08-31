@@ -11,7 +11,7 @@ function __secret_usage() {
   echo -e "  ${CYAN}-r, --reload${NC}   Reload secret vars"
   echo -e "  ${CYAN}-l, --list${NC}     List loaded secret vars (names only)"
   echo -e "  ${CYAN}-s, --status${NC}   Show secret loading status"
-  echo -e "  ${CYAN}-q, --quiet${NC}    Load or skip without status text"
+  echo -e "  ${CYAN}-q, --quiet${NC}    Load without status text"
   echo -e "  ${CYAN}-h, --help${NC}     Display this help message"
   echo ""
   echo -e "${YELLOW}Examples:${NC}"
@@ -19,15 +19,22 @@ function __secret_usage() {
   echo -e "  ${CYAN}secret -c${NC}      # Clear secret vars"
   echo -e "  ${CYAN}secret -r${NC}      # Reload secret vars"
   echo -e "  ${CYAN}secret -l${NC}      # List loaded secret vars"
-  echo -e "  ${CYAN}with-secrets agent${NC}  # Load once, then exec an agent"
 }
 
-function __secret_already_loaded() {
-  [[ "${SECRETS_ALREADY_LOADED:-}" == true ]]
+function __secret_var_name_valid() {
+  [[ "$1" =~ '^[A-Za-z_][A-Za-z0-9_]*$' ]]
 }
 
-function __secret_skip_requested() {
-  [[ "${ORCA_SKIP_SECRETS:-}" == 1 || "${SECRET_SKIP:-}" == 1 ]]
+function __secret_file_signature() {
+  [[ -r "$1" ]] || return 1
+  cksum < "$1" 2>/dev/null
+}
+
+function __secret_metadata_present() {
+  [[ -n "${SECRETS_ALREADY_LOADED-}" ||
+     -n "${SECRETS_LOADED_AT-}" ||
+     -n "${SECRETS_LOADED_VARS-}" ||
+     -n "${SECRETS_LOADED_SIGNATURE-}" ]]
 }
 
 function __secret_in_agent_shell() {
@@ -37,15 +44,13 @@ function __secret_in_agent_shell() {
 # Check if 1Password CLI is available and authenticated
 function __op_check() {
   if ! command -v op &>/dev/null; then
-    echo -e "${RED}Error: 1Password CLI (op) not found${NC}" >&2
-    echo -e "${YELLOW}Install 1Password CLI with Homebrew (brew install --cask 1password-cli) or your distro package, then rerun the 1password role.${NC}" >&2
+    print -ru2 -- 'Error: unable to load secrets'
     return 1
   fi
 
   local op_account="${OP_ACCOUNT:-my.1password.com}"
   if ! op vault list --account "$op_account" --format json >/dev/null 2>&1; then
-    echo -e "${RED}Error: Not signed in to 1Password${NC}" >&2
-    echo -e "${YELLOW}Sign in with: ${CYAN}eval \$(op signin)${NC}" >&2
+    print -ru2 -- 'Error: unable to load secrets'
     return 1
   fi
 
@@ -58,7 +63,7 @@ function __op_ready() {
   op vault list --account "$op_account" --format json >/dev/null 2>&1
 }
 
-# Extract secret var names from the secrets file
+# Extract exported variable names, preserving their first declaration order.
 function __get_secret_vars() {
   local secret_file="$HOME/.config/zsh/vars.secret"
 
@@ -67,45 +72,163 @@ function __get_secret_vars() {
     return 1
   fi
 
-  # Only list exported env vars and de-duplicate names while preserving file order.
   awk '
-    /^[[:space:]]*export[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=/ {
-      var = $0
-      sub(/^[[:space:]]*export[[:space:]]+/, "", var)
-      sub(/[[:space:]]*=.*/, "", var)
+    function remember(var) {
       if (!seen[var]++) {
         print var
       }
     }
+
+    /^[[:space:]]*export[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=/ {
+      var = $0
+      sub(/^[[:space:]]*export[[:space:]]+/, "", var)
+      sub(/[[:space:]]*=.*/, "", var)
+      remember(var)
+    }
+
+    /^[[:space:]]*__secret_export_op_read[[:space:]]+[A-Za-z_][A-Za-z0-9_]*([[:space:]]|$)/ {
+      var = $0
+      sub(/^[[:space:]]*__secret_export_op_read[[:space:]]+/, "", var)
+      sub(/[[:space:]].*/, "", var)
+      remember(var)
+    }
   ' "$secret_file"
+}
+
+function __secret_unset_vars() {
+  local vars="$1"
+  local var
+
+  [[ -n "$vars" ]] || return 0
+  while IFS= read -r var; do
+    [[ -z "$var" ]] && continue
+    __secret_var_name_valid "$var" || continue
+    unset "$var" 2>/dev/null || return 1
+  done <<< "$vars"
+}
+
+# Clear both the current profile and the inventory from the last successful load.
+function __secret_clear_state() {
+  local current_vars=""
+  local previous_vars="${SECRETS_LOADED_VARS-}"
+  local clear_status=0
+
+  if [[ -f "$HOME/.config/zsh/vars.secret" ]]; then
+    current_vars="$(__get_secret_vars 2>/dev/null)" || clear_status=1
+  fi
+
+  __secret_unset_vars "$previous_vars" || clear_status=1
+  __secret_unset_vars "$current_vars" || clear_status=1
+  unset SECRETS_ALREADY_LOADED
+  unset SECRETS_LOADED_AT
+  unset SECRETS_LOADED_VARS
+  unset SECRETS_LOADED_SIGNATURE
+  return "$clear_status"
+}
+
+function __secret_inventory_is_loaded() {
+  local inventory="$1"
+  local var
+
+  [[ -n "$inventory" ]] || return 1
+  while IFS= read -r var; do
+    __secret_var_name_valid "$var" || return 1
+    (( ${+parameters[$var]} )) || return 1
+  done <<< "$inventory"
+}
+
+function __secret_already_loaded() {
+  local signature
+
+  if [[ "${SECRETS_ALREADY_LOADED:-}" == true &&
+        -n "${SECRETS_LOADED_VARS-}" &&
+        -n "${SECRETS_LOADED_SIGNATURE-}" ]] &&
+     signature="$(__secret_file_signature "$HOME/.config/zsh/vars.secret")" &&
+     [[ "$signature" == "$SECRETS_LOADED_SIGNATURE" ]] &&
+     __secret_inventory_is_loaded "$SECRETS_LOADED_VARS"; then
+    return 0
+  fi
+
+  if __secret_metadata_present; then
+    __secret_clear_state
+  fi
+  return 1
+}
+
+# Read one non-empty 1Password value without exposing it on a failure path.
+function __secret_op_read() {
+  local value
+
+  value="$(op read "$@")" || return 1
+  [[ -n "$value" ]] || return 1
+  print -r -- "$value"
+}
+
+# Export one non-empty 1Password value while preserving op's failure status.
+function __secret_export_op_read() {
+  local var="$1"
+  local value
+
+  (( $# >= 2 )) || return 1
+  __secret_var_name_valid "$var" || return 1
+  shift
+  value="$(__secret_op_read "$@")" || return 1
+  export "$var=$value"
 }
 
 function __secret_source_file() {
   local secret_file="$HOME/.config/zsh/vars.secret"
-  [[ -f "$secret_file" ]] || return 1
-
+  local inventory
+  local signature
+  local AWS_CREDS_ITEM
   local error_log
-  error_log="$(mktemp)" || return 1
   local xtrace_on=0
+
+  [[ -f "$secret_file" ]] || {
+    __secret_clear_state
+    return 1
+  }
+  signature="$(__secret_file_signature "$secret_file")" || {
+    __secret_clear_state
+    return 1
+  }
+  inventory="$(__get_secret_vars 2>/dev/null)" || {
+    __secret_clear_state
+    return 1
+  }
+  [[ -n "$inventory" ]] || {
+    __secret_clear_state
+    return 1
+  }
+
+  # A stale inventory may contain vars removed from the current profile.
+  __secret_clear_state
+  error_log="$(mktemp)" || return 1
   [[ -o xtrace ]] && xtrace_on=1
   unsetopt xtrace
 
   if source "$secret_file" 2>"$error_log"; then
     (( xtrace_on )) && setopt xtrace
     rm -f "$error_log"
-    export SECRETS_ALREADY_LOADED=true
-    export SECRETS_LOADED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
-    return 0
+    if __secret_inventory_is_loaded "$inventory"; then
+      export SECRETS_LOADED_VARS="$inventory"
+      export SECRETS_LOADED_SIGNATURE="$signature"
+      export SECRETS_ALREADY_LOADED=true
+      export SECRETS_LOADED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
+      return 0
+    fi
+  else
+    (( xtrace_on )) && setopt xtrace
+    rm -f "$error_log"
   fi
 
-  (( xtrace_on )) && setopt xtrace
-  rm -f "$error_log"
+  __secret_clear_state
   return 1
 }
 
-# Quiet, fail-closed load for wrappers. Skip flags and an existing load are success.
+# Quiet, fail-closed load for wrappers.
 function __secret_ensure_loaded() {
-  if __secret_skip_requested || __secret_already_loaded; then
+  if __secret_already_loaded 2>/dev/null; then
     return 0
   fi
   secret --quiet >/dev/null 2>&1
@@ -207,48 +330,20 @@ function secret() {
       ;;
 
     clear)
-      if [[ -z "$SECRETS_ALREADY_LOADED" ]]; then
-        (( quiet )) || echo -e " ${GREEN}[${CHECK_MARK}${GREEN}] Secrets already unloaded${NC}"
-        return
-      fi
-
       if (( quiet )); then
-        local secret_vars
-        secret_vars=$(__get_secret_vars) || return 1
-        [[ -n "$secret_vars" ]] || return 1
-        while IFS= read -r var; do
-          [[ -n "$var" && "$var" != *"="* ]] && unset "$var"
-        done <<< "$secret_vars"
-        unset SECRETS_ALREADY_LOADED
-        unset SECRETS_LOADED_AT
+        __secret_clear_state
         return
       fi
 
       __task "Clearing secret vars..."
-      local secret_vars=$(__get_secret_vars)
-      if [[ -z "$secret_vars" ]]; then
-        echo -e "${RED}Error: Could not detect secret variables${NC}" >&2
+      if __secret_clear_state; then
+        _task_done
+        echo -e " ${GREEN}Cleared secret variables${NC}"
+      else
         _clear_task
+        print -ru2 -- 'Error: unable to clear secret variables'
         return 1
       fi
-
-      local count=0
-      while IFS= read -r var; do
-        if [[ -n "$var" ]]; then
-          if [[ "$var" =~ "=" ]]; then
-            echo -e "${RED}Error: Variable name contains '=': ${YELLOW}$var${NC}" >&2
-            continue
-          fi
-          __task "${RIGHT_ANGLE}${GREEN} Unsetting: ${YELLOW}$var"
-          unset "$var" 2>/dev/null || echo -e "${RED}Failed to unset: ${YELLOW}$var${NC}" >&2
-          ((count++))
-        fi
-      done <<< "$secret_vars"
-
-      unset SECRETS_ALREADY_LOADED
-      unset SECRETS_LOADED_AT
-      _task_done
-      echo -e " ${GREEN}Cleared ${count} secret variable(s)${NC}"
       return
       ;;
 
@@ -270,19 +365,27 @@ function secret() {
       fi
 
       if (( quiet )); then
-        __op_ready || return 1
-        [[ -f "$HOME/.config/zsh/vars.secret" ]] || return 1
+        if ! __op_ready; then
+          __secret_clear_state
+          return 1
+        fi
+        if [[ ! -f "$HOME/.config/zsh/vars.secret" ]]; then
+          __secret_clear_state
+          return 1
+        fi
         __secret_source_file
         return
       fi
 
       if ! __op_check; then
+        __secret_clear_state
         return 1
       fi
 
       local secret_file="$HOME/.config/zsh/vars.secret"
       if [[ ! -f "$secret_file" ]]; then
-        echo -e "${RED}Error: Secret file not found: ${YELLOW}$secret_file${NC}" >&2
+        __secret_clear_state
+        print -ru2 -- 'Error: unable to load secrets'
         return 1
       fi
 
@@ -302,46 +405,16 @@ function secret() {
 
       __task "${X_MARK}${RED} Failed to load secrets"
       _clear_task
-      echo -e "${RED}1Password reported errors while loading secrets. Values were not printed.${NC}"
+      print -ru2 -- 'Error: unable to load secrets'
       return 1
       ;;
   esac
-}
-
-# Load into this shell, or load once and replace the process with a command.
-function with-secrets() {
-  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    print -r -- "Usage: with-secrets [command [args...]]"
-    print -r -- "  no command  Load secrets into the current shell"
-    print -r -- "  command     Load secrets once, then exec the command"
-    print -r -- "Opt out with ORCA_SKIP_SECRETS=1 or SECRET_SKIP=1"
-    return
-  fi
-
-  if ! __secret_ensure_loaded; then
-    print -ru2 -- "Error: unable to load secrets"
-    return 1
-  fi
-
-  (( $# == 0 )) && return 0
-  exec "$@"
 }
 
 # A marked Herd shell loads secrets only for its first OMP call.
 if [[ "${OMP_HERD_LOAD_SECRETS-}" == "1" ]]; then
   unset OMP_HERD_LOAD_SECRETS
   __secret_wrap_once omp OMP
-fi
-
-# Interactive Orca shells: one-shot wrap of agent launchers. Not startup autoload.
-# Agent zsh -c never reaches here (.zshrc). Orca should exec: with-secrets <agent>
-if [[ -o interactive && -n "${ORCA_PANE_KEY:-}" ]] && ! __secret_in_agent_shell; then
-  if [[ "${OMP_HERD_LOAD_SECRETS-}" != "1" ]]; then
-    for _secret_agent in omp agent codex claude opencode; do
-      __secret_wrap_once "$_secret_agent"
-    done
-    unset _secret_agent
-  fi
 fi
 
 # Interactive human shells only. Never wrap tools in agent shells (each zsh -c

@@ -65,7 +65,7 @@ Each tool/workflow has its own dedicated module in `~/.config/zsh/`:
 ```
 ~/.config/zsh/
 ├── vars.zsh                    # Catppuccin color scheme & environment variables
-├── vars.secret_functions.zsh   # 1Password integration (`secret`, `with-secrets`)
+├── vars.secret_functions.zsh   # 1Password integration (`secret`)
 ├── git_functions.zsh           # Enhanced Git workflows (gss, gco, glog)
 ├── git_bisect_functions.zsh    # Interactive git bisect with visual progress
 ├── k8s_functions.zsh           # Kubernetes tooling & shortcuts
@@ -114,20 +114,13 @@ Applied to:
 
 ### 4. 1Password secrets
 
-Do not autoload secrets from `.zshenv` or `.zshrc`. 1Password CLI authorizes each new TTY, so a startup hook would prompt every pane.
+`.zshenv` is deliberately secret-free. Every Orca-marked interactive pane loads and validates secrets once during `.zshrc`, before its pane command runs. If loading fails, the pane closes rather than running with an unvalidated environment. Agents and nested commands in that pane inherit the validated environment.
 
-- `secret` — opt-in load into the current interactive shell
-- `with-secrets <command>` — load once, then `exec` the command so children inherit the values
-- Interactive `gh` / `aws` — one-shot wrap on first use; never in agent `zsh -c` shells
-- Herd `/herd` — still loads on the first `omp` in a marked tab
-- Opt out: `ORCA_SKIP_SECRETS=1` or `SECRET_SKIP=1`
+Each pane requires a 1Password authorization prompt. The values are then available to same-user processes that can inspect that pane's environment; this is the tradeoff for allowing the pane command, agents, and their children to share the validated environment.
 
-Orca launches `agent` / `omp` as the terminal command, so point those launches at the PATH wrapper:
+Non-Orca shells stay opt-in:
 
-```sh
-with-secrets agent
-with-secrets omp
-```
+- `secret` — load into the current interactive shell
 
 ### 5. Completions and Herdr
 
@@ -193,7 +186,11 @@ flowchart LR
     H --> J[fzf-tab / autosuggest / highlighting]
     I --> K[Source Custom Modules]
     J --> K
-    K --> L[Zoxide]
+    K --> Orca{Orca pane?}
+    Orca -->|Yes| Secrets["Require secret --quiet"]
+    Secrets -->|Failure| Exit[Exit pane]
+    Secrets -->|Success| L[Zoxide]
+    Orca -->|No| L
     L --> M[Shell Ready]
 ```
 
@@ -392,7 +389,6 @@ ls -la ~/.config/zsh/os_functions.zsh
 
 ```bash
 secret             # Load 1Password env into this shell
-with-secrets omp   # Load once, then exec an Orca/Herd agent
 ghelp              # Show all custom Git functions
 gss                # Enhanced git status
 gco                # Interactive branch checkout

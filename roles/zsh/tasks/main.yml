@@ -44,12 +44,6 @@
     state: directory
     mode: "0755"
 
-- name: "ZSH | Install with-secrets launcher"
-  ansible.builtin.copy:
-    src: bin/with-secrets
-    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/with-secrets"
-    mode: "0755"
-
 - name: "ZSH | {{ ansible_facts['distribution'] }} | Identify distribution config"
   ansible.builtin.stat:
     path: "{{ role_path }}/files/os/{{ ansible_facts['distribution'] }}"

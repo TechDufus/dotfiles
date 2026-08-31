@@ -113,6 +113,7 @@ function __secret_clear_state() {
   local previous_vars="${SECRETS_LOADED_VARS-}"
   local clear_status=0
 
+  __secret_reset_pending_reads
   if [[ -f "$HOME/.config/zsh/vars.secret" ]]; then
     current_vars="$(__get_secret_vars 2>/dev/null)" || clear_status=1
   fi
@@ -155,6 +156,34 @@ function __secret_already_loaded() {
   return 1
 }
 
+typeset -gA __SECRET_OP_OUT
+typeset -gA __SECRET_OP_RC
+typeset -ga __SECRET_OP_VARS
+typeset -ga __SECRET_OP_PIDS
+typeset -g __SECRET_OP_TMPDIR
+
+function __secret_op_pending_dir() {
+  if [[ -z "${__SECRET_OP_TMPDIR-}" ]]; then
+    __SECRET_OP_TMPDIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/zsh-secret.XXXXXX")" || return 1
+  fi
+}
+
+function __secret_reset_pending_reads() {
+  local pid
+
+  setopt localoptions nomonitor
+  for pid in "${__SECRET_OP_PIDS[@]}"; do
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  done
+  [[ -n "${__SECRET_OP_TMPDIR-}" ]] && rm -rf "$__SECRET_OP_TMPDIR"
+  unset __SECRET_OP_TMPDIR
+  __SECRET_OP_VARS=()
+  __SECRET_OP_PIDS=()
+  __SECRET_OP_OUT=()
+  __SECRET_OP_RC=()
+}
+
 # Read one non-empty 1Password value without exposing it on a failure path.
 function __secret_op_read() {
   local value
@@ -164,16 +193,67 @@ function __secret_op_read() {
   print -r -- "$value"
 }
 
-# Export one non-empty 1Password value while preserving op's failure status.
+# Queue one 1Password read. The value is not exported until
+# __secret_await_op_reads; await before expanding a queued variable.
 function __secret_export_op_read() {
   local var="$1"
-  local value
+  local out_file rc_file
 
   (( $# >= 2 )) || return 1
   __secret_var_name_valid "$var" || return 1
   shift
-  value="$(__secret_op_read "$@")" || return 1
-  export "$var=$value"
+  setopt localoptions nomonitor
+  __secret_op_pending_dir || return 1
+  out_file="$__SECRET_OP_TMPDIR/$var.out"
+  rc_file="$__SECRET_OP_TMPDIR/$var.rc"
+
+  (
+    unsetopt xtrace 2>/dev/null
+    set +e
+    op read "$@" > "$out_file"
+    print -r -- "$?" > "$rc_file"
+  ) &
+  __SECRET_OP_PIDS+=($!)
+  __SECRET_OP_VARS+=("$var")
+  __SECRET_OP_OUT[$var]="$out_file"
+  __SECRET_OP_RC[$var]="$rc_file"
+}
+
+# Wait for queued reads and export every value, or export none from this batch.
+function __secret_await_op_reads() {
+  local var pid rc value
+  local failed=0
+
+  (( ${#__SECRET_OP_VARS[@]} )) || return 0
+  setopt localoptions nomonitor
+
+  for pid in "${__SECRET_OP_PIDS[@]}"; do
+    wait "$pid" || true
+  done
+
+  for var in "${__SECRET_OP_VARS[@]}"; do
+    rc="$(<"${__SECRET_OP_RC[$var]}")" 2>/dev/null || rc=""
+    value="$(<"${__SECRET_OP_OUT[$var]}")" 2>/dev/null || value=""
+    if [[ "$rc" != 0 || -z "$value" ]]; then
+      failed=1
+      break
+    fi
+  done
+
+  if (( ! failed )); then
+    for var in "${__SECRET_OP_VARS[@]}"; do
+      value="$(<"${__SECRET_OP_OUT[$var]}")"
+      export "$var=$value"
+    done
+  fi
+
+  [[ -n "${__SECRET_OP_TMPDIR-}" ]] && rm -rf "$__SECRET_OP_TMPDIR"
+  unset __SECRET_OP_TMPDIR
+  __SECRET_OP_VARS=()
+  __SECRET_OP_PIDS=()
+  __SECRET_OP_OUT=()
+  __SECRET_OP_RC=()
+  (( ! failed ))
 }
 
 function __secret_source_file() {
@@ -206,11 +286,12 @@ function __secret_source_file() {
   error_log="$(mktemp)" || return 1
   [[ -o xtrace ]] && xtrace_on=1
   unsetopt xtrace
+  setopt localoptions nomonitor
 
-  if source "$secret_file" 2>"$error_log"; then
-    (( xtrace_on )) && setopt xtrace
+  if source "$secret_file" 2>"$error_log" && __secret_await_op_reads; then
     rm -f "$error_log"
     if __secret_inventory_is_loaded "$inventory"; then
+      (( xtrace_on )) && setopt xtrace
       export SECRETS_LOADED_VARS="$inventory"
       export SECRETS_LOADED_SIGNATURE="$signature"
       export SECRETS_ALREADY_LOADED=true
@@ -218,10 +299,10 @@ function __secret_source_file() {
       return 0
     fi
   else
-    (( xtrace_on )) && setopt xtrace
     rm -f "$error_log"
   fi
 
+  (( xtrace_on )) && setopt xtrace
   __secret_clear_state
   return 1
 }

@@ -24,6 +24,21 @@ cp "$repo_root/roles/zsh/files/zsh/vars.secret_functions.zsh" \
 
 cat > "$bin_dir/op" <<'OP'
 #!/usr/bin/env sh
+record_read() {
+  _line="$1"
+  _lock="${OP_READS:?}.lock"
+  _n=0
+  while ! mkdir "$_lock" 2>/dev/null; do
+    _n=$((_n + 1))
+    if [ "$_n" -gt 400 ]; then
+      exit 72
+    fi
+    sleep 0.01
+  done
+  printf '%s\n' "$_line" >> "${OP_READS:?}"
+  rmdir "$_lock"
+}
+
 case "${1-}" in
   vault)
     exit 0
@@ -33,23 +48,21 @@ case "${1-}" in
     for argument in "$@"; do
       reference="$argument"
     done
-    if [ -n "${OP_PROFILE_READ_MODE-}" ]; then
-      read_count="$(cat "${OP_PROFILE_READ_COUNT:?}")"
-      read_count=$((read_count + 1))
-      printf '%s\n' "$read_count" > "${OP_PROFILE_READ_COUNT:?}"
-      printf 'profile-read-%s\n' "$read_count" >> "${OP_READS:?}"
-      case "${OP_PROFILE_READ_MODE}:${read_count}" in
-        conditional-failure:3|intermediate-late-failure:8)
-          exit 17
-          ;;
-        conditional-empty:3)
-          exit 0
-          ;;
-      esac
-      printf 'synthetic-value-%s\n' "$read_count"
-      exit 0
+    if [ -n "${OP_READ_SLEEP-}" ]; then
+      sleep "$OP_READ_SLEEP"
     fi
-    printf '%s\n' "$reference" >> "${OP_READS:?}"
+    record_read "$reference"
+    case "${OP_PROFILE_READ_MODE-}:${reference}" in
+      conditional-failure:op://orca-regression/cond-tailscale|conditional-failure:op://orca-regression/cond-local)
+        exit 17
+        ;;
+      conditional-empty:op://orca-regression/cond-tailscale|conditional-empty:op://orca-regression/cond-local)
+        exit 0
+        ;;
+      intermediate-late-failure:op://orca-regression/synthetic-item/field)
+        exit 17
+        ;;
+    esac
     case "$reference" in
       op://orca-regression/strict-alpha) printf '%s\n' 'strict-alpha-value' ;;
       op://orca-regression/strict-bravo) printf '%s\n' 'strict-bravo-value' ;;
@@ -63,6 +76,15 @@ case "${1-}" in
       op://orca-regression/inherited-alpha) printf '%s\n' 'inherited-alpha-value' ;;
       op://orca-regression/signature-first) printf '%s\n' 'signature-first-value' ;;
       op://orca-regression/signature-second) printf '%s\n' 'signature-second-value' ;;
+      op://orca-regression/parallel-alpha) printf '%s\n' 'parallel-alpha-value' ;;
+      op://orca-regression/parallel-bravo) printf '%s\n' 'parallel-bravo-value' ;;
+      op://orca-regression/cond-alpha) printf '%s\n' 'cond-alpha-value' ;;
+      op://orca-regression/cond-tailscale) printf '%s\n' 'cond-tailscale-value' ;;
+      op://orca-regression/cond-local) printf '%s\n' 'cond-local-value' ;;
+      op://orca-regression/cond-dependent) printf '%s\n' 'cond-dependent-value' ;;
+      op://orca-regression/item-name) printf '%s\n' 'synthetic-item' ;;
+      op://orca-regression/item-alpha) printf '%s\n' 'item-alpha-value' ;;
+      op://orca-regression/synthetic-item/field) printf '%s\n' 'item-field-value' ;;
       *) exit 70 ;;
     esac
     exit 0
@@ -73,6 +95,20 @@ case "${1-}" in
 esac
 OP
 chmod +x "$bin_dir/op"
+
+expect_read_set() {
+  local expected actual
+  expected="$(printf '%s\n' "$@" | sort)"
+  actual="$(sort "$op_reads")"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "unexpected op reads" >&2
+    echo "expected:" >&2
+    printf '%s\n' "$expected" >&2
+    echo "actual:" >&2
+    printf '%s\n' "$actual" >&2
+    return 1
+  fi
+}
 
 cat > "$bin_dir/tailscale" <<'TAILSCALE'
 #!/usr/bin/env sh
@@ -107,6 +143,30 @@ __secret_export_op_read ORCA_TEST_EMPTY_VALUE --account "$MY_ACCOUNT" "op://orca
 SECRETS
 }
 
+write_conditional_secrets() {
+  cat > "$secret_file" <<'SECRETS'
+__secret_export_op_read ORCA_TEST_COND_ALPHA --account "$MY_ACCOUNT" "op://orca-regression/cond-alpha" || return 1
+if command -v tailscale >/dev/null 2>&1 && tailscale ip -4 >/dev/null 2>&1; then
+  __secret_export_op_read ORCA_TEST_COND_ENDPOINT --account "$MY_ACCOUNT" "op://orca-regression/cond-tailscale" || return 1
+else
+  __secret_export_op_read ORCA_TEST_COND_ENDPOINT --account "$MY_ACCOUNT" "op://orca-regression/cond-local" || return 1
+fi
+__secret_await_op_reads || return 1
+export ORCA_TEST_COND_DERIVED="$ORCA_TEST_COND_ENDPOINT"
+__secret_export_op_read ORCA_TEST_COND_DEPENDENT --account "$MY_ACCOUNT" "op://orca-regression/cond-dependent" || return 1
+SECRETS
+}
+
+write_intermediate_secrets() {
+  cat > "$secret_file" <<'SECRETS'
+__secret_export_op_read ORCA_TEST_ITEM_ALPHA --account "$MY_ACCOUNT" "op://orca-regression/item-alpha" || return 1
+local ORCA_TEST_ITEM_NAME
+ORCA_TEST_ITEM_NAME="$(__secret_op_read --account "$MY_ACCOUNT" "op://orca-regression/item-name")" || return 1
+__secret_await_op_reads || return 1
+__secret_export_op_read ORCA_TEST_ITEM_FIELD --account "$MY_ACCOUNT" "op://orca-regression/${ORCA_TEST_ITEM_NAME}/field" || return 1
+SECRETS
+}
+
 # --- a changed profile with the same inventory reloads its synthetic value ---
 cat > "$secret_file" <<'SECRETS'
 __secret_export_op_read ORCA_TEST_SIGNATURE_VALUE --account "$MY_ACCOUNT" "op://orca-regression/signature-first" || return 1
@@ -137,7 +197,9 @@ if [[ -s "$signature_stdout" || -s "$signature_stderr" ]]; then
   echo "changed profile reload was not quiet" >&2
   exit 1
 fi
-if [[ "$(<"$op_reads")" != $'op://orca-regression/signature-first\nop://orca-regression/signature-second' ]]; then
+if ! expect_read_set \
+  'op://orca-regression/signature-first' \
+  'op://orca-regression/signature-second'; then
   echo "changed profile did not perform the expected synthetic reads" >&2
   exit 1
 fi
@@ -168,7 +230,9 @@ if [[ -s "$success_stdout" || -s "$success_stderr" ]]; then
   echo "Orca startup guard was not silent" >&2
   exit 1
 fi
-if [[ "$(<"$op_reads")" != $'op://orca-regression/strict-alpha\nop://orca-regression/strict-bravo' ]]; then
+if ! expect_read_set \
+  'op://orca-regression/strict-alpha' \
+  'op://orca-regression/strict-bravo'; then
   echo "Orca startup guard did not perform the expected synthetic reads" >&2
   exit 1
 fi
@@ -207,7 +271,9 @@ if [[ "$(<"$startup_failure_stderr")" != 'Error: required Orca secrets are unava
   cat "$startup_failure_stderr" >&2
   exit 1
 fi
-if [[ "$(<"$op_reads")" != $'op://orca-regression/read-fail-alpha\nop://orca-regression/read-fail-bravo' ]]; then
+if ! expect_read_set \
+  'op://orca-regression/read-fail-alpha' \
+  'op://orca-regression/read-fail-bravo'; then
   echo "Orca startup guard did not use the fake op fixture" >&2
   exit 1
 fi
@@ -266,7 +332,9 @@ if [[ -s "$tmp_dir/read-failure.body" ]]; then
   echo "command body ran after a failed quiet secret load" >&2
   exit 1
 fi
-if [[ "$(<"$op_reads")" != $'op://orca-regression/read-fail-alpha\nop://orca-regression/read-fail-bravo' ]]; then
+if ! expect_read_set \
+  'op://orca-regression/read-fail-alpha' \
+  'op://orca-regression/read-fail-bravo'; then
   echo "individual read failure did not use the fake op fixture" >&2
   exit 1
 fi
@@ -324,20 +392,17 @@ echo "ok empty direct read does not set loaded metadata"
 # --- both conditional profile reads fail closed for failed and empty responses ---
 for tailscale_result in success failure; do
   for read_mode in conditional-failure conditional-empty; do
-    cp "$repo_root/roles/zsh/files/zsh/vars.secret" "$secret_file"
+    write_conditional_secrets
     : > "$op_reads"
-    profile_read_count="$tmp_dir/conditional-${tailscale_result}-${read_mode}.count"
     profile_body="$tmp_dir/conditional-${tailscale_result}-${read_mode}.body"
     profile_stdout="$tmp_dir/conditional-${tailscale_result}-${read_mode}.stdout"
     profile_stderr="$tmp_dir/conditional-${tailscale_result}-${read_mode}.stderr"
-    : > "$profile_read_count"
     : > "$profile_body"
     if env -i \
       HOME="$home_dir" \
       PATH="$bin_dir:/usr/bin:/bin" \
       OP_READS="$op_reads" \
       OP_PROFILE_READ_MODE="$read_mode" \
-      OP_PROFILE_READ_COUNT="$profile_read_count" \
       TAILSCALE_IP_RESULT="$tailscale_result" \
       BODY_CALLS="$profile_body" \
       ORCA_PANE_KEY="orca-regression-pane" \
@@ -347,7 +412,7 @@ source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
 if secret --quiet; then
   print -r -- command-body >> "$BODY_CALLS"
 fi
-for name in OTEL_EXPORTER_OTLP_LOGS_ENDPOINT SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
+for name in ORCA_TEST_COND_ENDPOINT ORCA_TEST_COND_DEPENDENT SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
   (( ! ${+parameters[$name]} )) || exit 1
 done
 exit 42
@@ -370,8 +435,17 @@ ZSH
       echo "conditional profile read leaked stderr" >&2
       exit 1
     fi
-    if [[ "$(<"$op_reads")" != $'profile-read-1\nprofile-read-2\nprofile-read-3' ]]; then
-      echo "conditional profile read did not stop at the synthetic response" >&2
+    if [[ "$tailscale_result" == success ]]; then
+      endpoint_ref='op://orca-regression/cond-tailscale'
+    else
+      endpoint_ref='op://orca-regression/cond-local'
+    fi
+    if ! grep -Fxq "$endpoint_ref" "$op_reads"; then
+      echo "conditional profile read did not request $endpoint_ref" >&2
+      exit 1
+    fi
+    if grep -Fxq 'op://orca-regression/cond-dependent' "$op_reads"; then
+      echo "conditional profile read continued into a later dependent read" >&2
       exit 1
     fi
   done
@@ -379,21 +453,17 @@ done
 echo "ok conditional profile reads fail closed"
 
 # --- an unexported profile intermediate cannot survive a later read failure ---
-cp "$repo_root/roles/zsh/files/zsh/vars.secret" "$secret_file"
+write_intermediate_secrets
 : > "$op_reads"
-profile_read_count="$tmp_dir/intermediate-late-failure.count"
 intermediate_body="$tmp_dir/intermediate-late-failure.body"
 intermediate_stdout="$tmp_dir/intermediate-late-failure.stdout"
 intermediate_stderr="$tmp_dir/intermediate-late-failure.stderr"
-: > "$profile_read_count"
 : > "$intermediate_body"
 if env -i \
   HOME="$home_dir" \
   PATH="$bin_dir:/usr/bin:/bin" \
   OP_READS="$op_reads" \
   OP_PROFILE_READ_MODE=intermediate-late-failure \
-  OP_PROFILE_READ_COUNT="$profile_read_count" \
-  TAILSCALE_IP_RESULT=success \
   BODY_CALLS="$intermediate_body" \
   ORCA_PANE_KEY="orca-regression-pane" \
   REPO_ROOT="$repo_root" \
@@ -402,7 +472,7 @@ source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
 if secret --quiet; then
   print -r -- command-body >> "$BODY_CALLS"
 fi
-for name in AWS_CREDS_ITEM AWS_ACCESS_KEY_ID SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
+for name in ORCA_TEST_ITEM_NAME ORCA_TEST_ITEM_FIELD SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
   (( ! ${+parameters[$name]} )) || exit 1
 done
 exit 42
@@ -425,8 +495,12 @@ if [[ -s "$intermediate_stderr" ]]; then
   echo "intermediate rollback leaked stderr" >&2
   exit 1
 fi
-if [[ "$(<"$op_reads")" != $'profile-read-1\nprofile-read-2\nprofile-read-3\nprofile-read-4\nprofile-read-5\nprofile-read-6\nprofile-read-7\nprofile-read-8' ]]; then
-  echo "intermediate rollback did not stop at the later synthetic failure" >&2
+if ! grep -Fxq 'op://orca-regression/item-name' "$op_reads"; then
+  echo "intermediate rollback did not read the interpolated item name" >&2
+  exit 1
+fi
+if ! grep -Fxq 'op://orca-regression/synthetic-item/field' "$op_reads"; then
+  echo "intermediate rollback did not reach the later synthetic failure" >&2
   exit 1
 fi
 echo "ok intermediate rollback clears function-local profile state"
@@ -487,7 +561,11 @@ if [[ -s "$rollback_stderr" ]]; then
   echo "explicit reload leaked stderr" >&2
   exit 1
 fi
-if [[ "$(<"$op_reads")" != $'op://orca-regression/prior-alpha\nop://orca-regression/prior-bravo\nop://orca-regression/current-gamma\nop://orca-regression/current-delta' ]]; then
+if ! expect_read_set \
+  'op://orca-regression/prior-alpha' \
+  'op://orca-regression/prior-bravo' \
+  'op://orca-regression/current-gamma' \
+  'op://orca-regression/current-delta'; then
   echo "rollback did not read the expected synthetic variables" >&2
   exit 1
 fi
@@ -522,5 +600,44 @@ if [[ "$(<"$op_reads")" != 'op://orca-regression/inherited-alpha' ]]; then
   exit 1
 fi
 echo "ok inherited marker without metadata reloads"
+
+# --- independent reads overlap instead of running one at a time ---
+cat > "$secret_file" <<'SECRETS'
+__secret_export_op_read ORCA_TEST_PARALLEL_ALPHA --account "$MY_ACCOUNT" "op://orca-regression/parallel-alpha" || return 1
+__secret_export_op_read ORCA_TEST_PARALLEL_BRAVO --account "$MY_ACCOUNT" "op://orca-regression/parallel-bravo" || return 1
+SECRETS
+: > "$op_reads"
+parallel_stdout="$tmp_dir/parallel.stdout"
+parallel_stderr="$tmp_dir/parallel.stderr"
+parallel_start="$(python3 -c 'import time; print(time.time())')"
+env -i \
+  HOME="$home_dir" \
+  PATH="$bin_dir:/usr/bin:/bin" \
+  OP_READS="$op_reads" \
+  OP_READ_SLEEP="0.4" \
+  MY_ACCOUNT="orca-regression-account" \
+  REPO_ROOT="$repo_root" \
+  "$zsh_bin" -f >"$parallel_stdout" 2>"$parallel_stderr" <<'ZSH'
+source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
+secret --quiet || exit 1
+[[ "$ORCA_TEST_PARALLEL_ALPHA" == 'parallel-alpha-value' ]] || exit 1
+[[ "$ORCA_TEST_PARALLEL_BRAVO" == 'parallel-bravo-value' ]] || exit 1
+ZSH
+parallel_end="$(python3 -c 'import time; print(time.time())')"
+if [[ -s "$parallel_stdout" || -s "$parallel_stderr" ]]; then
+  echo "parallel secret load was not quiet" >&2
+  exit 1
+fi
+if ! expect_read_set \
+  'op://orca-regression/parallel-alpha' \
+  'op://orca-regression/parallel-bravo'; then
+  echo "parallel secret load did not perform the expected synthetic reads" >&2
+  exit 1
+fi
+if ! python3 -c "import sys; sys.exit(0 if (float('$parallel_end') - float('$parallel_start')) < 0.7 else 1)"; then
+  echo "independent secret reads did not overlap" >&2
+  exit 1
+fi
+echo "ok independent secret reads overlap"
 
 echo "ok Orca secret requirements"

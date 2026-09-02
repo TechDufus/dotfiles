@@ -23,10 +23,10 @@ return {
     id = 'com.apple.finder',
     summon = 'f', -- [F]inder
   },
-  ChatGPT     = {
-    id = 'com.openai.codex',
+  GrokBot     = {
+    id = 'com.anysphere.sand',
     launchOnly = true,
-    summon = 'G', -- ChatGPT
+    summon = 'G', -- [G]rok Bot
   },
   ScreenSharing = {
     id = 'com.apple.ScreenSharing',

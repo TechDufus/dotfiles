@@ -64,7 +64,7 @@ Personal configuration stays here:
 
 `init.lua` limits each Accessibility query to 0.5 seconds, bounding stalls caused by unresponsive
 apps. Apps marked `launchOnly` in `apps.lua` use asynchronous LaunchServices
-activation instead of WorkspaceManager placement; currently ChatGPT and Teams.
+activation instead of WorkspaceManager placement; currently GrokBot and Teams.
 
 ## Role Defaults
 
@@ -92,7 +92,7 @@ release-managed bundles.
 Current bindings from [files/config/init.lua](files/config/init.lua):
 
 - `F13`: summon modal
-- `F13`, then `G`: summon ChatGPT (`com.openai.codex`)
+- `F13`, then `G`: summon Grok Bot (`com.anysphere.sand`)
 - `F13`, then `g`: summon Ghostty
 - `F13`, then `t`: summon Orca
 - `F13` twice: switch from summon modal to macro modal

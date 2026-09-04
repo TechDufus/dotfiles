@@ -197,7 +197,7 @@ function __secret_op_read() {
 # __secret_await_op_reads; await before expanding a queued variable.
 function __secret_export_op_read() {
   local var="$1"
-  local out_file rc_file
+  local out_file rc_file tty_input=''
 
   (( $# >= 2 )) || return 1
   __secret_var_name_valid "$var" || return 1
@@ -207,10 +207,17 @@ function __secret_export_op_read() {
   out_file="$__SECRET_OP_TMPDIR/$var.out"
   rc_file="$__SECRET_OP_TMPDIR/$var.rc"
 
+  # Startup may source this with stdin redirected; use the caller's validated TTY.
+  [[ -n "${TTY:-}" && -r "$TTY" ]] && tty_input="$TTY"
+
   (
     unsetopt xtrace 2>/dev/null
     set +e
-    op read "$@" > "$out_file"
+    if [[ -n "$tty_input" ]]; then
+      op read "$@" < "$tty_input" > "$out_file"
+    else
+      op read "$@" > "$out_file"
+    fi
     print -r -- "$?" > "$rc_file"
   ) &
   __SECRET_OP_PIDS+=($!)

@@ -48,6 +48,9 @@ case "${1-}" in
     for argument in "$@"; do
       reference="$argument"
     done
+    if [ "${OP_REQUIRE_TTY_STDIN-}" = true ] && ! tty -s; then
+      exit 69
+    fi
     if [ -n "${OP_READ_SLEEP-}" ]; then
       sleep "$OP_READ_SLEEP"
     fi
@@ -237,6 +240,92 @@ if ! expect_read_set \
   exit 1
 fi
 echo "ok Orca startup guard loads synthetic secrets"
+
+# --- Orca startup preserves the caller PTY for parallel secret reads ---
+write_strict_secrets
+: > "$op_reads"
+if ! python3 - "$zsh_bin" "$repo_root" "$home_dir" "$bin_dir" "$op_reads" <<'PY'
+import errno
+import os
+import pty
+import select
+import sys
+
+zsh_bin, repo_root, home_dir, bin_dir, op_reads = sys.argv[1:]
+child_env = {
+    "HOME": home_dir,
+    "PATH": f"{bin_dir}:/usr/bin:/bin",
+    "OP_READS": op_reads,
+    "OP_REQUIRE_TTY_STDIN": "true",
+    "MY_ACCOUNT": "orca-regression-account",
+    "ORCA_PANE_KEY": "orca-regression-pane",
+    "CURSOR_AGENT": "1",
+    "REPO_ROOT": repo_root,
+}
+child_script = r'''
+# zsh -c keeps the startup command out of stdin while this PTY remains its
+# controlling terminal for the background reader.
+[[ -n "${TTY-}" && -r "$TTY" ]] || exit 1
+( exec < "$TTY"; tty -s ) || exit 1
+source "$REPO_ROOT/roles/zsh/files/.zshrc"
+[[ "$ORCA_TEST_STRICT_ALPHA" == 'strict-alpha-value' ]] || exit 1
+[[ "$ORCA_TEST_STRICT_BRAVO" == 'strict-bravo-value' ]] || exit 1
+[[ "${SECRETS_ALREADY_LOADED-}" == true ]] || exit 1
+[[ -n "${SECRETS_LOADED_AT-}" ]] || exit 1
+[[ -n "${SECRETS_LOADED_VARS-}" ]] || exit 1
+[[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
+'''
+
+pid, master_fd = pty.fork()
+if pid == 0:
+    os.execve(zsh_bin, [zsh_bin, "-f", "-c", child_script], child_env)
+
+unexpected_output = False
+child_status = None
+while child_status is None:
+    readable, _, _ = select.select([master_fd], [], [], 0.1)
+    if readable:
+        try:
+            chunk = os.read(master_fd, 65536)
+        except OSError as error:
+            if error.errno != errno.EIO:
+                raise
+        else:
+            if chunk:
+                unexpected_output = True
+    waited_pid, status = os.waitpid(pid, os.WNOHANG)
+    if waited_pid == pid:
+        child_status = status
+
+while True:
+    readable, _, _ = select.select([master_fd], [], [], 0)
+    if not readable:
+        break
+    try:
+        chunk = os.read(master_fd, 65536)
+    except OSError as error:
+        if error.errno == errno.EIO:
+            break
+        raise
+    if not chunk:
+        break
+    unexpected_output = True
+
+os.close(master_fd)
+if not os.WIFEXITED(child_status) or os.WEXITSTATUS(child_status) != 0 or unexpected_output:
+    sys.exit(1)
+PY
+then
+  echo "Orca startup guard did not complete silently through a PTY" >&2
+  exit 1
+fi
+if ! expect_read_set \
+  'op://orca-regression/strict-alpha' \
+  'op://orca-regression/strict-bravo'; then
+  echo "Orca startup guard did not preserve TTY stdin for synthetic reads" >&2
+  exit 1
+fi
+echo "ok Orca startup guard preserves TTY stdin for parallel reads"
 
 # --- Orca startup fails closed before the command body when loading fails ---
 write_read_failure_secrets

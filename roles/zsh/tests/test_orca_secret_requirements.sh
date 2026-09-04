@@ -249,6 +249,8 @@ import errno
 import os
 import pty
 import select
+import signal
+import time
 import sys
 
 zsh_bin, repo_root, home_dir, bin_dir, op_reads = sys.argv[1:]
@@ -280,6 +282,8 @@ pid, master_fd = pty.fork()
 if pid == 0:
     os.execve(zsh_bin, [zsh_bin, "-f", "-c", child_script], child_env)
 
+deadline = time.monotonic() + 10
+timed_out = False
 unexpected_output = False
 child_status = None
 while child_status is None:
@@ -296,6 +300,13 @@ while child_status is None:
     waited_pid, status = os.waitpid(pid, os.WNOHANG)
     if waited_pid == pid:
         child_status = status
+    if child_status is None and time.monotonic() >= deadline:
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        _, child_status = os.waitpid(pid, 0)
+        timed_out = True
 
 while True:
     readable, _, _ = select.select([master_fd], [], [], 0)
@@ -312,7 +323,12 @@ while True:
     unexpected_output = True
 
 os.close(master_fd)
-if not os.WIFEXITED(child_status) or os.WEXITSTATUS(child_status) != 0 or unexpected_output:
+if (
+    timed_out
+    or not os.WIFEXITED(child_status)
+    or os.WEXITSTATUS(child_status) != 0
+    or unexpected_output
+):
     sys.exit(1)
 PY
 then

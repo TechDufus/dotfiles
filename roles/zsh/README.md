@@ -114,9 +114,9 @@ Applied to:
 
 ### 4. 1Password secrets
 
-`.zshenv` is deliberately secret-free, and `.zshrc` does not load secrets at startup. Run `secret` explicitly to load 1Password values into the current interactive shell. Supported command wrappers load secrets lazily when needed.
+`.zshenv` remains deliberately secret-free. Each normal interactive terminal loads secrets automatically from `.zshrc` after the modular functions are sourced. Agent-marked shells do not query 1Password and clear any declared secret inventory they inherit during zsh startup, while `gh` and `aws` retain their lazy wrappers as a fallback for normal interactive shells; a non-agent Herdr-marked shell also has a one-shot `omp` wrapper. If automatic loading cannot reach 1Password, terminal startup continues and `secret` can be run manually for visible diagnostics.
 
-Secret loading may prompt for 1Password authorization, then reads independent secrets concurrently before exporting any of them. When loading succeeds, the values are available to same-user processes that can inspect the shell environment; this is the tradeoff for allowing commands and their children to share that environment.
+Secret loading may prompt for 1Password authorization. On macOS and other platforms, independent secrets are read concurrently before any are exported. On Linux, each dependency wave uses one 1Password CLI batch because desktop-session validation on this host rejects concurrent CLI clients. Names beginning with `__secret_internal_`, `__SECRET_INTERNAL_`, `__SECRET_OP_`, or `SECRETS_` are reserved for loader bookkeeping. When loading succeeds, the values are available to same-user processes that can inspect the shell environment—including agent processes launched from an already-loaded terminal. Agent-marked zsh startup clears its inherited declared inventory, but use `secret --clear` or a filtered environment before launching an agent when the parent process itself must receive no credentials.
 
 ### 5. Completions and Herdr
 

@@ -177,6 +177,14 @@ for file in $HOME/.config/zsh/*.zsh(N); do
   source "$file"
 done
 
+# Load secrets for normal interactive terminals without blocking shell startup
+# when 1Password is unavailable or locked. Agent shells clear inherited state.
+if is_agent_shell; then
+  secret --quiet --clear >/dev/null 2>&1 || true
+elif is_tty; then
+  secret --quiet >/dev/null 2>&1 || true
+fi
+
 
 if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 

@@ -59,9 +59,16 @@ class ZshrcStructureTests(unittest.TestCase):
         self.assertIn("zdharma-continuum/zinit.git", self.tasks)
         self.assertIn("depth: 1", self.tasks)
 
-    def test_secret_loading_remains_explicit(self) -> None:
-        for startup_file in (self.zshrc, self.zshenv):
-            self.assertNotIn("secret --quiet", startup_file)
+    def test_secret_loading_is_automatic_only_for_human_terminals(self) -> None:
+        self.assertIn("if is_agent_shell; then", self.zshrc)
+        self.assertIn("secret --quiet --clear >/dev/null 2>&1 || true", self.zshrc)
+        self.assertIn("elif is_tty; then", self.zshrc)
+        self.assertIn("secret --quiet >/dev/null 2>&1 || true", self.zshrc)
+        self.assertGreater(
+            self.zshrc.index("secret --quiet"),
+            self.zshrc.index('source "$file"'),
+        )
+        self.assertNotIn("secret --quiet", self.zshenv)
 
 if __name__ == "__main__":
     unittest.main()

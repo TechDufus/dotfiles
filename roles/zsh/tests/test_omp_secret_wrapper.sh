@@ -74,6 +74,36 @@ if [[ "$(<"$OMP_CALLS")" != "$expected" ]]; then
 fi
 ZSH
 
+agent_marker_calls="$tmp_dir/agent-marker.calls"
+: > "$agent_marker_calls"
+PATH="$bin_dir:$PATH" \
+OMP_BIN="$bin_dir/omp" \
+OMP_CALLS="$agent_marker_calls" \
+REPO_ROOT="$repo_root" \
+"$zsh_bin" -f <<'ZSH'
+typeset -gx OMP_HERD_LOAD_SECRETS=1
+is_agent_shell() { return 0; }
+source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
+
+if (( ${+OMP_HERD_LOAD_SECRETS} )); then
+  print -ru2 -- "agent secret marker was not consumed"
+  exit 1
+fi
+if (( ${+functions[omp]} )); then
+  print -ru2 -- "omp secret wrapper installed in an agent shell"
+  exit 1
+fi
+if [[ "$(whence -p omp)" != "$OMP_BIN" ]]; then
+  print -ru2 -- "agent omp resolution changed"
+  exit 1
+fi
+ZSH
+
+if [[ -s "$agent_marker_calls" ]]; then
+  echo "agent marker invoked omp unexpectedly" >&2
+  exit 1
+fi
+
 success_calls="$tmp_dir/success.calls"
 success_secret_calls="$tmp_dir/success.secret.calls"
 success_stdout="$tmp_dir/success.stdout"

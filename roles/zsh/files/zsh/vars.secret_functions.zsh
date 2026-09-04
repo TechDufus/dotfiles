@@ -21,8 +21,17 @@ function __secret_usage() {
   echo -e "  ${CYAN}secret -l${NC}      # List loaded secret vars"
 }
 
-function __secret_var_name_valid() {
+function __secret_shell_var_name_valid() {
   [[ "$1" =~ '^[A-Za-z_][A-Za-z0-9_]*$' ]]
+}
+
+function __secret_var_name_valid() {
+  __secret_shell_var_name_valid "$1" || return 1
+  case "$1" in
+    __secret_internal_*|__SECRET_INTERNAL_*|__SECRET_OP_*|SECRETS_*)
+      return 1
+      ;;
+  esac
 }
 
 function __secret_file_signature() {
@@ -95,36 +104,52 @@ function __get_secret_vars() {
   ' "$secret_file"
 }
 
-function __secret_unset_vars() {
-  local vars="$1"
-  local var
+function __secret_inventory_names_valid() {
+  local __secret_internal_inventory="$1"
+  local __secret_internal_name
 
-  [[ -n "$vars" ]] || return 0
-  while IFS= read -r var; do
-    [[ -z "$var" ]] && continue
-    __secret_var_name_valid "$var" || continue
-    unset "$var" 2>/dev/null || return 1
-  done <<< "$vars"
+  [[ -n "$__secret_internal_inventory" ]] || return 1
+  while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+  done <<< "$__secret_internal_inventory"
+}
+
+function __secret_unset_vars() {
+  [[ -n "$1" ]] || return 0
+  __SECRET_INTERNAL_UNSET_STATUS=0
+  while IFS= read -r __SECRET_INTERNAL_UNSET_TARGET; do
+    [[ -z "$__SECRET_INTERNAL_UNSET_TARGET" ]] && continue
+    __secret_shell_var_name_valid "$__SECRET_INTERNAL_UNSET_TARGET" || continue
+    if [[ "${parameters[$__SECRET_INTERNAL_UNSET_TARGET]-}" == *readonly* ]] ||
+       ! unset "$__SECRET_INTERNAL_UNSET_TARGET" 2>/dev/null; then
+      __SECRET_INTERNAL_UNSET_STATUS=1
+      break
+    fi
+  done <<< "$1"
+
+  if (( __SECRET_INTERNAL_UNSET_STATUS )); then
+    unset __SECRET_INTERNAL_UNSET_TARGET __SECRET_INTERNAL_UNSET_STATUS
+    return 1
+  fi
+  unset __SECRET_INTERNAL_UNSET_TARGET __SECRET_INTERNAL_UNSET_STATUS
 }
 
 # Clear both the current profile and the inventory from the last successful load.
 function __secret_clear_state() {
-  local current_vars=""
-  local previous_vars="${SECRETS_LOADED_VARS-}"
-  local clear_status=0
-
   __secret_reset_pending_reads
   if [[ -f "$HOME/.config/zsh/vars.secret" ]]; then
-    current_vars="$(__get_secret_vars 2>/dev/null)" || clear_status=1
+    set -- "${SECRETS_LOADED_VARS-}" "$(__get_secret_vars 2>/dev/null)" 0
+  else
+    set -- "${SECRETS_LOADED_VARS-}" "" 0
   fi
 
-  __secret_unset_vars "$previous_vars" || clear_status=1
-  __secret_unset_vars "$current_vars" || clear_status=1
+  __secret_unset_vars "$1" || set -- "$1" "$2" 1
+  __secret_unset_vars "$2" || set -- "$1" "$2" 1
   unset SECRETS_ALREADY_LOADED
   unset SECRETS_LOADED_AT
   unset SECRETS_LOADED_VARS
   unset SECRETS_LOADED_SIGNATURE
-  return "$clear_status"
+  return "$3"
 }
 
 function __secret_inventory_is_loaded() {
@@ -156,17 +181,41 @@ function __secret_already_loaded() {
   return 1
 }
 
-typeset -gA __SECRET_OP_OUT
-typeset -gA __SECRET_OP_RC
-typeset -ga __SECRET_OP_VARS
-typeset -ga __SECRET_OP_PIDS
-typeset -g __SECRET_OP_TMPDIR
+# Never trust bookkeeping imported from a parent process.
+unset __SECRET_OP_OUT __SECRET_OP_RC __SECRET_OP_REF __SECRET_OP_ACCOUNT
+unset __SECRET_OP_VARS __SECRET_OP_PIDS __SECRET_OP_TMPDIR __SECRET_OP_BATCH_OUT
+typeset -gA __SECRET_OP_OUT=()
+typeset -gA __SECRET_OP_RC=()
+typeset -gA __SECRET_OP_REF=()
+typeset -gA __SECRET_OP_ACCOUNT=()
+typeset -ga __SECRET_OP_VARS=()
+typeset -ga __SECRET_OP_PIDS=()
+typeset -g +x __SECRET_OP_TMPDIR=''
+typeset -g +x __SECRET_OP_BATCH_OUT=''
 
 function __secret_op_pending_dir() {
   if [[ -z "${__SECRET_OP_TMPDIR-}" ]]; then
     __SECRET_OP_TMPDIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/zsh-secret.XXXXXX")" || return 1
   fi
 }
+
+# The desktop CLI client cannot safely overlap Linux requests.
+function __secret_use_single_process_batch() {
+  [[ "${OSTYPE-}" == linux* ]]
+}
+
+# Keep op run isolated from unrelated exported secret references.
+function __secret_op_run_environment_allowed() {
+  case "$1" in
+    HOME|PATH|TMPDIR|XDG_RUNTIME_DIR|XDG_CONFIG_HOME|XDG_CACHE_HOME|XDG_DATA_HOME|XDG_STATE_HOME|DBUS_SESSION_BUS_ADDRESS|DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|TERM|LANG|LANGUAGE|LC_*|TZ|USER|LOGNAME|SHELL|XDG_SESSION_*|XDG_CURRENT_DESKTOP|DESKTOP_SESSION|OP_ACCOUNT|OP_BIOMETRIC_AUTH|OP_CACHE_DIR|OP_CONFIG_DIR|OP_CONNECT_HOST|OP_CONNECT_TOKEN|OP_DEBUG|OP_FORMAT|OP_INCLUDE_ARCHIVE|OP_ISO_TIMESTAMPS|OP_PASSWORD|OP_SERVICE_ACCOUNT_TOKEN|OP_SESSION|OP_SESSION_*|OP_USER_AGENT)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 
 function __secret_reset_pending_reads() {
   local pid
@@ -176,12 +225,31 @@ function __secret_reset_pending_reads() {
     kill "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
   done
-  [[ -n "${__SECRET_OP_TMPDIR-}" ]] && rm -rf "$__SECRET_OP_TMPDIR"
+  if [[ -n "${__SECRET_OP_TMPDIR-}" ]]; then
+    case "$__SECRET_OP_TMPDIR" in
+      "${TMPDIR:-/tmp}"/zsh-secret.*)
+        rm -rf -- "$__SECRET_OP_TMPDIR"
+        ;;
+    esac
+  fi
   unset __SECRET_OP_TMPDIR
   __SECRET_OP_VARS=()
   __SECRET_OP_PIDS=()
   __SECRET_OP_OUT=()
   __SECRET_OP_RC=()
+  __SECRET_OP_REF=()
+  __SECRET_OP_ACCOUNT=()
+  unset __SECRET_OP_BATCH_OUT
+}
+
+function __secret_unset_pending_read_vars() {
+  local __secret_pending_target
+
+  for __secret_pending_target in "${__SECRET_OP_VARS[@]}"; do
+    __secret_var_name_valid "$__secret_pending_target" || continue
+    [[ "${parameters[$__secret_pending_target]-}" == *readonly* ]] && continue
+    unset "$__secret_pending_target" 2>/dev/null || true
+  done
 }
 
 # Read one non-empty 1Password value without exposing it on a failure path.
@@ -198,6 +266,33 @@ function __secret_op_read() {
 function __secret_export_op_read() {
   local var="$1"
   local out_file rc_file
+  local account reference
+
+  if __secret_use_single_process_batch; then
+    if (( $# != 4 )) ||
+       ! __secret_var_name_valid "$var" ||
+       [[ "$2" != --account || -z "$3" || "$4" != op://* ]] ||
+       [[ "${parameters[$var]-}" == *readonly* ||
+          -n "${__SECRET_OP_REF[$var]-}" ||
+          -n "${__SECRET_OP_ACCOUNT[$var]-}" ]]; then
+      __secret_unset_pending_read_vars
+      __secret_reset_pending_reads
+      return 1
+    fi
+
+    account="$3"
+    reference="$4"
+
+    __secret_op_pending_dir || {
+      __secret_unset_pending_read_vars
+      __secret_reset_pending_reads
+      return 1
+    }
+    __SECRET_OP_ACCOUNT[$var]="$account"
+    __SECRET_OP_REF[$var]="$reference"
+    __SECRET_OP_VARS+=("$var")
+    return 0
+  fi
 
   (( $# >= 2 )) || return 1
   __secret_var_name_valid "$var" || return 1
@@ -219,13 +314,124 @@ function __secret_export_op_read() {
   __SECRET_OP_RC[$var]="$rc_file"
 }
 
-# Wait for queued reads and export every value, or export none from this batch.
-function __secret_await_op_reads() {
-  local var pid rc value
+
+# Resolve a Linux wave without overlapping desktop CLI clients. References are
+# grouped by account; account batches run serially and commit transactionally.
+function __secret_await_op_run_batch() {
+  local account expected_var received_var value extra
   local failed=0
+  local -a accounts account_vars
+  local -A seen_accounts values
+  setopt localoptions noxtrace
 
   (( ${#__SECRET_OP_VARS[@]} )) || return 0
-  setopt localoptions nomonitor
+  if [[ -z "${__SECRET_OP_TMPDIR-}" ]] ||
+     (( ${#__SECRET_OP_REF[@]} != ${#__SECRET_OP_VARS[@]} )) ||
+     (( ${#__SECRET_OP_ACCOUNT[@]} != ${#__SECRET_OP_VARS[@]} )) ||
+     (( ${#__SECRET_OP_PIDS[@]} )); then
+    __secret_unset_pending_read_vars
+    __secret_reset_pending_reads
+    return 1
+  fi
+  for expected_var in "${__SECRET_OP_VARS[@]}"; do
+    account="${__SECRET_OP_ACCOUNT[$expected_var]-}"
+    if ! __secret_var_name_valid "$expected_var" ||
+       [[ "${parameters[$expected_var]-}" == *readonly* ||
+          -z "$account" || "${__SECRET_OP_REF[$expected_var]-}" != op://* ]]; then
+      __secret_unset_pending_read_vars
+      __secret_reset_pending_reads
+      return 1
+    fi
+    if [[ -z "${seen_accounts[$account]-}" ]]; then
+      accounts+=("$account")
+      seen_accounts[$account]=1
+    fi
+  done
+
+  for account in "${accounts[@]}"; do
+    account_vars=()
+    for expected_var in "${__SECRET_OP_VARS[@]}"; do
+      if [[ "${__SECRET_OP_ACCOUNT[$expected_var]}" == "$account" ]]; then
+        account_vars+=("$expected_var")
+      fi
+    done
+
+    __SECRET_OP_BATCH_OUT="$(umask 077; mktemp "$__SECRET_OP_TMPDIR/batch.XXXXXX")" 2>/dev/null || {
+      failed=1
+      break
+    }
+    (
+      unsetopt xtrace 2>/dev/null
+      set -- ${(k)parameters[(R)*-export*]}
+      while (( $# )); do
+        if ! __secret_op_run_environment_allowed "$1" ||
+           [[ "${(P)1}" == op://* ]]; then
+          typeset -g +x "$1" 2>/dev/null || exit 1
+        fi
+        shift
+      done
+      for expected_var in "${account_vars[@]}"; do
+        typeset -gx "$expected_var=${__SECRET_OP_REF[$expected_var]}" || exit 1
+      done
+      exec op run --account "$account" --no-masking -- zsh -fc '
+        emulate -LR zsh
+        while (( $# )); do
+          printf "%s\0%s\0" "$1" "${(P)1}" || exit 1
+          shift
+        done
+      ' zsh "${account_vars[@]}"
+    ) > "$__SECRET_OP_BATCH_OUT" 2>/dev/null || failed=1
+
+    if (( ! failed )); then
+      {
+        for expected_var in "${account_vars[@]}"; do
+          received_var=''
+          value=''
+          if ! IFS= read -r -d $'\0' received_var ||
+             ! IFS= read -r -d $'\0' value ||
+             [[ "$received_var" != "$expected_var" || -z "$value" ]]; then
+            failed=1
+            break
+          fi
+          values[$expected_var]="$value"
+        done
+        if (( ! failed )); then
+          extra=''
+          if IFS= read -r -d $'\0' extra || [[ -n "$extra" ]]; then
+            failed=1
+          fi
+        fi
+        (( ! failed ))
+      } < "$__SECRET_OP_BATCH_OUT" || failed=1
+    fi
+
+    rm -f "$__SECRET_OP_BATCH_OUT"
+    unset __SECRET_OP_BATCH_OUT
+    (( failed )) && break
+  done
+
+  if (( ! failed )); then
+    for expected_var in "${__SECRET_OP_VARS[@]}"; do
+      if ! typeset -gx "$expected_var=${values[$expected_var]}"; then
+        failed=1
+        break
+      fi
+    done
+  fi
+  (( failed )) && __secret_unset_pending_read_vars
+
+  __secret_reset_pending_reads
+  (( ! failed ))
+}
+# Wait for queued reads and export every value, or export none from this batch.
+function __secret_await_op_reads() {
+  if __secret_use_single_process_batch; then
+    __secret_await_op_run_batch
+    return $?
+  fi
+
+  local var pid rc value
+  local failed=0
 
   for pid in "${__SECRET_OP_PIDS[@]}"; do
     wait "$pid" || true
@@ -234,7 +440,8 @@ function __secret_await_op_reads() {
   for var in "${__SECRET_OP_VARS[@]}"; do
     rc="$(<"${__SECRET_OP_RC[$var]}")" 2>/dev/null || rc=""
     value="$(<"${__SECRET_OP_OUT[$var]}")" 2>/dev/null || value=""
-    if [[ "$rc" != 0 || -z "$value" ]]; then
+    if [[ "$rc" != 0 || -z "$value" ||
+          "${parameters[$var]-}" == *readonly* ]]; then
       failed=1
       break
     fi
@@ -243,16 +450,15 @@ function __secret_await_op_reads() {
   if (( ! failed )); then
     for var in "${__SECRET_OP_VARS[@]}"; do
       value="$(<"${__SECRET_OP_OUT[$var]}")"
-      export "$var=$value"
+      if ! typeset -gx "$var=$value"; then
+        failed=1
+        break
+      fi
     done
   fi
+  (( failed )) && __secret_unset_pending_read_vars
 
-  [[ -n "${__SECRET_OP_TMPDIR-}" ]] && rm -rf "$__SECRET_OP_TMPDIR"
-  unset __SECRET_OP_TMPDIR
-  __SECRET_OP_VARS=()
-  __SECRET_OP_PIDS=()
-  __SECRET_OP_OUT=()
-  __SECRET_OP_RC=()
+  __secret_reset_pending_reads
   (( ! failed ))
 }
 
@@ -280,9 +486,13 @@ function __secret_source_file() {
     __secret_clear_state
     return 1
   }
+  __secret_inventory_names_valid "$inventory" || {
+    __secret_clear_state
+    return 1
+  }
 
   # A stale inventory may contain vars removed from the current profile.
-  __secret_clear_state
+  __secret_clear_state || return 1
   error_log="$(mktemp)" || return 1
   [[ -o xtrace ]] && xtrace_on=1
   unsetopt xtrace
@@ -495,7 +705,9 @@ function secret() {
 # A marked Herd shell loads secrets only for its first OMP call.
 if [[ "${OMP_HERD_LOAD_SECRETS-}" == "1" ]]; then
   unset OMP_HERD_LOAD_SECRETS
-  __secret_wrap_once omp OMP
+  if ! __secret_in_agent_shell; then
+    __secret_wrap_once omp OMP
+  fi
 fi
 
 # Interactive human shells only. Never wrap tools in agent shells (each zsh -c

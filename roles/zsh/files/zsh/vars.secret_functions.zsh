@@ -97,11 +97,42 @@ function __secret_unset_vars() {
   done <<< "$vars"
 }
 
+# Compact per-wave state. Secret values live only in private files until every
+# queued read has succeeded.
+typeset -ga __SECRET_OP_PIDS
+typeset -ga __SECRET_OP_VARS
+typeset -gA __SECRET_OP_OUT
+typeset -gA __SECRET_OP_RC
+typeset -g __SECRET_OP_TMPDIR
+
+function __secret_pending_dir() {
+  [[ -n "${__SECRET_OP_TMPDIR-}" ]] && return 0
+  __SECRET_OP_TMPDIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/zsh-secret.XXXXXX")" || return 1
+}
+
+function __secret_reset_pending_reads() {
+  local pid
+
+  setopt localoptions nomonitor
+  unsetopt xtrace
+  for pid in "${__SECRET_OP_PIDS[@]}"; do
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  done
+  [[ -n "${__SECRET_OP_TMPDIR-}" ]] && rm -rf -- "$__SECRET_OP_TMPDIR"
+  unset __SECRET_OP_TMPDIR
+  __SECRET_OP_OUT=()
+  __SECRET_OP_RC=()
+  __SECRET_OP_PIDS=()
+  __SECRET_OP_VARS=()
+}
+
 # Clear both the current profile and the inventory from the last successful load.
 function __secret_clear_state() {
   local current_vars=""
   local previous_vars="${SECRETS_LOADED_VARS-}"
   local clear_status=0
+  __secret_reset_pending_reads
 
   if [[ -f "$HOME/.config/zsh/vars.secret" ]]; then
     current_vars="$(__get_secret_vars 2>/dev/null)" || clear_status=1
@@ -149,22 +180,118 @@ function __secret_already_loaded() {
 function __secret_op_read() {
   local value
 
-  value="$(op read "$@")" || return 1
+  if [[ -n "${TTY-}" && -r "$TTY" ]]; then
+    value="$(op read "$@" < "$TTY")" || return 1
+  else
+    value="$(op read "$@")" || return 1
+  fi
   [[ -n "$value" ]] || return 1
   print -r -- "$value"
 }
 
-# Read and export one secret immediately.
+# Queue one 1Password read. Values are exported only after the entire wave
+# completes successfully in __secret_await_op_reads.
 function __secret_export_op_read() {
   local var="$1"
-  local value
+  local out_file
+  local rc_file
+  local tty_input=""
+  local pid
 
-  (( $# >= 2 )) || return 1
-  __secret_var_name_valid "$var" || return 1
+  (( $# >= 2 )) || {
+    __secret_clear_state
+    return 1
+  }
+  __secret_var_name_valid "$var" || {
+    __secret_clear_state
+    return 1
+  }
   shift
-  value="$(__secret_op_read "$@")" || return 1
-  [[ -n "$value" ]] || return 1
-  export "$var=$value"
+  setopt localoptions nomonitor
+  unsetopt xtrace
+  __secret_pending_dir || {
+    __secret_clear_state
+    return 1
+  }
+  [[ -z "${__SECRET_OP_OUT[$var]-}" ]] || {
+    __secret_clear_state
+    return 1
+  }
+
+  out_file="$__SECRET_OP_TMPDIR/$var.out"
+  rc_file="$__SECRET_OP_TMPDIR/$var.rc"
+  if [[ -n "${TTY-}" && -r "$TTY" ]]; then
+    tty_input="$TTY"
+  fi
+
+  (
+    unsetopt xtrace 2>/dev/null
+    set +e
+    if [[ -n "$tty_input" ]]; then
+      op read "$@" < "$tty_input" > "$out_file"
+    else
+      op read "$@" > "$out_file"
+    fi
+    print -r -- "$?" > "$rc_file"
+  ) &
+  pid="$!"
+  [[ -n "$pid" ]] || {
+    __secret_clear_state
+    return 1
+  }
+
+  __SECRET_OP_PIDS+=("$pid")
+  __SECRET_OP_VARS+=("$var")
+  __SECRET_OP_OUT[$var]="$out_file"
+  __SECRET_OP_RC[$var]="$rc_file"
+}
+
+# Wait for every queued read, then export all values or roll back the wave.
+function __secret_await_op_reads() {
+  local var
+  local pid
+  local rc
+  local value
+  local queued_vars="${(j:\n:)__SECRET_OP_VARS}"
+  local failed=0
+
+  setopt localoptions nomonitor
+  unsetopt xtrace
+  if (( ! ${#__SECRET_OP_VARS[@]} )); then
+    __secret_reset_pending_reads
+    return 0
+  fi
+
+  for pid in "${__SECRET_OP_PIDS[@]}"; do
+    wait "$pid" 2>/dev/null || failed=1
+  done
+  # Every worker has been reaped; subsequent cleanup need not signal their PIDs.
+  __SECRET_OP_PIDS=()
+
+  for var in "${__SECRET_OP_VARS[@]}"; do
+    rc=""
+    value=""
+    [[ -f "${__SECRET_OP_RC[$var]}" ]] && rc="$(<"${__SECRET_OP_RC[$var]}")" || failed=1
+    [[ -f "${__SECRET_OP_OUT[$var]}" ]] && value="$(<"${__SECRET_OP_OUT[$var]}")" || failed=1
+    [[ "$rc" == 0 && -n "$value" ]] || failed=1
+  done
+
+  if (( ! failed )); then
+    for var in "${__SECRET_OP_VARS[@]}"; do
+      value="$(<"${__SECRET_OP_OUT[$var]}")"
+      export "$var=$value" || {
+        failed=1
+        break
+      }
+    done
+  fi
+
+  __secret_reset_pending_reads
+  if (( failed )); then
+    __secret_unset_vars "$queued_vars" || true
+    __secret_clear_state
+    return 1
+  fi
 }
 
 function __secret_source_file() {
@@ -195,7 +322,10 @@ function __secret_source_file() {
   setopt localoptions
   unsetopt xtrace
 
-  if source "$secret_file" 2>/dev/null && __secret_inventory_is_loaded "$inventory"; then
+  if source "$secret_file" 2>/dev/null &&
+     (( ! ${#__SECRET_OP_PIDS[@]} )) &&
+     [[ -z "${__SECRET_OP_TMPDIR-}" ]] &&
+     __secret_inventory_is_loaded "$inventory"; then
     export SECRETS_LOADED_VARS="$inventory"
     export SECRETS_LOADED_SIGNATURE="$signature"
     export SECRETS_ALREADY_LOADED=true

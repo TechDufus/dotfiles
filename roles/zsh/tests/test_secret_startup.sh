@@ -17,19 +17,56 @@ home_dir="$tmp_dir/home"
 secret_file="$home_dir/.config/zsh/vars.secret"
 op_reads="$tmp_dir/op.reads"
 mkdir -p "$bin_dir" "$home_dir/.config/zsh"
+data_home="$tmp_dir/data"
+zinit_home="$data_home/zinit/zinit.git"
+mkdir -p "$zinit_home"
+cat > "$zinit_home/zinit.zsh" <<'ZINIT'
+zinit() { :; }
+ZINIT
 cp "$repo_root/roles/zsh/files/zsh/vars.secret_functions.zsh" \
   "$home_dir/.config/zsh/vars.secret_functions.zsh"
 
 cat > "$bin_dir/op" <<'OP'
 #!/usr/bin/env sh
 
+# Serialize fixture writes; assertions compare the resulting read set.
 record_read() {
+  lock_dir="${OP_READS:?}.lock"
+  until mkdir "$lock_dir" 2>/dev/null; do
+    sleep 0.01
+  done
   printf '%s\n' "$1" >> "${OP_READS:?}"
+  rmdir "$lock_dir"
+}
+
+await_startup_peer() {
+  case "$1" in
+    op://fixture/startup-scope/alpha)
+      ready_file="${OP_READS:?}.startup-alpha-ready"
+      peer_file="${OP_READS:?}.startup-bravo-ready"
+      ;;
+    op://fixture/startup-scope/bravo)
+      ready_file="${OP_READS:?}.startup-bravo-ready"
+      peer_file="${OP_READS:?}.startup-alpha-ready"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  : > "$ready_file"
+  attempts=0
+  # A liveness guard only: success requires both readiness markers, not speed.
+  while [ ! -f "$peer_file" ]; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -lt 1000 ] || return 1
+    sleep 0.01
+  done
 }
 
 case "${1-}" in
   vault)
-    exit 0
+    exit 71
     ;;
   read)
     reference=""
@@ -37,14 +74,18 @@ case "${1-}" in
       reference="$argument"
     done
 
-    if [ "${OP_REJECT_OVERLAP-}" = true ]; then
-      active_dir="${OP_READS:?}.active"
-      if ! mkdir "$active_dir" 2>/dev/null; then
-        exit 75
-      fi
-      trap 'rmdir "$active_dir" 2>/dev/null || true' EXIT
-      sleep 0.05
-    fi
+    case "$reference" in
+      op://fixture/startup-prime)
+        record_read "$reference"
+        : > "${OP_READS:?}.startup-prime-ready"
+        printf '%s\n' 'startup-scope'
+        exit 0
+        ;;
+      op://fixture/startup-scope/alpha|op://fixture/startup-scope/bravo)
+        [ -f "${OP_READS:?}.startup-prime-ready" ] || exit 75
+        await_startup_peer "$reference" || exit 76
+        ;;
+    esac
 
     record_read "$reference"
     case "${OP_PROFILE_READ_MODE-}:${reference}" in
@@ -56,8 +97,8 @@ case "${1-}" in
     case "$reference" in
       op://fixture/reload-first) printf '%s\n' 'fixture-reload-first' ;;
       op://fixture/reload-second) printf '%s\n' 'fixture-reload-second' ;;
-      op://fixture/startup-alpha) printf '%s\n' 'fixture-startup-alpha' ;;
-      op://fixture/startup-bravo) printf '%s\n' 'fixture-startup-bravo' ;;
+      op://fixture/startup-scope/alpha) printf '%s\n' 'fixture-startup-alpha' ;;
+      op://fixture/startup-scope/bravo) printf '%s\n' 'fixture-startup-bravo' ;;
       op://fixture/failure-alpha) printf '%s\n' 'fixture-failure-alpha' ;;
       op://fixture/failure-bravo) exit 17 ;;
       op://fixture/empty) ;;
@@ -92,8 +133,8 @@ chmod +x "$bin_dir/tailscale"
 
 expect_reads() {
   local expected actual
-  expected="$(printf '%s\n' "$@")"
-  actual="$(<"$op_reads")"
+  expected="$(printf '%s\n' "$@" | LC_ALL=C sort)"
+  actual="$(LC_ALL=C sort "$op_reads")"
   if [[ "$actual" != "$expected" ]]; then
     echo "unexpected fixture reads" >&2
     return 1
@@ -102,8 +143,11 @@ expect_reads() {
 
 write_startup_profile() {
   cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_STARTUP_ALPHA --account "$TEST_ACCOUNT" "op://fixture/startup-alpha" || return 1
-__secret_export_op_read TEST_STARTUP_BRAVO --account "$TEST_ACCOUNT" "op://fixture/startup-bravo" || return 1
+TEST_STARTUP_ITEM="$(__secret_op_read --account "$TEST_ACCOUNT" "op://fixture/startup-prime")" || return 1
+__secret_export_op_read TEST_STARTUP_ALPHA --account "$TEST_ACCOUNT" "op://fixture/${TEST_STARTUP_ITEM}/alpha" || return 1
+__secret_export_op_read TEST_STARTUP_BRAVO --account "$TEST_ACCOUNT" "op://fixture/${TEST_STARTUP_ITEM}/bravo" || return 1
+__secret_await_op_reads || return 1
+unset TEST_STARTUP_ITEM
 SECRETS
 }
 
@@ -111,12 +155,14 @@ write_failed_read_profile() {
   cat > "$secret_file" <<'SECRETS'
 __secret_export_op_read TEST_FAILURE_ALPHA --account "$TEST_ACCOUNT" "op://fixture/failure-alpha" || return 1
 __secret_export_op_read TEST_FAILURE_BRAVO --account "$TEST_ACCOUNT" "op://fixture/failure-bravo" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 }
 
 write_empty_profile() {
   cat > "$secret_file" <<'SECRETS'
 __secret_export_op_read TEST_EMPTY_VALUE --account "$TEST_ACCOUNT" "op://fixture/empty" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 }
 
@@ -128,14 +174,17 @@ if command -v tailscale >/dev/null 2>&1 && tailscale ip -4 >/dev/null 2>&1; then
 else
   __secret_export_op_read TEST_CONDITIONAL_ENDPOINT --account "$TEST_ACCOUNT" "op://fixture/conditional-local" || return 1
 fi
+__secret_await_op_reads || return 1
 export TEST_CONDITIONAL_DERIVED="$TEST_CONDITIONAL_ENDPOINT"
 __secret_export_op_read TEST_CONDITIONAL_DEPENDENT --account "$TEST_ACCOUNT" "op://fixture/conditional-dependent" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 }
 
 # --- a changed profile with the same inventory reloads its synthetic value ---
 cat > "$secret_file" <<'SECRETS'
 __secret_export_op_read TEST_RELOAD_VALUE --account "$TEST_ACCOUNT" "op://fixture/reload-first" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 : > "$op_reads"
 reload_stdout="$tmp_dir/reload.stdout"
@@ -153,6 +202,7 @@ secret --quiet || exit 1
 [[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
 cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
 __secret_export_op_read TEST_RELOAD_VALUE --account "$TEST_ACCOUNT" "op://fixture/reload-second" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 secret --quiet || exit 1
 [[ "$TEST_RELOAD_VALUE" == 'fixture-reload-second' ]] || exit 1
@@ -173,30 +223,34 @@ if ! expect_reads \
 fi
 echo "ok changed profile reloads"
 
-# --- startup loads secrets without a session-specific marker or overlap ---
+# --- startup loads a primed concurrent wave without a session marker ---
 write_startup_profile
 : > "$op_reads"
+rm -f \
+  "$op_reads.startup-prime-ready" \
+  "$op_reads.startup-alpha-ready" \
+  "$op_reads.startup-bravo-ready"
 startup_stdout="$tmp_dir/startup.stdout"
 startup_stderr="$tmp_dir/startup.stderr"
 if ! env -i \
   HOME="$home_dir" \
   PATH="$bin_dir:/usr/bin:/bin" \
   OP_READS="$op_reads" \
-  OP_REJECT_OVERLAP=true \
   TEST_ACCOUNT="fixture-account" \
-  CURSOR_AGENT=1 \
+  XDG_DATA_HOME="$data_home" \
   REPO_ROOT="$repo_root" \
   "$zsh_bin" -f >"$startup_stdout" 2>"$startup_stderr" <<'ZSH'
 source "$REPO_ROOT/roles/zsh/files/.zshrc"
 [[ "$TEST_STARTUP_ALPHA" == 'fixture-startup-alpha' ]] || exit 1
 [[ "$TEST_STARTUP_BRAVO" == 'fixture-startup-bravo' ]] || exit 1
+(( ! ${+parameters[TEST_STARTUP_ITEM]} )) || exit 1
 [[ "${SECRETS_ALREADY_LOADED-}" == true ]] || exit 1
 [[ -n "${SECRETS_LOADED_AT-}" ]] || exit 1
 [[ -n "${SECRETS_LOADED_VARS-}" ]] || exit 1
 [[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
 ZSH
 then
-  echo "startup did not load secrets sequentially" >&2
+  echo "startup did not complete the primed concurrent secret wave" >&2
   exit 1
 fi
 if [[ -s "$startup_stdout" || -s "$startup_stderr" ]]; then
@@ -204,11 +258,12 @@ if [[ -s "$startup_stdout" || -s "$startup_stderr" ]]; then
   exit 1
 fi
 if ! expect_reads \
-  'op://fixture/startup-alpha' \
-  'op://fixture/startup-bravo'; then
+  'op://fixture/startup-prime' \
+  'op://fixture/startup-scope/alpha' \
+  'op://fixture/startup-scope/bravo'; then
   exit 1
 fi
-echo "ok startup loads secrets sequentially"
+echo "ok startup loads a primed concurrent secret wave"
 
 # --- startup warns once and continues after an unavailable secret read ---
 write_failed_read_profile
@@ -222,7 +277,7 @@ if ! env -i \
   PATH="$bin_dir:/usr/bin:/bin" \
   OP_READS="$op_reads" \
   TEST_ACCOUNT="fixture-account" \
-  CURSOR_AGENT=1 \
+  XDG_DATA_HOME="$data_home" \
   BODY_CALLS="$startup_failure_body" \
   REPO_ROOT="$repo_root" \
   "$zsh_bin" -f >"$startup_failure_stdout" 2>"$startup_failure_stderr" <<'ZSH'
@@ -359,6 +414,7 @@ echo "ok conditional failure stops dependent read"
 cat > "$secret_file" <<'SECRETS'
 __secret_export_op_read TEST_PRIOR_ALPHA --account "$TEST_ACCOUNT" "op://fixture/prior-alpha" || return 1
 __secret_export_op_read TEST_PRIOR_BRAVO --account "$TEST_ACCOUNT" "op://fixture/prior-bravo" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 : > "$op_reads"
 reload_failure_stdout="$tmp_dir/reload-failure.stdout"
@@ -377,6 +433,7 @@ secret --quiet || exit 1
 cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
 __secret_export_op_read TEST_CURRENT_GAMMA --account "$TEST_ACCOUNT" "op://fixture/current-gamma" || return 1
 __secret_export_op_read TEST_CURRENT_DELTA --account "$TEST_ACCOUNT" "op://fixture/current-delta" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 if secret --quiet --reload; then
   exit 1
@@ -405,6 +462,7 @@ echo "ok failed reload clears inventories"
 # --- incomplete inherited metadata cannot suppress a required reload ---
 cat > "$secret_file" <<'SECRETS'
 __secret_export_op_read TEST_INHERITED_ALPHA --account "$TEST_ACCOUNT" "op://fixture/inherited-alpha" || return 1
+__secret_await_op_reads || return 1
 SECRETS
 : > "$op_reads"
 inherited_stdout="$tmp_dir/inherited.stdout"

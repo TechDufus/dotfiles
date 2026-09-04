@@ -116,7 +116,7 @@ Applied to:
 
 `.zshenv` is deliberately secret-free. Every interactive shell attempts `secret --quiet` during `.zshrc` after the secret functions are sourced. A successful load is silent; if 1Password secrets are unavailable, startup warns and continues without them.
 
-Secret loading may prompt for 1Password authorization. When loading succeeds, the values are available to same-user processes that can inspect the shell environment; this is the tradeoff for allowing commands and their children to share that environment.
+Secret loading may prompt for 1Password authorization. It first synchronously primes that authorization with its required dynamic-item lookup, then reads all independent secrets concurrently before exporting any of them. When loading succeeds, the values are available to same-user processes that can inspect the shell environment; this is the tradeoff for allowing commands and their children to share that environment.
 
 The `secret` command remains available to load secrets into the current interactive shell.
 

@@ -1,5 +1,4 @@
 modelRoles:
-  default: openai-codex/gpt-5.6-sol:xhigh
   smol: openai-codex/gpt-5.6-luna
   tiny: openai-codex/gpt-5.6-luna:low
   task: openai-codex/gpt-5.6-terra
@@ -9,6 +8,7 @@ modelRoles:
   vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:medium
   advisor: openai-codex/gpt-5.6-terra:low
+  default: openai-codex/gpt-6-astra:xhigh
 cycleOrder:
   - smol
   - default
@@ -70,8 +70,8 @@ task:
   enableEffort: true
   maxEffort: xhigh
   isolation:
-    mode: auto
     commits: ai
+    enabled: true
 skills:
   enableCodexUser: false
   enableClaudeUser: false
@@ -136,3 +136,5 @@ codexResets:
 colorBlindMode: false
 composer:
   shape: box
+isolation:
+  backend: auto

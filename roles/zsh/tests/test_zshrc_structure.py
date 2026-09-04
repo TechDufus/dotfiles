@@ -59,22 +59,9 @@ class ZshrcStructureTests(unittest.TestCase):
         self.assertIn("zdharma-continuum/zinit.git", self.tasks)
         self.assertIn("depth: 1", self.tasks)
 
-    def test_secret_startup_loads_after_modules_and_continues_on_failure(self) -> None:
-        self.assertNotIn("secret", self.zshenv)
-        module_source = self.zshrc.index('source "$file"')
-        failure_guard = self.zshrc.index(
-            "if (( ! ${+functions[secret]} )) || ! secret --quiet; then",
-            module_source,
-        )
-        warning = self.zshrc.index(
-            "print -ru2 -- 'Warning: 1Password secrets are unavailable; continuing without them'",
-            failure_guard,
-        )
-        failure_guard_end = self.zshrc.index("\nfi", warning)
-        self.assertNotIn("ORCA_PANE_KEY", self.zshrc)
-        self.assertNotIn("exit", self.zshrc[failure_guard:failure_guard_end])
-        self.assertLess(module_source, failure_guard)
-        self.assertLess(failure_guard, warning)
+    def test_secret_loading_remains_explicit(self) -> None:
+        for startup_file in (self.zshrc, self.zshenv):
+            self.assertNotIn("secret --quiet", startup_file)
 
 if __name__ == "__main__":
     unittest.main()

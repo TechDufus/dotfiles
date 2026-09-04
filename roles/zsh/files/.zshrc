@@ -177,9 +177,6 @@ for file in $HOME/.config/zsh/*.zsh(N); do
   source "$file"
 done
 
-if (( ! ${+functions[secret]} )) || ! secret --quiet; then
-  print -ru2 -- 'Warning: 1Password secrets are unavailable; continuing without them'
-fi
 
 if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 

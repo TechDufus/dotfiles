@@ -59,19 +59,22 @@ class ZshrcStructureTests(unittest.TestCase):
         self.assertIn("zdharma-continuum/zinit.git", self.tasks)
         self.assertIn("depth: 1", self.tasks)
 
-    def test_orca_secret_guard_loads_after_modules_and_fails_closed(self) -> None:
+    def test_secret_startup_loads_after_modules_and_continues_on_failure(self) -> None:
         self.assertNotIn("secret", self.zshenv)
         module_source = self.zshrc.index('source "$file"')
-        startup_guard = self.zshrc.index('if [[ -n "${ORCA_PANE_KEY:-}" ]]; then', module_source)
-        secret_call = self.zshrc.index("secret --quiet", startup_guard)
-        guard_error = self.zshrc.index(
-            "Error: required Orca secrets are unavailable; closing pane", secret_call
+        failure_guard = self.zshrc.index(
+            "if (( ! ${+functions[secret]} )) || ! secret --quiet; then",
+            module_source,
         )
-        guard_exit = self.zshrc.index("exit 1", guard_error)
-        self.assertLess(module_source, startup_guard)
-        self.assertLess(startup_guard, secret_call)
-        self.assertLess(secret_call, guard_error)
-        self.assertLess(guard_error, guard_exit)
+        warning = self.zshrc.index(
+            "print -ru2 -- 'Warning: 1Password secrets are unavailable; continuing without them'",
+            failure_guard,
+        )
+        failure_guard_end = self.zshrc.index("\nfi", warning)
+        self.assertNotIn("ORCA_PANE_KEY", self.zshrc)
+        self.assertNotIn("exit", self.zshrc[failure_guard:failure_guard_end])
+        self.assertLess(module_source, failure_guard)
+        self.assertLess(failure_guard, warning)
 
 if __name__ == "__main__":
     unittest.main()

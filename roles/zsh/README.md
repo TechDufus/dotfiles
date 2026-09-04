@@ -114,13 +114,11 @@ Applied to:
 
 ### 4. 1Password secrets
 
-`.zshenv` is deliberately secret-free. Every Orca-marked interactive pane loads and validates secrets once during `.zshrc`, before its pane command runs. If loading fails, the pane closes rather than running with an unvalidated environment. Agents and nested commands in that pane inherit the validated environment.
+`.zshenv` is deliberately secret-free. Every interactive shell attempts `secret --quiet` during `.zshrc` after the secret functions are sourced. A successful load is silent; if 1Password secrets are unavailable, startup warns and continues without them.
 
-Each pane requires a 1Password authorization prompt. The values are then available to same-user processes that can inspect that pane's environment; this is the tradeoff for allowing the pane command, agents, and their children to share the validated environment.
+Secret loading may prompt for 1Password authorization. When loading succeeds, the values are available to same-user processes that can inspect the shell environment; this is the tradeoff for allowing commands and their children to share that environment.
 
-Non-Orca shells stay opt-in:
-
-- `secret` — load into the current interactive shell
+The `secret` command remains available to load secrets into the current interactive shell.
 
 ### 5. Completions and Herdr
 
@@ -186,12 +184,10 @@ flowchart LR
     H --> J[fzf-tab / autosuggest / highlighting]
     I --> K[Source Custom Modules]
     J --> K
-    K --> Orca{Orca pane?}
-    Orca -->|Yes| Secrets["Require secret --quiet"]
-    Secrets -->|Failure| Exit[Exit pane]
+    K --> Secrets["Attempt secret --quiet"]
     Secrets -->|Success| L[Zoxide]
-    Orca -->|No| L
-    L --> M[Shell Ready]
+    Secrets -->|Failure| Warn["Warn and continue without secrets"]
+    Warn --> L
 ```
 
 ## Dependencies

@@ -89,7 +89,7 @@ dev:
   autoqaConsent: granted
 tier:
   openai: default
-  subagent: default
+  subagent: inherit
   advisor: default
 statusLine:
   transparent: true

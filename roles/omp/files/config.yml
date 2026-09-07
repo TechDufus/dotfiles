@@ -28,7 +28,6 @@ compaction:
   thresholdPercent: 85
   asyncEnabled: true
   methodOrder:
-    - snapcompact
     - remote
     - handoff
     - shake

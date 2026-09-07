@@ -1,5 +1,9 @@
 ---
 providers:
+  openai-codex:
+    modelOverrides:
+      gpt-6-astra:
+        contextWindow: 272000
   ollama:
     baseUrl: http://127.0.0.1:11434
     auth: none

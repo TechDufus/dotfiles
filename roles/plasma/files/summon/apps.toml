@@ -1,5 +1,5 @@
 [apps.terminal]
-key = "t"
+key = "g"
 exec = "ghostty"
 match = [
   "class:com.mitchellh.ghostty",
@@ -13,6 +13,18 @@ match = [
 workspace = "1"
 monitor = "HDMI-A-1"
 region = "main"
+
+[apps.orca]
+key = "t"
+exec = "stably-orca"
+match = [
+  "class:orca",
+  "class:Orca",
+  "resourceClass:orca",
+  "resourceClass:Orca",
+  "desktopFileName:stably-orca",
+  "desktopFileName:stably-orca.desktop",
+]
 
 [apps.browser]
 key = "b"
@@ -47,7 +59,7 @@ monitor = "DP-1"
 region = "chat"
 
 [apps.signal]
-key = "c"
+key = "C"
 exec = "signal-desktop"
 match = [
   "class:signal",

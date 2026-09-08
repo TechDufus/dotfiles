@@ -18,8 +18,17 @@ from typing import Any
 BUS_NAME = "io.techdufus.PlasmaSummon"
 BUS_PATH = "/io/techdufus/PlasmaSummon"
 BUS_INTERFACE = "io.techdufus.PlasmaSummon"
+QT_SHIFT = 0x02000000
 QT_META = 0x10000000
 QT_HYPER = 0x1E000000
+QT_F13 = 0x0100003C
+QT_CAPS_LOCK = 0x01000024
+QT_TOOLS = 0x010000F1
+SUMMON_PREFIXES = (
+    ("F13", QT_F13),
+    ("CapsLock", QT_CAPS_LOCK),
+    ("Tools", QT_TOOLS),
+)
 
 
 def summon_shortcuts() -> list[tuple[list[str], list[int]]]:
@@ -36,6 +45,36 @@ def summon_shortcuts() -> list[tuple[list[str], list[int]]]:
             ["kwin", "Open Plasma Summon Layout Picker", "KWin", "Pick active screen layout"],
             [QT_HYPER + ord("P")],
         ),
+    ]
+
+
+def app_shortcuts(apps: dict[str, dict[str, Any]]) -> list[tuple[list[str], list[int]]]:
+    shortcuts = []
+    for app_name, app in apps.items():
+        key = app.get("key")
+        if not key:
+            continue
+        if not isinstance(key, str) or len(key) != 1:
+            raise ValueError(f"{app_name}: key must be one character")
+        letter = ord(key.upper())
+        if key.isupper():
+            letter |= QT_SHIFT
+        for prefix_name, prefix_key in SUMMON_PREFIXES:
+            shortcuts.append(
+                (
+                    ["kwin", f"Summon {app_name} via {prefix_name}", "KWin", f"Summon {app_name}"],
+                    [prefix_key, letter, 0, 0],
+                )
+            )
+    return shortcuts
+
+
+def unbound_app_shortcut_names(apps: dict[str, dict[str, Any]]) -> list[str]:
+    return [
+        f"Summon {app_name} via {prefix_name}"
+        for app_name, app in apps.items()
+        if not app.get("key")
+        for prefix_name, _ in SUMMON_PREFIXES
     ]
 
 
@@ -66,12 +105,18 @@ def obsolete_shortcut_names() -> list[str]:
         for key in ["a", "s", "e"]
         for prefix in ["CapsLock,CapsLock", "F13,F13", "Launch (5)"]
     )
+    names.extend(
+        f"Macro g via {prefix}"
+        for prefix in ["F16", "XF86Launch5", "Tools,Tools"]
+    )
     return names
 
 
-async def unregister_obsolete_shortcuts(bus: Any, message_type: Any) -> list[str]:
+async def unregister_shortcut_names(
+    bus: Any, message_type: Any, shortcut_names: list[str]
+) -> list[str]:
     removed = []
-    for shortcut_name in obsolete_shortcut_names():
+    for shortcut_name in shortcut_names:
         reply = await bus.call(
             message_type(
                 destination="org.kde.kglobalaccel",
@@ -87,6 +132,10 @@ async def unregister_obsolete_shortcuts(bus: Any, message_type: Any) -> list[str
         if reply.body and reply.body[0]:
             removed.append(shortcut_name)
     return removed
+
+
+async def unregister_obsolete_shortcuts(bus: Any, message_type: Any) -> list[str]:
+    return await unregister_shortcut_names(bus, message_type, obsolete_shortcut_names())
 
 
 def config_home() -> Path:
@@ -445,30 +494,58 @@ def pick_option(prompt: str, options_json: str) -> str:
 
     return "error:no picker found; install fuzzel, rofi, or kdialog"
 
-async def configure_shortcuts() -> list[str]:
+async def configure_shortcuts(config_dir: Path | None = None) -> list[str]:
     try:
         from dbus_next import Message
         from dbus_next.aio import MessageBus
     except ImportError as exc:
         raise SystemExit("python-dbus-next is required for shortcut configuration") from exc
 
+    apps = load_config(config_dir or default_config_dir())["apps"]
+    app_actions = app_shortcuts(apps)
     bus = await MessageBus().connect()
-    configured = [f"removed:{name}" for name in await unregister_obsolete_shortcuts(bus, Message)]
-    for action_id, keys in summon_shortcuts():
-        reply = await bus.call(
-            Message(
-                destination="org.kde.kglobalaccel",
-                path="/kglobalaccel",
-                interface="org.kde.KGlobalAccel",
-                member="setForeignShortcut",
-                signature="asai",
-                body=[action_id, keys],
+    try:
+        configured = [
+            f"removed:{name}"
+            for name in await unregister_obsolete_shortcuts(bus, Message)
+        ]
+        configured.extend(
+            f"removed:{name}"
+            for name in await unregister_shortcut_names(
+                bus, Message, unbound_app_shortcut_names(apps)
             )
         )
-        if reply.message_type.name == "ERROR":
-            raise RuntimeError(f"{action_id[1]}: {reply.body}")
-        configured.append(action_id[1])
-    return configured
+        for action_id, keys in summon_shortcuts():
+            reply = await bus.call(
+                Message(
+                    destination="org.kde.kglobalaccel",
+                    path="/kglobalaccel",
+                    interface="org.kde.KGlobalAccel",
+                    member="setForeignShortcut",
+                    signature="asai",
+                    body=[action_id, keys],
+                )
+            )
+            if reply.message_type.name == "ERROR":
+                raise RuntimeError(f"{action_id[1]}: {reply.body}")
+            configured.append(action_id[1])
+        for action_id, sequence in app_actions:
+            reply = await bus.call(
+                Message(
+                    destination="org.kde.kglobalaccel",
+                    path="/kglobalaccel",
+                    interface="org.kde.KGlobalAccel",
+                    member="setForeignShortcutKeys",
+                    signature="asa(ai)",
+                    body=[action_id, [[sequence]]],
+                )
+            )
+            if reply.message_type.name == "ERROR":
+                raise RuntimeError(f"{action_id[1]}: {reply.body}")
+            configured.append(action_id[1])
+        return configured
+    finally:
+        bus.disconnect()
 
 
 
@@ -528,7 +605,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--configure-shortcuts",
         action="store_true",
-        help="apply live KGlobalAccel shortcuts for Plasma summon pickers",
+        help="apply live KGlobalAccel shortcuts from the Plasma summon app registry",
     )
     return parser
 
@@ -560,9 +637,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.configure_shortcuts:
         try:
-            for name in asyncio.run(configure_shortcuts()):
+            for name in asyncio.run(configure_shortcuts(config_dir)):
                 print(f"shortcut:{name}")
-        except (OSError, RuntimeError) as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             print(f"error:{exc}", file=sys.stderr)
             return 1
         return 0

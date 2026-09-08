@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import asyncio
 import importlib.machinery
 import importlib.util
 import json
 import sys
 import tomllib
+import types
 import unittest
+
 import jinja2
 from pathlib import Path
 from unittest.mock import patch
@@ -130,13 +133,21 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertIn("f13 = overload(plasma_summon, oneshot(plasma_leader))", self.keyd_config)
         self.assertIn("[plasma_summon]", self.keyd_config)
         # Dvorak logical app keys arrive as different physical keyd keys:
-        # logical t -> physical k, b -> n, s -> semicolon.
+        # logical g -> physical i, t -> physical k, b -> n, s -> semicolon.
+        self.assertIn("i = macro(f13 i)", self.keyd_config)
         self.assertIn("k = macro(f13 k)", self.keyd_config)
         self.assertIn("n = macro(f13 n)", self.keyd_config)
         self.assertIn("semicolon = macro(f13 semicolon)", self.keyd_config)
         self.assertIn("b = macro(f13 b)", self.keyd_qwerty_config)
-        self.assertIn("[plasma_leader]", self.keyd_config)
-        self.assertIn("[plasma_macro_action]", self.keyd_config)
+        for config, physical_keys in [
+            (self.keyd_config, ["u", "i"]),  # Dvorak logical g and c.
+            (self.keyd_qwerty_config, ["g", "c"]),
+        ]:
+            for layer in ["plasma_summon+shift", "plasma_leader+shift"]:
+                section = config.split(f"[{layer}]\n", 1)[1].split("\n[", 1)[0]
+                bindings = dict(line.split(" = ", 1) for line in section.splitlines() if " = " in line)
+                for key in physical_keys:
+                    self.assertEqual(bindings[key], f"macro(f13 S-{key})")
 
     def test_keyd_double_tap_route_runs_macros_without_breaking_summon(self) -> None:
         self.assertIn("[plasma_leader]", self.keyd_config)
@@ -475,10 +486,22 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertNotIn("lastCellByWindow", self.script)
 
     def test_layout_selection_reapplies_active_output_and_managed_apps(self) -> None:
-        expected_apps = set(self.apps)
+        expected_apps = {
+            "terminal",
+            "browser",
+            "discord",
+            "signal",
+            "spotify",
+            "obsidian",
+            "onepassword",
+            "files",
+            "steam",
+        }
+        self.assertLessEqual(expected_apps, set(self.apps))
         for layout_name, layout in self.layouts.items():
             with self.subTest(layout=layout_name):
                 self.assertEqual(set(layout["apps"]), expected_apps)
+                self.assertNotIn("orca", layout["apps"])
                 self.assertNotIn("default_region", layout)
                 cell_count = len(layout["cells"])
                 for app_name, cell in layout["apps"].items():
@@ -633,9 +656,22 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.assertIn(marker, awesome_positions)
             self.assertIn(marker, hammerspoon_positions)
 
+        self.assertEqual(self.apps["terminal"]["key"], "g")
         self.assertEqual(self.apps["terminal"]["region"], "main")
         self.assertIn("name:ghostty", self.apps["terminal"]["match"])
         self.assertIn("desktopFileName:com.mitchellh.ghostty.desktop", self.apps["terminal"]["match"])
+        self.assertEqual(self.apps["orca"]["key"], "t")
+        self.assertEqual(self.apps["orca"]["exec"], "stably-orca")
+        self.assertNotIn("region", self.apps["orca"])
+        for selector in [
+            "class:orca",
+            "class:Orca",
+            "resourceClass:orca",
+            "resourceClass:Orca",
+            "desktopFileName:stably-orca",
+            "desktopFileName:stably-orca.desktop",
+        ]:
+            self.assertIn(selector, self.apps["orca"]["match"])
         self.assertEqual(self.apps["browser"]["region"], "wide")
         self.assertEqual(self.apps["browser"]["key"], "b")
         self.assertEqual(
@@ -670,6 +706,7 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         ]:
             self.assertIn(required, self.script)
         self.assertEqual(self.apps["discord"]["region"], "chat")
+        self.assertEqual(self.apps["signal"]["key"], "C")
         self.assertEqual(self.apps["signal"]["region"], "chat")
         self.assertEqual(self.apps["spotify"]["region"], "side")
         self.assertEqual(self.apps["onepassword"]["region"], "center")
@@ -677,7 +714,6 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         self.assertEqual(self.apps["obsidian"]["region"], "side")
         self.assertNotIn("region", self.apps["steam"])
         self.assertNotIn("key", self.apps["steam"])
-        self.assertNotIn('key: "g"', self.script)
         self.assertEqual(self.regions["main"]["w"], "65%")
         self.assertEqual(self.regions["side"]["x"], "65%")
         self.assertEqual(self.regions["top_right"]["y"], "5%")
@@ -753,7 +789,10 @@ class PlasmaRoleConfigTests(unittest.TestCase):
 class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_loads_config_and_serializes_json_for_kwin(self) -> None:
         config = plasma_summon_service.load_config(SUMMON_DIR)
-        self.assertEqual(config["apps"]["terminal"]["key"], "t")
+        self.assertEqual(
+            {name: config["apps"][name]["key"] for name in ["terminal", "orca", "signal"]},
+            {"terminal": "g", "orca": "t", "signal": "C"},
+        )
         self.assertEqual(config["regions"]["main"]["w"], "65%")
         self.assertEqual(config["layouts"]["fourk"]["apps"]["browser"], 2)
         self.assertNotIn("default_region", config["layouts"]["fourk"])
@@ -769,6 +808,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_launch_argv_is_whitelisted_by_app_registry(self) -> None:
         apps = plasma_summon_service.load_config(SUMMON_DIR)["apps"]
         self.assertEqual(plasma_summon_service.build_launch_argv(apps, "terminal"), ["ghostty"])
+        self.assertEqual(plasma_summon_service.build_launch_argv(apps, "orca"), ["stably-orca"])
         self.assertEqual(plasma_summon_service.build_launch_argv(apps, "signal"), ["signal-desktop"])
         with self.assertRaises(ValueError):
             plasma_summon_service.build_launch_argv(apps, "missing")
@@ -1074,6 +1114,130 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             ],
         )
 
+    def test_helper_encodes_app_shortcuts_for_all_prefixes_and_key_cases(self) -> None:
+        apps = {
+            "terminal": {"key": "g"},
+            "grokbot": {"key": "G"},
+            "signal": {"key": "C"},
+            "steam": {"exec": "steam"},
+        }
+        prefixes = [
+            ("F13", 0x0100003C),
+            ("CapsLock", 0x01000024),
+            ("Tools", 0x010000F1),
+        ]
+        expected = []
+        for app_name, letter in [
+            ("terminal", ord("G")),
+            ("grokbot", 0x02000000 + ord("G")),
+            ("signal", 0x02000000 + ord("C")),
+        ]:
+            for prefix, prefix_code in prefixes:
+                expected.append(
+                    (
+                        ["kwin", f"Summon {app_name} via {prefix}", "KWin", f"Summon {app_name}"],
+                        [prefix_code, letter, 0, 0],
+                    )
+                )
+
+        self.assertEqual(plasma_summon_service.app_shortcuts(apps), expected)
+
+    def test_helper_releases_unbound_app_actions_before_migrating_terminal_key(self) -> None:
+        class FakeBus:
+            def __init__(self) -> None:
+                self.calls = []
+
+            async def call(self, message):
+                message.signature_tree.verify(message.body)
+                message._marshall()
+                self.calls.append(message)
+                return types.SimpleNamespace(
+                    message_type=types.SimpleNamespace(name="METHOD_RETURN"),
+                    body=[False],
+                )
+
+            def disconnect(self) -> None:
+                pass
+
+        fake_bus = FakeBus()
+
+        class FakeMessageBus:
+            async def connect(self) -> FakeBus:
+                return fake_bus
+
+        with patch("dbus_next.aio.MessageBus", FakeMessageBus):
+            asyncio.run(plasma_summon_service.configure_shortcuts(SUMMON_DIR))
+
+        first_calls = list(fake_bus.calls)
+        steam_actions = {
+            f"Summon steam via {prefix}" for prefix in ["F13", "CapsLock", "Tools"]
+        }
+        steam_release_indices = [
+            index
+            for index, message in enumerate(first_calls)
+            if message.member == "unregister"
+            and len(message.body) == 2
+            and message.body[0] == "kwin"
+            and message.body[1] in steam_actions
+        ]
+        self.assertEqual(len(steam_release_indices), 3)
+
+        first_app_assignments = [
+            (message.signature, message.body)
+            for message in first_calls
+            if message.member == "setForeignShortcutKeys"
+        ]
+        terminal_updates = [
+            (index, message)
+            for index, message in enumerate(first_calls)
+            if message.member == "setForeignShortcutKeys"
+            and message.body[0][1].startswith("Summon terminal via ")
+        ]
+        self.assertEqual(len(terminal_updates), 3)
+        self.assertLess(max(steam_release_indices), min(index for index, _ in terminal_updates))
+
+        f13_terminal_update = next(
+            message
+            for _, message in terminal_updates
+            if message.body[0][1] == "Summon terminal via F13"
+        )
+        self.assertEqual(f13_terminal_update.signature, "asa(ai)")
+        self.assertEqual(
+            f13_terminal_update.body,
+            [
+                ["kwin", "Summon terminal via F13", "KWin", "Summon terminal"],
+                [[[0x0100003C, ord("G"), 0, 0]]],
+            ],
+        )
+
+        fake_bus.calls.clear()
+        with patch("dbus_next.aio.MessageBus", FakeMessageBus):
+            asyncio.run(plasma_summon_service.configure_shortcuts(SUMMON_DIR))
+        self.assertEqual(
+            [
+                (message.signature, message.body)
+                for message in fake_bus.calls
+                if message.member == "setForeignShortcutKeys"
+            ],
+            first_app_assignments,
+        )
+
+    def test_helper_cli_passes_config_dir_to_shortcut_configuration(self) -> None:
+        configured_dirs = []
+
+        async def configure_shortcuts(config_dir: Path | None = None) -> list[str]:
+            configured_dirs.append(config_dir)
+            return []
+
+        with patch.object(plasma_summon_service, "configure_shortcuts", configure_shortcuts):
+            self.assertEqual(
+                plasma_summon_service.main(
+                    ["--config-dir", str(SUMMON_DIR), "--configure-shortcuts"]
+                ),
+                0,
+            )
+        self.assertEqual(configured_dirs, [SUMMON_DIR])
+
     def test_helper_declares_obsolete_picker_conflicts(self) -> None:
         obsolete = plasma_summon_service.obsolete_shortcut_names()
         for name in [
@@ -1088,6 +1252,9 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             "Macro a via F13,F13",
             "Macro e via CapsLock,CapsLock",
             "Macro s via Launch (5)",
+            "Macro g via F16",
+            "Macro g via XF86Launch5",
+            "Macro g via Tools,Tools",
         ]:
             self.assertIn(name, obsolete)
 

@@ -7,7 +7,7 @@ const SUMMON_INTERFACE = "io.techdufus.PlasmaSummon";
 
 let apps = {
     terminal: {
-        key: "t",
+        key: "g",
         exec: "ghostty",
         match: [
             "class:com.mitchellh.ghostty",
@@ -21,6 +21,18 @@ let apps = {
         workspace: "1",
         monitor: "HDMI-A-1",
         region: "main",
+    },
+    orca: {
+        key: "t",
+        exec: "stably-orca",
+        match: [
+            "class:orca",
+            "class:Orca",
+            "resourceClass:orca",
+            "resourceClass:Orca",
+            "desktopFileName:stably-orca",
+            "desktopFileName:stably-orca.desktop",
+        ],
     },
     browser: {
         key: "b",
@@ -51,7 +63,7 @@ let apps = {
         region: "chat",
     },
     signal: {
-        key: "c",
+        key: "C",
         exec: "signal-desktop",
         match: [
             "class:signal",
@@ -1186,13 +1198,15 @@ function registerAppShortcuts() {
     for (let i = 0; i < names.length; i += 1) {
         const appName = names[i];
         const app = apps[appName];
-        const key = String(app.key || "").toUpperCase();
-        if (!key) {
+        const configuredKey = String(app.key || "");
+        if (!configuredKey) {
             continue;
         }
+        const key = configuredKey.toUpperCase();
+        const shortcutKey = (configuredKey !== configuredKey.toLowerCase() ? "Shift+" : "") + key;
         for (let j = 0; j < triggerPrefixes.length; j += 1) {
             const prefix = triggerPrefixes[j];
-            registerShortcut("Summon " + appName + " via " + prefix, "Summon " + appName, prefix + "," + key, function () {
+            registerShortcut("Summon " + appName + " via " + prefix, "Summon " + appName, prefix + "," + shortcutKey, function () {
                 summonApp(appName, false);
             });
         }

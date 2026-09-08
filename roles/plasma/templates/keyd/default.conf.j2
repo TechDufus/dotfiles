@@ -30,6 +30,13 @@ esc = clear()
 f13 = clear()
 capslock = clear()
 
+# A shifted leader emits an unmodified F13, then the shifted physical key.
+# Shift is associated with this composite layer, so it does not modify f13.
+[plasma_summon+shift]
+{% for key in app_passthrough_keys %}
+{{ key }} = macro(f13 S-{{ key }})
+{% endfor %}
+
 [plasma_leader]
 {% for key in app_passthrough_keys %}
 {{ key }} = macro(f13 {{ key }})
@@ -37,6 +44,12 @@ capslock = clear()
 capslock = oneshot(plasma_macro_action)
 f13 = oneshot(plasma_macro_action)
 esc = clear()
+
+# Covers the one-shot CapsLock/F13 leader path as well as a held leader.
+[plasma_leader+shift]
+{% for key in app_passthrough_keys %}
+{{ key }} = macro(f13 S-{{ key }})
+{% endfor %}
 
 [plasma_macro_action]
 a = command(/usr/local/bin/plasma-summon-keyd run cycle_same_app)

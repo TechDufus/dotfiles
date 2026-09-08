@@ -140,21 +140,18 @@ Advanced session management with fuzzy finding:
 - `Ctrl+d` - Kill session
 
 ### 4. Claude AI Dashboard
-Quick access to Claude Code status:
-- `prefix + a` - Show Claude dashboard
+Quickly gather or scatter Claude Code panes:
+- `prefix + a` - Gather or scatter the Claude dashboard
 - `prefix + A` - Show Codex pane dashboard
-- Status bar shows real-time Claude activity
-- Visual indicators for working/done/idle states
 
 ### 5. Smart Status Bar
 ```
- session-name │  ~/current/path │  main │  ◦ idle │ 󰖩 on
+ session-name │  ~/current/path │  main │  󰖩 on
 ```
 - Session name (red when prefix active, green otherwise)
 - Current directory path
 - Git branch (when in git repo)
-- Claude status (⚙ working / ✓ done / ◦ idle)
-- Network status (󰖩 on / 󰖪 off)
+- Connectivity status (󰖩 on / 󰖪 off)
 
 ## Usage
 
@@ -191,7 +188,7 @@ Ctrl+b o  # Opens sesh session manager
 | `Ctrl+h/j/k/l` | Navigate panes (with vim integration) |
 | `prefix + S` | Synchronize panes |
 | `prefix + o` | Sesh session manager |
-| `prefix + a` | Claude dashboard |
+| `prefix + a` | Gather or scatter Claude dashboard |
 | `prefix + A` | Codex dashboard |
 | `prefix + u` | Open URL in browser |
 
@@ -265,7 +262,7 @@ This will:
 - **sesh** - Advanced session management with fzf
 - **fzf** - Session switching and URL extraction
 - **zsh** - Custom `TMUX_TMPDIR` for corporate environments
-- **claude** - Dashboard integration and status monitoring
+- **claude** - Dashboard integration
 
 ## References
 

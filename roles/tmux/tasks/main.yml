@@ -20,3 +20,19 @@
     mode: "0644"
     directory_mode: "0755"
     force: true
+
+# SHA256 of the retired HEAD-managed agent-status file; preserves local changes.
+- name: "Tmux | Inspect retired agent-status"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.config/tmux/agent-status"
+    follow: false
+    checksum_algorithm: sha256
+  register: tmux_retired_agent_status
+
+- name: "Tmux | Remove unchanged retired agent-status"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/tmux/agent-status"
+    state: absent
+  when:
+    - tmux_retired_agent_status.stat.isreg | default(false)
+    - tmux_retired_agent_status.stat.checksum | default('') == '56b043e2cf7c2e1d9e3ad8e1e5b258f532919f123504566d959ad0211d1104ac'

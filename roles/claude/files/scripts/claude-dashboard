@@ -85,18 +85,6 @@ do_gather() {
   # Switch client
   tmux switch-client -t claude-monitor
 
-  # Stale status cleanup: remove status files for panes that no longer exist
-  local existing_panes
-  existing_panes=$(tmux list-panes -a -F '#{pane_id}' 2>/dev/null)
-  for status_file in "$STATUS_DIR"/pane_*.status; do
-    [ -f "$status_file" ] || continue
-    local pane_num
-    pane_num=$(basename "$status_file" .status)
-    pane_num="${pane_num#pane_}"
-    if ! echo "$existing_panes" | grep -q "^%${pane_num}$"; then
-      rm -f "$status_file"
-    fi
-  done
 }
 
 # SCATTER: return panes from monitor session to their original locations

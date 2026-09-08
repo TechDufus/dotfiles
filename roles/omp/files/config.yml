@@ -7,8 +7,8 @@ modelRoles:
   designer: openai-codex/gpt-5.6-terra:high
   vision: openai-codex/gpt-5.6-terra:high
   commit: openai-codex/gpt-5.6-luna:medium
-  advisor: openai-codex/gpt-5.6-terra:low
-  default: openai-codex/gpt-6-astra:xhigh
+  advisor: openai-codex/gpt-5.6-sol:low
+  default: openai-codex/gpt-6-astra:high
 cycleOrder:
   - smol
   - default
@@ -18,6 +18,8 @@ symbolPreset: nerd
 display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
+providers:
+  autoThinkingMaxEffort: max
 advisor:
   enabled: true
   syncBacklog: "3"
@@ -67,7 +69,7 @@ task:
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
-  enableEffort: true
+  enableEffort: false
   maxEffort: xhigh
   isolation:
     commits: ai

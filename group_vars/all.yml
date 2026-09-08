@@ -69,8 +69,6 @@ default_roles:
   - terragrunt
   - tldr
   - tmate
-  - tmux
-  - sesh
   - zoxide
   - zsh
 
@@ -145,8 +143,6 @@ go:
   packages:
     - package: github.com/go-task/task/v3/cmd/task@latest
       cmd: task
-    - package: github.com/joshmedeski/sesh/v2@latest
-      cmd: sesh
     # LSP servers for OpenCode
     - package: golang.org/x/tools/gopls@latest
       cmd: gopls

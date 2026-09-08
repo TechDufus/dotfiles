@@ -64,6 +64,36 @@
     - path: "{{ omp_launchers_dest }}"
       mode: "0755"
 
+- name: "OMP | Inspect retired local-Ollama symlinks"
+  ansible.builtin.stat:
+    path: "{{ item.dest }}"
+    follow: false
+  loop:
+    - source: "{{ role_path }}/files/overlays/local-max.yml"
+      dest: "{{ omp_overlays_dest }}/local-max.yml"
+    - source: "{{ role_path }}/files/overlays/local-assist.yml"
+      dest: "{{ omp_overlays_dest }}/local-assist.yml"
+    - source: "{{ role_path }}/files/bin/omp-local-max"
+      dest: "{{ omp_launchers_dest }}/omp-local-max"
+    - source: "{{ role_path }}/files/bin/omp-local-assist"
+      dest: "{{ omp_launchers_dest }}/omp-local-assist"
+  loop_control:
+    label: "{{ item.dest | basename }}"
+  register: omp_retired_local_ollama_symlinks
+
+- name: "OMP | Remove retired repo-managed local-Ollama symlinks"
+  ansible.builtin.file:
+    path: "{{ item.item.dest }}"
+    state: absent
+  loop: "{{ omp_retired_local_ollama_symlinks.results }}"
+  loop_control:
+    label: "{{ item.item.dest | basename }}"
+  when:
+    - item.stat.islnk | default(false)
+    - >-
+      (item.stat.lnk_source | default('')) == item.item.source
+      or (item.stat.lnk_source | default('')) == (item.item.source | realpath)
+
 - name: "{{ role_name }} | Check repo-managed OMP link sources"
   ansible.builtin.stat:
     path: "{{ item.source }}"

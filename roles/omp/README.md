@@ -4,12 +4,13 @@
 
 ## Managed files
 
-- `config.yml`, `models.yml`, `lsp.json`, and hosted or local session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; their session launchers are repo-managed symlinks under `~/.local/bin/`. `models.yml` supplies static metadata for the derived local model while retaining runtime discovery, so a stale discovery cache cannot prevent a launcher from starting. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
+- `config.yml`, `lsp.json`, `models.yml`, and the Cursor and Herd session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; the `omp-cursor` session launcher is a repo-managed symlink under `~/.local/bin/`. The Herd overlay is selected by the `/herd` extension. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
+- `models.yml` contains only the deliberate `openai-codex.gpt-6-astra.contextWindow: 272000` metadata override; it does not manage local Ollama models or modes.
 - Managed YAML is the authoritative record of current role assignments, context handling, and behavior pins. Preserve only deliberate overrides: omit a setting that matches the upstream default unless retaining it is an intentional reproducibility or behavior decision. Re-audit after OMP upgrades because inherited behavior can change with upstream defaults.
 - `mcp.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges managed servers into existing `mcpServers`, preserves unowned entries, and writes restrictive permissions because OAuth and per-user credentials may land there.
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter and focused prompts. Specialist routing and effort policy belong in their managed sources rather than this overview.
 - `extensions/*` is deployed as per-file symlinks into `~/.omp/agent/extensions/`; never symlink the whole directory. Unrelated user-installed extension files are preserved, and cleanup removes only stale repo-owned symlinks whose managed source no longer exists. Regular files at repo-managed extension names are migrated safely: identical copies are removed, while differing files are backed up outside the extensions directory before being replaced by the repo symlink.
-- The managed configuration expresses long-task, notification, security, and delegation policy. Normal cloud sessions intentionally follow upstream capability-aware compaction ordering and allow speculative provider-native work to hide latency; local modes naturally fall back to local methods. Preserve the intent to keep long-running work controlled and reviewable, and reconsider deliberate constraints when upstream behavior changes.
+- The managed configuration expresses long-task, notification, security, and delegation policy. Compaction uses the explicit remote-first order (`remote`, `handoff`, `shake`, then `soft`). `compaction.asyncEnabled` can speculate only when a speculation-capable method resolves first. Preserve the intent to keep long-running work controlled and reviewable, and reconsider deliberate constraints when upstream behavior changes.
 
 ### Context ownership
 
@@ -23,36 +24,6 @@ Keep always-visible context small and assign each concern one owner:
 
 Re-audit this ownership split and every deliberate constraint after OMP or model upgrades. Delete obsolete guidance instead of layering a second instruction over changed upstream behavior or retaining conflicting duplication.
 
-## Local Ollama modes
-
-The Ollama role installs and starts Ollama, provisions the supported base and derived local models when needed, and records their current metadata in `models.yml`. Verify provisioning with `ollama list`. The derived model exists to enforce a practical local context limit rather than relying on the base model's runtime default.
-
-`models.yml` makes the derived local model resolvable before runtime discovery refreshes and retains discovery for other local models. Current selectors, capabilities, and context metadata are maintained there.
-
-The role starts only the lightweight Ollama server; it does not preload the large model into GPU memory. OMP or `ollama-qwen` loads it on first use. Preload and pin it explicitly, then release it immediately, with the shell-independent commands:
-
-```sh
-ollama-qwen-start
-ollama-qwen-stop
-```
-
-`ollama-qwen-start` keeps the derived model loaded until `ollama-qwen-stop` runs. Without the explicit start command, normal Ollama keep-alive behavior unloads an idle OMP model automatically.
-
-Run either managed launcher for an interactive or print-mode OMP session:
-
-```sh
-omp-local-max
-omp-local-assist
-omp-local-max --cwd /path/to/repo "Review this change"
-```
-
-Both launchers select their managed overlay, publish the derived model's practical context limit, and forward session arguments unchanged. They are session launchers, not wrappers for every OMP management subcommand; use `omp` directly for management commands.
-
-`omp-local-max` is the fully local mode: normal role resolution stays local, and its managed configuration prevents automatic hosted-model fallback. An explicit CLI model override remains an intentional escape hatch.
-
-`omp-local-assist` is the hybrid mode: it keeps the selected fast and supporting work local while retaining the normal cloud roles needed for higher-capability work. Its configuration deliberately leaves those inherited cloud roles available.
-
-These modes use CLI `--config` overlays rather than named profiles. A named profile relocates the complete OMP user base and would lose the normal base's global rules, agents, extensions, skills, authentication, and session state unless all of them were duplicated. An overlay changes only the listed settings while preserving the normal `~/.omp/agent` base.
 
 ## Cursor session mode
 
@@ -65,7 +36,7 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 `omp-cursor` selects its managed CLI `--config` overlay and forwards session arguments unchanged. It is a session mode, not a wrapper for OMP management subcommands; use `omp` directly for those.
 
-Like the local modes, this uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
+This uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
 
 The overlay mirrors the normal OMP role map one-for-one and changes only the provider from `openai-codex` to `cursor`:
 
@@ -143,7 +114,7 @@ Preferred repo-managed additions are generic specialists such as `gap-advisor`, 
 
 LSP strategy: rely on OMP built-ins first, then Bun-installed JavaScript LSP server packages for common web/config languages, with `lsp.json` reserved for explicit gaps or repo-specific overrides such as Ansible. Do not duplicate built-ins in `lsp.json` unless overriding a concrete issue.
 
-External provider discovery is intentionally disabled in `config.yml`, including ambient Claude, Codex, OpenCode, Cline, Gemini, Windsurf, VS Code, GitHub, and Bedrock discovery/import paths plus external user/project skills and commands. Cursor remains enabled for explicit authenticated model selection, but no managed role depends on it. Repo-managed OMP files are the source of truth for global behavior.
+External provider discovery is intentionally disabled in `config.yml`, including local Ollama and ambient Claude, Codex, OpenCode, Cline, Gemini, Windsurf, VS Code, GitHub, and Bedrock discovery/import paths plus external user/project skills and commands. Cursor remains enabled for explicit authenticated model selection, but no managed role depends on it. Repo-managed OMP files are the source of truth for global behavior.
 
 ## Out of scope for this README
 

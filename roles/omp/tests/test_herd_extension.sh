@@ -521,7 +521,7 @@ async function success() {
 }
 await success();
 {
-  const model = "ollama/qwen3.6:35b-omp";
+  const model = "example/atlas:2026-09";
   const effort = "xhigh";
   const harness = makeHarness();
   await harness.handler(`context --model=${model}:${effort}`, harness.ctx);

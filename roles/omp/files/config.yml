@@ -44,6 +44,7 @@ disabledProviders:
   - vscode
   - github
   - amazon-bedrock
+  - ollama
 marketplace:
   autoUpdate: auto
 bashInterceptor:

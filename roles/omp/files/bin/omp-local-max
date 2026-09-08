@@ -1,3 +1,0 @@
-#!/bin/sh
-export OLLAMA_CONTEXT_LENGTH=65536
-exec omp --config "${HOME}/.omp/agent/overlays/local-max.yml" "$@"

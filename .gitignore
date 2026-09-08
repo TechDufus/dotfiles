@@ -7,6 +7,12 @@ __pycache__/
 
 roles/neovim/files/lazy-lock.json
 
+# Defensive only: refresh rejects Git worktree destinations, but never stage a
+# local plaintext cache or its temporary files if XDG_STATE_HOME is misdirected.
+secrets.zsh
+.secrets.zsh.*
+.secrets.restore.*
+
 .DS_Store
 *.DS_Store
 

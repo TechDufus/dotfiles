@@ -9,16 +9,8 @@ is_tty() {
   [[ -o interactive && -n "${TTY:-}" && -w "$TTY" ]]
 }
 
-is_cursor_agent() {
-  [[ -n "${CURSOR_AGENT:-}" ]]
-}
-
 is_agent_shell() {
   [[ -n "${CURSOR_AGENT:-}" || -n "${CLAUDECODE:-}" || -n "${CODEX_CI:-}" || -n "${CODEX_SANDBOX:-}" ]]
-}
-
-is_herdr_session() {
-  [[ -n "${HERDR_ENV:-}" || -n "${HERDR_WORKSPACE_ID:-}" ]]
 }
 
 if is_ssh_session; then
@@ -176,15 +168,6 @@ for file in $HOME/.config/zsh/*.zsh(N); do
   esac
   source "$file"
 done
-
-# Load secrets for normal interactive terminals without blocking shell startup
-# when 1Password is unavailable or locked. Agent shells clear inherited state.
-if is_agent_shell; then
-  secret --quiet --clear >/dev/null 2>&1 || true
-elif is_tty; then
-  secret --quiet >/dev/null 2>&1 || true
-fi
-
 
 if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 

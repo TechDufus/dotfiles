@@ -17,12 +17,14 @@ home_dir="$tmp_dir/home"
 no_zoxide_bin="$tmp_dir/no-zoxide-bin"
 data_dir="$tmp_dir/data"
 bin_dir="$tmp_dir/bin"
+state_dir="$tmp_dir/state"
 stale_fpath="$tmp_dir/stale-zsh-functions"
 
 mkdir -p \
   "$home_dir/.config/zsh" \
   "$data_dir/zinit/zinit.git" \
   "$data_dir/zinit/completions" \
+  "$state_dir" \
   "$bin_dir" \
   "$no_zoxide_bin" \
   "$stale_fpath"
@@ -67,10 +69,11 @@ ln -s "$(command -v find)" "$no_zoxide_bin/find"
 chmod +x "$bin_dir/zoxide"
 
 # shellcheck disable=SC2016
-HOME="$home_dir" \
+env -i TERM=dumb HOME="$home_dir" \
 XDG_DATA_HOME="$data_dir" \
+XDG_STATE_HOME="$state_dir" \
 ZDOTDIR="$home_dir" \
-PATH="$bin_dir:$PATH" \
+PATH="$bin_dir:/usr/bin:/bin" \
 FPATH="$stale_fpath" \
 CURSOR_AGENT= \
 "$zsh_bin" -i -c '
@@ -97,8 +100,9 @@ CURSOR_AGENT= \
 '
 
 startup_output="$(
-  HOME="$home_dir" \
+  env -i TERM=dumb HOME="$home_dir" \
   XDG_DATA_HOME="$data_dir" \
+  XDG_STATE_HOME="$state_dir" \
   ZDOTDIR="$home_dir" \
   PATH="$no_zoxide_bin" \
   FPATH="$stale_fpath" \
@@ -111,7 +115,11 @@ if [[ "$startup_output" == *zoxide* ]]; then
 fi
 
 tasks_output="$(
-  REPO_ROOT="$repo_root" "$zsh_bin" -i -c 'source "$REPO_ROOT/roles/zsh/files/zsh/tasks.zsh"' 2>&1
+  env -i TERM=dumb HOME="$home_dir" ZDOTDIR="$home_dir" \
+    XDG_DATA_HOME="$data_dir" XDG_STATE_HOME="$state_dir" \
+    XDG_CACHE_HOME="$tmp_dir/cache" XDG_CONFIG_HOME="$home_dir/.config" \
+    PATH="$bin_dir:/usr/bin:/bin" REPO_ROOT="$repo_root" \
+    "$zsh_bin" -i -c 'source "$REPO_ROOT/roles/zsh/files/zsh/tasks.zsh"' 2>&1
 )"
 if [[ "$tasks_output" == *"can't change option: monitor"* ]]; then
   printf '%s\n' "$tasks_output" >&2

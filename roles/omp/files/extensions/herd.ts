@@ -6,7 +6,6 @@ import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 const EXEC_TIMEOUT = 15_000;
 const AGENT_START_TIMEOUT = 30_000;
-const SECRET_AGENT_START_TIMEOUT = 120_000;
 const AGENT_START_WRAPPER_GRACE = 5_000;
 const WT_TIMEOUT = 300_000;
 const AGENT_START_BUSY_GRACE = 5_000;
@@ -20,15 +19,14 @@ const HERD_MANAGED_ENV = "OMP_HERD_MANAGED";
 const HERD_SOURCE_ROOT_ENV = "OMP_HERD_SOURCE_ROOT";
 const HERD_CHECKOUT_ENV = "OMP_HERD_CHECKOUT";
 const HERD_BRANCH_ENV = "OMP_HERD_BRANCH";
-const HERD_LOAD_SECRETS_ENV = "OMP_HERD_LOAD_SECRETS";
 const WORKTRUNK_DEFAULT_BASE = "^";
 
 const HERD_HELP_TEXT = `Usage:
   /herd
   /herd <exact task>
-  /herd context [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
-  /herd task [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--no-secret] [--dry-run] -- <exact task>
-  /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--no-secret] [--dry-run] [-- <additional exact instructions>]
+  /herd context [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--dry-run] [-- <additional exact instructions>]
+  /herd task [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--dry-run] -- <exact task>
+  /herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--model=<model-selector>:<effort>] [--dry-run] [-- <additional exact instructions>]
   Unqualified issue numbers (\`123\` or \`#123\`) target the current repository.
   Qualified issues may target the current repository or its direct fork parent only; arbitrary repositories are not supported.
   /herd done [--force|-f] [--delete|-d]
@@ -39,7 +37,6 @@ Options:
   --dry-run        Resolve and report without creating resources (default: off)
   --model=<model-selector>:<effort>
                      Set the child OMP model and thinking effort together (for example, --model=openai-codex/gpt-5.6-terra:xhigh)
-  --no-secret      Do not load the user's zsh secret environment automatically (default: automatic secret loading on)
   --                Treat the remaining text as one opaque instruction string
 
 Blank input defaults to context mode. Bare prose defaults to task mode.
@@ -65,7 +62,6 @@ export interface HerdRequest {
 	model?: string;
 	effort?: ThinkingLevel;
 	dryRun: boolean;
-	loadSecrets: boolean;
 	issue?: string;
 	instructions: string;
 }
@@ -167,7 +163,7 @@ export function parseHerdArgs(raw: string): HerdRequest {
 	const trimmed = raw.trim();
 	const first = words(trimmed)[0];
 	if (first && first !== "context" && first !== "task" && first !== "issue" && !first.startsWith("-")) {
-		return { mode: "task", dryRun: false, loadSecrets: true, instructions: trimmed };
+		return { mode: "task", dryRun: false, instructions: trimmed };
 	}
 	const split = splitDelimiter(raw);
 	const tokens = words(split.head);
@@ -179,11 +175,9 @@ export function parseHerdArgs(raw: string): HerdRequest {
 	let model: string | undefined;
 	let effort: ThinkingLevel | undefined;
 	let dryRun = false;
-	let loadSecrets = true;
 	let issue: string | undefined;
 	for (const token of tokens) {
 		if (token === "--dry-run") dryRun = true;
-		else if (token === "--no-secret") loadSecrets = false;
 		else if (token.startsWith("--branch=")) branch = token.slice(9);
 		else if (token.startsWith("--base=")) base = token.slice(7);
 		else if (token === "--model") throw new HerdError("--model must use --model=<model-selector>:<effort>");
@@ -203,7 +197,6 @@ export function parseHerdArgs(raw: string): HerdRequest {
 		base,
 		...(model !== undefined && effort !== undefined ? { model, effort } : {}),
 		dryRun,
-		loadSecrets,
 		issue,
 		instructions: split.tail,
 	};
@@ -1081,7 +1074,7 @@ export default function herd(pi: ExtensionAPI): void {
 					const modelNotice = request.model !== undefined && request.effort !== undefined
 						? ` Model override would be ${request.model}:${request.effort}.`
 						: "";
-					ctx.ui.notify(`Dry run: would create ${branch} from ${base} in workspace ${caller.workspaceId}. Secret loading would ${request.loadSecrets ? "" : "not "}occur.${modelNotice}`, "info");
+					ctx.ui.notify(`Dry run: would create ${branch} from ${base} in workspace ${caller.workspaceId}.${modelNotice}`, "info");
 					return;
 				}
 				const wtCaller = await freshCaller(ctx, repo.root);
@@ -1119,7 +1112,6 @@ export default function herd(pi: ExtensionAPI): void {
 					"--env", `${HERD_SOURCE_ROOT_ENV}=${repo.root}`,
 					"--env", `${HERD_CHECKOUT_ENV}=${checkoutPath}`,
 					"--env", `${HERD_BRANCH_ENV}=${branch}`,
-					...(request.loadSecrets ? ["--env", `${HERD_LOAD_SECRETS_ENV}=1`] : []),
 					"--no-focus",
 				], repo.root, true);
 				if (tabCommand.exitCode !== 0 || tabCommand.killed) {
@@ -1142,7 +1134,7 @@ export default function herd(pi: ExtensionAPI): void {
 				owned.created = "checkout, tab; agent creation unknown";
 				owned.ompMayRun = true;
 				owned.lastState = "agent start pending; OMP state unknown";
-				const agentStartTimeout = request.loadSecrets ? SECRET_AGENT_START_TIMEOUT : AGENT_START_TIMEOUT;
+				const agentStartTimeout = AGENT_START_TIMEOUT;
 				const ompArgv = request.model !== undefined && request.effort !== undefined
 					? ["--config", overlayPath, "--model", request.model, "--thinking", request.effort]
 					: ["--config", overlayPath];

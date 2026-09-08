@@ -513,7 +513,7 @@ _herd.reset_state() {
   typeset -g _HERD_STDOUT="" _HERD_STDERR="" _HERD_EXIT=0 _HERD_KILLED=false
   typeset -g _HERD_FAILURE="" _HERD_FAILURE_HAS_RESULT=0
   typeset -g _HERD_MODE=context _HERD_BRANCH="" _HERD_BASE="^"
-  typeset -g _HERD_HAS_BRANCH=0 _HERD_HAS_BASE=0 _HERD_DRY_RUN=0 _HERD_LOAD_SECRETS=1
+  typeset -g _HERD_HAS_BRANCH=0 _HERD_HAS_BASE=0 _HERD_DRY_RUN=0
   typeset -g _HERD_ISSUE="" _HERD_INSTRUCTIONS="" _HERD_DONE_MODE=plain
   typeset -g _HERD_CALLER_WORKSPACE="" _HERD_CALLER_TAB="" _HERD_CALLER_PANE="" _HERD_CALLER_CWD=""
   typeset -g _HERD_ORIG_WORKSPACE="" _HERD_ORIG_PANE=""
@@ -777,7 +777,6 @@ _herd.parse_args() {
   _HERD_HAS_BRANCH=0
   _HERD_HAS_BASE=0
   _HERD_DRY_RUN=0
-  _HERD_LOAD_SECRETS=1
   _HERD_ISSUE=""
   _HERD_INSTRUCTIONS=""
   if (( $# == 0 )); then
@@ -812,7 +811,6 @@ _herd.parse_args() {
   for token in "${tokens[@]}"; do
     case "$token" in
       --dry-run) _HERD_DRY_RUN=1 ;;
-      --no-secret) _HERD_LOAD_SECRETS=0 ;;
       --branch=*)
         _HERD_BRANCH="${token#--branch=}"
         _HERD_HAS_BRANCH=1
@@ -986,18 +984,13 @@ _herd.create_inner() {
   fi
   _herd.unique_branch "$_HERD_REPO_ROOT" "$_HERD_BRANCH" "$_HERD_HAS_BRANCH" "$generated_seed" "$generated_type" || return
   if (( _HERD_DRY_RUN )); then
-    local base_notice secret_notice
+    local base_notice
     if (( _HERD_HAS_BASE )); then
       base_notice="$_HERD_BASE"
     else
       base_notice="Worktrunk's detected default branch (resolved during the real handoff)"
     fi
-    if (( _HERD_LOAD_SECRETS )); then
-      secret_notice="occur"
-    else
-      secret_notice="not occur"
-    fi
-    _herd.info "Dry run: would create ${_HERD_BRANCH_FINAL} from ${base_notice} in workspace ${_HERD_CALLER_WORKSPACE}. Secret loading would ${secret_notice}."
+    _herd.info "Dry run: would create ${_HERD_BRANCH_FINAL} from ${base_notice} in workspace ${_HERD_CALLER_WORKSPACE}."
     return 0
   fi
   _herd.reresolve Worktrunk "$_HERD_REPO_ROOT" || return
@@ -1051,9 +1044,6 @@ _herd.create_inner() {
     --env "OMP_HERD_CHECKOUT=${_HERD_CHECKOUT_PATH}"
     --env "OMP_HERD_BRANCH=${_HERD_BRANCH_FINAL}"
   )
-  if (( _HERD_LOAD_SECRETS )); then
-    tab_argv+=(--env "OMP_HERD_LOAD_SECRETS=1")
-  fi
   tab_argv+=(--no-focus)
   _herd.run 15000 "$_HERD_REPO_ROOT" 1 herdr "${tab_argv[@]}" || return
   if [[ "$_HERD_KILLED" == true ]] || (( _HERD_EXIT != 0 )); then
@@ -1581,9 +1571,9 @@ herd.help() {
   print -r -- "Usage:"
   print -r -- "  herd"
   print -r -- "  herd <exact task>"
-  print -r -- "  herd context [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] [-- <additional exact instructions>]"
-  print -r -- "  herd task [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] -- <exact task>"
-  print -r -- "  herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--no-secret] [--dry-run] [-- <additional exact instructions>]"
+  print -r -- "  herd context [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]"
+  print -r -- "  herd task [--branch=<name>] [--base=<ref>] [--dry-run] -- <exact task>"
+  print -r -- "  herd issue <123|#123|owner/repo#123|GitHub URL> [--branch=<name>] [--base=<ref>] [--dry-run] [-- <additional exact instructions>]"
   print -r -- "  Unqualified issue numbers (\`123\` or \`#123\`) target the current repository."
   print -r -- "  Qualified issues may target the current repository or its direct fork parent only; arbitrary repositories are not supported."
   print -r -- "  herd done [--force|-f] [--delete|-d]"

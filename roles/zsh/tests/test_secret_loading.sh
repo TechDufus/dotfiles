@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 zsh_bin="${ZSH_BIN:-zsh}"
+loader="$repo_root/roles/zsh/files/zsh/vars.secret_functions.zsh"
 
 if ! command -v "$zsh_bin" >/dev/null; then
   echo "SKIP: zsh not installed"
@@ -10,192 +11,126 @@ if ! command -v "$zsh_bin" >/dev/null; then
 fi
 zsh_bin="$(command -v "$zsh_bin")"
 
+if [[ ! -f "$loader" ]]; then
+  echo "missing secret loader: $loader" >&2
+  exit 1
+fi
+
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 bin_dir="$tmp_dir/bin"
-home_dir="$tmp_dir/home"
-secret_file="$home_dir/.config/zsh/vars.secret"
-op_operations="$tmp_dir/op.operations"
-op_accounts="$tmp_dir/op.accounts"
-secret_tmp_dir="$tmp_dir/secret-tmp"
-mkdir -p "$bin_dir" "$home_dir/.config/zsh" "$secret_tmp_dir"
-cp "$repo_root/roles/zsh/files/zsh/vars.secret_functions.zsh" \
-  "$home_dir/.config/zsh/vars.secret_functions.zsh"
+mkdir -p "$bin_dir"
 
 cat > "$bin_dir/op" <<'OP'
 #!/usr/bin/env sh
+set -eu
 
-record_fixture() {
-  file="$1"
-  value="$2"
-  lock_dir="$file.lock"
+operation_log="${OP_CONFIG_DIR:?}/operations"
+rotation_file="${OP_CONFIG_DIR:?}/rotation"
+
+record_operation() {
+  lock_dir="$operation_log.lock"
   attempts=0
   until mkdir "$lock_dir" 2>/dev/null; do
     attempts=$((attempts + 1))
     [ "$attempts" -lt 400 ] || exit 72
     sleep 0.01
   done
-  printf '%s\n' "$value" >> "$file"
+  printf '%s\n' "$1" >> "$operation_log"
   rmdir "$lock_dir"
 }
 
-record_operation() {
-  record_fixture "${OP_OPERATIONS:?}" "$1"
-}
-
-record_account() {
-  record_fixture "${OP_ACCOUNTS:?}" "$1"
-}
-
 resolve_reference() {
-  case "${OP_PROFILE_READ_MODE-}:$1" in
-    conditional-failure:op://fixture/conditional-network|conditional-failure:op://fixture/conditional-local)
-      return 17
-      ;;
-  esac
-
   case "$1" in
-    op://fixture/reload-first) printf '%s' 'fixture-reload-first' ;;
-    op://fixture/reload-second) printf '%s' 'fixture-reload-second' ;;
-    op://fixture/parallel-alpha) printf '%s' 'fixture-parallel-alpha' ;;
-    op://fixture/parallel-bravo) printf '%s' 'fixture-parallel-bravo' ;;
+    op://fixture/rotation)
+      count=0
+      [ ! -f "$rotation_file" ] || count="$(cat "$rotation_file")"
+      count=$((count + 1))
+      printf '%s\n' "$count" > "$rotation_file"
+      printf 'fixture-rotation-%s' "$count"
+      ;;
+    op://fixture/literal-meta) printf '%s' "quote'double\"\$*?;[]\\" ;;
+    op://fixture/literal-multiline) printf 'first line\nsecond line' ;;
+    op://fixture/literal-empty) ;;
+    op://fixture/literal-trailing)
+      printf 'ends-with-newline\n'
+      ;;
+    op://fixture/status-value) printf '%s' 'fixture-status-value' ;;
+    op://fixture/wave-alpha) printf '%s' 'fixture-wave-alpha' ;;
+    op://fixture/wave-network) printf '%s' 'fixture-wave-network' ;;
+    op://fixture/wave-local) printf '%s' 'fixture-wave-local' ;;
+    op://fixture/wave-dependent) printf '%s' 'fixture-wave-dependent' ;;
     op://fixture/failure-alpha) printf '%s' 'fixture-failure-alpha' ;;
     op://fixture/failure-bravo) return 17 ;;
-    op://fixture/empty) ;;
-    op://fixture/malformed-alpha) printf '%s' 'fixture-malformed-alpha' ;;
-    op://fixture/malformed-bravo) printf '%s' 'fixture-malformed-bravo' ;;
-    op://fixture/conditional-alpha) printf '%s' 'fixture-conditional-alpha' ;;
-    op://fixture/conditional-network) printf '%s' 'fixture-conditional-network' ;;
-    op://fixture/conditional-local) printf '%s' 'fixture-conditional-local' ;;
-    op://fixture/conditional-dependent) printf '%s' 'fixture-conditional-dependent' ;;
-    op://fixture/prior-alpha) printf '%s' 'fixture-prior-alpha' ;;
-    op://fixture/prior-bravo) printf '%s' 'fixture-prior-bravo' ;;
-    op://fixture/current-gamma) printf '%s' 'fixture-current-gamma' ;;
-    op://fixture/current-delta) return 23 ;;
-    op://fixture/inherited-alpha) printf '%s' 'fixture-inherited-alpha' ;;
-    op://fixture/mixed-alpha) printf '%s' 'fixture-mixed-alpha' ;;
-    op://fixture/mixed-bravo) printf '%s' 'fixture-mixed-bravo' ;;
-    op://fixture/mixed-failure) return 29 ;;
+    op://fixture/previous-cache) printf '%s' 'fixture-previous-cache' ;;
     op://fixture/readonly-target) printf '%s' 'fixture-readonly-target' ;;
     op://fixture/readonly-other) printf '%s' 'fixture-readonly-other' ;;
-    op://fixture/unrelated-alpha) printf '%s' 'fixture-unrelated-alpha' ;;
-    op://fixture/unset-target) printf '%s' 'fixture-unset-target' ;;
-    op://fixture/var-target) printf '%s' 'fixture-var-target' ;;
     *) return 70 ;;
   esac
 }
 
-await_read_peer() {
-  marker_dir="${OP_READ_BARRIER:?}"
-  mkdir -p "$marker_dir" || exit 72
-  marker="$marker_dir/$$"
-  : > "$marker"
-  attempts=0
+export_fixture() {
+  name="$1"
+  reference="$2"
 
-  while :; do
-    peer_count=0
-    for peer in "$marker_dir"/*; do
-      [ -e "$peer" ] || continue
-      peer_count=$((peer_count + 1))
-    done
-    [ "$peer_count" -ge 2 ] && break
-    attempts=$((attempts + 1))
-    if [ "$attempts" -ge 200 ]; then
-      rm -f "$marker"
-      exit 73
-    fi
-    sleep 0.01
-  done
-
+  case "$reference" in
+    op://fixture/literal-meta)
+      export "$name=quote'double\"\$*?;[]\\"
+      ;;
+    op://fixture/literal-multiline)
+      export "$name=first line
+second line"
+      ;;
+    op://fixture/literal-empty)
+      export "$name="
+      ;;
+    op://fixture/literal-trailing)
+      export "$name=ends-with-newline
+"
+      ;;
+    *)
+      value="$(resolve_reference "$reference")" || return "$?"
+      export "$name=$value"
+      ;;
+  esac
 }
 
 case "${1-}" in
   vault)
+    record_operation vault
     exit 0
     ;;
   read)
-    shift
     reference=""
     for argument in "$@"; do
       reference="$argument"
     done
-    record_operation read
-
-    if [ -n "${OP_REJECT_CONCURRENT_READS-}" ]; then
-      if ! mkdir "${OP_CONCURRENT_READ_LOCK:?}" 2>/dev/null; then
-        exit 74
-      fi
-      sleep 0.1
-      rmdir "${OP_CONCURRENT_READ_LOCK:?}"
-    fi
-    if [ -n "${OP_REQUIRE_READ_OVERLAP-}" ]; then
-      await_read_peer
-    fi
+    record_operation "read:$reference"
     resolve_reference "$reference"
     ;;
   run)
     shift
-    account="${2-}"
-    [ "${1-}" = --account ] && [ -n "$account" ] &&
-      [ "${3-}" = --no-masking ] && [ "${4-}" = -- ] &&
-      [ -n "${5-}" ] || exit 71
-    case "$account" in
-      fixture-account|fixture-second-account) ;;
-      *) exit 75 ;;
-    esac
-    shift 4
-    record_operation run
-    if [ -n "${OP_ACCOUNTS-}" ]; then
-      record_account "$account"
-    fi
+    [ "${1-}" = --account ] && [ -n "${2-}" ] || exit 71
+    account="$2"
+    shift 2
+    [ "${1-}" != --no-masking ] || shift
+    [ "${1-}" = -- ] || exit 71
+    shift
+    record_operation "run:$account"
 
-    run_lock=""
-    assignments=""
-    cleanup_run() {
-      [ -z "$assignments" ] || rm -f "$assignments"
-      [ -z "$run_lock" ] || rmdir "$run_lock" 2>/dev/null || true
-    }
-    trap cleanup_run EXIT HUP INT TERM
-    if [ -n "${OP_REJECT_CONCURRENT_RUNS-}" ]; then
-      run_lock="${OP_CONCURRENT_RUN_LOCK:?}"
-      if ! mkdir "$run_lock" 2>/dev/null; then
-        exit 76
-      fi
-      sleep 0.1
-    fi
-
-    assignments="$(umask 077; mktemp "${TMPDIR:-/tmp}/op-run.XXXXXX")" || exit 72
-    if ! env | while IFS= read -r entry; do
+    while IFS= read -r entry; do
       name="${entry%%=*}"
       reference="${entry#*=}"
       case "$reference" in
         op://fixture/*)
-          value="$(resolve_reference "$reference")" || exit "$?"
-          printf '%s\t%s\n' "$name" "$value" >> "$assignments"
-          ;;
-        op://*)
-          exit 28
+          export_fixture "$name" "$reference" || exit "$?"
           ;;
       esac
-    done
-    then
-      exit 17
-    fi
+    done <<EOF
+$(env)
+EOF
 
-    while IFS='	' read -r name value; do
-      export "$name=$value" || exit 17
-    done < "$assignments"
-    rm -f "$assignments"
-    assignments=""
-
-    if [ "${OP_BATCH_OUTPUT_MODE-}" = malformed ]; then
-      "$@" >/dev/null || exit "$?"
-      printf '\0'
-      exit 0
-    fi
-    "$@"
-    child_status="$?"
-    exit "$child_status"
+    exec "$@"
     ;;
   *)
     exit 71
@@ -204,845 +139,589 @@ esac
 OP
 chmod +x "$bin_dir/op"
 
-cat > "$bin_dir/tailscale" <<'TAILSCALE'
-#!/usr/bin/env sh
-
-case "${TAILSCALE_IP_RESULT-}" in
-  success) exit 0 ;;
-  *) exit 1 ;;
-esac
-TAILSCALE
-chmod +x "$bin_dir/tailscale"
-
-cat > "$home_dir/.config/zsh/secret_batch_test_helper.zsh" <<'ZSH'
-functions -c __secret_op_run_environment_allowed __secret_test_original_op_run_environment_allowed
-function __secret_op_run_environment_allowed() {
-  case "$1" in
-    OP_OPERATIONS|OP_ACCOUNTS|OP_PROFILE_READ_MODE|OP_BATCH_OUTPUT_MODE|OP_REJECT_CONCURRENT_RUNS|OP_CONCURRENT_RUN_LOCK)
-      return 0
-      ;;
-  esac
-  __secret_test_original_op_run_environment_allowed "$@"
+fail() {
+  echo "test_secret_loading: $*" >&2
+  exit 1
 }
-function __secret_use_single_process_batch() {
-  return 0
+
+new_case() {
+  local name="$1"
+
+  case_dir="$tmp_dir/$name"
+  home_dir="$case_dir/home"
+  run_tmp_dir="$case_dir/tmp"
+  state_dir="$case_dir/state"
+  op_config_dir="$case_dir/op-config"
+  op_log="$op_config_dir/operations"
+
+  mkdir -p "$home_dir/.config/zsh" "$run_tmp_dir" "$state_dir" "$op_config_dir"
+  cp "$loader" "$home_dir/.config/zsh/vars.secret_functions.zsh"
+  : > "$op_log"
 }
+
+write_recipe() {
+  cat > "$home_dir/.config/zsh/vars.secret"
+}
+
+run_zsh() {
+  env -i \
+    HOME="$home_dir" \
+    TMPDIR="$run_tmp_dir" \
+    XDG_STATE_HOME="$state_dir" \
+    PATH="$bin_dir:/usr/bin:/bin" \
+    OP_ACCOUNT=fixture-account \
+    OP_CONFIG_DIR="$op_config_dir" \
+    OSTYPE=linux-gnu \
+    "$zsh_bin" -df
+}
+
+operation_count() {
+  local prefix="$1" line count=0
+  while IFS= read -r line; do
+    if [[ "$line" == "$prefix"* ]]; then
+      ((count += 1))
+    fi
+  done < "$op_log"
+  printf '%s\n' "$count"
+}
+
+expect_operation_count() {
+  local prefix="$1" expected="$2" actual
+  actual="$(operation_count "$prefix")"
+  [[ "$actual" == "$expected" ]] ||
+    fail "expected $expected $prefix operation(s), found $actual"
+}
+
+expect_no_operations() {
+  [[ ! -s "$op_log" ]] || fail "unexpected op invocation"
+}
+
+assert_quiet_output() {
+  local stdout="$1" stderr="$2"
+  [[ ! -s "$stdout" && ! -s "$stderr" ]] ||
+    fail "--quiet produced user-interface output"
+}
+
+assert_private_cache() {
+  local cache="$state_dir/zsh/secrets.zsh"
+  local cache_dir="$state_dir/zsh"
+  local cache_dir_mode
+
+  [[ -f "$cache" && ! -L "$cache" ]] || fail "cache is not a regular file"
+  [[ "$(stat -c '%a' "$cache")" == 600 ]] || fail "cache is not mode 0600"
+  [[ -d "$cache_dir" && ! -L "$cache_dir" ]] || fail "cache directory is unsafe"
+  cache_dir_mode="$(stat -c '%a' "$cache_dir")"
+  [[ "$cache_dir_mode" =~ ^[0-7]00$ ]] || fail "cache directory is not private"
+}
+
+assert_cache_exports() {
+  local cache="$state_dir/zsh/secrets.zsh"
+  local line name metadata=1
+  declare -A expected=()
+  declare -A seen=()
+
+  for name in "$@"; do
+    expected["$name"]=1
+  done
+
+  # Name comments precede the first export.  Do not mistake lines in a
+  # shell-quoted multiline value for another cache statement.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    (( metadata )) || continue
+    case "$line" in
+      '# zsh-secret-cache-format: 1')
+        ;;
+      '# zsh-secret-name: '*)
+        name="${line#\# zsh-secret-name: }"
+        [[ -n "${expected[$name]-}" ]] || fail "cache names undeclared $name"
+        [[ -z "${seen[$name]-}" ]] || fail "cache names $name more than once"
+        seen["$name"]=1
+        ;;
+      export\ *)
+        metadata=0
+        ;;
+      *)
+        fail "cache contains a non-export statement"
+        ;;
+    esac
+  done < "$cache"
+
+  for name in "$@"; do
+    [[ -n "${seen[$name]-}" ]] || fail "cache omits $name"
+  done
+}
+
+# Default and explicit reloads always refresh rather than trusting an existing
+# cache. The fixtures deliberately include shell-sensitive and byte-boundary
+# values so the cache must be safe to source directly in a fresh shell.
+new_case refresh-and-cache
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_ROTATION --account "$OP_ACCOUNT" "op://fixture/rotation" || return 1
+__secret_export_op_read TEST_LITERAL_META --account "$OP_ACCOUNT" "op://fixture/literal-meta" || return 1
+__secret_export_op_read TEST_LITERAL_MULTILINE --account "$OP_ACCOUNT" "op://fixture/literal-multiline" || return 1
+__secret_export_op_read TEST_LITERAL_EMPTY --account "$OP_ACCOUNT" "op://fixture/literal-empty" || return 1
+__secret_export_op_read TEST_LITERAL_TRAILING --account "$OP_ACCOUNT" "op://fixture/literal-trailing" || return 1
 ZSH
 
-expect_operations() {
-  local expected actual
-  expected="$(printf '%s\n' "$@" | LC_ALL=C sort)"
-  actual="$(LC_ALL=C sort "$op_operations")"
-  if [[ "$actual" != "$expected" ]]; then
-    echo "unexpected fixture operations" >&2
-    return 1
-  fi
-}
-expect_accounts() {
-  local expected actual
-  expected="$(printf '%s\n' "$@")"
-  actual="$(<"$op_accounts")"
-  if [[ "$actual" != "$expected" ]]; then
-    echo "unexpected fixture accounts" >&2
-    return 1
-  fi
-}
+refresh_stdout="$case_dir/refresh.stdout"
+refresh_stderr="$case_dir/refresh.stderr"
+if ! run_zsh >"$refresh_stdout" 2>"$refresh_stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet
+[[ "$TEST_ROTATION" == fixture-rotation-1 ]] || exit 1
+secret --quiet
+[[ "$TEST_ROTATION" == fixture-rotation-2 ]] || exit 1
+secret --quiet --reload
+[[ "$TEST_ROTATION" == fixture-rotation-3 ]] || exit 1
+ZSH
+then
+  fail "default refresh did not load the expected fixture values"
+fi
+assert_quiet_output "$refresh_stdout" "$refresh_stderr"
+expect_operation_count 'run:' 3
+assert_private_cache
+assert_cache_exports \
+  TEST_ROTATION \
+  TEST_LITERAL_META \
+  TEST_LITERAL_MULTILINE \
+  TEST_LITERAL_EMPTY \
+  TEST_LITERAL_TRAILING
 
-assert_no_secret_tmpdirs() {
-  local label="$1"
-  if compgen -G "$secret_tmp_dir/zsh-secret.*" >/dev/null; then
-    echo "$label left a secret temporary directory" >&2
-    return 1
-  fi
-}
+# The refresh/import path must mute xtrace and verbose before a resolved value
+# can appear in a traced assignment or exported cache statement.
+trace_stdout="$case_dir/trace.stdout"
+trace_stderr="$case_dir/trace.stderr"
+if ! run_zsh >"$trace_stdout" 2>"$trace_stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+setopt xtrace verbose
+secret --quiet
+unsetopt xtrace verbose
+[[ "$TEST_ROTATION" == fixture-rotation-4 ]] || exit 1
+setopt xtrace verbose
+__secret_source_literal_file "$XDG_STATE_HOME/zsh/secrets.zsh"
+unsetopt xtrace verbose
+[[ "$TEST_LITERAL_TRAILING" == $'ends-with-newline\n' ]] || exit 1
+ZSH
+then
+  fail "traced refresh/import did not preserve fixture values"
+fi
+trace_output="$(cat "$trace_stdout" "$trace_stderr")"
+[[ "$trace_output" != *fixture-rotation-* &&
+   "$trace_output" != *'quote'\''double'* &&
+   "$trace_output" != *ends-with-newline* ]] ||
+  fail "xtrace or verbose exposed a resolved value"
+expect_operation_count 'run:' 4
 
-write_failed_read_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_FAILURE_ALPHA --account "$TEST_ACCOUNT" "op://fixture/failure-alpha" || return 1
-__secret_export_op_read TEST_FAILURE_BRAVO --account "$TEST_ACCOUNT" "op://fixture/failure-bravo" || return 1
-SECRETS
-}
+cache_stdout="$case_dir/cache.stdout"
+cache_stderr="$case_dir/cache.stderr"
+if ! run_zsh >"$cache_stdout" 2>"$cache_stderr" <<'ZSH'
+source "$XDG_STATE_HOME/zsh/secrets.zsh"
+[[ "$TEST_ROTATION" == fixture-rotation-4 ]] || exit 1
+[[ "$TEST_LITERAL_META" == $'quote\'double"$*?;[]\\' ]] || exit 1
+[[ "$TEST_LITERAL_MULTILINE" == $'first line\nsecond line' ]] || exit 1
+(( ${+TEST_LITERAL_EMPTY} )) && [[ -z "$TEST_LITERAL_EMPTY" ]] || exit 1
+[[ "$TEST_LITERAL_TRAILING" == $'ends-with-newline\n' ]] || exit 1
+ZSH
+then
+  fail "cache did not round-trip sourceable literal exports"
+fi
+assert_quiet_output "$cache_stdout" "$cache_stderr"
+expect_operation_count 'run:' 4
 
-write_empty_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_EMPTY_VALUE --account "$TEST_ACCOUNT" "op://fixture/empty" || return 1
-SECRETS
-}
+echo "ok refreshes ignore cache and cache literals round-trip"
 
-write_malformed_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_MALFORMED_ALPHA --account "$TEST_ACCOUNT" "op://fixture/malformed-alpha" || return 1
-__secret_export_op_read TEST_MALFORMED_BRAVO --account "$TEST_ACCOUNT" "op://fixture/malformed-bravo" || return 1
-SECRETS
-}
+# Cache metadata powers inspection and clearing.  These actions must never
+# reach op and must not reveal fixture values.
+new_case metadata-actions
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_CACHE_STATUS --account "$OP_ACCOUNT" "op://fixture/status-value" || return 1
+ZSH
 
-write_mixed_account_profile() {
-  local second_reference="$1"
-  cat > "$secret_file" <<SECRETS
-__secret_export_op_read TEST_MIXED_ALPHA --account "\$TEST_ACCOUNT" "op://fixture/mixed-alpha" || return 1
-__secret_export_op_read TEST_MIXED_BRAVO --account "\$TEST_SECOND_ACCOUNT" "$second_reference" || return 1
-(( ! \${+TEST_MIXED_ALPHA} && ! \${+TEST_MIXED_BRAVO} )) || return 1
-SECRETS
-}
+if ! run_zsh >"$case_dir/load.stdout" 2>"$case_dir/load.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet
+ZSH
+then
+  fail "could not create cache for metadata actions"
+fi
+assert_quiet_output "$case_dir/load.stdout" "$case_dir/load.stderr"
+: > "$op_log"
 
-write_non_op_reference_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_NON_OP_VALUE --account "$TEST_ACCOUNT" "not-an-op-reference" || return 1
-SECRETS
-}
+if ! run_zsh >"$case_dir/status.stdout" 2>"$case_dir/status.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --status
+ZSH
+then
+  fail "status failed against a valid cache"
+fi
+expect_no_operations
+status_output="$(<"$case_dir/status.stdout")"
+[[ "$status_output" == *'Secrets cache: ready (1 variables)'* ]] ||
+  fail "status omitted cache metadata"
+[[ "$status_output" != *fixture-status-value* && "$status_output" != *op://* ]] ||
+  fail "status exposed a cached value or reference"
 
-write_readonly_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_READONLY_TARGET --account "$TEST_ACCOUNT" "op://fixture/readonly-target" || return 1
-__secret_export_op_read TEST_READONLY_OTHER --account "$TEST_ACCOUNT" "op://fixture/readonly-other" || return 1
-SECRETS
-}
+if ! run_zsh >"$case_dir/list.stdout" 2>"$case_dir/list.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --list
+ZSH
+then
+  fail "list failed against a valid cache"
+fi
+expect_no_operations
+list_output="$(<"$case_dir/list.stdout")"
+[[ "$list_output" == *TEST_CACHE_STATUS* ]] || fail "list omitted cached variable name"
+[[ "$list_output" != *fixture-status-value* && "$list_output" != *op://* ]] ||
+  fail "list exposed a cached value or reference"
 
-write_unrelated_reference_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_UNRELATED_BATCH_VALUE --account "$TEST_ACCOUNT" "op://fixture/unrelated-alpha" || return 1
-SECRETS
-}
+clear_stdout="$case_dir/clear.stdout"
+clear_stderr="$case_dir/clear.stderr"
+if ! run_zsh >"$clear_stdout" 2>"$clear_stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+source "$XDG_STATE_HOME/zsh/secrets.zsh"
+export TEST_UNMANAGED=survives
+secret --clear --quiet
+(( ! ${+TEST_CACHE_STATUS} )) || exit 1
+[[ "$TEST_UNMANAGED" == survives ]] || exit 1
+[[ ! -e "$XDG_STATE_HOME/zsh/secrets.zsh" ]] || exit 1
+ZSH
+then
+  fail "clear did not remove only managed variables and its safe cache"
+fi
+assert_quiet_output "$clear_stdout" "$clear_stderr"
+expect_no_operations
 
-write_conditional_profile() {
-  cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_CONDITIONAL_ALPHA --account "$TEST_ACCOUNT" "op://fixture/conditional-alpha" || return 1
-if command -v tailscale >/dev/null 2>&1 && tailscale ip -4 >/dev/null 2>&1; then
-  __secret_export_op_read TEST_CONDITIONAL_ENDPOINT --account "$TEST_ACCOUNT" "op://fixture/conditional-network" || return 1
+echo "ok metadata actions avoid op and clear only cached names"
+
+# A Linux producer resolves independent reads in one batch, stops at an
+# explicit await, and retains both parent state and the prior cache if that
+# awaited batch fails.
+new_case linux-waves
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_WAVE_ALPHA --account "$OP_ACCOUNT" "op://fixture/wave-alpha" || return 1
+if [[ "${TEST_ENDPOINT_MODE-}" == network ]]; then
+  __secret_export_op_read TEST_WAVE_ENDPOINT --account "$OP_ACCOUNT" "op://fixture/wave-network" || return 1
 else
-  __secret_export_op_read TEST_CONDITIONAL_ENDPOINT --account "$TEST_ACCOUNT" "op://fixture/conditional-local" || return 1
+  __secret_export_op_read TEST_WAVE_ENDPOINT --account "$OP_ACCOUNT" "op://fixture/wave-local" || return 1
 fi
 __secret_await_op_reads || return 1
-export TEST_CONDITIONAL_DERIVED="$TEST_CONDITIONAL_ENDPOINT"
-__secret_export_op_read TEST_CONDITIONAL_DEPENDENT --account "$TEST_ACCOUNT" "op://fixture/conditional-dependent" || return 1
-SECRETS
-}
-
-# --- a changed profile with the same inventory reloads its synthetic value ---
-cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_RELOAD_VALUE --account "$TEST_ACCOUNT" "op://fixture/reload-first" || return 1
-SECRETS
-: > "$op_operations"
-reload_stdout="$tmp_dir/reload.stdout"
-reload_stderr="$tmp_dir/reload.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  TMPDIR="$secret_tmp_dir" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$reload_stdout" 2>"$reload_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-secret --quiet || exit 1
-[[ "$TEST_RELOAD_VALUE" == 'fixture-reload-first' ]] || exit 1
-[[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
-cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
-__secret_export_op_read TEST_RELOAD_VALUE --account "$TEST_ACCOUNT" "op://fixture/reload-second" || return 1
-SECRETS
-secret --quiet || exit 1
-[[ "$TEST_RELOAD_VALUE" == 'fixture-reload-second' ]] || exit 1
-[[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
+export TEST_WAVE_DERIVED="derived:$TEST_WAVE_ENDPOINT"
+__secret_export_op_read TEST_WAVE_DEPENDENT --account "$OP_ACCOUNT" "op://fixture/wave-dependent" || return 1
 ZSH
-then
-  echo "changed profile did not reload" >&2
-  exit 1
-fi
-if [[ -s "$reload_stdout" || -s "$reload_stderr" ]]; then
-  echo "changed profile reload was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run run; then
-  exit 1
-fi
-assert_no_secret_tmpdirs "successful batch"
-echo "ok changed profile reloads"
 
-# --- failed, empty, and malformed batches leave no partial exports or metadata ---
-write_failed_read_profile
-: > "$op_operations"
-read_failure_stdout="$tmp_dir/read-failure.stdout"
-read_failure_stderr="$tmp_dir/read-failure.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  TMPDIR="$secret_tmp_dir" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$read_failure_stdout" 2>"$read_failure_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
+if ! run_zsh >"$case_dir/waves.stdout" 2>"$case_dir/waves.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+export TEST_ENDPOINT_MODE=network
+secret --quiet
+[[ "$TEST_WAVE_ALPHA" == fixture-wave-alpha ]] || exit 1
+[[ "$TEST_WAVE_ENDPOINT" == fixture-wave-network ]] || exit 1
+[[ "$TEST_WAVE_DERIVED" == derived:fixture-wave-network ]] || exit 1
+[[ "$TEST_WAVE_DEPENDENT" == fixture-wave-dependent ]] || exit 1
+before_cache="$(<"$XDG_STATE_HOME/zsh/secrets.zsh")"
+
+cat > "$HOME/.config/zsh/vars.secret" <<'RECIPE'
+__secret_export_op_read TEST_WAVE_ALPHA --account "$OP_ACCOUNT" "op://fixture/failure-alpha" || return 1
+__secret_export_op_read TEST_WAVE_BROKEN --account "$OP_ACCOUNT" "op://fixture/failure-bravo" || return 1
+__secret_await_op_reads || return 1
+export TEST_AFTER_FAILED_AWAIT=must-not-exist
+RECIPE
+
 if secret --quiet; then
   exit 1
 fi
-for name in TEST_FAILURE_ALPHA TEST_FAILURE_BRAVO SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
+[[ "$TEST_WAVE_ALPHA" == fixture-wave-alpha ]] || exit 1
+[[ "$TEST_WAVE_ENDPOINT" == fixture-wave-network ]] || exit 1
+[[ "$TEST_WAVE_DERIVED" == derived:fixture-wave-network ]] || exit 1
+[[ "$TEST_WAVE_DEPENDENT" == fixture-wave-dependent ]] || exit 1
+(( ! ${+TEST_AFTER_FAILED_AWAIT} )) || exit 1
+[[ "$(<"$XDG_STATE_HOME/zsh/secrets.zsh")" == "$before_cache" ]] || exit 1
 ZSH
 then
-  echo "failed batch left secret state" >&2
-  exit 1
+  fail "Linux waves did not commit or roll back transactionally"
 fi
-if [[ -s "$read_failure_stdout" || -s "$read_failure_stderr" ]]; then
-  echo "failed batch was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
-assert_no_secret_tmpdirs "failed batch"
+expect_operation_count 'run:' 3
+assert_private_cache
 
-write_empty_profile
-: > "$op_operations"
-empty_stdout="$tmp_dir/empty.stdout"
-empty_stderr="$tmp_dir/empty.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$empty_stdout" 2>"$empty_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
+echo "ok Linux batches conditional await waves and rolls failures back"
+
+# Import preflight happens before publishing: a readonly target in the current
+# shell must leave both its prior variables and the existing cache untouched.
+new_case readonly-publication
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_CACHE_PREVIOUS --account "$OP_ACCOUNT" "op://fixture/previous-cache" || return 1
+ZSH
+
+if ! run_zsh >"$case_dir/readonly.stdout" 2>"$case_dir/readonly.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet
+[[ "$TEST_CACHE_PREVIOUS" == fixture-previous-cache ]] || exit 1
+before_cache="$(<"$XDG_STATE_HOME/zsh/secrets.zsh")"
+readonly TEST_READONLY_TARGET=parent-value
+
+cat > "$HOME/.config/zsh/vars.secret" <<'RECIPE'
+__secret_export_op_read TEST_READONLY_TARGET --account "$OP_ACCOUNT" "op://fixture/readonly-target" || return 1
+__secret_export_op_read TEST_READONLY_OTHER --account "$OP_ACCOUNT" "op://fixture/readonly-other" || return 1
+RECIPE
+
 if secret --quiet; then
   exit 1
 fi
-for name in TEST_EMPTY_VALUE SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
+[[ "$TEST_READONLY_TARGET" == parent-value ]] || exit 1
+[[ "$TEST_CACHE_PREVIOUS" == fixture-previous-cache ]] || exit 1
+[[ "$(<"$XDG_STATE_HOME/zsh/secrets.zsh")" == "$before_cache" ]] || exit 1
 ZSH
 then
-  echo "empty batch left secret state" >&2
-  exit 1
+  fail "readonly preflight allowed cache publication or changed parent values"
 fi
-if [[ -s "$empty_stdout" || -s "$empty_stderr" ]]; then
-  echo "empty batch was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
+expect_operation_count 'run:' 1
 
-write_malformed_profile
-: > "$op_operations"
-malformed_stdout="$tmp_dir/malformed.stdout"
-malformed_stderr="$tmp_dir/malformed.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  OP_BATCH_OUTPUT_MODE=malformed \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$malformed_stdout" 2>"$malformed_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-if secret --quiet; then
-  exit 1
-fi
-for name in TEST_MALFORMED_ALPHA TEST_MALFORMED_BRAVO SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
+echo "ok readonly targets prevent cache publication"
+
+# Cache destinations must be rejected before an unsafe path can receive
+# exported values.  Both cases still run with fresh, isolated shell homes.
+new_case git-worktree-refusal
+worktree_dir="$case_dir/worktree"
+mkdir -p "$worktree_dir/.git"
+state_dir="$worktree_dir/state"
+mkdir -p "$state_dir"
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_UNSAFE_GIT --account "$OP_ACCOUNT" "op://fixture/status-value" || return 1
+ZSH
+
+if run_zsh >"$case_dir/git.stdout" 2>"$case_dir/git.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet
 ZSH
 then
-  echo "malformed batch left secret state" >&2
-  exit 1
+  fail "accepted a cache path inside a Git worktree"
 fi
-if [[ -s "$malformed_stdout" || -s "$malformed_stderr" ]]; then
-  echo "malformed batch was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
-echo "ok failed, empty, and malformed batches clear state"
+[[ ! -e "$state_dir/zsh/secrets.zsh" ]] || fail "wrote cache inside a Git worktree"
 
-# --- cleanup locals cannot shadow a valid secret target ---
-cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read __secret_unset_target --account "$TEST_ACCOUNT" "op://fixture/unset-target" || return 1
-__secret_export_op_read var --account "$TEST_ACCOUNT" "op://fixture/var-target" || return 1
-SECRETS
-: > "$op_operations"
-unset_collision_stdout="$tmp_dir/unset-collision.stdout"
-unset_collision_stderr="$tmp_dir/unset-collision.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  TMPDIR="$secret_tmp_dir" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$unset_collision_stdout" 2>"$unset_collision_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
+new_case symlink-state-refusal
+real_state_dir="$case_dir/real-state"
+rmdir "$state_dir"
+mkdir -p "$real_state_dir"
+ln -s "$real_state_dir" "$state_dir"
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_UNSAFE_SYMLINK --account "$OP_ACCOUNT" "op://fixture/status-value" || return 1
+ZSH
+
+if run_zsh >"$case_dir/symlink.stdout" 2>"$case_dir/symlink.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet
+ZSH
+then
+  fail "accepted a symlinked XDG state path"
+fi
+[[ ! -e "$real_state_dir/zsh/secrets.zsh" ]] || fail "wrote cache through a symlinked state path"
+
+echo "ok unsafe cache destinations are refused"
+
+# A private cache below a non-sticky world-writable ancestor is unsafe even
+# when its immediate state and zsh directories have restrictive modes.
+new_case unsafe-ancestor-refusal
+unsafe_ancestor="$case_dir/unsafe-ancestor"
+mkdir -p "$unsafe_ancestor"
+chmod 777 "$unsafe_ancestor"
+state_dir="$unsafe_ancestor/state"
+mkdir -p "$state_dir/zsh"
+chmod 700 "$state_dir" "$state_dir/zsh"
+cat > "$state_dir/zsh/secrets.zsh" <<'ZSH'
+# zsh-secret-cache-format: 1
+# zsh-secret-name: TEST_UNSAFE_ANCESTOR
+export TEST_UNSAFE_ANCESTOR=fixture-existing-cache
+ZSH
+chmod 600 "$state_dir/zsh/secrets.zsh"
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_UNSAFE_ANCESTOR --account "$OP_ACCOUNT" "op://fixture/status-value" || return 1
+ZSH
+
+if run_zsh >"$case_dir/unsafe-refresh.stdout" 2>"$case_dir/unsafe-refresh.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet
+ZSH
+then
+  fail "refreshed through a non-sticky world-writable cache ancestor"
+fi
+expect_no_operations
+[[ "$(<"$state_dir/zsh/secrets.zsh")" == $'# zsh-secret-cache-format: 1\n# zsh-secret-name: TEST_UNSAFE_ANCESTOR\nexport TEST_UNSAFE_ANCESTOR=fixture-existing-cache' ]] ||
+  fail "unsafe-ancestor refresh changed the existing cache"
+[[ "$(stat -c '%a' "$state_dir")" == 700 && "$(stat -c '%a' "$state_dir/zsh")" == 700 ]] ||
+  fail "unsafe-ancestor refresh changed private cache parents"
+
+if ! run_zsh >"$case_dir/unsafe-status.stdout" 2>"$case_dir/unsafe-status.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+if secret --status; then
+  exit 1
+fi
+ZSH
+then
+  fail "status accepted an unsafe cache ancestor"
+fi
+expect_no_operations
+[[ "$(<"$case_dir/unsafe-status.stdout")" == *'Secrets cache: unavailable'* ]] ||
+  fail "status did not report the unsafe cache as unavailable"
+
+if ! run_zsh >"$case_dir/unsafe-list.stdout" 2>"$case_dir/unsafe-list.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+if secret --list; then
+  exit 1
+fi
+ZSH
+then
+  fail "list accepted an unsafe cache ancestor"
+fi
+expect_no_operations
+[[ ! -s "$case_dir/unsafe-list.stdout" ]] ||
+  fail "list read names from an unsafe cache"
+
+if ! run_zsh >"$case_dir/unsafe-clear.stdout" 2>"$case_dir/unsafe-clear.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+source "$XDG_STATE_HOME/zsh/secrets.zsh"
+before_cache="$(<"$XDG_STATE_HOME/zsh/secrets.zsh")"
+if secret --clear --quiet; then
+  exit 1
+fi
+[[ "$TEST_UNSAFE_ANCESTOR" == fixture-existing-cache ]] || exit 1
+[[ "$(<"$XDG_STATE_HOME/zsh/secrets.zsh")" == "$before_cache" ]] || exit 1
+ZSH
+then
+  fail "clear changed state below an unsafe cache ancestor"
+fi
+expect_no_operations
+[[ "$(stat -c '%a' "$state_dir")" == 700 && "$(stat -c '%a' "$state_dir/zsh")" == 700 ]] ||
+  fail "unsafe-ancestor clear changed private cache parents"
+
+echo "ok non-sticky world-writable cache ancestors are refused"
+
+# A sticky shared parent remains safe when the XDG state child is private.
+new_case sticky-ancestor-allowed
+sticky_ancestor="$case_dir/sticky-ancestor"
+mkdir -p "$sticky_ancestor"
+chmod 1777 "$sticky_ancestor"
+state_dir="$sticky_ancestor/state"
+mkdir -p "$state_dir"
+chmod 700 "$state_dir"
+write_recipe <<'ZSH'
+export TEST_STICKY_ANCESTOR=fixture-sticky-ancestor
+ZSH
+if ! run_zsh <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
 secret --quiet || exit 1
-[[ "$__secret_unset_target" == 'fixture-unset-target' ]] || exit 1
-[[ "$var" == 'fixture-var-target' ]] || exit 1
+[[ "$TEST_STICKY_ANCESTOR" == fixture-sticky-ancestor ]] || exit 1
+ZSH
+then
+  fail "rejected a private cache below a sticky shared ancestor"
+fi
+assert_private_cache
+expect_no_operations
+
+echo "ok sticky shared cache ancestors retain private-cache behavior"
+
+# Recipe names must never shadow the refresher's own dynamic-scope locals.
+new_case control-name-collisions
+chmod 755 "$state_dir"
+write_recipe <<'ZSH'
+export output="$HOME/forbidden.zsh"
+export inventory=fixture-inventory
+export name=fixture-name
+export value=fixture-value
+export cache=fixture-cache
+export success=fixture-success
+export action=fixture-action
+export quiet=fixture-quiet
+export REPLY=fixture-reply
+ZSH
+if ! run_zsh <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+secret --quiet || exit 1
+[[ "$output" == "$HOME/forbidden.zsh" && ! -e "$output" ]] || exit 1
+for target in inventory name value cache success action quiet; do
+  [[ "${(P)target}" == "fixture-$target" ]] || exit 1
+done
+[[ "$REPLY" == fixture-reply ]] || exit 1
+print 'invalid recipe syntax &&' > "$HOME/.config/zsh/vars.secret"
 secret --quiet --clear || exit 1
-for name in __secret_unset_target var; do
-  (( ! ${+parameters[$name]} )) || exit 1
+for target in output inventory name value cache success action quiet REPLY; do
+  (( ! ${+parameters[$target]} )) || exit 1
 done
+ZSH
+then
+  fail "recipe names shadowed control state or cache-only clear read the recipe"
+fi
+[[ "$(stat -c '%a' "$state_dir")" == 755 ]] || fail "changed existing XDG state permissions"
+echo "ok ordinary names do not shadow controls and clear is cache-only"
+
+# Non-Linux reads preserve final newlines; caller TMPDIR is never used for
+# our secret-bearing files when it happens to point into a public worktree.
+new_case private-read-temporaries
+mkdir -p "$case_dir/public/.git" "$case_dir/public/tmp"
+run_tmp_dir="$case_dir/public/tmp"
+write_recipe <<'ZSH'
+__secret_export_op_read TEST_TRAILING --account "$OP_ACCOUNT" "op://fixture/literal-trailing" || return 1
+ZSH
+if ! run_zsh <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+OSTYPE=darwin
 secret --quiet || exit 1
-cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
-__secret_export_op_read __secret_unset_target --account "$TEST_ACCOUNT" "op://fixture/unset-target" || return 1
-__secret_export_op_read var --account "$TEST_ACCOUNT" "op://fixture/var-target" || return 1
-__secret_export_op_read TEST_FAILURE_BRAVO --account "$TEST_ACCOUNT" "op://fixture/failure-bravo" || return 1
-SECRETS
-if secret --quiet --reload; then
-  exit 1
-fi
-for name in __secret_unset_target var TEST_FAILURE_BRAVO SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
-export __secret_internal_direct='fixture-reserved-direct'
-SECRETS
-if secret --quiet; then
-  exit 1
-fi
-(( ! ${+parameters[__secret_internal_direct]} )) || exit 1
-cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
-__secret_export_op_read __SECRET_OP_BATCH_OUT --account "$TEST_ACCOUNT" "op://fixture/unset-target" || return 1
-SECRETS
-if secret --quiet; then
-  exit 1
-fi
-(( ! ${+parameters[__SECRET_OP_BATCH_OUT]} )) || exit 1
+[[ "$TEST_TRAILING" == $'ends-with-newline\n' ]] || exit 1
+typeset -a remaining_tmp_files=("$TMPDIR"/*(DN))
+(( ${#remaining_tmp_files} == 0 )) || exit 1
 ZSH
 then
-  echo "cleanup variable collision left secret state" >&2
-  exit 1
+  fail "non-Linux read lost bytes or used an unsafe caller TMPDIR"
 fi
-if [[ -s "$unset_collision_stdout" || -s "$unset_collision_stderr" ]]; then
-  echo "cleanup variable collision check was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run run run; then
-  exit 1
-fi
-assert_no_secret_tmpdirs "cleanup collision"
-echo "ok cleanup variable names do not shadow secret targets"
+echo "ok non-Linux values and private refresh temporaries"
 
-# --- inherited internal temp state cannot control recursive cleanup ---
-protected_dir="$tmp_dir/protected-path"
-protected_marker="$protected_dir/keep"
-mkdir -p "$protected_dir"
-: > "$protected_marker"
-temp_state_stdout="$tmp_dir/temp-state.stdout"
-temp_state_stderr="$tmp_dir/temp-state.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  __SECRET_OP_TMPDIR="$protected_dir" \
-  __SECRET_OP_PIDS="12345" \
-  __SECRET_OP_VARS="TEST_IMPORTED" \
-  __SECRET_OP_OUT="fixture-imported" \
-  __SECRET_OP_RC="fixture-imported" \
-  __SECRET_OP_REF="fixture-imported" \
-  __SECRET_OP_ACCOUNT="fixture-imported" \
-  __SECRET_OP_BATCH_OUT="fixture-imported" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$temp_state_stdout" 2>"$temp_state_stderr" <<'ZSH'
-typeset -g inherited_process_calls=0
-kill() { (( inherited_process_calls += 1 )); }
-wait() { (( inherited_process_calls += 1 )); }
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-secret --quiet --clear || exit 1
-[[ -z "${__SECRET_OP_TMPDIR-}" ]] || exit 1
-(( inherited_process_calls == 0 )) || exit 1
-(( ${#__SECRET_OP_PIDS[@]} == 0 )) || exit 1
-for name in __SECRET_OP_PIDS __SECRET_OP_VARS __SECRET_OP_OUT __SECRET_OP_RC __SECRET_OP_REF __SECRET_OP_ACCOUNT; do
-  [[ "${parameters[$name]}" != *export* ]] || exit 1
-done
+# A cancelled refresh must leave the previous cache, remove staged values,
+# and release its kernel lock so the next explicit refresh can succeed.
+new_case interrupted-refresh
+write_recipe <<'ZSH'
+export TEST_INTERRUPT=fixture-old
 ZSH
-then
-  echo "inherited temporary state cleanup failed" >&2
-  exit 1
-fi
-if [[ ! -f "$protected_marker" ]]; then
-  echo "inherited temporary state controlled recursive cleanup" >&2
-  exit 1
-fi
-if [[ -s "$temp_state_stdout" || -s "$temp_state_stderr" ]]; then
-  echo "inherited temporary state cleanup was not quiet" >&2
-  exit 1
-fi
-echo "ok inherited temporary state is not trusted"
-
-# --- agent startup clears inherited declared secrets without querying op ---
-cat > "$secret_file" <<'SECRETS'
-export TEST_AGENT_INHERITED='fixture-profile-value'
-export __secret_internal_direct='fixture-reserved-profile-value'
-SECRETS
-: > "$op_operations"
-agent_clear_stdout="$tmp_dir/agent-clear.stdout"
-agent_clear_stderr="$tmp_dir/agent-clear.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_AGENT_INHERITED="fixture-inherited-value" \
-  __secret_internal_direct="fixture-reserved-inherited-value" \
-  SECRETS_ALREADY_LOADED=true \
-  SECRETS_LOADED_AT="fixture-time" \
-  SECRETS_LOADED_VARS=$'TEST_AGENT_INHERITED\n__secret_internal_direct' \
-  SECRETS_LOADED_SIGNATURE="fixture-signature" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$agent_clear_stdout" 2>"$agent_clear_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-is_agent_shell() { return 0; }
-if is_agent_shell; then
-  secret --quiet --clear >/dev/null 2>&1 || true
-else
-  exit 1
-fi
-for name in TEST_AGENT_INHERITED __secret_internal_direct SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "agent startup did not clear inherited secret state" >&2
-  exit 1
-fi
-if [[ -s "$agent_clear_stdout" || -s "$agent_clear_stderr" ]]; then
-  echo "agent inherited-state cleanup was not quiet" >&2
-  exit 1
-fi
-if [[ -s "$op_operations" ]]; then
-  echo "agent inherited-state cleanup queried 1Password" >&2
-  exit 1
-fi
-echo "ok agent startup clears inherited secret state"
-
-# --- mixed-account waves are serialized and commit only after every batch succeeds ---
-write_mixed_account_profile "op://fixture/mixed-bravo"
-: > "$op_operations"
-: > "$op_accounts"
-mixed_stdout="$tmp_dir/mixed.stdout"
-mixed_stderr="$tmp_dir/mixed.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  OP_ACCOUNTS="$op_accounts" \
-  OP_REJECT_CONCURRENT_RUNS=1 \
-  OP_CONCURRENT_RUN_LOCK="$tmp_dir/mixed-run-lock" \
-  TEST_ACCOUNT="fixture-account" \
-  TEST_SECOND_ACCOUNT="fixture-second-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$mixed_stdout" 2>"$mixed_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
+run_zsh <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
 secret --quiet || exit 1
-[[ "$TEST_MIXED_ALPHA" == 'fixture-mixed-alpha' ]] || exit 1
-[[ "$TEST_MIXED_BRAVO" == 'fixture-mixed-bravo' ]] || exit 1
-[[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
 ZSH
-then
-  echo "mixed-account batches did not complete" >&2
-  exit 1
-fi
-if [[ -s "$mixed_stdout" || -s "$mixed_stderr" ]]; then
-  echo "mixed-account batches were not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run run || ! expect_accounts fixture-account fixture-second-account; then
-  exit 1
-fi
+write_recipe <<'ZSH'
+export TEST_INTERRUPT=fixture-new
+print ready > "$OP_CONFIG_DIR/ready"
+sleep 15
+ZSH
+env -i HOME="$home_dir" TMPDIR="$run_tmp_dir" XDG_STATE_HOME="$state_dir" \
+  PATH="$bin_dir:/usr/bin:/bin" OP_CONFIG_DIR="$op_config_dir" \
+  python3 - "$zsh_bin" <<'PY'
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
 
-write_mixed_account_profile "op://fixture/mixed-failure"
-: > "$op_operations"
-: > "$op_accounts"
-mixed_failure_stdout="$tmp_dir/mixed-failure.stdout"
-mixed_failure_stderr="$tmp_dir/mixed-failure.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  OP_ACCOUNTS="$op_accounts" \
-  OP_REJECT_CONCURRENT_RUNS=1 \
-  OP_CONCURRENT_RUN_LOCK="$tmp_dir/mixed-failure-run-lock" \
-  TEST_ACCOUNT="fixture-account" \
-  TEST_SECOND_ACCOUNT="fixture-second-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$mixed_failure_stdout" 2>"$mixed_failure_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-if secret --quiet; then
-  exit 1
-fi
-for name in TEST_MIXED_ALPHA TEST_MIXED_BRAVO SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "mixed-account failure left secret state" >&2
-  exit 1
-fi
-if [[ -s "$mixed_failure_stdout" || -s "$mixed_failure_stderr" ]]; then
-  echo "mixed-account failure was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run run || ! expect_accounts fixture-account fixture-second-account; then
-  exit 1
-fi
-echo "ok mixed-account batches serialize and commit transactionally"
-
-# --- invalid references are rejected before they can become shell values ---
-write_non_op_reference_profile
-: > "$op_operations"
-non_op_stdout="$tmp_dir/non-op.stdout"
-non_op_stderr="$tmp_dir/non-op.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$non_op_stdout" 2>"$non_op_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-if secret --quiet; then
-  exit 1
-fi
-for name in TEST_NON_OP_VALUE SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "non-op reference left secret state" >&2
-  exit 1
-fi
-if [[ -s "$non_op_stdout" || -s "$non_op_stderr" ]]; then
-  echo "non-op reference failure was not quiet" >&2
-  exit 1
-fi
-echo "ok non-op references are rejected"
-
-# --- readonly targets abort an otherwise valid batch without partial exports ---
-write_readonly_profile
-: > "$op_operations"
-readonly_stdout="$tmp_dir/readonly.stdout"
-readonly_stderr="$tmp_dir/readonly.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$readonly_stdout" 2>"$readonly_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-typeset -r TEST_READONLY_TARGET=preexisting
-if secret --quiet; then
-  exit 1
-fi
-[[ "$TEST_READONLY_TARGET" == preexisting ]] || exit 1
-for name in TEST_READONLY_OTHER SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "readonly target left secret state" >&2
-  exit 1
-fi
-if [[ -s "$readonly_stdout" || -s "$readonly_stderr" ]]; then
-  echo "readonly target failure was not quiet" >&2
-  exit 1
-fi
-if [[ -s "$op_operations" ]]; then
-  echo "readonly target triggered a secret operation" >&2
-  exit 1
-fi
-echo "ok readonly targets prevent partial exports"
-
-# --- the original nonbatch workers still roll back a failed batch ---
-write_failed_read_profile
-: > "$op_operations"
-nonbatch_failure_stdout="$tmp_dir/nonbatch-failure.stdout"
-nonbatch_failure_stderr="$tmp_dir/nonbatch-failure.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$nonbatch_failure_stdout" 2>"$nonbatch_failure_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-__secret_use_single_process_batch() { return 1; }
-if secret --quiet; then
-  exit 1
-fi
-for name in TEST_FAILURE_ALPHA TEST_FAILURE_BRAVO SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "nonbatch failure left secret state" >&2
-  exit 1
-fi
-if [[ -s "$nonbatch_failure_stdout" || -s "$nonbatch_failure_stderr" ]]; then
-  echo "nonbatch failure was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations read read; then
-  exit 1
-fi
-echo "ok nonbatch workers retain transactional rollback"
-
-# --- unrelated unresolved references are excluded from the op-run environment ---
-write_unrelated_reference_profile
-: > "$op_operations"
-unrelated_stdout="$tmp_dir/unrelated.stdout"
-unrelated_stderr="$tmp_dir/unrelated.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_UNRELATED_REFERENCE="op://inaccessible/unrelated" \
-  OP_SESSION_fixture="op://inaccessible/allowed-name" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$unrelated_stdout" 2>"$unrelated_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-secret --quiet || exit 1
-[[ "$TEST_UNRELATED_BATCH_VALUE" == 'fixture-unrelated-alpha' ]] || exit 1
-[[ "$TEST_UNRELATED_REFERENCE" == 'op://inaccessible/unrelated' ]] || exit 1
-[[ "$OP_SESSION_fixture" == 'op://inaccessible/allowed-name' ]] || exit 1
-ZSH
-then
-  echo "unrelated reference blocked a queued batch" >&2
-  exit 1
-fi
-if [[ -s "$unrelated_stdout" || -s "$unrelated_stderr" ]]; then
-  echo "unrelated reference batch was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
-echo "ok unrelated references are isolated from op run"
-
-# --- a conditional failure stops before a dependent read ---
-write_conditional_profile
-: > "$op_operations"
-conditional_stdout="$tmp_dir/conditional.stdout"
-conditional_stderr="$tmp_dir/conditional.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  OP_PROFILE_READ_MODE=conditional-failure \
-  TAILSCALE_IP_RESULT=failure \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$conditional_stdout" 2>"$conditional_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-if secret --quiet; then
-  exit 1
-fi
-for name in TEST_CONDITIONAL_ALPHA TEST_CONDITIONAL_ENDPOINT TEST_CONDITIONAL_DERIVED TEST_CONDITIONAL_DEPENDENT SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "conditional failure left secret state" >&2
-  exit 1
-fi
-if [[ -s "$conditional_stdout" || -s "$conditional_stderr" ]]; then
-  echo "conditional failure was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
-echo "ok conditional failure stops dependent read"
-
-# --- an explicit await completes one dependency wave before the next ---
-write_conditional_profile
-: > "$op_operations"
-conditional_success_stdout="$tmp_dir/conditional-success.stdout"
-conditional_success_stderr="$tmp_dir/conditional-success.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TAILSCALE_IP_RESULT=failure \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$conditional_success_stdout" 2>"$conditional_success_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-secret --quiet || exit 1
-[[ "$TEST_CONDITIONAL_ALPHA" == 'fixture-conditional-alpha' ]] || exit 1
-[[ "$TEST_CONDITIONAL_ENDPOINT" == 'fixture-conditional-local' ]] || exit 1
-[[ "$TEST_CONDITIONAL_DERIVED" == 'fixture-conditional-local' ]] || exit 1
-[[ "$TEST_CONDITIONAL_DEPENDENT" == 'fixture-conditional-dependent' ]] || exit 1
-ZSH
-then
-  echo "conditional dependency waves did not complete" >&2
-  exit 1
-fi
-if [[ -s "$conditional_success_stdout" || -s "$conditional_success_stderr" ]]; then
-  echo "conditional dependency waves were not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run run; then
-  exit 1
-fi
-echo "ok dependency waves preserve explicit await ordering"
-
-# --- a failed explicit reload clears prior and current inventories ---
-cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_PRIOR_ALPHA --account "$TEST_ACCOUNT" "op://fixture/prior-alpha" || return 1
-__secret_export_op_read TEST_PRIOR_BRAVO --account "$TEST_ACCOUNT" "op://fixture/prior-bravo" || return 1
-SECRETS
-: > "$op_operations"
-reload_failure_stdout="$tmp_dir/reload-failure.stdout"
-reload_failure_stderr="$tmp_dir/reload-failure.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$reload_failure_stdout" 2>"$reload_failure_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-secret --quiet || exit 1
-[[ "$TEST_PRIOR_ALPHA" == 'fixture-prior-alpha' ]] || exit 1
-[[ "$TEST_PRIOR_BRAVO" == 'fixture-prior-bravo' ]] || exit 1
-cat > "$HOME/.config/zsh/vars.secret" <<'SECRETS'
-__secret_export_op_read TEST_CURRENT_GAMMA --account "$TEST_ACCOUNT" "op://fixture/current-gamma" || return 1
-__secret_export_op_read TEST_CURRENT_DELTA --account "$TEST_ACCOUNT" "op://fixture/current-delta" || return 1
-SECRETS
-if secret --quiet --reload; then
-  exit 1
-fi
-for name in TEST_PRIOR_ALPHA TEST_PRIOR_BRAVO TEST_CURRENT_GAMMA TEST_CURRENT_DELTA SECRETS_ALREADY_LOADED SECRETS_LOADED_AT SECRETS_LOADED_VARS SECRETS_LOADED_SIGNATURE; do
-  (( ! ${+parameters[$name]} )) || exit 1
-done
-ZSH
-then
-  echo "failed reload left secret state" >&2
-  exit 1
-fi
-if [[ -s "$reload_failure_stdout" || -s "$reload_failure_stderr" ]]; then
-  echo "failed reload was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run run; then
-  exit 1
-fi
-echo "ok failed reload clears inventories"
-
-# --- incomplete inherited metadata cannot suppress a required reload ---
-cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_INHERITED_ALPHA --account "$TEST_ACCOUNT" "op://fixture/inherited-alpha" || return 1
-SECRETS
-: > "$op_operations"
-inherited_stdout="$tmp_dir/inherited.stdout"
-inherited_stderr="$tmp_dir/inherited.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  TEST_ACCOUNT="fixture-account" \
-  SECRETS_ALREADY_LOADED=true \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$inherited_stdout" 2>"$inherited_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-secret --quiet || exit 1
-[[ "$TEST_INHERITED_ALPHA" == 'fixture-inherited-alpha' ]] || exit 1
-[[ "${SECRETS_ALREADY_LOADED-}" == true ]] || exit 1
-[[ -n "${SECRETS_LOADED_VARS-}" ]] || exit 1
-[[ -n "${SECRETS_LOADED_SIGNATURE-}" ]] || exit 1
-ZSH
-then
-  echo "incomplete inherited metadata suppressed reload" >&2
-  exit 1
-fi
-if [[ -s "$inherited_stdout" || -s "$inherited_stderr" ]]; then
-  echo "inherited metadata reload was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
-echo "ok incomplete inherited metadata reloads"
-
-# --- Linux resolves one independent wave through exactly one op run ---
-cat > "$secret_file" <<'SECRETS'
-__secret_export_op_read TEST_PARALLEL_ALPHA --account "$TEST_ACCOUNT" "op://fixture/parallel-alpha" || return 1
-__secret_export_op_read TEST_PARALLEL_BRAVO --account "$TEST_ACCOUNT" "op://fixture/parallel-bravo" || return 1
-SECRETS
-: > "$op_operations"
-batch_stdout="$tmp_dir/batch.stdout"
-batch_stderr="$tmp_dir/batch.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  OP_REJECT_CONCURRENT_READS=1 \
-  OP_CONCURRENT_READ_LOCK="$tmp_dir/reject-read-lock" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$batch_stdout" 2>"$batch_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-source "$HOME/.config/zsh/secret_batch_test_helper.zsh"
-secret --quiet || exit 1
-[[ "$TEST_PARALLEL_ALPHA" == 'fixture-parallel-alpha' ]] || exit 1
-[[ "$TEST_PARALLEL_BRAVO" == 'fixture-parallel-bravo' ]] || exit 1
-ZSH
-then
-  echo "Linux batch secret load did not complete" >&2
-  exit 1
-fi
-if [[ -s "$batch_stdout" || -s "$batch_stderr" ]]; then
-  echo "Linux batch secret load was not quiet" >&2
-  exit 1
-fi
-if ! expect_operations run; then
-  exit 1
-fi
-echo "ok Linux batches a dependency wave in one op run"
-
-# --- disabling Linux batching preserves overlapping Darwin-style op reads ---
-: > "$op_operations"
-overlap_stdout="$tmp_dir/overlap.stdout"
-overlap_stderr="$tmp_dir/overlap.stderr"
-if ! env -i \
-  HOME="$home_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" \
-  OP_OPERATIONS="$op_operations" \
-  OP_REQUIRE_READ_OVERLAP=1 \
-  OP_READ_BARRIER="$tmp_dir/read-barrier" \
-  TEST_ACCOUNT="fixture-account" \
-  REPO_ROOT="$repo_root" \
-  "$zsh_bin" -f >"$overlap_stdout" 2>"$overlap_stderr" <<'ZSH'
-source "$REPO_ROOT/roles/zsh/files/zsh/vars.secret_functions.zsh"
-__secret_use_single_process_batch() { return 1; }
-secret --quiet || exit 1
-[[ "$TEST_PARALLEL_ALPHA" == 'fixture-parallel-alpha' ]] || exit 1
-[[ "$TEST_PARALLEL_BRAVO" == 'fixture-parallel-bravo' ]] || exit 1
-ZSH
-then
-  echo "Darwin-style overlapping secret reads did not complete" >&2
-  exit 1
-fi
-if [[ -s "$overlap_stdout" || -s "$overlap_stderr" ]]; then
-  echo "Darwin-style overlapping secret reads were not quiet" >&2
-  exit 1
-fi
-if ! expect_operations read read; then
-  exit 1
-fi
-echo "ok Darwin-style reads overlap when batching is disabled"
+cache = Path(os.environ["XDG_STATE_HOME"]) / "zsh/secrets.zsh"
+ready = Path(os.environ["OP_CONFIG_DIR"]) / "ready"
+before = cache.read_bytes()
+command = [sys.argv[1], "-dfc", 'source "$HOME/.config/zsh/vars.secret_functions.zsh"; secret --quiet']
+process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+try:
+    deadline = time.monotonic() + 5
+    while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert ready.exists(), "refresh did not enter the producer"
+    os.killpg(process.pid, signal.SIGINT)
+    process.communicate(timeout=5)
+    assert process.returncode != 0, "cancelled refresh reported success"
+finally:
+    if process.poll() is None:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
+assert cache.read_bytes() == before, "cancelled refresh replaced the cache"
+assert {entry.name for entry in cache.parent.iterdir()} == {"secrets.zsh", ".secrets.lock"}, "staged secret files survived cancellation"
+recipe = Path(os.environ["HOME"]) / ".config/zsh/vars.secret"
+recipe.write_text("export TEST_INTERRUPT=fixture-retry\n")
+retry = subprocess.run(command, capture_output=True, timeout=8)
+assert retry.returncode == 0, "cancelled refresh stranded its lock"
+PY
+echo "ok cancellation preserves cache, cleans staged values, and releases lock"
 
 echo "ok secret loading"

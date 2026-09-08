@@ -50,7 +50,7 @@ graph TD
 
 | File/Directory | Destination | Purpose |
 |----------------|-------------|---------|
-| `.zshenv` | `~/.zshenv` | Homebrew, then the shared PATH list in `paths_vars.zsh`, plus agent glob compatibility |
+| `.zshenv` | `~/.zshenv` | Homebrew, shared PATH list, silent local secret-cache load, and agent glob compatibility |
 | `.zshrc` | `~/.zshrc` | Main ZSH configuration entry point |
 | `.p10k.zsh` | `~/.p10k.zsh` | Powerlevel10k prompt customization |
 | `zsh/` | `~/.config/zsh/` | 30+ modular function files |
@@ -114,9 +114,13 @@ Applied to:
 
 ### 4. 1Password secrets
 
-`.zshenv` remains deliberately secret-free. Each normal interactive terminal loads secrets automatically from `.zshrc` after the modular functions are sourced. Agent-marked shells do not query 1Password and clear any declared secret inventory they inherit during zsh startup, while `gh` and `aws` retain their lazy wrappers as a fallback for normal interactive shells; a non-agent Herdr-marked shell also has a one-shot `omp` wrapper. If automatic loading cannot reach 1Password, terminal startup continues and `secret` can be run manually for visible diagnostics.
+[`vars.secret`](files/zsh/vars.secret) is the public, versioned reference recipe: it names the required variables and their `op://` references but contains no resolved values. Run `secret` to bootstrap or explicitly refresh the private cache; `secret --reload` (`-r`) is the equivalent explicit full refresh. Refresh may contact 1Password, prompt for authorization, and resolve the recipe before atomically publishing ordinary zsh `export` statements to `${XDG_STATE_HOME:-$HOME/.local/state}/zsh/secrets.zsh`. That plaintext cache is host-local state, not a repository artifact, and refresh refuses a destination inside a Git worktree.
 
-Secret loading may prompt for 1Password authorization. On macOS and other platforms, independent secrets are read concurrently before any are exported. On Linux, each dependency wave uses one 1Password CLI batch because desktop-session validation on this host rejects concurrent CLI clients. Names beginning with `__secret_internal_`, `__SECRET_INTERNAL_`, `__SECRET_OP_`, or `SECRETS_` are reserved for loader bookkeeping. When loading succeeds, the values are available to same-user processes that can inspect the shell environment—including agent processes launched from an already-loaded terminal. Agent-marked zsh startup clears its inherited declared inventory, but use `secret --clear` or a filtered environment before launching an agent when the parent process itself must receive no credentials.
+Every normal zsh startup silently reads that cache from `.zshenv`, before `.zshrc` and without a network request, prompt, or 1Password call. It accepts only a readable regular, non-symlink file owned by the current user with no group or other permissions. Missing, unreadable, or unsafe caches are skipped; a cache source failure does not prevent startup or produce output. Cache sourcing suppresses xtrace and verbose output while preserving the caller's shell options. There is no agent-specific filtering or clearing: `gh`, `aws`, `omp`, and child processes inherit the ordinary environment already present in their parent shell, with no secret wrappers or Herdr markers.
+
+The recipe and cache are trusted executable zsh, not a sandbox. The cache directory must also be private, and every ancestor must be owned by the current user or root. Group- or world-writable ancestors are accepted only with sticky-bit protection. These checks prevent other users from replacing a checked cache path; they do not protect plaintext credentials from programs running as your user or from root.
+
+`secret --status` (`-s`) and `secret --list` (`-l`) inspect only the local cache and do not contact 1Password; `--list` reports declared names, never values. `secret --clear` (`-c`) deletes the cache and clears only managed variables in the current shell. Existing processes keep their current environment. After credential rotation, explicitly refresh the cache and start a new zsh for updated values. `zsh -f` and processes launched directly without zsh do not load this cache.
 
 ### 5. Completions and Herdr
 
@@ -169,7 +173,7 @@ alias update='sudo dnf upgrade -y'
 
 ```mermaid
 flowchart LR
-    A[Shell Start] --> Zenv[".zshenv PATH / CURSOR_AGENT"]
+    A[Shell Start] --> Zenv[".zshenv PATH / local secrets cache / agent glob compatibility"]
     Zenv --> B{Check SSH Session}
     B -->|Yes| C[Set TERM=xterm-256color]
     B -->|No| D[Continue]
@@ -379,7 +383,8 @@ ls -la ~/.config/zsh/os_functions.zsh
 ### Most Useful Commands
 
 ```bash
-secret             # Load 1Password env into this shell
+secret             # Explicitly bootstrap or refresh the private local cache
+secret --clear     # Delete the local cache and clear managed vars in this shell
 ghelp              # Show all custom Git functions
 gss                # Enhanced git status
 gco                # Interactive branch checkout
@@ -395,7 +400,7 @@ update             # Update system packages (OS-specific)
 ### Configuration Files
 
 ```bash
-~/.zshenv                     # Non-interactive PATH + agent glob settings
+~/.zshenv                     # Non-interactive PATH, local cache, and agent glob settings
 ~/.zshrc                      # Main configuration
 ~/.p10k.zsh                   # Prompt customization
 ~/.config/zsh/vars.zsh        # Colors and environment

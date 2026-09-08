@@ -24,12 +24,12 @@ class ZshrcStructureTests(unittest.TestCase):
             self.zshrc.index("zsh-syntax-highlighting"),
         )
 
-    def test_cursor_agent_and_herdr_helpers_exist(self) -> None:
-        self.assertIn("is_cursor_agent()", self.zshrc)
+    def test_agent_shell_helper_remains_for_ui_behavior(self) -> None:
         self.assertIn("is_agent_shell()", self.zshrc)
-        self.assertIn("is_herdr_session()", self.zshrc)
         self.assertIn("CURSOR_AGENT", self.zshrc)
         self.assertIn("CLAUDECODE", self.zshrc)
+        self.assertNotIn("is_cursor_agent()", self.zshrc)
+        self.assertNotIn("is_herdr_session()", self.zshrc)
         self.assertIn("NO_NOMATCH", self.zshenv)
         self.assertIn("brew shellenv", self.zshenv)
         self.assertIn("paths_functions.zsh", self.zshenv)
@@ -59,16 +59,14 @@ class ZshrcStructureTests(unittest.TestCase):
         self.assertIn("zdharma-continuum/zinit.git", self.tasks)
         self.assertIn("depth: 1", self.tasks)
 
-    def test_secret_loading_is_automatic_only_for_human_terminals(self) -> None:
-        self.assertIn("if is_agent_shell; then", self.zshrc)
-        self.assertIn("secret --quiet --clear >/dev/null 2>&1 || true", self.zshrc)
-        self.assertIn("elif is_tty; then", self.zshrc)
-        self.assertIn("secret --quiet >/dev/null 2>&1 || true", self.zshrc)
-        self.assertGreater(
-            self.zshrc.index("secret --quiet"),
-            self.zshrc.index('source "$file"'),
-        )
+    def test_secret_cache_load_is_zshenv_only_and_silent(self) -> None:
+        self.assertIn('${XDG_STATE_HOME:-$HOME/.local/state}/zsh/secrets.zsh', self.zshenv)
+        self.assertIn("zstat -H __secret_internal_cache_stat", self.zshenv)
+        self.assertIn("noxtrace noverbose", self.zshenv)
+        self.assertIn('source "$__secret_internal_cache_path" >/dev/null 2>&1 || true', self.zshenv)
         self.assertNotIn("secret --quiet", self.zshenv)
+        self.assertNotIn("secret --quiet", self.zshrc)
+        self.assertNotIn("OMP_HERD_LOAD_SECRETS", self.zshrc)
 
 if __name__ == "__main__":
     unittest.main()

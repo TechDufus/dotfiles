@@ -405,7 +405,7 @@ clear_fixtures() {
     HERD_BRANCH_REMOTE HERD_BRANCH_MERGE HERD_NO_BRANCH_REMOTE \
     HERD_UNSET_ENV HERD_UNSET_PANE HERD_UNSET_MANAGED HERD_WORKSPACE_ID \
     HERD_CHECKOUT_BRANCH HERD_PANE_CWD OMP_HERD_MANAGED OMP_HERD_SOURCE_ROOT \
-    OMP_HERD_CHECKOUT OMP_HERD_BRANCH OMP_HERD_LOAD_SECRETS \
+    OMP_HERD_CHECKOUT OMP_HERD_BRANCH \
     HERDR_WORKSPACE_ID HERDR_TAB_ID HERDR_PANE_ID HERDR_ENV \
     HERD_BOUND_SECONDS || true
 }
@@ -732,7 +732,7 @@ if wt[0]['argv'] != ['-C', repo, 'switch', '--create', 'fix/issue-123-fix-widget
     sys.exit('wt argv %s' % wt[0]['argv'])
 tabs=[c for c in calls if c['cmd']=='herdr' and c['argv'][:2]==['tab','create']]
 if len(tabs)!=1: sys.exit('tab create count %s' % len(tabs))
-want=['tab','create','--workspace','workspace-fresh','--cwd',checkout,'--label','issue-123-fix-widget','--env','OMP_HERD_MANAGED=1','--env','OMP_HERD_SOURCE_ROOT='+repo,'--env','OMP_HERD_CHECKOUT='+checkout,'--env','OMP_HERD_BRANCH=fix/issue-123-fix-widget','--env','OMP_HERD_LOAD_SECRETS=1','--no-focus']
+want=['tab','create','--workspace','workspace-fresh','--cwd',checkout,'--label','issue-123-fix-widget','--env','OMP_HERD_MANAGED=1','--env','OMP_HERD_SOURCE_ROOT='+repo,'--env','OMP_HERD_CHECKOUT='+checkout,'--env','OMP_HERD_BRANCH=fix/issue-123-fix-widget','--no-focus']
 if tabs[0]['argv']!=want: sys.exit('tab argv %s' % tabs[0]['argv'])
 if '--focus' in tabs[0]['argv']: sys.exit('had --focus')
 if any(c['cmd']=='herdr' and c['argv'][:1]==['agent'] for c in calls): sys.exit('agent start')
@@ -832,7 +832,7 @@ if not any(c['cmd']=='wt' and 'feat/context-2' in c['argv'] for c in calls):
 " || fail "implicit collision suffix"
 echo "ok collision feat/context creates feat/context-2"
 
-# --- Dry-run / secrets / model ---
+# --- Dry-run / model ---
 clear_fixtures
 HERD_SOURCE_BRANCH=feat/source-worktree run_herd create task --dry-run -- exact task
 expect_status 0 "dry-run"
@@ -840,36 +840,11 @@ expect_no_mutation "dry-run"
 if ! grep -F -q "Worktrunk's detected default branch (resolved during the real handoff)" "$HERD_STDOUT" "$HERD_STDERR"; then
   fail "dry-run: missing deferred default branch wording"
 fi
-if ! grep -F -q "Secret loading would occur" "$HERD_STDOUT" "$HERD_STDERR"; then
-  fail "dry-run: missing secret loading would occur"
-fi
 if grep -F -q "feat/source-worktree" "$HERD_STDOUT" "$HERD_STDERR"; then
   fail "dry-run: mentioned source branch as base"
 fi
 echo "ok task --dry-run deferred default branch"
 
-clear_fixtures
-run_herd create task --no-secret --dry-run -- exact task
-expect_status 0 "no-secret dry-run"
-expect_no_mutation "no-secret dry-run"
-if ! grep -F -q "Secret loading would not occur" "$HERD_STDOUT" "$HERD_STDERR"; then
-  fail "no-secret dry-run wording"
-fi
-echo "ok task --no-secret --dry-run"
-
-clear_fixtures
-run_herd create context --no-secret
-expect_status 0 "context --no-secret"
-py "
-from calls_lib import load
-import sys
-calls=load()
-tabs=[c for c in calls if c['cmd']=='herdr' and c['argv'][:2]==['tab','create']]
-if len(tabs)!=1: sys.exit('tab missing')
-if 'OMP_HERD_LOAD_SECRETS=1' in tabs[0]['argv']: sys.exit('secrets env present')
-if 'OMP_HERD_MANAGED=1' not in tabs[0]['argv']: sys.exit('managed env missing')
-" || fail "context --no-secret tab argv"
-echo "ok context --no-secret omits load-secrets"
 
 clear_fixtures
 run_herd create context --model=foo:high

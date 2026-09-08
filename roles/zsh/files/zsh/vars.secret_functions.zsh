@@ -1,24 +1,19 @@
 #!/usr/bin/env zsh
 
 function __secret_usage() {
-  echo -e "${YELLOW}Usage: ${CYAN}secret [options]${NC}"
-  echo ""
-  echo -e "${YELLOW}Description:${NC}"
-  echo -e "  Load or unload secret environment variables from 1Password."
-  echo ""
-  echo -e "${YELLOW}Options:${NC}"
-  echo -e "  ${CYAN}-c, --clear${NC}    Clear secret vars"
-  echo -e "  ${CYAN}-r, --reload${NC}   Reload secret vars"
-  echo -e "  ${CYAN}-l, --list${NC}     List loaded secret vars (names only)"
-  echo -e "  ${CYAN}-s, --status${NC}   Show secret loading status"
-  echo -e "  ${CYAN}-q, --quiet${NC}    Load without status text"
-  echo -e "  ${CYAN}-h, --help${NC}     Display this help message"
-  echo ""
-  echo -e "${YELLOW}Examples:${NC}"
-  echo -e "  ${CYAN}secret${NC}         # Load secret vars"
-  echo -e "  ${CYAN}secret -c${NC}      # Clear secret vars"
-  echo -e "  ${CYAN}secret -r${NC}      # Reload secret vars"
-  echo -e "  ${CYAN}secret -l${NC}      # List loaded secret vars"
+  cat <<'EOF'
+Usage: secret [options]
+
+Refresh the local secret cache from the trusted vars.secret recipe.
+
+Options:
+  -c, --clear    Delete the local cache and clear managed vars in this shell
+  -r, --reload   Refresh the local cache (same as secret)
+  -l, --list     List cached variable names without fetching
+  -s, --status   Show local cache status without fetching
+  -q, --quiet    Suppress refresh/status output
+  -h, --help     Display this help message
+EOF
 }
 
 function __secret_shell_var_name_valid() {
@@ -34,54 +29,15 @@ function __secret_var_name_valid() {
   esac
 }
 
-function __secret_file_signature() {
-  [[ -r "$1" ]] || return 1
-  cksum < "$1" 2>/dev/null
-}
-
-function __secret_metadata_present() {
-  [[ -n "${SECRETS_ALREADY_LOADED-}" ||
-     -n "${SECRETS_LOADED_AT-}" ||
-     -n "${SECRETS_LOADED_VARS-}" ||
-     -n "${SECRETS_LOADED_SIGNATURE-}" ]]
-}
-
-function __secret_in_agent_shell() {
-  (( ${+functions[is_agent_shell]} )) && is_agent_shell
-}
-
-# Check if 1Password CLI is available and authenticated
-function __op_check() {
-  if ! command -v op &>/dev/null; then
-    print -ru2 -- 'Error: unable to load secrets'
-    return 1
-  fi
-
-  local op_account="${OP_ACCOUNT:-my.1password.com}"
-  if ! op vault list --account "$op_account" --format json >/dev/null 2>&1; then
-    print -ru2 -- 'Error: unable to load secrets'
-    return 1
-  fi
-
-  return 0
-}
-
-function __op_ready() {
-  local op_account="${OP_ACCOUNT:-my.1password.com}"
-  command -v op &>/dev/null || return 1
-  op vault list --account "$op_account" --format json >/dev/null 2>&1
-}
-
-# Extract exported variable names, preserving their first declaration order.
+# Extract the variables the recipe explicitly declares, preserving first-seen
+# order.  The recipe itself is trusted and executable; this inventory limits
+# the cache to its declared exports rather than the producer environment.
 function __get_secret_vars() {
-  local secret_file="$HOME/.config/zsh/vars.secret"
+  emulate -L zsh
+  local __secret_internal_secret_file="$HOME/.config/zsh/vars.secret"
 
-  if [[ ! -f "$secret_file" ]]; then
-    echo -e "${RED}Error: Secret file not found: ${YELLOW}$secret_file${NC}" >&2
-    return 1
-  fi
-
-  awk '
+  [[ -f "$__secret_internal_secret_file" ]] || return 1
+  LC_ALL=C awk '
     function remember(var) {
       if (!seen[var]++) {
         print var
@@ -101,10 +57,11 @@ function __get_secret_vars() {
       sub(/[[:space:]].*/, "", var)
       remember(var)
     }
-  ' "$secret_file"
+  ' "$__secret_internal_secret_file"
 }
 
 function __secret_inventory_names_valid() {
+  emulate -L zsh
   local __secret_internal_inventory="$1"
   local __secret_internal_name
 
@@ -114,76 +71,111 @@ function __secret_inventory_names_valid() {
   done <<< "$__secret_internal_inventory"
 }
 
+function __secret_inventory_merge() {
+  emulate -L zsh
+  local __secret_internal_inventory __secret_internal_name
+  local -A __secret_internal_seen
+
+  for __secret_internal_inventory in "$@"; do
+    [[ -n "$__secret_internal_inventory" ]] || continue
+    while IFS= read -r __secret_internal_name; do
+      __secret_var_name_valid "$__secret_internal_name" || return 1
+      if [[ -z "${__secret_internal_seen[$__secret_internal_name]-}" ]]; then
+        __secret_internal_seen[$__secret_internal_name]=1
+        print -r -- "$__secret_internal_name"
+      fi
+    done <<< "$__secret_internal_inventory"
+  done
+}
+
+# Print names from the first inventory which do not occur in the second.
+function __secret_inventory_difference() {
+  emulate -L zsh
+  local __secret_internal_old_inventory="$1"
+  local __secret_internal_new_inventory="$2"
+  local __secret_internal_name
+  local -A __secret_internal_retained
+
+  [[ -n "$__secret_internal_new_inventory" ]] && while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+    __secret_internal_retained[$__secret_internal_name]=1
+  done <<< "$__secret_internal_new_inventory"
+
+  [[ -n "$__secret_internal_old_inventory" ]] || return 0
+  while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+    [[ -n "${__secret_internal_retained[$__secret_internal_name]-}" ]] || print -r -- "$__secret_internal_name"
+  done <<< "$__secret_internal_old_inventory"
+}
+
+function __secret_inventory_same() {
+  emulate -L zsh
+  local __secret_internal_expected="$1"
+  local __secret_internal_actual="$2"
+  local __secret_internal_name
+  local -A __secret_internal_expected_names __secret_internal_actual_names
+
+  while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+    [[ -z "${__secret_internal_expected_names[$__secret_internal_name]-}" ]] || return 1
+    __secret_internal_expected_names[$__secret_internal_name]=1
+  done <<< "$__secret_internal_expected"
+  while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+    [[ -z "${__secret_internal_actual_names[$__secret_internal_name]-}" ]] || return 1
+    __secret_internal_actual_names[$__secret_internal_name]=1
+  done <<< "$__secret_internal_actual"
+  (( ${#__secret_internal_expected_names} == ${#__secret_internal_actual_names} )) || return 1
+  for __secret_internal_name in ${(k)__secret_internal_expected_names}; do
+    [[ -n "${__secret_internal_actual_names[$__secret_internal_name]-}" ]] || return 1
+  done
+}
+
+function __secret_names_can_be_set() {
+  emulate -L zsh
+  local __secret_internal_inventory="$1"
+  local __secret_internal_name
+
+  [[ -n "$__secret_internal_inventory" ]] || return 0
+  while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+    [[ "${parameters[$__secret_internal_name]-}" == *readonly* ]] && return 1
+  done <<< "$__secret_internal_inventory"
+  return 0
+}
+
+function __secret_names_can_be_unset() {
+  emulate -L zsh
+  local __secret_internal_inventory="$1"
+  local __secret_internal_name
+
+  [[ -n "$__secret_internal_inventory" ]] || return 0
+  while IFS= read -r __secret_internal_name; do
+    __secret_var_name_valid "$__secret_internal_name" || return 1
+    (( ${+parameters[$__secret_internal_name]} )) || continue
+    [[ "${parameters[$__secret_internal_name]}" == *readonly* ]] && return 1
+  done <<< "$__secret_internal_inventory"
+  return 0
+}
+
 function __secret_unset_vars() {
-  [[ -n "$1" ]] || return 0
-  __SECRET_INTERNAL_UNSET_STATUS=0
-  while IFS= read -r __SECRET_INTERNAL_UNSET_TARGET; do
-    [[ -z "$__SECRET_INTERNAL_UNSET_TARGET" ]] && continue
-    __secret_shell_var_name_valid "$__SECRET_INTERNAL_UNSET_TARGET" || continue
-    if [[ "${parameters[$__SECRET_INTERNAL_UNSET_TARGET]-}" == *readonly* ]] ||
-       ! unset "$__SECRET_INTERNAL_UNSET_TARGET" 2>/dev/null; then
-      __SECRET_INTERNAL_UNSET_STATUS=1
-      break
-    fi
-  done <<< "$1"
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_inventory="$1"
+  local __secret_internal_name
 
-  if (( __SECRET_INTERNAL_UNSET_STATUS )); then
-    unset __SECRET_INTERNAL_UNSET_TARGET __SECRET_INTERNAL_UNSET_STATUS
-    return 1
-  fi
-  unset __SECRET_INTERNAL_UNSET_TARGET __SECRET_INTERNAL_UNSET_STATUS
+  __secret_names_can_be_unset "$__secret_internal_inventory" || return 1
+  [[ -n "$__secret_internal_inventory" ]] || return 0
+  while IFS= read -r __secret_internal_name; do
+    (( ${+parameters[$__secret_internal_name]} )) || continue
+    unset "$__secret_internal_name" || return 1
+  done <<< "$__secret_internal_inventory"
 }
 
-# Clear both the current profile and the inventory from the last successful load.
-function __secret_clear_state() {
-  __secret_reset_pending_reads
-  if [[ -f "$HOME/.config/zsh/vars.secret" ]]; then
-    set -- "${SECRETS_LOADED_VARS-}" "$(__get_secret_vars 2>/dev/null)" 0
-  else
-    set -- "${SECRETS_LOADED_VARS-}" "" 0
-  fi
-
-  __secret_unset_vars "$1" || set -- "$1" "$2" 1
-  __secret_unset_vars "$2" || set -- "$1" "$2" 1
-  unset SECRETS_ALREADY_LOADED
-  unset SECRETS_LOADED_AT
-  unset SECRETS_LOADED_VARS
-  unset SECRETS_LOADED_SIGNATURE
-  return "$3"
-}
-
-function __secret_inventory_is_loaded() {
-  local inventory="$1"
-  local var
-
-  [[ -n "$inventory" ]] || return 1
-  while IFS= read -r var; do
-    __secret_var_name_valid "$var" || return 1
-    (( ${+parameters[$var]} )) || return 1
-  done <<< "$inventory"
-}
-
-function __secret_already_loaded() {
-  local signature
-
-  if [[ "${SECRETS_ALREADY_LOADED:-}" == true &&
-        -n "${SECRETS_LOADED_VARS-}" &&
-        -n "${SECRETS_LOADED_SIGNATURE-}" ]] &&
-     signature="$(__secret_file_signature "$HOME/.config/zsh/vars.secret")" &&
-     [[ "$signature" == "$SECRETS_LOADED_SIGNATURE" ]] &&
-     __secret_inventory_is_loaded "$SECRETS_LOADED_VARS"; then
-    return 0
-  fi
-
-  if __secret_metadata_present; then
-    __secret_clear_state
-  fi
-  return 1
-}
-
-# Never trust bookkeeping imported from a parent process.
+# Do not trust queue bookkeeping inherited from another shell.
 unset __SECRET_OP_OUT __SECRET_OP_RC __SECRET_OP_REF __SECRET_OP_ACCOUNT
 unset __SECRET_OP_VARS __SECRET_OP_PIDS __SECRET_OP_TMPDIR __SECRET_OP_BATCH_OUT
+unset __SECRET_INTERNAL_READ_VALUE
 typeset -gA __SECRET_OP_OUT=()
 typeset -gA __SECRET_OP_RC=()
 typeset -gA __SECRET_OP_REF=()
@@ -192,10 +184,13 @@ typeset -ga __SECRET_OP_VARS=()
 typeset -ga __SECRET_OP_PIDS=()
 typeset -g +x __SECRET_OP_TMPDIR=''
 typeset -g +x __SECRET_OP_BATCH_OUT=''
+typeset -g +x __SECRET_INTERNAL_READ_VALUE=''
 
 function __secret_op_pending_dir() {
+  emulate -L zsh
+  unsetopt xtrace verbose
   if [[ -z "${__SECRET_OP_TMPDIR-}" ]]; then
-    __SECRET_OP_TMPDIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/zsh-secret.XXXXXX")" || return 1
+    __SECRET_OP_TMPDIR="$(umask 077; mktemp -d "${__SECRET_INTERNAL_TMP_ROOT:-${TMPDIR:-/tmp}}/zsh-secret.XXXXXX")" || return 1
   fi
 }
 
@@ -216,18 +211,19 @@ function __secret_op_run_environment_allowed() {
   esac
 }
 
-
 function __secret_reset_pending_reads() {
-  local pid
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_pid
 
-  setopt localoptions nomonitor
-  for pid in "${__SECRET_OP_PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null || true
+  setopt nomonitor
+  for __secret_internal_pid in "${__SECRET_OP_PIDS[@]}"; do
+    kill "$__secret_internal_pid" 2>/dev/null || true
+    wait "$__secret_internal_pid" 2>/dev/null || true
   done
   if [[ -n "${__SECRET_OP_TMPDIR-}" ]]; then
     case "$__SECRET_OP_TMPDIR" in
-      "${TMPDIR:-/tmp}"/zsh-secret.*)
+      "${__SECRET_INTERNAL_TMP_ROOT:-${TMPDIR:-/tmp}}"/zsh-secret.*)
         rm -rf -- "$__SECRET_OP_TMPDIR"
         ;;
     esac
@@ -240,89 +236,95 @@ function __secret_reset_pending_reads() {
   __SECRET_OP_REF=()
   __SECRET_OP_ACCOUNT=()
   unset __SECRET_OP_BATCH_OUT
+  unset __SECRET_INTERNAL_READ_VALUE
 }
 
 function __secret_unset_pending_read_vars() {
-  local __secret_pending_target
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_target
 
-  for __secret_pending_target in "${__SECRET_OP_VARS[@]}"; do
-    __secret_var_name_valid "$__secret_pending_target" || continue
-    [[ "${parameters[$__secret_pending_target]-}" == *readonly* ]] && continue
-    unset "$__secret_pending_target" 2>/dev/null || true
+  for __secret_internal_target in "${__SECRET_OP_VARS[@]}"; do
+    __secret_var_name_valid "$__secret_internal_target" || continue
+    [[ "${parameters[$__secret_internal_target]-}" == *readonly* ]] && continue
+    unset "$__secret_internal_target" 2>/dev/null || true
   done
 }
 
-# Read one non-empty 1Password value without exposing it on a failure path.
+# Read one non-empty 1Password value without exposing it on an error path.
+# Recipes use this only for intermediate trusted values; declared exports use
+# the queued helper below so cache serialization can preserve their bytes.
 function __secret_op_read() {
-  local value
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_value
 
-  value="$(op read "$@")" || return 1
-  [[ -n "$value" ]] || return 1
-  print -r -- "$value"
+  __secret_internal_value="$(op read "$@")" || return 1
+  [[ -n "$__secret_internal_value" ]] || return 1
+  print -r -- "$__secret_internal_value"
 }
 
-# Queue one 1Password read. The value is not exported until
-# __secret_await_op_reads; await before expanding a queued variable.
+# Queue one 1Password read.  Await before expanding a queued variable.
 function __secret_export_op_read() {
-  local var="$1"
-  local out_file rc_file
-  local account reference
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_var="$1"
+  local __secret_internal_out_file __secret_internal_rc_file __secret_internal_account __secret_internal_reference
 
   if __secret_use_single_process_batch; then
     if (( $# != 4 )) ||
-       ! __secret_var_name_valid "$var" ||
+       ! __secret_var_name_valid "$__secret_internal_var" ||
        [[ "$2" != --account || -z "$3" || "$4" != op://* ]] ||
-       [[ "${parameters[$var]-}" == *readonly* ||
-          -n "${__SECRET_OP_REF[$var]-}" ||
-          -n "${__SECRET_OP_ACCOUNT[$var]-}" ]]; then
+       [[ "${parameters[$__secret_internal_var]-}" == *readonly* ||
+          -n "${__SECRET_OP_REF[$__secret_internal_var]-}" ||
+          -n "${__SECRET_OP_ACCOUNT[$__secret_internal_var]-}" ]]; then
       __secret_unset_pending_read_vars
       __secret_reset_pending_reads
       return 1
     fi
 
-    account="$3"
-    reference="$4"
-
+    __secret_internal_account="$3"
+    __secret_internal_reference="$4"
     __secret_op_pending_dir || {
       __secret_unset_pending_read_vars
       __secret_reset_pending_reads
       return 1
     }
-    __SECRET_OP_ACCOUNT[$var]="$account"
-    __SECRET_OP_REF[$var]="$reference"
-    __SECRET_OP_VARS+=("$var")
+    __SECRET_OP_ACCOUNT[$__secret_internal_var]="$__secret_internal_account"
+    __SECRET_OP_REF[$__secret_internal_var]="$__secret_internal_reference"
+    __SECRET_OP_VARS+=("$__secret_internal_var")
     return 0
   fi
 
   (( $# >= 2 )) || return 1
-  __secret_var_name_valid "$var" || return 1
+  __secret_var_name_valid "$__secret_internal_var" || return 1
   shift
-  setopt localoptions nomonitor
+  setopt nomonitor
   __secret_op_pending_dir || return 1
-  out_file="$__SECRET_OP_TMPDIR/$var.out"
-  rc_file="$__SECRET_OP_TMPDIR/$var.rc"
+  __secret_internal_out_file="$__SECRET_OP_TMPDIR/$__secret_internal_var.out"
+  __secret_internal_rc_file="$__SECRET_OP_TMPDIR/$__secret_internal_var.rc"
 
   (
-    unsetopt xtrace 2>/dev/null
+    unsetopt xtrace verbose 2>/dev/null
     set +e
-    op read "$@" > "$out_file"
-    print -r -- "$?" > "$rc_file"
+    op read "$@" > "$__secret_internal_out_file"
+    print -r -- "$?" > "$__secret_internal_rc_file"
   ) &
-  __SECRET_OP_PIDS+=($!)
-  __SECRET_OP_VARS+=("$var")
-  __SECRET_OP_OUT[$var]="$out_file"
-  __SECRET_OP_RC[$var]="$rc_file"
+  __SECRET_OP_PIDS+=("$!")
+  __SECRET_OP_VARS+=("$__secret_internal_var")
+  __SECRET_OP_OUT[$__secret_internal_var]="$__secret_internal_out_file"
+  __SECRET_OP_RC[$__secret_internal_var]="$__secret_internal_rc_file"
 }
-
 
 # Resolve a Linux wave without overlapping desktop CLI clients. References are
 # grouped by account; account batches run serially and commit transactionally.
 function __secret_await_op_run_batch() {
-  local account expected_var received_var value extra
-  local failed=0
-  local -a accounts account_vars
-  local -A seen_accounts values
-  setopt localoptions noxtrace
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_account __secret_internal_expected_var __secret_internal_received_var __secret_internal_value __secret_internal_extra
+  local __secret_internal_failed=0
+  local -a __secret_internal_accounts __secret_internal_account_vars
+  local -A __secret_internal_seen_accounts __secret_internal_values
 
   (( ${#__SECRET_OP_VARS[@]} )) || return 0
   if [[ -z "${__SECRET_OP_TMPDIR-}" ]] ||
@@ -333,411 +335,617 @@ function __secret_await_op_run_batch() {
     __secret_reset_pending_reads
     return 1
   fi
-  for expected_var in "${__SECRET_OP_VARS[@]}"; do
-    account="${__SECRET_OP_ACCOUNT[$expected_var]-}"
-    if ! __secret_var_name_valid "$expected_var" ||
-       [[ "${parameters[$expected_var]-}" == *readonly* ||
-          -z "$account" || "${__SECRET_OP_REF[$expected_var]-}" != op://* ]]; then
+
+  for __secret_internal_expected_var in "${__SECRET_OP_VARS[@]}"; do
+    __secret_internal_account="${__SECRET_OP_ACCOUNT[$__secret_internal_expected_var]-}"
+    if ! __secret_var_name_valid "$__secret_internal_expected_var" ||
+       [[ "${parameters[$__secret_internal_expected_var]-}" == *readonly* ||
+          -z "$__secret_internal_account" || "${__SECRET_OP_REF[$__secret_internal_expected_var]-}" != op://* ]]; then
       __secret_unset_pending_read_vars
       __secret_reset_pending_reads
       return 1
     fi
-    if [[ -z "${seen_accounts[$account]-}" ]]; then
-      accounts+=("$account")
-      seen_accounts[$account]=1
+    if [[ -z "${__secret_internal_seen_accounts[$__secret_internal_account]-}" ]]; then
+      __secret_internal_accounts+=("$__secret_internal_account")
+      __secret_internal_seen_accounts[$__secret_internal_account]=1
     fi
   done
 
-  for account in "${accounts[@]}"; do
-    account_vars=()
-    for expected_var in "${__SECRET_OP_VARS[@]}"; do
-      if [[ "${__SECRET_OP_ACCOUNT[$expected_var]}" == "$account" ]]; then
-        account_vars+=("$expected_var")
-      fi
+  for __secret_internal_account in "${__secret_internal_accounts[@]}"; do
+    __secret_internal_account_vars=()
+    for __secret_internal_expected_var in "${__SECRET_OP_VARS[@]}"; do
+      [[ "${__SECRET_OP_ACCOUNT[$__secret_internal_expected_var]}" == "$__secret_internal_account" ]] && __secret_internal_account_vars+=("$__secret_internal_expected_var")
     done
 
     __SECRET_OP_BATCH_OUT="$(umask 077; mktemp "$__SECRET_OP_TMPDIR/batch.XXXXXX")" 2>/dev/null || {
-      failed=1
+      __secret_internal_failed=1
       break
     }
     (
-      unsetopt xtrace 2>/dev/null
+      unsetopt xtrace verbose 2>/dev/null
       set -- ${(k)parameters[(R)*-export*]}
       while (( $# )); do
-        if ! __secret_op_run_environment_allowed "$1" ||
-           [[ "${(P)1}" == op://* ]]; then
+        if ! __secret_op_run_environment_allowed "$1" || [[ "${(P)1}" == op://* ]]; then
           typeset -g +x "$1" 2>/dev/null || exit 1
         fi
         shift
       done
-      for expected_var in "${account_vars[@]}"; do
-        typeset -gx "$expected_var=${__SECRET_OP_REF[$expected_var]}" || exit 1
+      for __secret_internal_expected_var in "${__secret_internal_account_vars[@]}"; do
+        typeset -gx "$__secret_internal_expected_var=${__SECRET_OP_REF[$__secret_internal_expected_var]}" || exit 1
       done
-      exec op run --account "$account" --no-masking -- zsh -fc '
+      exec op run --account "$__secret_internal_account" --no-masking -- zsh -fc '
         emulate -LR zsh
+        unsetopt xtrace verbose
         while (( $# )); do
           printf "%s\0%s\0" "$1" "${(P)1}" || exit 1
           shift
         done
-      ' zsh "${account_vars[@]}"
-    ) > "$__SECRET_OP_BATCH_OUT" 2>/dev/null || failed=1
+      ' zsh "${__secret_internal_account_vars[@]}"
+    ) > "$__SECRET_OP_BATCH_OUT" 2>/dev/null || __secret_internal_failed=1
 
-    if (( ! failed )); then
+    if (( ! __secret_internal_failed )); then
       {
-        for expected_var in "${account_vars[@]}"; do
-          received_var=''
-          value=''
-          if ! IFS= read -r -d $'\0' received_var ||
-             ! IFS= read -r -d $'\0' value ||
-             [[ "$received_var" != "$expected_var" || -z "$value" ]]; then
-            failed=1
+        for __secret_internal_expected_var in "${__secret_internal_account_vars[@]}"; do
+          __secret_internal_received_var=''
+          __secret_internal_value=''
+          if ! IFS= read -r -d $'\0' __secret_internal_received_var ||
+             ! IFS= read -r -d $'\0' __secret_internal_value ||
+             [[ "$__secret_internal_received_var" != "$__secret_internal_expected_var" ]]; then
+            __secret_internal_failed=1
             break
           fi
-          values[$expected_var]="$value"
+          __secret_internal_values[$__secret_internal_expected_var]="$__secret_internal_value"
         done
-        if (( ! failed )); then
-          extra=''
-          if IFS= read -r -d $'\0' extra || [[ -n "$extra" ]]; then
-            failed=1
+        if (( ! __secret_internal_failed )); then
+          __secret_internal_extra=''
+          if IFS= read -r -d $'\0' __secret_internal_extra || [[ -n "$__secret_internal_extra" ]]; then
+            __secret_internal_failed=1
           fi
         fi
-        (( ! failed ))
-      } < "$__SECRET_OP_BATCH_OUT" || failed=1
+        (( ! __secret_internal_failed ))
+      } < "$__SECRET_OP_BATCH_OUT" || __secret_internal_failed=1
     fi
 
-    rm -f "$__SECRET_OP_BATCH_OUT"
+    rm -f -- "$__SECRET_OP_BATCH_OUT"
     unset __SECRET_OP_BATCH_OUT
-    (( failed )) && break
+    (( __secret_internal_failed )) && break
   done
 
-  if (( ! failed )); then
-    for expected_var in "${__SECRET_OP_VARS[@]}"; do
-      if ! typeset -gx "$expected_var=${values[$expected_var]}"; then
-        failed=1
+  if (( ! __secret_internal_failed )); then
+    for __secret_internal_expected_var in "${__SECRET_OP_VARS[@]}"; do
+      if ! typeset -gx "$__secret_internal_expected_var=${__secret_internal_values[$__secret_internal_expected_var]}"; then
+        __secret_internal_failed=1
         break
       fi
     done
   fi
-  (( failed )) && __secret_unset_pending_read_vars
-
+  (( __secret_internal_failed )) && __secret_unset_pending_read_vars
   __secret_reset_pending_reads
-  (( ! failed ))
+  (( ! __secret_internal_failed ))
 }
-# Wait for queued reads and export every value, or export none from this batch.
+
+# Read a regular file exactly into internal state.  `read -d NUL` preserves
+# terminal newlines when EOF follows the value, unlike command substitution.
+# A successful `op read` may legitimately produce an empty exported value.
+function __secret_read_file_exact() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_file="$1"
+
+  __SECRET_INTERNAL_READ_VALUE=''
+  [[ -f "$__secret_internal_file" && ! -L "$__secret_internal_file" ]] || return 1
+  IFS= read -r -d $'\0' __SECRET_INTERNAL_READ_VALUE < "$__secret_internal_file" || true
+}
+
+# Wait for queued reads and export every value, or export none from this wave.
 function __secret_await_op_reads() {
+  emulate -L zsh
+  unsetopt xtrace verbose
   if __secret_use_single_process_batch; then
     __secret_await_op_run_batch
     return $?
   fi
 
-  local var pid rc value
-  local failed=0
+  local __secret_internal_var __secret_internal_pid __secret_internal_rc __secret_internal_value
+  local __secret_internal_failed=0
+  local -A __secret_internal_values
 
-  for pid in "${__SECRET_OP_PIDS[@]}"; do
-    wait "$pid" || true
+  for __secret_internal_pid in "${__SECRET_OP_PIDS[@]}"; do
+    wait "$__secret_internal_pid" || true
   done
 
-  for var in "${__SECRET_OP_VARS[@]}"; do
-    rc="$(<"${__SECRET_OP_RC[$var]}")" 2>/dev/null || rc=""
-    value="$(<"${__SECRET_OP_OUT[$var]}")" 2>/dev/null || value=""
-    if [[ "$rc" != 0 || -z "$value" ||
-          "${parameters[$var]-}" == *readonly* ]]; then
-      failed=1
+  for __secret_internal_var in "${__SECRET_OP_VARS[@]}"; do
+    __secret_internal_rc="$(<"${__SECRET_OP_RC[$__secret_internal_var]}")" 2>/dev/null || __secret_internal_rc=''
+    if [[ "$__secret_internal_rc" != 0 || "${parameters[$__secret_internal_var]-}" == *readonly* ]] ||
+       ! __secret_read_file_exact "${__SECRET_OP_OUT[$__secret_internal_var]}"; then
+      __secret_internal_failed=1
       break
     fi
+    __secret_internal_value="$__SECRET_INTERNAL_READ_VALUE"
+    __secret_internal_values[$__secret_internal_var]="$__secret_internal_value"
   done
 
-  if (( ! failed )); then
-    for var in "${__SECRET_OP_VARS[@]}"; do
-      value="$(<"${__SECRET_OP_OUT[$var]}")"
-      if ! typeset -gx "$var=$value"; then
-        failed=1
+  if (( ! __secret_internal_failed )); then
+    for __secret_internal_var in "${__SECRET_OP_VARS[@]}"; do
+      if ! typeset -gx "$__secret_internal_var=${__secret_internal_values[$__secret_internal_var]}"; then
+        __secret_internal_failed=1
         break
       fi
     done
   fi
-  (( failed )) && __secret_unset_pending_read_vars
-
+  (( __secret_internal_failed )) && __secret_unset_pending_read_vars
   __secret_reset_pending_reads
-  (( ! failed ))
+  (( ! __secret_internal_failed ))
 }
 
-function __secret_source_file() {
-  local secret_file="$HOME/.config/zsh/vars.secret"
-  local inventory
-  local signature
-  local AWS_CREDS_ITEM
-  local error_log
-  local xtrace_on=0
+function __secret_cache_path() {
+  emulate -L zsh
+  local __secret_internal_state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
 
-  [[ -f "$secret_file" ]] || {
-    __secret_clear_state
-    return 1
-  }
-  signature="$(__secret_file_signature "$secret_file")" || {
-    __secret_clear_state
-    return 1
-  }
-  inventory="$(__get_secret_vars 2>/dev/null)" || {
-    __secret_clear_state
-    return 1
-  }
-  [[ -n "$inventory" ]] || {
-    __secret_clear_state
-    return 1
-  }
-  __secret_inventory_names_valid "$inventory" || {
-    __secret_clear_state
-    return 1
-  }
+  [[ -n "$__secret_internal_state_home" ]] || return 1
+  [[ "$__secret_internal_state_home" == /* ]] || __secret_internal_state_home="$PWD/$__secret_internal_state_home"
+  print -r -- "${__secret_internal_state_home:a}/zsh/secrets.zsh"
+}
 
-  # A stale inventory may contain vars removed from the current profile.
-  __secret_clear_state || return 1
-  error_log="$(mktemp)" || return 1
-  [[ -o xtrace ]] && xtrace_on=1
-  unsetopt xtrace
-  setopt localoptions nomonitor
+# `[[ -O ]]` establishes ownership; the mode check keeps a cache or cache
+# directory from being readable or writable by another account.  BSD and GNU
+# stat spell the portable permission query differently.
+function __secret_path_is_owner_private() {
+  emulate -L zsh
+  local __secret_internal_path="$1"
+  local __secret_internal_mode
 
-  if source "$secret_file" 2>"$error_log" && __secret_await_op_reads; then
-    rm -f "$error_log"
-    if __secret_inventory_is_loaded "$inventory"; then
-      (( xtrace_on )) && setopt xtrace
-      export SECRETS_LOADED_VARS="$inventory"
-      export SECRETS_LOADED_SIGNATURE="$signature"
-      export SECRETS_ALREADY_LOADED=true
-      export SECRETS_LOADED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
-      return 0
+  [[ -e "$__secret_internal_path" && ! -L "$__secret_internal_path" && -O "$__secret_internal_path" ]] || return 1
+  __secret_internal_mode="$(command stat -f '%Lp' "$__secret_internal_path" 2>/dev/null)" ||
+    __secret_internal_mode="$(command stat -c '%a' "$__secret_internal_path" 2>/dev/null)" || return 1
+  [[ "$__secret_internal_mode" == <-> ]] || return 1
+  (( (8#$__secret_internal_mode & 8#77) == 0 ))
+}
+
+# Every existing cache-directory ancestor must be a real directory owned by
+# this user or root.  A sticky directory is safe despite group/other writes
+# because the checked child path is still owned by this user or root.
+function __secret_cache_ancestors_trusted() {
+  emulate -L zsh
+  local __secret_internal_directory="$1"
+  local -A __secret_internal_stat
+
+  [[ -n "$__secret_internal_directory" && "$__secret_internal_directory" == /* ]] || return 1
+  [[ "${__secret_internal_directory:a}" == "${__secret_internal_directory:A}" ]] || return 1
+  zmodload zsh/stat || return 1
+  while :; do
+    if [[ -e "$__secret_internal_directory" || -L "$__secret_internal_directory" ]]; then
+      [[ -d "$__secret_internal_directory" && ! -L "$__secret_internal_directory" ]] || return 1
+      zstat -H __secret_internal_stat -- "$__secret_internal_directory" || return 1
+      (( __secret_internal_stat[uid] == EUID || __secret_internal_stat[uid] == 0 )) || return 1
+      (( (__secret_internal_stat[mode] & 8#022) == 0 || (__secret_internal_stat[mode] & 8#1000) != 0 )) || return 1
     fi
-  else
-    rm -f "$error_log"
-  fi
+    [[ "$__secret_internal_directory" == "${__secret_internal_directory:h}" ]] && break
+    __secret_internal_directory="${__secret_internal_directory:h}"
+  done
+  return 0
+}
 
-  (( xtrace_on )) && setopt xtrace
-  __secret_clear_state
+# A `.git` directory or worktree pointer in any ancestor proves this cache
+# destination is inside a Git worktree.  This does not rely on ignore rules.
+function __secret_path_is_in_git_worktree() {
+  emulate -L zsh
+  local __secret_internal_directory="${1:A}"
+
+  [[ -n "$__secret_internal_directory" ]] || return 1
+  while :; do
+    [[ -e "$__secret_internal_directory/.git" || -L "$__secret_internal_directory/.git" ]] && return 0
+    [[ "$__secret_internal_directory" == "${__secret_internal_directory:h}" ]] && break
+    __secret_internal_directory="${__secret_internal_directory:h}"
+  done
   return 1
 }
 
-# Quiet, fail-closed load for wrappers.
-function __secret_ensure_loaded() {
-  if __secret_already_loaded 2>/dev/null; then
-    return 0
+# The caller receives the canonical cache file in __SECRET_INTERNAL_REPLY.  The XDG state root
+# and its zsh child are made private before any secret temporary is created.
+function __secret_prepare_cache_path() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_requested __secret_internal_state_dir __secret_internal_cache_dir
+  local -A __secret_internal_stat
+
+  __secret_internal_requested="$(__secret_cache_path)" || return 1
+  [[ "${__secret_internal_requested:a}" == "${__secret_internal_requested:A}" ]] || return 1
+  __secret_internal_cache_dir="${__secret_internal_requested:h}"
+  __secret_internal_state_dir="${__secret_internal_cache_dir:h}"
+  __secret_cache_ancestors_trusted "$__secret_internal_cache_dir" || return 1
+  __secret_path_is_in_git_worktree "$__secret_internal_cache_dir" && return 1
+  zmodload zsh/stat || return 1
+  if [[ ! -e "$__secret_internal_state_dir" && ! -L "$__secret_internal_state_dir" ]]; then
+    (umask 077; mkdir -p -- "$__secret_internal_state_dir") || return 1
   fi
-  secret --quiet >/dev/null 2>&1
+  [[ -d "$__secret_internal_state_dir" && ! -L "$__secret_internal_state_dir" && -O "$__secret_internal_state_dir" ]] || return 1
+  zstat -H __secret_internal_stat -- "$__secret_internal_state_dir" || return 1
+  (( (__secret_internal_stat[mode] & 8#022) == 0 )) || return 1
+  __secret_cache_ancestors_trusted "$__secret_internal_cache_dir" || return 1
+  if [[ ! -e "$__secret_internal_cache_dir" && ! -L "$__secret_internal_cache_dir" ]]; then
+    (umask 077; mkdir -p -- "$__secret_internal_cache_dir") || return 1
+  fi
+  [[ -d "$__secret_internal_cache_dir" ]] || return 1
+  __secret_path_is_owner_private "$__secret_internal_cache_dir" || return 1
+  [[ "${__secret_internal_requested:a}" == "${__secret_internal_requested:A}" ]] || return 1
+  __SECRET_INTERNAL_REPLY="${__secret_internal_requested:a}"
+  if [[ -e "$__SECRET_INTERNAL_REPLY" || -L "$__SECRET_INTERNAL_REPLY" ]]; then
+    [[ -f "$__SECRET_INTERNAL_REPLY" ]] || return 1
+    __secret_path_is_owner_private "$__SECRET_INTERNAL_REPLY" || return 1
+  fi
+  return 0
+}
+function __secret_cache_file_safe() {
+  emulate -L zsh
+  local __secret_internal_cache="$1"
+  local __secret_internal_cache_dir
+
+  [[ -n "$__secret_internal_cache" ]] || return 1
+  [[ "$__secret_internal_cache" == "${__secret_internal_cache:A}" ]] || return 1
+  __secret_internal_cache_dir="${__secret_internal_cache:h}"
+  __secret_cache_ancestors_trusted "$__secret_internal_cache_dir" || return 1
+  __secret_path_is_owner_private "$__secret_internal_cache" || return 1
+  __secret_path_is_owner_private "$__secret_internal_cache_dir" || return 1
+  __secret_path_is_in_git_worktree "$__secret_internal_cache_dir" && return 1
+  return 0
 }
 
-function __secret_wrap_once() {
-  local name="$1"
-  local started_label="${2:-$1}"
+# Cache name metadata is comment-only so startup remains an ordinary export
+# source file.  Reading it never expands or executes a cached value.
+function __secret_cache_inventory_file() {
+  emulate -L zsh
+  local __secret_internal_cache="$1"
+  local __secret_internal_line __secret_internal_name
+  local __secret_internal_metadata=1
+  local -A __secret_internal_seen
 
-  [[ "$name" =~ '^[A-Za-z_][A-Za-z0-9_-]*$' ]] || return 1
-  (( ${+functions[$name]} )) && return 0
-  whence -p "$name" >/dev/null 2>&1 || return 0
+  [[ -f "$__secret_internal_cache" && ! -L "$__secret_internal_cache" && -O "$__secret_internal_cache" ]] || return 1
+  while IFS= read -r __secret_internal_line; do
+    if (( __secret_internal_metadata )); then
+      case "$__secret_internal_line" in
+        '# zsh-secret-cache-format: 1')
+          ;;
+        '# zsh-secret-name: '*)
+          __secret_internal_name="${__secret_internal_line#\# zsh-secret-name: }"
+          __secret_var_name_valid "$__secret_internal_name" || return 1
+          [[ -z "${__secret_internal_seen[$__secret_internal_name]-}" ]] || return 1
+          __secret_internal_seen[$__secret_internal_name]=1
+          print -r -- "$__secret_internal_name"
+          ;;
+        *)
+          # Generated metadata precedes the first export.  Never interpret
+          # lines inside a shell-quoted multiline value as metadata.
+          __secret_internal_metadata=0
+          ;;
+      esac
+    fi
+  done < "$__secret_internal_cache"
+  (( ${#__secret_internal_seen} ))
+}
 
-  functions[$name]="
-    if ! __secret_ensure_loaded; then
-      print -ru2 -- 'Error: unable to load secrets; ${started_label} was not started'
-      return 1
+function __secret_existing_cache_inventory() {
+  emulate -L zsh
+  local __secret_internal_cache
+
+  __secret_internal_cache="$(__secret_cache_path)" || return 1
+  __secret_cache_file_safe "$__secret_internal_cache" || return 1
+  __secret_cache_inventory_file "$__secret_internal_cache"
+}
+
+function __secret_acquire_cache_lock() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_cache_dir="$1"
+  local __secret_internal_lock_file="${__secret_internal_cache_dir}/.secrets.lock"
+  local __secret_internal_fd
+
+  [[ -d "$__secret_internal_cache_dir" && ! -L "$__secret_internal_cache_dir" ]] || return 1
+  __secret_cache_ancestors_trusted "$__secret_internal_cache_dir" || return 1
+  __secret_path_is_owner_private "$__secret_internal_cache_dir" || return 1
+  zmodload zsh/system || return 1
+  if [[ ! -e "$__secret_internal_lock_file" && ! -L "$__secret_internal_lock_file" ]]; then
+    (umask 077; setopt noclobber; : > "$__secret_internal_lock_file") 2>/dev/null || true
+  fi
+  [[ -f "$__secret_internal_lock_file" ]] || return 1
+  __secret_path_is_owner_private "$__secret_internal_lock_file" || return 1
+  zsystem flock -t 5 -f __secret_internal_fd "$__secret_internal_lock_file" || return 1
+  __SECRET_INTERNAL_REPLY="$__secret_internal_fd"
+}
+function __secret_release_cache_lock() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  [[ "$1" == <-> ]] || return 1
+  zsystem flock -u "$1"
+}
+# Serialize only selected names in an ordinary sourceable zsh export file.
+# `(qq)` yields a single-quoted shell literal, so values are data when sourced,
+# including quotes, metacharacters, empty strings, newlines, and final newlines.
+function __secret_write_cache_from_recipe() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  setopt localtraps
+  trap 'return 130' INT
+  trap 'return 143' TERM
+  local __secret_internal_output="$1" __secret_internal_inventory="$2"
+  local __secret_internal_secret_file="$HOME/.config/zsh/vars.secret"
+  local __secret_internal_name __secret_internal_value
+  local __SECRET_INTERNAL_TMP_ROOT="${__secret_internal_output:h}"
+  local -x TMPDIR="$__SECRET_INTERNAL_TMP_ROOT"
+
+  [[ -f "$__secret_internal_secret_file" ]] || return 1
+  __secret_reset_pending_reads
+  {
+    source "$__secret_internal_secret_file" > /dev/null 2>&1 || return 1
+    __secret_await_op_reads || return 1
+    {
+      print -r -- '# zsh-secret-cache-format: 1'
+      while IFS= read -r __secret_internal_name; do
+        __secret_var_name_valid "$__secret_internal_name" || return 1
+        print -r -- "# zsh-secret-name: $__secret_internal_name" || return 1
+      done <<< "$__secret_internal_inventory"
+      while IFS= read -r __secret_internal_name; do
+        (( ${+parameters[$__secret_internal_name]} )) || return 1
+        [[ "${parameters[$__secret_internal_name]}" == *export* ]] || return 1
+        __secret_internal_value="${(P)__secret_internal_name}"
+        print -r -- "export ${__secret_internal_name}=${(qq)__secret_internal_value}" || return 1
+      done <<< "$__secret_internal_inventory"
+    } > "$__secret_internal_output" || return 1
+    chmod 600 -- "$__secret_internal_output" || return 1
+  } always {
+    __secret_reset_pending_reads
+  }
+}
+# Snapshot only managed targets.  It is private temporary data used solely to
+# restore this shell if applying a generated cache or publishing it fails.
+function __secret_snapshot_vars() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_output="$1"
+  local __secret_internal_inventory="$2"
+  local __secret_internal_name __secret_internal_value __secret_internal_attributes
+
+  {
+    while IFS= read -r __secret_internal_name; do
+      __secret_var_name_valid "$__secret_internal_name" || return 1
+      if (( ${+parameters[$__secret_internal_name]} )); then
+        __secret_internal_value="${(P)__secret_internal_name}"
+        __secret_internal_attributes="${parameters[$__secret_internal_name]}"
+        if [[ "$__secret_internal_attributes" == *export* ]]; then
+          print -r -- "export ${__secret_internal_name}=${(qq)__secret_internal_value}"
+        else
+          print -r -- "typeset -g +x ${__secret_internal_name}=${(qq)__secret_internal_value}"
+        fi
+      else
+        print -r -- "unset ${__secret_internal_name}"
+      fi
+    done <<< "$__secret_internal_inventory"
+  } > "$__secret_internal_output" || return 1
+  chmod 600 -- "$__secret_internal_output"
+}
+
+function __secret_source_literal_file() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_cache="$1"
+
+  source "$__secret_internal_cache" > /dev/null 2>&1
+}
+
+# Refresh in two phases: an isolated producer resolves the trusted recipe into
+# a private temporary cache; only then does the parent import and atomically
+# replace the old cache.  No cache or variables are cleared before production.
+function __secret_refresh() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  setopt localtraps
+  trap 'return 130' INT
+  trap 'return 143' TERM
+  local __secret_internal_inventory __secret_internal_cache __secret_internal_cache_dir __secret_internal_lock_fd
+  local __secret_internal_old_inventory='' __secret_internal_all_inventory __secret_internal_removed_inventory __secret_internal_generated_inventory
+  local __secret_internal_cache_tmp='' __secret_internal_restore_tmp=''
+  local __secret_internal_imported=0 __secret_internal_published=0
+
+  __secret_internal_inventory="$(__get_secret_vars)" || return 1
+  __secret_inventory_names_valid "$__secret_internal_inventory" || return 1
+  __secret_prepare_cache_path || return 1
+  __secret_internal_cache="$__SECRET_INTERNAL_REPLY"
+  __secret_internal_cache_dir="${__secret_internal_cache:h}"
+  __secret_acquire_cache_lock "$__secret_internal_cache_dir" || return 1
+  __secret_internal_lock_fd="$__SECRET_INTERNAL_REPLY"
+  {
+    if [[ -e "$__secret_internal_cache" || -L "$__secret_internal_cache" ]]; then
+      __secret_cache_file_safe "$__secret_internal_cache" || return 1
+      __secret_internal_old_inventory="$(__secret_cache_inventory_file "$__secret_internal_cache")" || return 1
     fi
-    unfunction ${name}
-    local canonical
-    canonical=\$(whence -p ${name})
-    if [[ -z \$canonical ]]; then
-      print -ru2 -- 'Error: ${started_label} was not found after loading secrets'
-      return 1
+    __secret_internal_all_inventory="$(__secret_inventory_merge "$__secret_internal_old_inventory" "$__secret_internal_inventory")" || return 1
+    __secret_internal_removed_inventory="$(__secret_inventory_difference "$__secret_internal_old_inventory" "$__secret_internal_inventory")" || return 1
+    __secret_names_can_be_set "$__secret_internal_inventory" || return 1
+    __secret_names_can_be_unset "$__secret_internal_removed_inventory" || return 1
+    __secret_internal_cache_tmp="$(umask 077; mktemp "$__secret_internal_cache_dir/.secrets.zsh.XXXXXX")" || return 1
+    __secret_internal_restore_tmp="$(umask 077; mktemp "$__secret_internal_cache_dir/.secrets.restore.XXXXXX")" || return 1
+    __secret_snapshot_vars "$__secret_internal_restore_tmp" "$__secret_internal_all_inventory" || return 1
+    ( __secret_write_cache_from_recipe "$__secret_internal_cache_tmp" "$__secret_internal_inventory" ) > /dev/null 2>&1 || return 1
+    __secret_internal_generated_inventory="$(__secret_cache_inventory_file "$__secret_internal_cache_tmp")" || return 1
+    __secret_inventory_same "$__secret_internal_inventory" "$__secret_internal_generated_inventory" || return 1
+    # Complete the short in-memory/disk commit without a partial signal rollback.
+    trap '' INT TERM
+    __secret_internal_imported=1
+    __secret_source_literal_file "$__secret_internal_cache_tmp" || return 1
+    __secret_unset_vars "$__secret_internal_removed_inventory" || return 1
+    mv -f -- "$__secret_internal_cache_tmp" "$__secret_internal_cache" || return 1
+    __secret_internal_cache_tmp=''
+    __secret_internal_published=1
+  } always {
+    if (( __secret_internal_imported && ! __secret_internal_published )); then
+      __secret_source_literal_file "$__secret_internal_restore_tmp" || true
     fi
-    \"\$canonical\" \"\$@\"
-  "
+    [[ -n "$__secret_internal_cache_tmp" ]] && rm -f -- "$__secret_internal_cache_tmp"
+    [[ -n "$__secret_internal_restore_tmp" ]] && rm -f -- "$__secret_internal_restore_tmp"
+    __secret_release_cache_lock "$__secret_internal_lock_fd" >/dev/null 2>&1 || true
+  }
+  (( __secret_internal_published ))
+}
+function __secret_clear_state() {
+  emulate -L zsh
+  unsetopt xtrace verbose
+  setopt localtraps
+  trap 'return 130' INT
+  trap 'return 143' TERM
+  local __secret_internal_cache __secret_internal_cache_dir __secret_internal_inventory __secret_internal_lock_fd
+  local __secret_internal_restore_tmp=''
+  local __secret_internal_changed=0 __secret_internal_complete=0
+
+  __secret_internal_cache="$(__secret_cache_path)" || return 1
+  [[ "${__secret_internal_cache:a}" == "${__secret_internal_cache:A}" ]] || return 1
+  __secret_internal_cache_dir="${__secret_internal_cache:h}"
+  __secret_cache_ancestors_trusted "$__secret_internal_cache_dir" || return 1
+  __secret_path_is_in_git_worktree "$__secret_internal_cache_dir" && return 1
+  [[ -e "$__secret_internal_cache_dir" || -L "$__secret_internal_cache_dir" ]] || return 0
+  [[ -d "$__secret_internal_cache_dir" ]] || return 1
+  __secret_path_is_owner_private "$__secret_internal_cache_dir" || return 1
+  __secret_acquire_cache_lock "$__secret_internal_cache_dir" || return 1
+  __secret_internal_lock_fd="$__SECRET_INTERNAL_REPLY"
+  {
+    [[ -e "$__secret_internal_cache" || -L "$__secret_internal_cache" ]] || return 0
+    __secret_cache_file_safe "$__secret_internal_cache" || return 1
+    __secret_internal_inventory="$(__secret_cache_inventory_file "$__secret_internal_cache")" || return 1
+    __secret_names_can_be_unset "$__secret_internal_inventory" || return 1
+    __secret_internal_restore_tmp="$(umask 077; mktemp "$__secret_internal_cache_dir/.secrets.restore.XXXXXX")" || return 1
+    __secret_snapshot_vars "$__secret_internal_restore_tmp" "$__secret_internal_inventory" || return 1
+    trap '' INT TERM
+    __secret_internal_changed=1
+    __secret_unset_vars "$__secret_internal_inventory" || return 1
+    rm -f -- "$__secret_internal_cache" || return 1
+    __secret_internal_complete=1
+  } always {
+    if (( __secret_internal_changed && ! __secret_internal_complete )); then
+      __secret_source_literal_file "$__secret_internal_restore_tmp" || true
+    fi
+    [[ -n "$__secret_internal_restore_tmp" ]] && rm -f -- "$__secret_internal_restore_tmp"
+    __secret_release_cache_lock "$__secret_internal_lock_fd" >/dev/null 2>&1 || true
+  }
+  (( __secret_internal_complete ))
+}
+function __secret_status() {
+  emulate -L zsh
+  local __secret_internal_cache __secret_internal_inventory __secret_internal_count=0 __secret_internal_name
+
+  __secret_internal_cache="$(__secret_cache_path)" || return 1
+  if ! __secret_cache_file_safe "$__secret_internal_cache" ||
+     ! __secret_internal_inventory="$(__secret_cache_inventory_file "$__secret_internal_cache")"; then
+    print -r -- 'Secrets cache: unavailable'
+    return 1
+  fi
+  while IFS= read -r __secret_internal_name; do
+    (( __secret_internal_count++ ))
+  done <<< "$__secret_internal_inventory"
+  print -r -- "Secrets cache: ready (${__secret_internal_count} variables)"
+  print -r -- "Cache path: $__secret_internal_cache"
+}
+
+function __secret_list() {
+  emulate -L zsh
+  local __secret_internal_inventory
+
+  __secret_internal_inventory="$(__secret_existing_cache_inventory)" || return 1
+  print -r -- "$__secret_internal_inventory"
 }
 
 function secret() {
-  local action="load"
-  local quiet=0
+  emulate -L zsh
+  unsetopt xtrace verbose
+  local __secret_internal_action='refresh'
+  local __secret_internal_quiet=0
+  local __secret_internal_inventory __secret_internal_count=0 __secret_internal_name
 
-  while [[ "$#" -gt 0 ]]; do
+  while (( $# )); do
     case "$1" in
       -c|--clear)
-        action="clear"
-        shift
+        __secret_internal_action='clear'
         ;;
       -r|--reload)
-        action="reload"
-        shift
+        __secret_internal_action='refresh'
         ;;
       -l|--list)
-        action="list"
-        shift
+        __secret_internal_action='list'
         ;;
       -s|--status)
-        action="status"
-        shift
+        __secret_internal_action='status'
         ;;
       -q|--quiet)
-        quiet=1
-        shift
+        __secret_internal_quiet=1
         ;;
       -h|--help)
         __secret_usage
-        return
+        return 0
         ;;
       *)
-        echo -e "${RED}Unknown option: ${YELLOW}$1${NC}" >&2
-        echo -e "Use ${CYAN}secret --help${NC} for usage information" >&2
+        (( __secret_internal_quiet )) || print -ru2 -- 'Error: unknown secret option'
         return 1
         ;;
     esac
+    shift
   done
 
-  case "$action" in
-    status)
-      if __secret_already_loaded; then
-        echo -e " ${GREEN}[${CHECK_MARK}${GREEN}] Secrets are loaded${NC}"
-        if [[ -n "$SECRETS_LOADED_AT" ]]; then
-          echo -e " ${CYAN}   Loaded at: ${YELLOW}$SECRETS_LOADED_AT${NC}"
-        fi
-      else
-        echo -e " ${YELLOW}[${WARNING}${YELLOW}] Secrets are not loaded${NC}"
-      fi
-      return
-      ;;
-
-    list)
-      if ! __secret_already_loaded; then
-        echo -e " ${YELLOW}[${WARNING}${YELLOW}] Secrets are not loaded${NC}"
+  case "$__secret_internal_action" in
+    refresh)
+      if ! __secret_refresh; then
+        (( __secret_internal_quiet )) || print -ru2 -- 'Error: unable to refresh secrets'
         return 1
       fi
-
-      echo -e " ${GREEN}Loaded secret variables:${NC}"
-      local vars=$(__get_secret_vars)
-      if [[ -n "$vars" ]]; then
-        while IFS= read -r var; do
-          if [[ -n "${(P)var}" ]]; then
-            echo -e "   ${CYAN}${var}${NC} ${GREEN}✓${NC}"
-          else
-            echo -e "   ${CYAN}${var}${NC} ${RED}✗${NC}"
-          fi
-        done <<< "$vars"
+      if (( ! __secret_internal_quiet )); then
+        __secret_internal_inventory="$(__secret_existing_cache_inventory)" || return 1
+        while IFS= read -r __secret_internal_name; do
+          (( __secret_internal_count++ ))
+        done <<< "$__secret_internal_inventory"
+        print -r -- "Secrets refreshed: ${__secret_internal_count} variables"
       fi
-      return
       ;;
-
     clear)
-      if (( quiet )); then
-        __secret_clear_state
-        return
+      if ! __secret_clear_state; then
+        (( __secret_internal_quiet )) || print -ru2 -- 'Error: unable to clear secrets safely'
+        return 1
       fi
-
-      __task "Clearing secret vars..."
-      if __secret_clear_state; then
-        _task_done
-        echo -e " ${GREEN}Cleared secret variables${NC}"
+      (( __secret_internal_quiet )) || print -r -- 'Secrets cache cleared'
+      ;;
+    status)
+      if (( __secret_internal_quiet )); then
+        __secret_cache_path >/dev/null || return 1
+        __secret_existing_cache_inventory >/dev/null
       else
-        _clear_task
-        print -ru2 -- 'Error: unable to clear secret variables'
-        return 1
+        __secret_status
       fi
-      return
       ;;
-
-    reload)
-      if (( quiet )); then
-        secret --quiet --clear && secret --quiet
-        return
-      fi
-      __task "${ARROW} ${YELLOW}Reloading secrets..."
-      _task_done
-      secret --clear && secret
-      return
-      ;;
-
-    load)
-      if __secret_already_loaded; then
-        (( quiet )) || echo -e " ${GREEN}[${CHECK_MARK}${GREEN}] Secrets already loaded${NC}"
-        return
-      fi
-
-      if (( quiet )); then
-        if ! __op_ready; then
-          __secret_clear_state
-          return 1
-        fi
-        if [[ ! -f "$HOME/.config/zsh/vars.secret" ]]; then
-          __secret_clear_state
-          return 1
-        fi
-        __secret_source_file
-        return
-      fi
-
-      if ! __op_check; then
-        __secret_clear_state
+    list)
+      if (( __secret_internal_quiet )); then
+        __secret_existing_cache_inventory >/dev/null
+      elif ! __secret_list; then
+        print -ru2 -- 'Error: no safe secret cache is available'
         return 1
       fi
-
-      local secret_file="$HOME/.config/zsh/vars.secret"
-      if [[ ! -f "$secret_file" ]]; then
-        __secret_clear_state
-        print -ru2 -- 'Error: unable to load secrets'
-        return 1
-      fi
-
-      __task "Loading secrets..."
-      if __secret_source_file; then
-        _task_done
-        local vars=$(__get_secret_vars)
-        local count=0
-        if [[ -n "$vars" ]]; then
-          while IFS= read -r var; do
-            [[ -n "${(P)var}" ]] && ((count++))
-          done <<< "$vars"
-        fi
-        echo -e " ${GREEN}Loaded ${count} secret variable(s)${NC}"
-        return
-      fi
-
-      __task "${X_MARK}${RED} Failed to load secrets"
-      _clear_task
-      print -ru2 -- 'Error: unable to load secrets'
-      return 1
       ;;
   esac
 }
 
-# A marked Herd shell loads secrets only for its first OMP call.
-if [[ "${OMP_HERD_LOAD_SECRETS-}" == "1" ]]; then
-  unset OMP_HERD_LOAD_SECRETS
-  if ! __secret_in_agent_shell; then
-    __secret_wrap_once omp OMP
-  fi
-fi
-
-# Interactive human shells only. Never wrap tools in agent shells (each zsh -c
-# would re-query 1Password).
-if [[ -o interactive ]] && ! __secret_in_agent_shell; then
-  for _secret_tool in gh aws; do
-    __secret_wrap_once "$_secret_tool"
-  done
-  unset _secret_tool
-fi
-
-# Add completion for the secret function
-if [[ -n "$ZSH_VERSION" ]] && [[ -n "${functions[compdef]}" ]]; then
+if [[ -n "$ZSH_VERSION" && -n "${functions[compdef]}" ]]; then
   _secret() {
-    local -a options
-    options=(
-      '-c:Clear secret vars'
-      '--clear:Clear secret vars'
-      '-r:Reload secret vars'
-      '--reload:Reload secret vars'
-      '-l:List loaded secret vars'
-      '--list:List loaded secret vars'
-      '-s:Show secret loading status'
-      '--status:Show secret loading status'
-      '-q:Load without status text'
-      '--quiet:Load without status text'
+    local -a __secret_internal_options
+    __secret_internal_options=(
+      '-c:Clear the local secret cache and current shell vars'
+      '--clear:Clear the local secret cache and current shell vars'
+      '-r:Refresh the local secret cache'
+      '--reload:Refresh the local secret cache'
+      '-l:List cached secret variable names'
+      '--list:List cached secret variable names'
+      '-s:Show local secret cache status'
+      '--status:Show local secret cache status'
+      '-q:Suppress output'
+      '--quiet:Suppress output'
       '-h:Display help'
       '--help:Display help'
     )
-    _describe 'secret options' options
+    _describe 'secret options' __secret_internal_options
   }
   compdef _secret secret
 fi

@@ -16,7 +16,7 @@ if [[ ! -f "$loader" ]]; then
   exit 1
 fi
 
-tmp_dir="$(mktemp -d)"
+tmp_dir="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$tmp_dir"' EXIT
 bin_dir="$tmp_dir/bin"
 mkdir -p "$bin_dir"
@@ -61,6 +61,7 @@ resolve_reference() {
     op://fixture/wave-local) printf '%s' 'fixture-wave-local' ;;
     op://fixture/wave-dependent) printf '%s' 'fixture-wave-dependent' ;;
     op://fixture/failure-alpha) printf '%s' 'fixture-failure-alpha' ;;
+    op://fixture/github-token) printf '%s' 'fixture-github-token' ;;
     op://fixture/failure-bravo) return 17 ;;
     op://fixture/previous-cache) printf '%s' 'fixture-previous-cache' ;;
     op://fixture/readonly-target) printf '%s' 'fixture-readonly-target' ;;
@@ -101,12 +102,23 @@ case "${1-}" in
     exit 0
     ;;
   read)
+    no_newline=0
     reference=""
+    shift
     for argument in "$@"; do
-      reference="$argument"
+      case "$argument" in
+        -n|--no-newline)
+          no_newline=1
+          ;;
+        op://*)
+          reference="$argument"
+          ;;
+      esac
     done
+    [ -n "$reference" ] || exit 71
     record_operation "read:$reference"
-    resolve_reference "$reference"
+    resolve_reference "$reference" || exit "$?"
+    [ "$no_newline" -eq 1 ] || printf '\n'
     ;;
   run)
     shift
@@ -138,6 +150,16 @@ EOF
 esac
 OP
 chmod +x "$bin_dir/op"
+
+# Exercise options-before-operands parsing only in chmod, without changing
+# zsh or the op fixture's environment. Exclude the fixture bin to avoid recursion.
+cat > "$bin_dir/chmod" <<'CHMOD'
+#!/bin/sh
+PATH=/usr/bin:/bin
+export PATH
+exec env POSIXLY_CORRECT=1 chmod "$@"
+CHMOD
+chmod +x "$bin_dir/chmod"
 
 fail() {
   echo "test_secret_loading: $*" >&2
@@ -171,7 +193,6 @@ run_zsh() {
     PATH="$bin_dir:/usr/bin:/bin" \
     OP_ACCOUNT=fixture-account \
     OP_CONFIG_DIR="$op_config_dir" \
-    OSTYPE=linux-gnu \
     "$zsh_bin" -df
 }
 
@@ -192,6 +213,7 @@ expect_operation_count() {
     fail "expected $expected $prefix operation(s), found $actual"
 }
 
+
 expect_no_operations() {
   [[ ! -s "$op_log" ]] || fail "unexpected op invocation"
 }
@@ -202,27 +224,40 @@ assert_quiet_output() {
     fail "--quiet produced user-interface output"
 }
 
+mode_of() {
+  if [[ "$(uname -s)" == Darwin ]]; then
+    stat -f '%Lp' "$1"
+  else
+    stat -c '%a' "$1"
+  fi
+}
+
+contains_name() {
+  local name="$1" candidate
+  shift
+
+  for candidate in "$@"; do
+    [[ "$candidate" == "$name" ]] && return 0
+  done
+  return 1
+}
+
 assert_private_cache() {
   local cache="$state_dir/zsh/secrets.zsh"
   local cache_dir="$state_dir/zsh"
   local cache_dir_mode
 
   [[ -f "$cache" && ! -L "$cache" ]] || fail "cache is not a regular file"
-  [[ "$(stat -c '%a' "$cache")" == 600 ]] || fail "cache is not mode 0600"
+  [[ "$(mode_of "$cache")" == 600 ]] || fail "cache is not mode 0600"
   [[ -d "$cache_dir" && ! -L "$cache_dir" ]] || fail "cache directory is unsafe"
-  cache_dir_mode="$(stat -c '%a' "$cache_dir")"
+  cache_dir_mode="$(mode_of "$cache_dir")"
   [[ "$cache_dir_mode" =~ ^[0-7]00$ ]] || fail "cache directory is not private"
 }
 
 assert_cache_exports() {
   local cache="$state_dir/zsh/secrets.zsh"
   local line name metadata=1
-  declare -A expected=()
-  declare -A seen=()
-
-  for name in "$@"; do
-    expected["$name"]=1
-  done
+  local -a seen_names=()
 
   # Name comments precede the first export.  Do not mistake lines in a
   # shell-quoted multiline value for another cache statement.
@@ -233,9 +268,10 @@ assert_cache_exports() {
         ;;
       '# zsh-secret-name: '*)
         name="${line#\# zsh-secret-name: }"
-        [[ -n "${expected[$name]-}" ]] || fail "cache names undeclared $name"
-        [[ -z "${seen[$name]-}" ]] || fail "cache names $name more than once"
-        seen["$name"]=1
+        contains_name "$name" "$@" || fail "cache names undeclared $name"
+        contains_name "$name" ${seen_names[@]+"${seen_names[@]}"} &&
+          fail "cache names $name more than once"
+        seen_names+=("$name")
         ;;
       export\ *)
         metadata=0
@@ -247,7 +283,8 @@ assert_cache_exports() {
   done < "$cache"
 
   for name in "$@"; do
-    [[ -n "${seen[$name]-}" ]] || fail "cache omits $name"
+    contains_name "$name" ${seen_names[@]+"${seen_names[@]}"} ||
+      fail "cache omits $name"
   done
 }
 
@@ -330,6 +367,34 @@ expect_operation_count 'run:' 4
 
 echo "ok refreshes ignore cache and cache literals round-trip"
 
+# Darwin joins Linux on the serialized op run path. Its GitHub token is
+# deliberately byte-sensitive: the fixture has no line ending, while the
+# trailing and empty fixtures exercise values op read must not normalize.
+new_case darwin-batch-token-bytes
+write_recipe <<'ZSH'
+__secret_export_op_read GITHUB_TOKEN --account "$OP_ACCOUNT" "op://fixture/github-token" || return 1
+__secret_export_op_read TEST_LITERAL_TRAILING --account "$OP_ACCOUNT" "op://fixture/literal-trailing" || return 1
+__secret_export_op_read TEST_LITERAL_EMPTY --account "$OP_ACCOUNT" "op://fixture/literal-empty" || return 1
+ZSH
+if ! run_zsh >"$case_dir/darwin.stdout" 2>"$case_dir/darwin.stderr" <<'ZSH'
+source "$HOME/.config/zsh/vars.secret_functions.zsh"
+OSTYPE=darwin
+secret --quiet || exit 1
+[[ "$GITHUB_TOKEN" == fixture-github-token ]] || exit 1
+[[ "$GITHUB_TOKEN" != *$'\n'* && "$GITHUB_TOKEN" != *$'\r'* ]] || exit 1
+[[ "$TEST_LITERAL_TRAILING" == $'ends-with-newline\n' ]] || exit 1
+(( ${+TEST_LITERAL_EMPTY} )) && [[ -z "$TEST_LITERAL_EMPTY" ]] || exit 1
+ZSH
+then
+  fail "Darwin batch did not preserve token and literal bytes"
+fi
+assert_quiet_output "$case_dir/darwin.stdout" "$case_dir/darwin.stderr"
+expect_operation_count 'run:' 1
+expect_operation_count 'read:' 0
+assert_private_cache
+
+echo "ok Darwin batches one wave and preserves exact token bytes"
+
 # Cache metadata powers inspection and clearing.  These actions must never
 # reach op and must not reveal fixture values.
 new_case metadata-actions
@@ -393,7 +458,7 @@ expect_no_operations
 
 echo "ok metadata actions avoid op and clear only cached names"
 
-# A Linux producer resolves independent reads in one batch, stops at an
+# A batched producer resolves independent reads in one run, stops at an
 # explicit await, and retains both parent state and the prior cache if that
 # awaited batch fails.
 new_case linux-waves
@@ -411,6 +476,7 @@ ZSH
 
 if ! run_zsh >"$case_dir/waves.stdout" 2>"$case_dir/waves.stderr" <<'ZSH'
 source "$HOME/.config/zsh/vars.secret_functions.zsh"
+OSTYPE=linux-gnu
 export TEST_ENDPOINT_MODE=network
 secret --quiet
 [[ "$TEST_WAVE_ALPHA" == fixture-wave-alpha ]] || exit 1
@@ -546,7 +612,7 @@ fi
 expect_no_operations
 [[ "$(<"$state_dir/zsh/secrets.zsh")" == $'# zsh-secret-cache-format: 1\n# zsh-secret-name: TEST_UNSAFE_ANCESTOR\nexport TEST_UNSAFE_ANCESTOR=fixture-existing-cache' ]] ||
   fail "unsafe-ancestor refresh changed the existing cache"
-[[ "$(stat -c '%a' "$state_dir")" == 700 && "$(stat -c '%a' "$state_dir/zsh")" == 700 ]] ||
+[[ "$(mode_of "$state_dir")" == 700 && "$(mode_of "$state_dir/zsh")" == 700 ]] ||
   fail "unsafe-ancestor refresh changed private cache parents"
 
 if ! run_zsh >"$case_dir/unsafe-status.stdout" 2>"$case_dir/unsafe-status.stderr" <<'ZSH'
@@ -589,7 +655,7 @@ then
   fail "clear changed state below an unsafe cache ancestor"
 fi
 expect_no_operations
-[[ "$(stat -c '%a' "$state_dir")" == 700 && "$(stat -c '%a' "$state_dir/zsh")" == 700 ]] ||
+[[ "$(mode_of "$state_dir")" == 700 && "$(mode_of "$state_dir/zsh")" == 700 ]] ||
   fail "unsafe-ancestor clear changed private cache parents"
 
 echo "ok non-sticky world-writable cache ancestors are refused"
@@ -649,29 +715,38 @@ ZSH
 then
   fail "recipe names shadowed control state or cache-only clear read the recipe"
 fi
-[[ "$(stat -c '%a' "$state_dir")" == 755 ]] || fail "changed existing XDG state permissions"
+[[ "$(mode_of "$state_dir")" == 755 ]] || fail "changed existing XDG state permissions"
 echo "ok ordinary names do not shadow controls and clear is cache-only"
 
-# Non-Linux reads preserve final newlines; caller TMPDIR is never used for
-# our secret-bearing files when it happens to point into a public worktree.
+# Unsupported platforms keep the direct-read fallback. Its raw output must
+# preserve an empty value, one legitimate final LF, and a token with neither
+# LF nor CR; caller TMPDIR is never used for secret-bearing files in a public
+# worktree.
 new_case private-read-temporaries
 mkdir -p "$case_dir/public/.git" "$case_dir/public/tmp"
 run_tmp_dir="$case_dir/public/tmp"
 write_recipe <<'ZSH'
+__secret_export_op_read GITHUB_TOKEN --account "$OP_ACCOUNT" "op://fixture/github-token" || return 1
 __secret_export_op_read TEST_TRAILING --account "$OP_ACCOUNT" "op://fixture/literal-trailing" || return 1
+__secret_export_op_read TEST_EMPTY --account "$OP_ACCOUNT" "op://fixture/literal-empty" || return 1
 ZSH
 if ! run_zsh <<'ZSH'
 source "$HOME/.config/zsh/vars.secret_functions.zsh"
-OSTYPE=darwin
+OSTYPE=freebsd
 secret --quiet || exit 1
+[[ "$GITHUB_TOKEN" == fixture-github-token ]] || exit 1
+[[ "$GITHUB_TOKEN" != *$'\n'* && "$GITHUB_TOKEN" != *$'\r'* ]] || exit 1
 [[ "$TEST_TRAILING" == $'ends-with-newline\n' ]] || exit 1
+(( ${+TEST_EMPTY} )) && [[ -z "$TEST_EMPTY" ]] || exit 1
 typeset -a remaining_tmp_files=("$TMPDIR"/*(DN))
 (( ${#remaining_tmp_files} == 0 )) || exit 1
 ZSH
 then
   fail "non-Linux read lost bytes or used an unsafe caller TMPDIR"
 fi
-echo "ok non-Linux values and private refresh temporaries"
+expect_operation_count 'read:' 3
+expect_operation_count 'run:' 0
+echo "ok fallback reads retain exact bytes and private refresh temporaries"
 
 # A cancelled refresh must leave the previous cache, remove staged values,
 # and release its kernel lock so the next explicit refresh can succeed.

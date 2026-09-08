@@ -194,9 +194,10 @@ function __secret_op_pending_dir() {
   fi
 }
 
-# The desktop CLI client cannot safely overlap Linux requests.
+# Linux and macOS resolve queued reads in one serial `op run` per account and
+# await wave, avoiding overlapping desktop CLI requests and reducing approvals.
 function __secret_use_single_process_batch() {
-  [[ "${OSTYPE-}" == linux* ]]
+  [[ "${OSTYPE-}" == linux* || "${OSTYPE-}" == darwin* ]]
 }
 
 # Keep op run isolated from unrelated exported secret references.
@@ -259,7 +260,7 @@ function __secret_op_read() {
   unsetopt xtrace verbose
   local __secret_internal_value
 
-  __secret_internal_value="$(op read "$@")" || return 1
+  __secret_internal_value="$(op read --no-newline "$@")" || return 1
   [[ -n "$__secret_internal_value" ]] || return 1
   print -r -- "$__secret_internal_value"
 }
@@ -307,7 +308,7 @@ function __secret_export_op_read() {
   (
     unsetopt xtrace verbose 2>/dev/null
     set +e
-    op read "$@" > "$__secret_internal_out_file"
+    op read --no-newline "$@" > "$__secret_internal_out_file"
     print -r -- "$?" > "$__secret_internal_rc_file"
   ) &
   __SECRET_OP_PIDS+=("$!")
@@ -316,8 +317,9 @@ function __secret_export_op_read() {
   __SECRET_OP_RC[$__secret_internal_var]="$__secret_internal_rc_file"
 }
 
-# Resolve a Linux wave without overlapping desktop CLI clients. References are
-# grouped by account; account batches run serially and commit transactionally.
+# Resolve a Linux or macOS wave without overlapping desktop CLI clients.
+# References are grouped by account; account batches run serially and commit
+# transactionally.
 function __secret_await_op_run_batch() {
   emulate -L zsh
   unsetopt xtrace verbose
@@ -691,7 +693,7 @@ function __secret_write_cache_from_recipe() {
         print -r -- "export ${__secret_internal_name}=${(qq)__secret_internal_value}" || return 1
       done <<< "$__secret_internal_inventory"
     } > "$__secret_internal_output" || return 1
-    chmod 600 -- "$__secret_internal_output" || return 1
+    chmod -- 600 "$__secret_internal_output" || return 1
   } always {
     __secret_reset_pending_reads
   }
@@ -721,7 +723,7 @@ function __secret_snapshot_vars() {
       fi
     done <<< "$__secret_internal_inventory"
   } > "$__secret_internal_output" || return 1
-  chmod 600 -- "$__secret_internal_output"
+  chmod -- 600 "$__secret_internal_output"
 }
 
 function __secret_source_literal_file() {

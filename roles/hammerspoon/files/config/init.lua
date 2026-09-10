@@ -90,8 +90,8 @@ end))
 -- cmd+O move focused window to previous screen
 
 hs.window.animationDuration = 0
--- Zen's non-standard window frame is offset by Hammerspoon's frame-correction workaround.
-hs.window.setFrameCorrectness = false
+-- Terminal-like apps resize in discrete steps; this avoids bad frames at screen edges.
+hs.window.setFrameCorrectness = true
 
 local layout = hs.loadSpoon('GridLayout')
     :start()

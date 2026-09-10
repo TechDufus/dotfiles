@@ -2,7 +2,7 @@
 # Reference: https://developers.openai.com/codex/config-reference
 
 # High-quality primary model; faster models are used for subagents below.
-model = "gpt-5.6-sol"
+model = "gpt-6-astra"
 model_reasoning_effort = "xhigh"
 plan_mode_reasoning_effort = "xhigh"
 service_tier = "default"

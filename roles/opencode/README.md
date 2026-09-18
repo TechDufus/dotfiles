@@ -30,7 +30,6 @@ The role creates symlinks from the repository to your home directory, maintainin
 graph LR
     A[Role Files] -->|symlink| B[~/.config/opencode/]
     B --> C[opencode.json]
-    B --> D[oh-my-opencode.json]
     B --> E[scripts/]
     B --> F[command/]
     B --> G[AGENTS.md]
@@ -41,7 +40,6 @@ graph LR
 
 **Deployed Files:**
 - `~/.config/opencode/opencode.json` - Main configuration with model, provider, permission, and plugin defaults
-- `~/.config/opencode/oh-my-opencode.json` - Plugin-specific overrides for `oh-my-opencode`
 - `~/.config/opencode/scripts/` - GitHub workflow automation scripts
 - `~/.config/opencode/command/` - Custom slash command markdown templates
 - `~/.config/opencode/AGENTS.md` - Global agent behavior and engineering standards

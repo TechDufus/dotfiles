@@ -7,6 +7,10 @@ return {
     id = 'com.brave.Browser',
     summon = 'b', -- [B]rowser
   },
+  Cursor      = {
+    id = 'com.todesktop.230313mzl4w4u92',
+    summon = 'c', -- [C]ursor
+  },
   Signal      = {
     id = 'org.whispersystems.signal-desktop',
     summon = 'C', -- Signal chat

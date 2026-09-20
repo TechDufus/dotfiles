@@ -93,8 +93,8 @@ Current bindings from [files/config/init.lua](files/config/init.lua):
 
 - `F13`: summon modal
 - `F13`, then `G`: summon Grok Bot (`com.anysphere.sand`)
-- `F13`, then `g`: summon Ghostty
-- `F13`, then `t`: summon Orca
+- `F13`, then `t`: summon Ghostty
+- `F13`, then `O`: summon Orca
 - `F13` twice: switch from summon modal to macro modal
 - `F16`: macro modal
 - `Hyper+a`: focus the frontmost app

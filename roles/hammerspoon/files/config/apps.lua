@@ -46,7 +46,7 @@ return {
   },
   Orca        = {
     id = 'com.stablyai.orca',
-    summon = 't', -- Orca
+    summon = 'O', -- [O]rca
   },
   OnePassword = {
     id = 'com.1password.1password',
@@ -59,7 +59,7 @@ return {
   },
   Terminal    = {
     id = 'com.mitchellh.ghostty',
-    summon = 'g', -- [G]hostty
+    summon = 't', -- [T]erminal
   },
   WorkSpaces  = {
     id = 'com.amazon.workspaces',

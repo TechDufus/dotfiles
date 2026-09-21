@@ -1,0 +1,62 @@
+---
+- name: "{{ role_name }} | MacOSX | Install packages"
+  community.general.homebrew:
+    name: llvm
+    state: present
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | MacOSX | Packages skipped (Homebrew unavailable)"
+  ansible.builtin.debug:
+    msg: "Package installation skipped: llvm"
+  when: not (can_install_packages | default(false))
+
+- name: "{{ role_name }} | MacOSX | Resolve Homebrew LLVM prefix"
+  ansible.builtin.command: brew --prefix llvm
+  register: clangd_llvm_prefix
+  changed_when: false
+  when: can_install_packages | default(false)
+- name: "{{ role_name }} | MacOSX | Inspect existing user-local clangd"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin/clangd"
+    follow: false
+  register: clangd_user_link
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | MacOSX | Refuse to overwrite unmanaged clangd"
+  ansible.builtin.fail:
+    msg: >-
+      {{ ansible_facts['env']['HOME'] }}/.local/bin/clangd exists and is not a
+      symlink. Remove or manage that file before running the clangd role.
+  when:
+    - can_install_packages | default(false)
+    - clangd_user_link.stat.exists | default(false)
+    - not (clangd_user_link.stat.islnk | default(false))
+- name: "{{ role_name }} | MacOSX | Refuse to overwrite conflicting clangd symlink"
+  ansible.builtin.fail:
+    msg: >-
+      {{ ansible_facts['env']['HOME'] }}/.local/bin/clangd points to
+      {{ clangd_user_link.stat.lnk_source | default('') }} instead of the
+      Homebrew LLVM clangd binary. Replace that link manually before rerunning.
+  when:
+    - can_install_packages | default(false)
+    - clangd_user_link.stat.exists | default(false)
+    - clangd_user_link.stat.islnk | default(false)
+    - (clangd_user_link.stat.lnk_source | default('')) != ((clangd_llvm_prefix.stdout | trim) ~ '/bin/clangd')
+
+
+- name: "{{ role_name }} | MacOSX | Ensure user-local bin directory"
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+  when: can_install_packages | default(false)
+
+- name: "{{ role_name }} | MacOSX | Link clangd into user-local bin"
+  ansible.builtin.file:
+    src: "{{ clangd_llvm_prefix.stdout | trim }}/bin/clangd"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.local/bin/clangd"
+    state: link
+    force: false
+  when:
+    - can_install_packages | default(false)
+    - (clangd_llvm_prefix.stdout | default('') | trim | length) > 0

@@ -53,6 +53,7 @@ default_roles:
   - npm            # Node Package Manager
   - go             # Go programming language
   # - rust         # Rust programming language
+  # - clangd        # Native C/C++ language server (LSP)
   # - ruby         # Ruby programming language
   # - lua          # Lua programming language
   

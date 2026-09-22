@@ -8,7 +8,7 @@ modelRoles:
   vision: openai-codex/gpt-6-luna:max
   commit: openai-codex/gpt-6-luna:max
   advisor: openai-codex/gpt-6-sol:medium
-  default: openai-codex/gpt-6-sol:xhigh
+  default: openai-codex/gpt-6-astra:xhigh
 cycleOrder:
   - smol
   - default

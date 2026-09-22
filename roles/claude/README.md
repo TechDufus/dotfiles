@@ -132,8 +132,6 @@ graph TD
 | `/init-ultrathink` | Generate comprehensive AGENTS.md via 5 parallel analysis agents |
 | `/stig [options]` | Evaluate STIG compliance in Kubernetes pods |
 | `/stig-summary [--copy]` | Extract STIG evaluation summary for reporting |
-| `/raft-gravity-comply` | DoD Gravity pipeline compliance orchestration |
-| `/raft-gravity-assess` | Assessment phase of Gravity compliance |
 
 ---
 

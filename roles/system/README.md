@@ -240,11 +240,9 @@ dotfiles -t system --check
 
 ### Hosts File Management (Deprecated)
 
-The `/etc/hosts` management feature has been **disabled and archived** due to:
+The `/etc/hosts` management feature is disabled and archived. The archived implementation is retained as a disabled generic template; its remaining risks are:
 
-- Hardcoded 1Password vault paths
 - Overwrites entire hosts file (dangerous)
-- No error handling for missing entries
 - Simplistic WSL handling
 
 See `tasks/hosts-management-archive.yml` for archived implementation.

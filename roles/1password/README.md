@@ -53,9 +53,6 @@ The `agent.toml` file configures which vaults provide SSH keys to the agent:
 vault = "Personal"
 
 [[ssh-keys]]
-vault = "Raft"
-
-[[ssh-keys]]
 vault = "StarSage"
 ```
 

@@ -4,14 +4,11 @@
 
 **Priority**: High  
 **Status**: Archived, needs complete refactor  
-**File**: `tasks/main.yml` (lines 11-51)
+**File**: `tasks/hosts-management-archive.yml`
 
-### Current Issues:
-1. Hardcoded 1Password vault paths specific to personal use
-2. Repetitive code for each host entry
-3. No error handling for missing 1Password entries
-4. WSL handling is too simplistic
-5. Overwrites entire /etc/hosts file (dangerous!)
+### Remaining Issues:
+1. WSL handling is too simplistic
+2. Overwrites entire /etc/hosts file (dangerous!)
 
 ### Proposed Solution:
 ```yaml

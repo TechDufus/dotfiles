@@ -902,7 +902,7 @@ function __k.deleteContext_usage() {
   echo "Backups are stored in: \$HOME/.kube/backups"
 }
 
-# Tab completion for k.deleteContext (ZSH native style like in .raftrc)
+# Tab completion for k.deleteContext (ZSH native style)
 function _k.deleteContext() {
   local -a clusters
   clusters=(${(f)"$(kubectl config get-clusters 2>/dev/null | grep -v NAME)"})

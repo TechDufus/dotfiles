@@ -169,7 +169,6 @@ for file in $HOME/.config/zsh/*.zsh(N); do
   source "$file"
 done
 
-if [[ -f ~/.raftrc ]]; then source ~/.raftrc; fi
 
 unalias zi 2>/dev/null || true
 if command -v zoxide >/dev/null 2>&1; then

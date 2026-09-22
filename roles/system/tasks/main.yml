@@ -14,7 +14,6 @@
 #
 # DISABLED: This code is too specific and potentially dangerous
 # - Overwrites /etc/hosts
-# - Hardcoded 1Password paths
 # - No error handling
 #
 # To re-enable, uncomment below and fix the issues first

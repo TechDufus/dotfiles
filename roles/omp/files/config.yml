@@ -103,8 +103,8 @@ startup:
   showSplash: true
   quiet: true
 autolearn:
-  enabled: true
-  autoContinue: true
+  enabled: false
+  autoContinue: false
 readLineNumbers: true
 bash:
   autoBackground:

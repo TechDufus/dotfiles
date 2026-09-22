@@ -138,5 +138,6 @@ codexResets:
 colorBlindMode: false
 composer:
   shape: box
+  tokenRate: true
 isolation:
   backend: auto

@@ -51,7 +51,6 @@ default_roles:
   - clawpatch
   - obsidian
   - opencode
-  - orca
   - podman
   # - pwsh
   - python

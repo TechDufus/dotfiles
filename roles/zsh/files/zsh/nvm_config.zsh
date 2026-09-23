@@ -7,7 +7,7 @@ export NVM_DIR="$HOME/.nvm"
 
 if [[ -s "$NVM_DIR/nvm.sh" ]]; then
   _dotfiles_load_nvm() {
-    unset -f nvm node npm npx _dotfiles_load_nvm
+    unset -f nvm node npm npx pnpm _dotfiles_load_nvm
     source "$NVM_DIR/nvm.sh"
     [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
   }
@@ -27,6 +27,10 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
   npx() {
     _dotfiles_load_nvm
     npx "$@"
+  }
+  pnpm() {
+    _dotfiles_load_nvm
+    pnpm "$@"
   }
 
   autoload -U add-zsh-hook

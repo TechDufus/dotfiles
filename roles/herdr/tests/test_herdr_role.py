@@ -68,7 +68,7 @@ class HerdrRoleTests(unittest.TestCase):
         self.assertIs(ui["pane_gaps"], False)
         self.assertIs(ui["pane_outer_borders"], False)
         self.assertIs(ui["pane_scrollbars"], False)
-        self.assertEqual(ui["tab_bar_position"], "bottom")
+        self.assertEqual(ui["tab_bar_position"], "top")
         self.assertEqual(
             ui["tab_bar_right"],
             [

@@ -1,17 +1,14 @@
 ---
 modelRoles:
-  default: cursor/cursor-grok-4.6:xhigh
+  default: cursor/grok-4.7-xhigh
   smol: cursor/composer-2.5-fast
   tiny: cursor/composer-2.5-fast
-  task: cursor/cursor-grok-4.6
-  slow: cursor/cursor-grok-4.6:xhigh
-  plan: cursor/cursor-grok-4.6:xhigh
-  designer: cursor/cursor-grok-4.6:high
+  task: cursor/grok-4.7-high
+  slow: cursor/grok-4.7-xhigh
+  plan: cursor/grok-4.7-xhigh
+  designer: cursor/grok-4.7-high
   vision: cursor/gemini-3.1-pro:high
   commit: cursor/composer-2.5-fast
-  advisor: cursor/cursor-grok-4.6:low
-compaction:
-  thresholdPercent: 65
-  thresholdTokens: -1
+  advisor: cursor/grok-4.7-low
 enabledModels:
   - cursor/*

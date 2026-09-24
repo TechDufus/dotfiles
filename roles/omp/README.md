@@ -37,13 +37,11 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 This uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
 
-The overlay mirrors the normal OMP role map one-for-one and changes only the provider from `openai-codex` to `cursor`:
+The overlay favors Grok 4.7 in the Cursor catalog rather than mirroring the `openai-codex` base map. Cursor publishes 4.7 as per-effort SKUs (`grok-4.7-low|-high|-xhigh`), not a collapsible `:<effort>` family like Grok 4.6, so the overlay pins those ids:
 
-- Sol at `xhigh` serves default and plan work.
-- Bare Luna serves smol work, Luna at `low` serves tiny work, and Luna at `medium` serves commit work.
-- Bare Terra serves task work, Terra at `xhigh` serves slow work, Terra at `high` serves designer and vision work, and Terra at `low` serves advisor work.
-
-Keep this overlay in lockstep whenever the base `modelRoles` mapping changes.
+- Grok 4.7 Extra High serves default, slow, and plan work.
+- Composer 2.5 Fast serves smol, tiny, and commit work.
+- Grok 4.7 High serves task and designer work, Gemini 3.1 Pro at `high` serves vision work, and Grok 4.7 Low serves advisor work.
 
 ## Claude subscription mode
 
@@ -65,6 +63,7 @@ The role assignments are:
 - `anthropic/claude-opus-5-5:high`: default and plan; `anthropic/claude-opus-5-5:max`: slow.
 - `anthropic/claude-haiku-4-5:low`: smol; `anthropic/claude-haiku-4-5:minimal`: tiny and commit.
 - `anthropic/claude-sonnet-5:high`: task, designer, and vision; `anthropic/claude-sonnet-5:medium`: advisor.
+
 
 ## Herdr
 

@@ -4,7 +4,7 @@
 
 ## Managed files
 
-- `config.yml`, `lsp.json`, and the Cursor and Herd session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; the `omp-cursor` session launcher is a repo-managed symlink under `~/.local/bin/`. The Herd overlay is selected by the `/herd` extension. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
+- `config.yml`, `lsp.json`, and the Cursor, Claude, and Herd session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; the `omp-cursor` and `omp-claude` session launchers are repo-managed symlinks under `~/.local/bin/`. The Herd overlay is selected by the `/herd` extension. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
 - Managed YAML is the authoritative record of current role assignments, context handling, and behavior pins. Preserve only deliberate overrides: omit a setting that matches the upstream default unless retaining it is an intentional reproducibility or behavior decision. Re-audit after OMP upgrades because inherited behavior can change with upstream defaults.
 - `mcp.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges managed servers into existing `mcpServers`, preserves unowned entries, and writes restrictive permissions because OAuth and per-user credentials may land there.
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter and focused prompts. Specialist routing and effort policy belong in their managed sources rather than this overview.
@@ -44,6 +44,27 @@ The overlay mirrors the normal OMP role map one-for-one and changes only the pro
 - Bare Terra serves task work, Terra at `xhigh` serves slow work, Terra at `high` serves designer and vision work, and Terra at `low` serves advisor work.
 
 Keep this overlay in lockstep whenever the base `modelRoles` mapping changes.
+
+## Claude subscription mode
+
+Launch an Anthropic-routed session with:
+
+```sh
+omp-claude
+omp-claude --cwd /path/to/repo "Review this change"
+```
+
+`omp-claude` selects its managed CLI `--config` overlay and forwards session arguments unchanged. It is a session mode, not a wrapper for OMP management subcommands; use `omp` directly for those.
+
+This uses an overlay rather than a named profile. A named profile relocates and isolates the complete OMP user base; the overlay instead preserves the normal `~/.omp/agent` rules, agents, extensions, skills, authentication, and session state while replacing the mode's model-role selection. Its `anthropic/*` model scope limits the picker and automatic fallback candidates to Anthropic catalog models.
+
+Before launching, authenticate with the Anthropic provider using `omp login anthropic`. `anthropic` is the provider for these model IDs and OAuth login; this does not enable ambient Claude discovery, which remains disabled in the base configuration.
+
+The role assignments are:
+
+- `anthropic/claude-opus-5-5:high`: default and plan; `anthropic/claude-opus-5-5:max`: slow.
+- `anthropic/claude-haiku-4-5:low`: smol; `anthropic/claude-haiku-4-5:minimal`: tiny and commit.
+- `anthropic/claude-sonnet-5:high`: task, designer, and vision; `anthropic/claude-sonnet-5:medium`: advisor.
 
 ## Herdr
 

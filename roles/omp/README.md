@@ -4,7 +4,7 @@
 
 ## Managed files
 
-- `config.yml`, `lsp.json`, and the Cursor, Claude, and Herd session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; the `omp-cursor` and `omp-claude` session launchers are repo-managed symlinks under `~/.local/bin/`. The Herd overlay is selected by the `/herd` extension. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
+- `config.yml`, `lsp.json`, and the Cursor, Claude, Codex, and Herd session-mode overlays are repo-managed symlinks under `~/.omp/agent/`; the `omp-cursor`, `omp-claude`, and `omp-codex` session launchers are repo-managed symlinks under `~/.local/bin/`. The Herd overlay is selected by the `/herd` extension. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning. Normal `omp` uses OMP's default home; do not relocate it with environment overrides.
 - Managed YAML is the authoritative record of current role assignments, context handling, and behavior pins. Preserve only deliberate overrides: omit a setting that matches the upstream default unless retaining it is an intentional reproducibility or behavior decision. Re-audit after OMP upgrades because inherited behavior can change with upstream defaults.
 - `mcp.json` stays a regular file, not a symlink. The role rejects symlinks and special files, merges managed servers into existing `mcpServers`, preserves unowned entries, and writes restrictive permissions because OAuth and per-user credentials may land there.
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter and focused prompts. Specialist routing and effort policy belong in their managed sources rather than this overview.
@@ -60,9 +60,20 @@ Before launching, authenticate with the Anthropic provider using `omp login anth
 
 The role assignments are:
 
-- `anthropic/claude-opus-5-5:high`: default and plan; `anthropic/claude-opus-5-5:max`: slow.
+- `anthropic/claude-opus-5-5:high`: default, plan, and task; `anthropic/claude-opus-5-5:max`: slow.
 - `anthropic/claude-haiku-4-5:low`: smol; `anthropic/claude-haiku-4-5:minimal`: tiny and commit.
-- `anthropic/claude-sonnet-5:high`: task, designer, and vision; `anthropic/claude-sonnet-5:medium`: advisor.
+- `anthropic/claude-sonnet-5:high`: designer and vision; `anthropic/claude-sonnet-5:medium`: advisor.
+
+## Codex subscription mode
+
+Launch an OpenAI Codex-routed session with:
+
+```sh
+omp-codex
+omp-codex --cwd /path/to/repo "Review this change"
+```
+
+`omp-codex` selects its managed CLI `--config` overlay and forwards session arguments unchanged, like `omp-cursor` and `omp-claude`. The overlay pins the full `openai-codex` role map from the base `config.yml`, including `default: openai-codex/gpt-6-sol:xhigh`, and its `openai-codex/*` model scope limits the picker and automatic fallback candidates to Codex catalog models. Keep its roles in sync with the base map when that changes.
 
 
 ## Herdr

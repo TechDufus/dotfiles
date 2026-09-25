@@ -44,15 +44,23 @@
   register: omp_worktrunk_skill_destination
   when: omp_worktrunk_skill_source_file.stat.exists | default(false)
 
-- name: "{{ role_name }} | Skills | Fail when Worktrunk skill destination is unmanaged"
+- name: "{{ role_name }} | Skills | Refuse conflicting Worktrunk skill destination"
   ansible.builtin.fail:
     msg: >-
-      OMP Worktrunk skill destination {{ omp_worktrunk_skill_dest }} exists and
-      is not a symlink. Move or remove it, then rerun `dotfiles -t omp`.
+      OMP Worktrunk skill destination {{ omp_worktrunk_skill_dest }} already
+      exists but is not the intended managed link. Refusing to replace
+      user-owned skill data.
   when:
     - omp_worktrunk_skill_source_file.stat.exists | default(false)
     - omp_worktrunk_skill_destination.stat.exists
-    - not (omp_worktrunk_skill_destination.stat.islnk | default(false))
+    - >-
+      not (
+        (omp_worktrunk_skill_destination.stat.islnk | default(false))
+        and (
+          (omp_worktrunk_skill_destination.stat.lnk_source | default('')) == omp_worktrunk_skill_source
+          or (omp_worktrunk_skill_destination.stat.lnk_source | default('')) == (omp_worktrunk_skill_source | realpath)
+        )
+      )
 
 - name: "{{ role_name }} | Skills | Symlink Worktrunk skill"
   ansible.builtin.file:

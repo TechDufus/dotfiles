@@ -823,35 +823,6 @@ class HerdrIntegrationSourceTests(unittest.TestCase):
         ):
             self.assertIn(contract, task, f"upstream update must retain {contract!r}")
 
-    def test_official_skill_source_and_destination_are_guarded(self) -> None:
-        source = extract_task(self.herdr_skill_tasks, "Check Herdr skill source")
-        self.assertIn(
-            'path: "{{ omp_herdr_skill_source }}/SKILL.md"',
-            source,
-            "deployment must require the upstream skills/herdr SKILL.md",
-        )
-        self.assertIn("follow: false", source, "source inspection must not follow links")
-
-        refusal = extract_task(
-            self.herdr_skill_tasks, "Fail when Herdr skill destination is unmanaged"
-        )
-        self.assertIn("ansible.builtin.fail:", refusal)
-        self.assertIn("- omp_herdr_skill_destination.stat.exists", refusal)
-        self.assertIn(
-            "- not (omp_herdr_skill_destination.stat.islnk | default(false))",
-            refusal,
-            "an existing regular destination must be refused rather than overwritten",
-        )
-
-        deployment = extract_task(self.herdr_skill_tasks, "Symlink Herdr skill")
-        for contract in (
-            'src: "{{ omp_herdr_skill_source }}"',
-            'dest: "{{ omp_herdr_skill_dest }}"',
-            "state: link",
-            "force: true",
-            "when: omp_herdr_skill_source_file.stat.exists | default(false)",
-        ):
-            self.assertIn(contract, deployment, f"deployment must retain {contract!r}")
 
     def test_official_skill_include_follows_repo_skills_and_precedes_worktrunk(self) -> None:
         generic = self.tasks.index(

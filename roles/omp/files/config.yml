@@ -8,7 +8,7 @@ modelRoles:
   vision: openai-codex/gpt-6-luna:max
   commit: openai-codex/gpt-6-luna:max
   advisor: openai-codex/gpt-6-sol:low
-  default: openai-codex/gpt-6-sol:xhigh
+  default: openai-codex/gpt-6-astra:xhigh
 cycleOrder:
   - smol
   - default
@@ -69,7 +69,6 @@ task:
   eager: always
   showResolvedModelBadge: true
   enableLsp: true
-  enableEffort: false
   maxEffort: xhigh
   isolation:
     commits: ai
@@ -92,26 +91,13 @@ dev:
   autoqaConsent: granted
 tier:
   openai: default
-  subagent: inherit
   advisor: default
 statusLine:
   transparent: true
-  compactThinkingLevel: true
-  sessionAccent: true
-  showHookStatus: true
 startup:
-  showSplash: true
   quiet: true
-autolearn:
-  enabled: false
-  autoContinue: false
 readLineNumbers: true
-bash:
-  autoBackground:
-    enabled: true
 eval:
-  rb: true
-  jl: true
   autoBackground:
     enabled: true
 computer:
@@ -124,22 +110,14 @@ terminal:
   showProgress: true
 tui:
   tight: true
-  scrollbackRebuild: true
-  textSizing: false
   codexResetFireworks: true
-  titleState: true
-  hyperlinks: auto
-  imeSafeCursor: false
 snapcompact:
-  systemPrompt: all
-  toolResults: true
+  systemPrompt: none
+  toolResults: false
 features:
   unexpectedStopDetection: smart
 codexResets:
   autoRedeem: "yes"
-colorBlindMode: false
 composer:
   shape: box
   tokenRate: true
-isolation:
-  backend: auto

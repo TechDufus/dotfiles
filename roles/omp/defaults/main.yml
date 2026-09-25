@@ -1,7 +1,7 @@
 ---
 role_name: omp
 
-omp_manage_install: true
+omp_manage_install: true # Bootstrap only: an existing omp_real_bin is never upgraded.
 omp_package: "@oh-my-pi/pi-coding-agent"
 omp_package_version: latest
 omp_bun_bin: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/bun"
@@ -15,6 +15,7 @@ omp_real_bin: "{{ ansible_facts['env']['HOME'] }}/.bun/bin/omp"
 # by default; raw `omp` should resolve to ~/.omp/agent.
 omp_config_root: "{{ ansible_facts['env']['HOME'] }}/.omp"
 omp_agent_dir: "{{ omp_config_root }}/agent"
+omp_config_source: "{{ role_path }}/files/config.yml"
 omp_config_path: "{{ omp_agent_dir }}/config.yml"
 omp_mcp_config_path: "{{ omp_agent_dir }}/mcp.json"
 omp_lsp_config_path: "{{ omp_agent_dir }}/lsp.json"

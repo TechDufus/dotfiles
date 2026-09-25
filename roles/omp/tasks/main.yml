@@ -23,7 +23,7 @@
     path: "{{ omp_real_bin }}"
   register: omp_binary
 
-- name: "{{ role_name }} | Install omp via bun"
+- name: "{{ role_name }} | Bootstrap omp with bun only when binary is absent"
   ansible.builtin.command:
     argv:
       - "{{ omp_effective_bun_bin }}"
@@ -114,20 +114,29 @@
     label: "{{ item.dest | basename }}"
   register: omp_installed_managed_links
 
-- name: "{{ role_name }} | Refuse to overwrite unmanaged OMP links"
+- name: "{{ role_name }} | Refuse conflicting repo-managed OMP link destinations"
   ansible.builtin.fail:
     msg: >-
-      {{ item.0.item.dest }} is a regular file and differs from
-      {{ item.1.item.source }}. Copy the live changes into the repo file before
-      re-running the role, or remove the file to allow the managed symlink.
+      {{ item.0.item.dest }} already exists but is not the intended managed link
+      or an identical regular copy of {{ item.1.item.source }}. Refusing to
+      replace unmanaged data.
   loop: "{{ omp_installed_managed_links.results | zip(omp_managed_link_sources.results) }}"
   loop_control:
     label: "{{ item.0.item.dest | basename }}"
   when:
     - item.0.stat.exists
-    - item.0.stat.isreg | default(false)
-    - item.0.stat.checksum != item.1.stat.checksum
-
+    - >-
+      not (
+        (item.0.stat.islnk | default(false)
+          and (
+            (item.0.stat.lnk_source | default('')) == item.1.item.source
+            or (item.0.stat.lnk_source | default('')) == (item.1.item.source | realpath)
+          ))
+        or (
+          (item.0.stat.isreg | default(false))
+          and item.0.stat.checksum == item.1.stat.checksum
+        )
+      )
 - name: "{{ role_name }} | Link repo-managed OMP files"
   ansible.builtin.file:
     src: "{{ item.source }}"
@@ -140,10 +149,10 @@
 
 - name: "{{ role_name }} | Check repo omp config"
   ansible.builtin.stat:
-    path: "{{ role_path }}/files/config.yml"
+    path: "{{ omp_config_source }}"
     checksum_algorithm: sha256
   register: omp_repo_config
-  failed_when: not omp_repo_config.stat.exists
+  failed_when: not omp_repo_config.stat.isreg | default(false)
 
 - name: "{{ role_name }} | Check installed omp config"
   ansible.builtin.stat:
@@ -152,20 +161,29 @@
     checksum_algorithm: sha256
   register: omp_installed_config
 
-- name: "{{ role_name }} | Refuse to overwrite unmanaged omp config"
+- name: "{{ role_name }} | Refuse conflicting omp config destination"
   ansible.builtin.fail:
     msg: >-
-      {{ omp_config_path }} is a regular file and differs from
-      {{ role_path }}/files/config.yml. Copy the live changes into the repo file
-      before re-running the role, or remove the file to allow the managed symlink.
+      {{ omp_config_path }} already exists but is not the intended managed link
+      or an identical regular copy of {{ omp_config_source }}. Refusing to
+      replace unmanaged data.
   when:
     - omp_installed_config.stat.exists
-    - omp_installed_config.stat.isreg | default(false)
-    - omp_installed_config.stat.checksum != omp_repo_config.stat.checksum
-
+    - >-
+      not (
+        (omp_installed_config.stat.islnk | default(false)
+          and (
+            (omp_installed_config.stat.lnk_source | default('')) == omp_config_source
+            or (omp_installed_config.stat.lnk_source | default('')) == (omp_config_source | realpath)
+          ))
+        or (
+          (omp_installed_config.stat.isreg | default(false))
+          and omp_installed_config.stat.checksum == omp_repo_config.stat.checksum
+        )
+      )
 - name: "{{ role_name }} | Link default omp config"
   ansible.builtin.file:
-    src: "{{ role_path }}/files/config.yml"
+    src: "{{ omp_config_source }}"
     dest: "{{ omp_config_path }}"
     state: link
     force: true
@@ -175,7 +193,7 @@
     path: "{{ role_path }}/files/lsp.json"
     checksum_algorithm: sha256
   register: omp_repo_lsp_config
-  failed_when: not omp_repo_lsp_config.stat.exists
+  failed_when: not omp_repo_lsp_config.stat.isreg | default(false)
 
 - name: "{{ role_name }} | Check installed omp lsp config"
   ansible.builtin.stat:
@@ -184,16 +202,26 @@
     checksum_algorithm: sha256
   register: omp_installed_lsp_config
 
-- name: "{{ role_name }} | Refuse to overwrite unmanaged omp lsp config"
+- name: "{{ role_name }} | Refuse conflicting omp lsp config destination"
   ansible.builtin.fail:
     msg: >-
-      {{ omp_lsp_config_path }} is a regular file and differs from
-      {{ role_path }}/files/lsp.json. Copy the live changes into the repo file
-      before re-running the role, or remove the file to allow the managed symlink.
+      {{ omp_lsp_config_path }} already exists but is not the intended managed
+      link or an identical regular copy of {{ role_path }}/files/lsp.json.
+      Refusing to replace unmanaged data.
   when:
     - omp_installed_lsp_config.stat.exists
-    - omp_installed_lsp_config.stat.isreg | default(false)
-    - omp_installed_lsp_config.stat.checksum != omp_repo_lsp_config.stat.checksum
+    - >-
+      not (
+        (omp_installed_lsp_config.stat.islnk | default(false)
+          and (
+            (omp_installed_lsp_config.stat.lnk_source | default('')) == (role_path ~ '/files/lsp.json')
+            or (omp_installed_lsp_config.stat.lnk_source | default('')) == ((role_path ~ '/files/lsp.json') | realpath)
+          ))
+        or (
+          (omp_installed_lsp_config.stat.isreg | default(false))
+          and omp_installed_lsp_config.stat.checksum == omp_repo_lsp_config.stat.checksum
+        )
+      )
 
 - name: "{{ role_name }} | Link global omp lsp config"
   ansible.builtin.file:
@@ -276,19 +304,63 @@
     mode: "0600"
   no_log: true
 
-- name: "{{ role_name }} | Deploy global OMP guidance"
+- name: "{{ role_name }} | Check repo global OMP AGENTS guidance"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/AGENTS.md"
+    checksum_algorithm: sha256
+  register: omp_repo_agents_guidance
+  failed_when: not omp_repo_agents_guidance.stat.isreg | default(false)
+
+- name: "{{ role_name }} | Check installed global OMP AGENTS guidance"
+  ansible.builtin.stat:
+    path: "{{ omp_agent_dir }}/AGENTS.md"
+    follow: false
+    checksum_algorithm: sha256
+  register: omp_installed_agents_guidance
+
+- name: "{{ role_name }} | Refuse symlink or non-file global OMP AGENTS guidance"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_agent_dir }}/AGENTS.md exists but is not a regular file. Refusing
+      to write through or replace an unmanaged destination.
+  when:
+    - omp_installed_agents_guidance.stat.exists
+    - not (omp_installed_agents_guidance.stat.isreg | default(false))
+
+- name: "{{ role_name }} | Ensure OMP AGENTS guidance backup directory exists"
+  ansible.builtin.file:
+    path: "{{ omp_agent_dir }}/.dotfiles-backups/guidance"
+    state: directory
+    mode: "0700"
+  when:
+    - not ansible_check_mode
+    - omp_installed_agents_guidance.stat.isreg | default(false)
+    - omp_installed_agents_guidance.stat.checksum != omp_repo_agents_guidance.stat.checksum
+
+- name: "{{ role_name }} | Back up changed regular OMP AGENTS guidance"
   ansible.builtin.copy:
-    src: AGENTS.md
+    src: "{{ omp_installed_agents_guidance.stat.path }}"
+    dest: "{{ omp_agent_dir }}/.dotfiles-backups/guidance/AGENTS.md.{{ now(utc=true, fmt='%Y%m%dT%H%M%SZ') }}.{{ omp_installed_agents_guidance.stat.checksum }}"
+    remote_src: true
+    mode: preserve
+    force: false
+  when:
+    - not ansible_check_mode
+    - omp_installed_agents_guidance.stat.isreg | default(false)
+    - omp_installed_agents_guidance.stat.checksum != omp_repo_agents_guidance.stat.checksum
+
+- name: "{{ role_name }} | Deploy global OMP AGENTS guidance"
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/AGENTS.md"
     dest: "{{ omp_agent_dir }}/AGENTS.md"
     mode: "0644"
-
 
 - name: "{{ role_name }} | Check repo global OMP watchdog guidance"
   ansible.builtin.stat:
     path: "{{ omp_watchdog_source }}"
     checksum_algorithm: sha256
   register: omp_repo_watchdog
-  failed_when: not omp_repo_watchdog.stat.exists
+  failed_when: not omp_repo_watchdog.stat.isreg | default(false)
 
 - name: "{{ role_name }} | Check installed global OMP watchdog guidance"
   ansible.builtin.stat:
@@ -297,16 +369,26 @@
     checksum_algorithm: sha256
   register: omp_installed_watchdog
 
-- name: "{{ role_name }} | Refuse to overwrite unmanaged global OMP watchdog guidance"
+- name: "{{ role_name }} | Refuse conflicting global OMP watchdog destination"
   ansible.builtin.fail:
     msg: >-
-      {{ omp_watchdog_dest }} is a regular file and differs from
-      {{ omp_watchdog_source }}. Copy the live changes into the repo file before
-      re-running the role, or remove the file to allow the managed symlink.
+      {{ omp_watchdog_dest }} already exists but is not the intended managed
+      link or an identical regular copy of {{ omp_watchdog_source }}. Refusing
+      to replace unmanaged data.
   when:
     - omp_installed_watchdog.stat.exists
-    - omp_installed_watchdog.stat.isreg | default(false)
-    - omp_installed_watchdog.stat.checksum != omp_repo_watchdog.stat.checksum
+    - >-
+      not (
+        (omp_installed_watchdog.stat.islnk | default(false)
+          and (
+            (omp_installed_watchdog.stat.lnk_source | default('')) == omp_watchdog_source
+            or (omp_installed_watchdog.stat.lnk_source | default('')) == (omp_watchdog_source | realpath)
+          ))
+        or (
+          (omp_installed_watchdog.stat.isreg | default(false))
+          and omp_installed_watchdog.stat.checksum == omp_repo_watchdog.stat.checksum
+        )
+      )
 
 - name: "{{ role_name }} | Link global OMP watchdog guidance"
   ansible.builtin.file:
@@ -320,7 +402,7 @@
     path: "{{ omp_rules_source }}"
     checksum_algorithm: sha256
   register: omp_repo_rules
-  failed_when: not omp_repo_rules.stat.exists
+  failed_when: not omp_repo_rules.stat.isreg | default(false)
 
 - name: "{{ role_name }} | Check installed global OMP rules"
   ansible.builtin.stat:
@@ -329,16 +411,26 @@
     checksum_algorithm: sha256
   register: omp_installed_rules
 
-- name: "{{ role_name }} | Refuse to overwrite unmanaged global OMP rules"
+- name: "{{ role_name }} | Refuse conflicting global OMP rules destination"
   ansible.builtin.fail:
     msg: >-
-      {{ omp_rules_dest }} is a regular file and differs from
-      {{ omp_rules_source }}. Copy the live changes into the repo file before
-      re-running the role, or remove the file to allow the managed symlink.
+      {{ omp_rules_dest }} already exists but is not the intended managed link
+      or an identical regular copy of {{ omp_rules_source }}. Refusing to
+      replace unmanaged data.
   when:
     - omp_installed_rules.stat.exists
-    - omp_installed_rules.stat.isreg | default(false)
-    - omp_installed_rules.stat.checksum != omp_repo_rules.stat.checksum
+    - >-
+      not (
+        (omp_installed_rules.stat.islnk | default(false)
+          and (
+            (omp_installed_rules.stat.lnk_source | default('')) == omp_rules_source
+            or (omp_installed_rules.stat.lnk_source | default('')) == (omp_rules_source | realpath)
+          ))
+        or (
+          (omp_installed_rules.stat.isreg | default(false))
+          and omp_installed_rules.stat.checksum == omp_repo_rules.stat.checksum
+        )
+      )
 
 - name: "{{ role_name }} | Link global OMP rules"
   ansible.builtin.file:
@@ -411,16 +503,25 @@
     label: "{{ omp_agent_source_file.path | basename }}"
   register: omp_agent_destinations
 
-- name: "{{ role_name }} | Agents | Remove copied OMP agent destinations before symlinking"
-  ansible.builtin.file:
-    path: "{{ omp_agents_dest }}/{{ item.omp_agent_source_file.path | basename }}"
-    state: absent
+- name: "{{ role_name }} | Agents | Refuse conflicting OMP agent destinations"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_agents_dest }}/{{ item.omp_agent_source_file.path | basename }}
+      already exists but is not the intended managed link. Refusing to replace
+      user-owned agent data.
   loop: "{{ omp_agent_destinations.results | default([]) }}"
   loop_control:
     label: "{{ item.omp_agent_source_file.path | basename }}"
   when:
     - item.stat.exists
-    - not (item.stat.islnk | default(false))
+    - >-
+      not (
+        (item.stat.islnk | default(false))
+        and (
+          (item.stat.lnk_source | default('')) == item.omp_agent_source_file.path
+          or (item.stat.lnk_source | default('')) == (item.omp_agent_source_file.path | realpath)
+        )
+      )
 
 - name: "{{ role_name }} | Agents | Symlink repo-managed OMP agents"
   ansible.builtin.file:
@@ -431,12 +532,6 @@
   loop: "{{ omp_agent_destinations.results | default([]) }}"
   loop_control:
     label: "{{ item.omp_agent_source_file.path | basename }}"
-  when: >-
-    not (
-      ansible_check_mode
-      and item.stat.exists
-      and not (item.stat.islnk | default(false))
-    )
 
 - name: "{{ role_name }} | Skills | Ensure global OMP skills directory exists"
   ansible.builtin.file:
@@ -461,16 +556,25 @@
     label: "{{ omp_skill_source_directory.path | basename }}"
   register: omp_skill_destinations
 
-- name: "{{ role_name }} | Skills | Remove copied OMP skill destinations before symlinking"
-  ansible.builtin.file:
-    path: "{{ omp_skills_dest }}/{{ item.omp_skill_source_directory.path | basename }}"
-    state: absent
+- name: "{{ role_name }} | Skills | Refuse conflicting OMP skill destinations"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_skills_dest }}/{{ item.omp_skill_source_directory.path | basename }}
+      already exists but is not the intended managed link. Refusing to replace
+      user-owned skill data.
   loop: "{{ omp_skill_destinations.results | default([]) }}"
   loop_control:
     label: "{{ item.omp_skill_source_directory.path | basename }}"
   when:
     - item.stat.exists
-    - not (item.stat.islnk | default(false))
+    - >-
+      not (
+        (item.stat.islnk | default(false))
+        and (
+          (item.stat.lnk_source | default('')) == item.omp_skill_source_directory.path
+          or (item.stat.lnk_source | default('')) == (item.omp_skill_source_directory.path | realpath)
+        )
+      )
 
 - name: "{{ role_name }} | Skills | Symlink repo-managed OMP skills"
   ansible.builtin.file:
@@ -481,12 +585,6 @@
   loop: "{{ omp_skill_destinations.results | default([]) }}"
   loop_control:
     label: "{{ item.omp_skill_source_directory.path | basename }}"
-  when: >-
-    not (
-      ansible_check_mode
-      and item.stat.exists
-      and not (item.stat.islnk | default(false))
-    )
 
 - name: "{{ role_name }} | Skills | Install Herdr skill"
   ansible.builtin.include_tasks: skill_herdr.yml
@@ -569,6 +667,27 @@
     loop_var: omp_extension_source
     label: "{{ omp_extension_source.omp_extension_source_file.path | basename }}"
   register: omp_extension_destinations
+
+- name: "{{ role_name }} | Extensions | Refuse conflicting OMP extension destinations"
+  ansible.builtin.fail:
+    msg: >-
+      {{ omp_extensions_dest }}/{{ item.omp_extension_source.omp_extension_source_file.path | basename }}
+      already exists but is not a regular file eligible for the managed backup
+      or the intended managed link. Refusing to replace unmanaged data.
+  loop: "{{ omp_extension_destinations.results | default([]) }}"
+  loop_control:
+    label: "{{ item.omp_extension_source.omp_extension_source_file.path | basename }}"
+  when:
+    - item.stat.exists
+    - >-
+      not (
+        (item.stat.islnk | default(false)
+          and (
+            (item.stat.lnk_source | default('')) == item.omp_extension_source.omp_extension_source_file.path
+            or (item.stat.lnk_source | default('')) == (item.omp_extension_source.omp_extension_source_file.path | realpath)
+          ))
+        or (item.stat.isreg | default(false))
+      )
 
 - name: "{{ role_name }} | Extensions | Ensure OMP extension migration backup directory exists"
   ansible.builtin.file:
@@ -662,16 +781,60 @@
     - "'omp: current (' not in omp_herdr_integration_status.stdout"
 
 
-- name: "{{ role_name }} | Validate default omp config"
-  ansible.builtin.command:
-    argv:
-      - "{{ omp_real_bin }}"
-      - config
-      - list
-  environment:
-    PI_CONFIG_DIR: ""
-    PI_CODING_AGENT_DIR: ""
-  changed_when: false
+- name: "{{ role_name }} | Validate default omp config in an isolated scratch home"
+  block:
+    - name: "{{ role_name }} | Create isolated omp config validation scratch directory"
+      ansible.builtin.tempfile:
+        path: "{{ omp_config_validation_tmpdir | default('/tmp') }}"
+        state: directory
+        prefix: omp-config-validation-
+      register: omp_config_validation_scratch
+      changed_when: false
+
+    - name: "{{ role_name }} | Create isolated omp config validation directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0700"
+      loop:
+        - "{{ omp_config_validation_scratch.path }}/home/.omp/agent"
+        - "{{ omp_config_validation_scratch.path }}/cwd"
+        - "{{ omp_config_validation_scratch.path }}/tmp"
+      changed_when: false
+
+    - name: "{{ role_name }} | Copy repo omp config into isolated validation home"
+      ansible.builtin.copy:
+        src: "{{ omp_config_source }}"
+        dest: "{{ omp_config_validation_scratch.path }}/home/.omp/agent/config.yml"
+        mode: "0600"
+      changed_when: false
+      no_log: true
+
+    - name: "{{ role_name }} | Load omp config with isolated environment"
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/env
+          - -i
+          - "HOME={{ omp_config_validation_scratch.path }}/home"
+          - "PI_CODING_AGENT_DIR={{ omp_config_validation_scratch.path }}/home/.omp/agent"
+          - "TMPDIR={{ omp_config_validation_scratch.path }}/tmp"
+          - "TMP={{ omp_config_validation_scratch.path }}/tmp"
+          - "TEMP={{ omp_config_validation_scratch.path }}/tmp"
+          - "PATH={{ omp_real_bin | dirname }}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+          - "{{ omp_real_bin }}"
+          - config
+          - list
+        chdir: "{{ omp_config_validation_scratch.path }}/cwd"
+      changed_when: false
+      no_log: true
+
+  always:
+    - name: "{{ role_name }} | Remove isolated omp config validation scratch directory"
+      ansible.builtin.file:
+        path: "{{ omp_config_validation_scratch.path }}"
+        state: absent
+      changed_when: false
+      when: omp_config_validation_scratch.path is defined
   when:
     - not ansible_check_mode
     - omp_binary.stat.exists or (omp_install.rc | default(1)) == 0

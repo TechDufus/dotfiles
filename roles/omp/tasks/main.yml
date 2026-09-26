@@ -633,8 +633,11 @@
       - herdr
       - integration
       - status
+  # Herdr resolves Pi and OMP from PI_CODING_AGENT_DIR alike and refuses to
+  # install OMP when they collide; select OMP via PI_CONFIG_DIR instead.
   environment:
-    PI_CODING_AGENT_DIR: "{{ omp_agent_dir }}"
+    PI_CODING_AGENT_DIR: ""
+    PI_CONFIG_DIR: "{{ omp_config_root }}"
   register: omp_herdr_integration_status
   changed_when: false
   failed_when: false
@@ -649,7 +652,8 @@
       - install
       - omp
   environment:
-    PI_CODING_AGENT_DIR: "{{ omp_agent_dir }}"
+    PI_CODING_AGENT_DIR: ""
+    PI_CONFIG_DIR: "{{ omp_config_root }}"
   changed_when: true
   when:
     - omp_herdr_integration_enabled | bool

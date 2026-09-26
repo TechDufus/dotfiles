@@ -893,9 +893,9 @@ class HerdrIntegrationSourceTests(unittest.TestCase):
             "status task must use argv-backed `herdr integration status`",
         )
         self.assertIn(
-            'PI_CODING_AGENT_DIR: "{{ omp_agent_dir }}"',
+            'PI_CODING_AGENT_DIR: ""\n    PI_CONFIG_DIR: "{{ omp_config_root }}"',
             task,
-            "status task must inspect the configured OMP agent directory",
+            "status task must inspect the configured OMP root without colliding with Pi",
         )
         self.assertIn(
             "changed_when: false",
@@ -933,9 +933,9 @@ class HerdrIntegrationSourceTests(unittest.TestCase):
             "install task must use argv-backed `herdr integration install omp`",
         )
         self.assertIn(
-            'PI_CODING_AGENT_DIR: "{{ omp_agent_dir }}"',
+            'PI_CODING_AGENT_DIR: ""\n    PI_CONFIG_DIR: "{{ omp_config_root }}"',
             task,
-            "install task must target the configured OMP agent directory",
+            "install task must target the configured OMP root without colliding with Pi",
         )
         for gate, purpose in (
             (

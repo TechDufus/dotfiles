@@ -114,6 +114,8 @@ eval:
   jl: true
   autoBackground:
     enabled: true
+computer:
+  enabled: true
 todo:
   eager: preferred
 secrets:

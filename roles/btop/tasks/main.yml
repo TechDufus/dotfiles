@@ -17,15 +17,18 @@
     - ~/.config
     - ~/.config/btop
     - ~/.config/btop/themes
+  when: not (dotfiles_is_omarchy | default(false) | bool)
 
 - name: "BTOP | Copy btop config"
   ansible.builtin.copy:
     src: btop.conf
     dest: ~/.config/btop/btop.conf
     mode: "0644"
+  when: not (dotfiles_is_omarchy | default(false) | bool)
 
 - name: "BTOP | Copy btop colors"
   ansible.builtin.copy:
     src: catppuccin_mocha.theme
     dest: ~/.config/btop/themes/catppuccin_mocha.theme
     mode: "0644"
+  when: not (dotfiles_is_omarchy | default(false) | bool)

@@ -1,0 +1,74 @@
+---
+- name: "{{ role_name }} | Assert CapsLock is free for the summon leader"
+  ansible.builtin.assert:
+    that:
+      - "'compose:caps' not in omarchy_kb_options.split(',')"
+    fail_msg: "CapsLock is the summon leader; remove compose:caps from keyboard.options / omarchy_kb_extra_options."
+    quiet: true
+
+- name: "{{ role_name }} | Check hyprland.lua"
+  ansible.builtin.stat:
+    path: "{{ omarchy_hypr_dir }}/hyprland.lua"
+  register: omarchy_hyprland_lua
+  check_mode: false
+
+- name: "{{ role_name }} | Assert hyprland.lua exists"
+  ansible.builtin.assert:
+    that:
+      - omarchy_hyprland_lua.stat.exists
+    fail_msg: "~/.config/hypr/hyprland.lua is missing; run `omarchy refresh hyprland` and rerun."
+    quiet: true
+
+- name: "{{ role_name }} | Ensure Hyprland module directory exists"
+  ansible.builtin.file:
+    path: "{{ omarchy_hypr_dotfiles_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Symlink Hyprland Lua modules"
+  ansible.builtin.file:
+    src: "{{ role_path }}/files/hypr/{{ item }}"
+    dest: "{{ omarchy_hypr_dotfiles_dir }}/{{ item }}"
+    state: link
+    force: true
+  loop: "{{ omarchy_hypr_modules }}"
+  register: omarchy_hypr_links
+
+- name: "{{ role_name }} | Template keyboard module"
+  ansible.builtin.template:
+    src: keyboard.lua.j2
+    dest: "{{ omarchy_hypr_dotfiles_dir }}/keyboard.lua"
+    mode: "0644"
+  register: omarchy_keyboard_lua
+
+- name: "{{ role_name }} | Require dotfiles modules from hyprland.lua"
+  ansible.builtin.blockinfile:
+    path: "{{ omarchy_hypr_dir }}/hyprland.lua"
+    marker: "-- {mark} dotfiles omarchy role"
+    insertafter: '^require\("hypr\.autostart"\)'
+    block: 'require("hypr.dotfiles.main")'
+    backup: true
+  register: omarchy_hyprland_block
+
+- name: "{{ role_name }} | Reload and validate Hyprland config"
+  when:
+    - (omarchy_hypr_links is changed) or (omarchy_keyboard_lua is changed) or (omarchy_hyprland_block is changed)
+    - ansible_facts['env']['HYPRLAND_INSTANCE_SIGNATURE'] is defined
+    - not ansible_check_mode
+  block:
+    - name: "{{ role_name }} | Reload Hyprland"
+      ansible.builtin.command: hyprctl reload
+      changed_when: false
+
+    - name: "{{ role_name }} | Check Hyprland config errors"
+      ansible.builtin.command: hyprctl configerrors -j
+      register: omarchy_configerrors
+      changed_when: false
+      failed_when: (omarchy_configerrors.stdout | from_json | select | list | length) > 0
+
+- name: "{{ role_name }} | Explain skipped Hyprland reload"
+  ansible.builtin.debug:
+    msg: "Not inside a Hyprland session; config applies at next login."
+  when:
+    - (omarchy_hypr_links is changed) or (omarchy_keyboard_lua is changed) or (omarchy_hyprland_block is changed)
+    - ansible_facts['env']['HYPRLAND_INSTANCE_SIGNATURE'] is undefined

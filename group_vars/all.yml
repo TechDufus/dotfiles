@@ -28,6 +28,7 @@ default_roles:
   - discord
   - ghostty
   - plasma
+  - omarchy
   - git
   - worktrunk
   - go
@@ -72,6 +73,15 @@ default_roles:
   - zoxide
   - zsh
 
+# Desktop-session pruning (dotfiles_session from pre_tasks/detect_omarchy.yml).
+# Unlike exclude_roles_by_distribution, this also drops explicitly tagged roles.
+exclude_roles_by_session:
+  omarchy:
+    - plasma
+    - tldr
+    - neofetch
+  default:
+    - omarchy
 
 exclude_roles_by_distribution:
   Archlinux:

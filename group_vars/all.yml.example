@@ -108,6 +108,7 @@ default_roles:
   # === Linux Specific ===
   # - awesomewm     # X11 window manager and keyboard-driven desktop
   # - plasma        # KDE Plasma Wayland desktop and KWin summon workflow
+  # - omarchy       # Omarchy/Hyprland overlay: CapsLock summon, kb_options
   # - steam         # Steam/Proton/Gamescope support for Arch/CachyOS
   # - vicinae       # Raycast-style launcher for Linux/AwesomeWM
   # - fabric        # AwesomeWM top command deck UI
@@ -160,6 +161,18 @@ default_roles:
   # === Network Analysis ===
   # - tshark       # Command-line network protocol analyzer
 
+
+# Desktop-session pruning (dotfiles_session from pre_tasks/detect_omarchy.yml:
+# `omarchy` when Omarchy markers exist, otherwise `default`). Unlike
+# exclude_roles_by_distribution, this also drops explicitly tagged roles, so
+# `dotfiles -t plasma` is a no-op on Omarchy.
+exclude_roles_by_session:
+  omarchy:
+    - plasma
+    - tldr       # tealdeer conflicts with Omarchy's tldr package
+    - neofetch   # package-only on Arch; Omarchy uses fastfetch
+  default:
+    - omarchy
 
 # Optional per-distribution defaults pruning. Explicit `--tags role` still runs
 # a role; this only keeps `dotfiles`/`--tags all` from pulling irrelevant stacks.

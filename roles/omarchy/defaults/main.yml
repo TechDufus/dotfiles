@@ -1,0 +1,15 @@
+---
+role_name: omarchy
+omarchy_hypr_dir: "{{ ansible_facts['user_dir'] }}/.config/hypr"
+omarchy_hypr_dotfiles_dir: "{{ omarchy_hypr_dir }}/dotfiles"
+omarchy_hypr_modules:
+  - main.lua
+  - summon.lua
+  - summon_apps.lua
+# CapsLock is the summon leader, so Compose moves to Right Alt; both Shifts still toggle Caps Lock.
+omarchy_kb_extra_options:
+  - caps:none
+  - compose:ralt
+  - shift:both_capslock_cancel
+omarchy_keyboard_options: "{{ (keyboard | default({})).options | default([]) }}"
+omarchy_kb_options: "{{ ((omarchy_keyboard_options.split(',') if omarchy_keyboard_options is string else omarchy_keyboard_options) + omarchy_kb_extra_options) | unique | join(',') }}"

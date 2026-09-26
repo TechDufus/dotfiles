@@ -35,6 +35,7 @@ op:
 | Variable | Description |
 |----------|-------------|
 | `default_roles` | Shared role list used by `dotfiles` / `--tags all` |
+| `exclude_roles_by_session` | Per-desktop-session roles dropped from every run, including explicit tags |
 | `exclude_roles_by_distribution` | Per-distribution roles pruned from default runs only |
 
 ```yaml
@@ -45,6 +46,14 @@ default_roles:
   - zsh
   - tmux
   - plasma
+  - omarchy
+exclude_roles_by_session:
+  omarchy:
+    - plasma
+    - tldr
+    - neofetch
+  default:
+    - omarchy
 exclude_roles_by_distribution:
   Archlinux:
     - asciiquarium
@@ -57,6 +66,26 @@ exclude_roles_by_distribution:
 
 Explicit tags still run even when a role is excluded from a distribution's
 default run, for example `dotfiles -t flatpak`.
+
+`exclude_roles_by_session` is keyed by `dotfiles_session`, which
+`pre_tasks/detect_omarchy.yml` sets to `omarchy` when Omarchy markers
+(`/usr/bin/omarchy`, `/usr/share/omarchy`) exist and `default` otherwise.
+Unlike the distribution exclusion, it also drops explicitly tagged roles:
+`dotfiles -t plasma` runs nothing on Omarchy, and `dotfiles -t omarchy` runs
+nothing on CachyOS or plain Arch.
+
+### Omarchy Desktop Session
+
+Omarchy is treated as a desktop session on top of the normalized `Archlinux`
+distribution, not as a separate distribution. On Omarchy, `plasma`, `tldr`, and
+`neofetch` are skipped. The btop and opencode configs stay Omarchy-owned (the
+`btop` and `opencode` roles skip their config tasks). The `neovim` role skips
+the `neovim-git` AUR package, which conflicts with `omarchy-nvim`, and the
+`system` role skips `pacman -Syu` because Omarchy's pacman guard blocks it; use
+`omarchy update` for system upgrades. The `omarchy` role injects a managed block
+into `~/.config/hypr/hyprland.lua` that loads the repo's Lua modules. If
+`omarchy refresh hyprland` rewrites that file, rerun `dotfiles -t omarchy` to
+restore the block.
 
 ### Arch/CachyOS Package Source Policy
 
@@ -84,6 +113,12 @@ still letting pacman verify signatures and package integrity.
 
 These variables are consumed by Linux system/X11 keyboard setup. Plasma desktop
 keyboard preferences live in `plasma_desktop_kconfig_settings`.
+
+On Omarchy, Hyprland reads the layout and variant from `/etc/vconsole.conf`,
+which the `system` role's `localectl` tasks write. The `omarchy` role builds
+Hyprland's `kb_options` from `keyboard.options` plus `omarchy_kb_extra_options`
+(`caps:none`, `compose:ralt`, `shift:both_capslock_cancel`). CapsLock is the
+summon leader, so Compose moves to Right Alt and both Shifts toggle Caps Lock.
 
 | Variable | Description |
 |----------|-------------|
@@ -148,6 +183,8 @@ Everything else is configured by editing the actual config files directly:
 | plasma desktop settings | `roles/plasma/defaults/main.yml` (`plasma_desktop_kconfig_settings`) |
 | plasma summon | `roles/plasma/files/kwin/plasma-summon/`, `roles/plasma/files/summon/` |
 | plasma summon service | `roles/plasma/files/bin/plasma-summon-service.py`, `roles/plasma/files/systemd/plasma-summon.service` |
+| omarchy summon registry | `roles/omarchy/files/hypr/summon_apps.lua` |
+| omarchy summon engine | `roles/omarchy/files/hypr/summon.lua` |
 
 The Herdr role copies the entire canonical `roles/herdr/files/config.toml` to `~/.config/herdr/config.toml`; edit the tracked source rather than the live output.
 

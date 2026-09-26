@@ -11,6 +11,7 @@ import types
 import unittest
 
 import jinja2
+import yaml
 from pathlib import Path
 from unittest.mock import patch
 
@@ -778,8 +779,9 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         example = (REPO_ROOT / "group_vars" / "all.yml.example").read_text(encoding="utf-8")
         self.assertIn("  - plasma", all_yml)
         self.assertIn("# - plasma", example)
-        arch_excludes = all_yml.split("exclude_roles_by_distribution:", maxsplit=1)[1]
-        self.assertNotIn("    - plasma", arch_excludes)
+        parsed = yaml.safe_load(all_yml)
+        self.assertNotIn("plasma", parsed["exclude_roles_by_distribution"]["Archlinux"])
+        self.assertIn("plasma", parsed["exclude_roles_by_session"]["omarchy"])
 
 
 

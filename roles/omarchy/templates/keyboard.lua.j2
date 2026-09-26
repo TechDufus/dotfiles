@@ -1,0 +1,7 @@
+-- Managed by ~/.dotfiles roles/omarchy (group_vars keyboard.options + omarchy_kb_extra_options).
+-- Layout/variant come from /etc/vconsole.conf via Omarchy's default input.lua (system role localectl).
+hl.config({
+  input = {
+    kb_options = "{{ omarchy_kb_options }}",
+  },
+})

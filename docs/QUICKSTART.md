@@ -160,6 +160,37 @@ Manual Steam cutover checks still require an interactive session:
 5. Back in the regular desktop session, validate fullscreen focus/media-key
    behavior with the same game before treating the migration as complete.
 
+### Omarchy Desktop Path
+
+On Omarchy, run `dotfiles` as usual. The playbook detects the Omarchy session
+automatically, keeps Omarchy's Hyprland session, btop, and opencode configs
+intact, and applies the `omarchy` role on top of the Arch roles. Use
+`omarchy update` instead of `sudo pacman -Syu` for system upgrades; Omarchy
+blocks direct full upgrades, so the `system` role skips them.
+
+```bash
+dotfiles              # session auto-detected; plasma/tldr/neofetch skipped
+dotfiles -t omarchy   # reapply the Hyprland overlay only
+```
+
+`dotfiles -t plasma` does nothing on Omarchy: session exclusions also drop
+explicitly tagged roles. If `omarchy refresh hyprland` rewrites
+`~/.config/hypr/hyprland.lua`, rerun `dotfiles -t omarchy` to restore the
+managed block.
+
+Summon workflow (registry: `roles/omarchy/files/hypr/summon_apps.lua`):
+
+- Tap `CapsLock`, then press an app letter from the registry: `g` terminal,
+  `b` browser, `d` Discord, `Shift+c` Signal, `s` Spotify, `n` Obsidian,
+  `o` 1Password, `f` files, `t` Orca. This focuses the app or launches it on its
+  home workspace. Summoning the focused app again toggles back to the previous
+  window.
+- Tap `CapsLock` twice, then `a`/`s`/`e`: cycle windows of the focused app,
+  screenshot a region to the clipboard, or open the Omarchy emoji picker.
+- `Esc`, or waiting 2 seconds, cancels a pending summon.
+- `Super+H` hides the active window to the scratchpad (`Super+S` toggles it).
+- Compose moves to Right Alt; pressing both Shifts toggles Caps Lock.
+
 ### Internet Connection
 
 Make sure you have a stable internet connection - we'll be downloading lots of tools!

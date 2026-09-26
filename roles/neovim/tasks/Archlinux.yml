@@ -17,7 +17,14 @@
   kewlfft.aur.aur:
     name: neovim-git
     state: present
-  when: can_install_packages | default(false)
+  when:
+    - can_install_packages | default(false)
+    - not (dotfiles_is_omarchy | default(false) | bool)
+
+- name: "Neovim | {{ ansible_facts['distribution'] }} | Using Omarchy neovim package"
+  ansible.builtin.debug:
+    msg: "Skipping neovim-git on Omarchy: the repo config still symlinks onto ~/.config/nvim."
+  when: dotfiles_is_omarchy | default(false) | bool
 
 - name: "Neovim | {{ ansible_facts['distribution'] }} | Installation skipped (no sudo)"
   ansible.builtin.debug:

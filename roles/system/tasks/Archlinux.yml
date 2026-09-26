@@ -5,7 +5,14 @@
     upgrade: true
     state: latest
   become: true
-  when: can_install_packages | default(false)
+  when:
+    - can_install_packages | default(false)
+    - not (dotfiles_is_omarchy | default(false) | bool)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Full upgrade skipped (Omarchy)"
+  ansible.builtin.debug:
+    msg: "Omarchy blocks direct pacman -Syu (00-omarchy-update-guard.hook); run `omarchy update` for system upgrades."
+  when: dotfiles_is_omarchy | default(false) | bool
 
 - name: "System | {{ ansible_facts['distribution'] }} | Install"
   community.general.pacman:

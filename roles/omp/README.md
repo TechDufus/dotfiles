@@ -60,9 +60,9 @@ Before launching, authenticate with the Anthropic provider using `omp login anth
 
 The role assignments are:
 
-- `anthropic/claude-opus-5-5:high`: default, plan, and task; `anthropic/claude-opus-5-5:max`: slow.
+- `anthropic/claude-opus-5-5:high`: default and task; `anthropic/claude-opus-5-5:max`: slow, plan, and designer.
 - `anthropic/claude-haiku-4-5:low`: smol; `anthropic/claude-haiku-4-5:minimal`: tiny and commit.
-- `anthropic/claude-sonnet-5:high`: designer and vision; `anthropic/claude-sonnet-5:medium`: advisor.
+- `anthropic/claude-sonnet-5:high`: vision; `anthropic/claude-sonnet-5:medium`: advisor.
 
 ## Codex subscription mode
 

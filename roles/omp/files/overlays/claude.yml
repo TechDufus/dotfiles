@@ -5,8 +5,8 @@ modelRoles:
   tiny: anthropic/claude-haiku-4-5:minimal
   task: anthropic/claude-opus-5-5:high
   slow: anthropic/claude-opus-5-5:max
-  plan: anthropic/claude-opus-5-5:high
-  designer: anthropic/claude-sonnet-5:high
+  plan: anthropic/claude-opus-5-5:max
+  designer: anthropic/claude-opus-5-5:max
   vision: anthropic/claude-sonnet-5:high
   commit: anthropic/claude-haiku-4-5:minimal
   advisor: anthropic/claude-sonnet-5:medium

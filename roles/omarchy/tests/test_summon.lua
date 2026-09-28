@@ -32,6 +32,7 @@ hl = {
     window = {
       move = function(args) return { kind = "move", args = args } end,
     },
+    send_key_state = function(args) return { kind = "key", args = args } end,
   },
   dispatch = function(d)
     fx.log[#fx.log + 1] = d
@@ -190,7 +191,7 @@ case("bring moves the window to the current workspace", function()
   expect_focus(fx.log[2], "0xn", "bring focus")
 end)
 
-case("leader cycles idle -> summon -> macro -> idle", function()
+case("leader cycles idle -> summon -> macro -> summon (Hammerspoon parity)", function()
   M = fresh_engine()
   local leader = find_bind("code:66", nil)
   if not leader then fail("code:66 leader not bound") end
@@ -200,12 +201,67 @@ case("leader cycles idle -> summon -> macro -> idle", function()
     leader.handler()
     seen[#seen + 1] = fx.submap
   end
-  eq(table.concat(seen, ","), "summon,summon_macro,", "submap sequence")
+  eq(table.concat(seen, ","), "summon,summon_macro,summon", "submap sequence")
+  eq(fx.timers[#fx.timers].opts.timeout, 1000, "leader timeout ms")
 end)
 
 case("uppercase key binds as SHIFT + letter", function()
   M = fresh_engine()
   if not find_bind("SHIFT + c", "summon") then fail("SHIFT + c not bound in summon submap") end
+  if not find_bind("SHIFT + o", "summon") then fail("SHIFT + o not bound in summon submap") end
+end)
+
+-- macOS-only Hammerspoon targets with no Omarchy equivalent.
+local MACOS_ONLY = { G = "Grok Bot", h = "Screen Sharing", w = "AWS WorkSpaces" }
+
+case("summon keys match the Hammerspoon registry", function()
+  M = fresh_engine()
+  local hs_apps = dofile("roles/hammerspoon/files/config/apps.lua")
+  local hs_keys = {}
+  for name, app in pairs(hs_apps) do
+    hs_keys[app.summon] = name
+    if not MACOS_ONLY[app.summon] then
+      local spec = string.match(app.summon, "^%u$") and ("SHIFT + " .. string.lower(app.summon)) or app.summon
+      if not find_bind(spec, "summon") then fail("Hammerspoon " .. name .. " key " .. app.summon .. " not bound") end
+    end
+  end
+  for _, app in ipairs(dofile(ROLE .. "summon_apps.lua")) do
+    if app.key and not hs_keys[app.key] then fail("summon key " .. app.key .. " (" .. app.name .. ") not in Hammerspoon") end
+  end
+end)
+
+case("macro keys match the Hammerspoon macro modal", function()
+  M = fresh_engine()
+  for _, key in ipairs({ "a", "s", "e", "b", "t", "g", "escape", "CTRL + c" }) do
+    if not find_bind(key, "summon_macro") then fail("macro key " .. key .. " not bound") end
+  end
+  for _, key in ipairs({ "escape", "CTRL + c" }) do
+    if not find_bind(key, "summon") then fail("summon cancel key " .. key .. " not bound") end
+  end
+end)
+
+case("browser macro focuses the browser, then sends the chord", function()
+  M = fresh_engine(function(f)
+    f.windows = { window("0xb", "brave-browser", 2, 1), window("0xf1", "foot", 1, 0) }
+    f.active = f.windows[2]
+  end)
+  M.browser_shortcut("CTRL SHIFT", "A")
+  expect_focus(last_dispatch(), "0xb", "browser focus")
+  local t = fx.timers[#fx.timers]
+  eq(t.opts.timeout, 150, "chord delay")
+  t.fn()
+  local d = last_dispatch()
+  eq(d.kind, "key", "chord dispatch")
+  eq(d.args.mods, "CTRL SHIFT", "chord mods")
+  eq(d.args.key, "A", "chord key")
+  eq(d.args.state, "down", "chord state")
+end)
+
+case("browser macro only launches when no browser is open", function()
+  M = fresh_engine(function(f) f.present = { ["omarchy-launch-browser"] = true } end)
+  M.browser_shortcut("CTRL SHIFT", "O")
+  eq(fx.exec[1], "uwsm-app -- omarchy-launch-browser", "browser launch")
+  eq(#fx.timers, 0, "no chord timer")
 end)
 
 print("all summon tests passed")

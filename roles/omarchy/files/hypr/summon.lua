@@ -3,7 +3,7 @@ local apps = require("hypr.dotfiles.summon_apps")
 
 local LEADER = "code:66" -- CapsLock keycode; kb_options caps:none makes it a VoidSymbol key.
 local SUMMON, MACRO = "summon", "summon_macro"
-local TIMEOUT_MS = 2000
+local TIMEOUT_MS = 1000 -- Hammerspoon registerTransientLeader timeoutSeconds = 1
 local PENDING_SECONDS = 10
 
 local M = {}
@@ -88,20 +88,17 @@ local function launch(app)
   hl.exec_cmd(o.notify("Summon: no launcher found for " .. app.name))
 end
 
-function M.summon(name)
+-- Focus the best window of the app (or launch it). Returns true when an existing window was focused.
+function M.open(name)
   local app = find_app(name)
-  if not app then return end
+  if not app then return false end
   local active = hl.get_active_window()
-  if active and app_matches(app, active) then
-    local back = state.return_to[app.name]
-    if exists(back) then focus(back) end
-    return
-  end
+  if active and app_matches(app, active) then return true end
   if active then state.return_to[app.name] = active.address end
   local wins = app_windows(app)
   if #wins == 0 then
     launch(app)
-    return
+    return false
   end
   local target = best_window(app, wins)
   state.last[app.name] = target.address
@@ -113,6 +110,35 @@ function M.summon(name)
     move(target.address, app.workspace or tostring(here.id), false)
   end
   focus(target.address)
+  return true
+end
+
+-- Summon toggles: when the app is already focused, return to the window it was summoned from.
+function M.summon(name)
+  local app = find_app(name)
+  if not app then return end
+  local active = hl.get_active_window()
+  if active and app_matches(app, active) then
+    local back = state.return_to[app.name]
+    if exists(back) then focus(back) end
+    return
+  end
+  M.open(name)
+end
+
+-- Send a chord to the focused window (Omarchy clipboard.lua pattern: split down/up to avoid stuck keys).
+local function send_shortcut(mods, key)
+  hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
+  hl.timer(function()
+    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up" }))
+  end, { timeout = 50, type = "oneshot" })
+end
+
+-- Stand-in for the Raycast browser macros: focus the browser, then trigger its own picker.
+function M.browser_shortcut(mods, key)
+  if M.open("browser") then
+    hl.timer(function() send_shortcut(mods, key) end, { timeout = 150, type = "oneshot" })
+  end
 end
 
 function M.cycle_same_app()
@@ -165,18 +191,16 @@ local function arm_timeout()
   end, { timeout = TIMEOUT_MS, type = "oneshot" })
 end
 
--- Single universal bind (see Hyprland discussion #14733): idle -> summon -> macro -> idle.
+-- Single universal bind (see Hyprland discussion #14733). Hammerspoon parity:
+-- idle -> summon -> macro -> summon (a leader press inside the macro modal re-enters summon).
 function M.leader()
   local current = hl.get_current_submap()
   if current == SUMMON then
     set_submap(MACRO)
-    arm_timeout()
-  elseif current == MACRO then
-    set_submap("reset")
   else
     set_submap(SUMMON)
-    arm_timeout()
   end
+  arm_timeout()
 end
 
 local function run(fn)
@@ -202,13 +226,19 @@ hl.define_submap(SUMMON, function()
     end
   end
   hl.bind("escape", hl.dsp.submap("reset"))
+  hl.bind("CTRL + c", hl.dsp.submap("reset"))
 end)
 
+-- Mirrors the Hammerspoon macro modal (roles/hammerspoon/files/config/init.lua `macros`).
 hl.define_submap(MACRO, function()
   o.bind("a", "Cycle windows of the active app", run(M.cycle_same_app))
   o.bind("s", "Screenshot region to clipboard", run(function() hl.exec_cmd("omarchy-capture-screenshot region copy") end))
   o.bind("e", "Emoji picker", run(function() hl.exec_cmd("omarchy-shell shell toggle omarchy.emojis") end))
+  o.bind("b", "Browser bookmarks", run(function() M.browser_shortcut("CTRL SHIFT", "O") end))
+  o.bind("t", "Browser tab search", run(function() M.browser_shortcut("CTRL SHIFT", "A") end))
+  o.bind("g", "GIF search", run(function() M.summon("gifs") end))
   hl.bind("escape", hl.dsp.submap("reset"))
+  hl.bind("CTRL + c", hl.dsp.submap("reset"))
 end)
 
 hl.on("window.open", M.place_pending)

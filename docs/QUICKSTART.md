@@ -178,16 +178,21 @@ explicitly tagged roles. If `omarchy refresh hyprland` rewrites
 `~/.config/hypr/hyprland.lua`, rerun `dotfiles -t omarchy` to restore the
 managed block.
 
-Summon workflow (registry: `roles/omarchy/files/hypr/summon_apps.lua`):
+Summon workflow (registry: `roles/omarchy/files/hypr/summon_apps.lua`; keys
+mirror the Hammerspoon registry in `roles/hammerspoon/files/config/apps.lua`):
 
-- Tap `CapsLock`, then press an app letter from the registry: `g` terminal,
-  `b` browser, `d` Discord, `Shift+c` Signal, `s` Spotify, `n` Obsidian,
-  `o` 1Password, `f` files, `t` Orca. This focuses the app or launches it on its
-  home workspace. Summoning the focused app again toggles back to the previous
-  window.
-- Tap `CapsLock` twice, then `a`/`s`/`e`: cycle windows of the focused app,
-  screenshot a region to the clipboard, or open the Omarchy emoji picker.
-- `Esc`, or waiting 2 seconds, cancels a pending summon.
+- Tap `CapsLock`, then an app letter: `a` Granola, `b` browser, `c` Cursor,
+  `Shift+c` Signal, `d` Discord, `e` Outlook, `f` files, `m` Teams, `n`
+  Obsidian, `o` 1Password, `Shift+o` Orca, `s` Spotify, `t` terminal. Granola,
+  Outlook, and Teams are Omarchy web apps. This focuses the app or launches it
+  (apps with a home workspace open there). Summoning the focused app again
+  toggles back to the previous window. The macOS-only Hammerspoon targets
+  (`Shift+g` Grok Bot, `h` Screen Sharing, `w` WorkSpaces) are not bound.
+- Tap `CapsLock` twice, then a macro: `a` cycle windows of the focused app, `s`
+  region screenshot to clipboard, `e` emoji picker, `b` browser bookmark
+  manager, `t` browser tab search, `g` GIF search (giphy web app). A third
+  `CapsLock` returns to summon.
+- `Esc`, `Ctrl+c`, or waiting 1 second cancels a pending summon.
 - `Super+H` hides the active window to the scratchpad (`Super+S` toggles it).
 - Compose moves to Right Alt; pressing both Shifts toggles Caps Lock.
 

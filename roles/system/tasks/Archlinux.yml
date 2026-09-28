@@ -23,6 +23,23 @@
     state: present
   become: true
   when: can_install_packages | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Enable Passwordless Sudo"
+  ansible.builtin.template:
+    src: user-sudo.j2
+    dest: /etc/sudoers.d/{{ ansible_facts['env']['USER'] }}
+    owner: root
+    group: root
+    mode: "0440"
+    validate: 'visudo -cf %s'
+  become: true
+  when: can_become | default(false)
+
+- name: "System | {{ ansible_facts['distribution'] }} | Passwordless sudo skipped (no sudo)"
+  ansible.builtin.debug:
+    msg: "Passwordless sudo skipped: no cached sudo credentials. Run `sudo -v` first or rerun with --ask-become-pass."
+  when: not (can_become | default(false))
+
 - name: "System | {{ ansible_facts['distribution'] }} | Ensure udev rules directory exists"
   ansible.builtin.file:
     path: /etc/udev/rules.d

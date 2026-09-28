@@ -14,7 +14,7 @@ return {
   { name = "outlook", key = "e", classes = { "brave-outlook.office.com__mail_-Default" }, exec = { "omarchy-launch-webapp https://outlook.office.com/mail/" } },
   { name = "files", key = "f", classes = { "org.gnome.nautilus" }, exec = { "nautilus --new-window" }, bring = true },
   { name = "teams", key = "m", classes = { "brave-teams.microsoft.com__v2_-Default" }, exec = { "omarchy-launch-webapp https://teams.microsoft.com/v2/" } },
-  { name = "obsidian", key = "n", classes = { "obsidian" }, exec = { "obsidian" }, workspace = "3" },
+  { name = "obsidian", key = "n", classes = { "md.obsidian.Obsidian", "obsidian" }, exec = { "obsidian" }, workspace = "3" },
   { name = "onepassword", key = "o", classes = { "com.onepassword.OnePassword", "1password" }, exec = { "1password" }, bring = true },
   { name = "orca", key = "O", classes = { "orca" }, exec = { "stably-orca" } },
   { name = "spotify", key = "s", classes = { "spotify" }, exec = { "spotify-launcher", "spotify" }, workspace = "5" },

@@ -87,6 +87,12 @@ into `~/.config/hypr/hyprland.lua` that loads the repo's Lua modules. If
 `omarchy refresh hyprland` rewrites that file, rerun `dotfiles -t omarchy` to
 restore the block.
 
+The `omarchy` role also writes `~/.config/fcitx5/conf/keyboard.conf` to clear
+fcitx5's word-hint hotkeys (`Ctrl+Alt+H`/`Ctrl+Alt+J`) so herdr's
+`ctrl+alt+j`/`ctrl+alt+k` agent navigation reaches the terminal. The `system`
+role writes `/etc/sudoers.d/$USER` (passwordless sudo) on Arch, including
+Omarchy, when sudo credentials are available.
+
 ### Arch/CachyOS Package Source Policy
 
 Arch-family roles use native package sources in this order:

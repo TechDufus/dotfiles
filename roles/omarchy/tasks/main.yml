@@ -72,3 +72,34 @@
   when:
     - (omarchy_hypr_links is changed) or (omarchy_keyboard_lua is changed) or (omarchy_hyprland_block is changed)
     - ansible_facts['env']['HYPRLAND_INSTANCE_SIGNATURE'] is undefined
+
+# Omarchy's fcitx5 (XCompose input method) binds word hints to Ctrl+Alt+H/J; clear them for herdr.
+- name: "{{ role_name }} | Ensure fcitx5 config directory exists"
+  ansible.builtin.file:
+    path: "{{ omarchy_fcitx5_conf_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: "{{ role_name }} | Clear fcitx5 word-hint hotkeys"
+  ansible.builtin.copy:
+    src: fcitx5/keyboard.conf
+    dest: "{{ omarchy_fcitx5_conf_dir }}/keyboard.conf"
+    mode: "0644"
+  register: omarchy_fcitx5_keyboard
+
+- name: "{{ role_name }} | Check fcitx5 service"
+  ansible.builtin.command: systemctl --user is-active omarchy-fcitx5.service
+  register: omarchy_fcitx5_active
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: omarchy_fcitx5_keyboard is changed
+
+- name: "{{ role_name }} | Restart fcitx5"
+  ansible.builtin.systemd_service:
+    name: omarchy-fcitx5.service
+    scope: user
+    state: restarted
+  when:
+    - omarchy_fcitx5_keyboard is changed
+    - (omarchy_fcitx5_active.stdout | default('')) == 'active'

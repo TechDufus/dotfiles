@@ -13,3 +13,4 @@ omarchy_kb_extra_options:
   - shift:both_capslock_cancel
 omarchy_keyboard_options: "{{ (keyboard | default({})).options | default([]) }}"
 omarchy_kb_options: "{{ ((omarchy_keyboard_options.split(',') if omarchy_keyboard_options is string else omarchy_keyboard_options) + omarchy_kb_extra_options) | unique | join(',') }}"
+omarchy_fcitx5_conf_dir: "{{ ansible_facts['user_dir'] }}/.config/fcitx5/conf"

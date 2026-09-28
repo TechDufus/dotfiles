@@ -91,7 +91,7 @@ dev:
   autoqaConsent: granted
 tier:
   openai: default
-  advisor: default
+  advisor: inherit
 statusLine:
   transparent: true
 startup:

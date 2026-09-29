@@ -4,7 +4,7 @@ Keep this page OMP-specific: do not import external Claude/Codex guidance wholes
 
 ## Managed files
 
-- `config.yml`, `lsp.json`, and the Cursor, Claude, Codex, and Herd overlays are repo-managed symlinks under OMP's default base `~/.omp/agent`; `omp-cursor`, `omp-claude`, and `omp-codex` are repo-managed symlinks under `~/.local/bin`. The Herd overlay is selected by the `/herd` extension. The wrappers use fixed overlay paths; see the session-mode notes below. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning.
+- `config.yml`, `lsp.json`, and the Cursor, Claude, Claude+Sol, Codex, and Herd overlays are repo-managed symlinks under OMP's default base `~/.omp/agent`; `omp-cursor`, `omp-claude`, `omp-claude-sol`, and `omp-codex` are repo-managed symlinks under `~/.local/bin`. The Herd overlay is selected by the `/herd` extension. The wrappers use fixed overlay paths; see the session-mode notes below. If a destination regular file differs, the role fails: copy intended live changes back into `roles/omp/files/` or remove the unmanaged file before rerunning.
 - The repo YAML is the authoritative record of current role assignments and deliberate behavior choices. Preserve only deliberate overrides: omit a setting that matches the upstream default unless retaining it is an intentional reproducibility or behavior decision. Re-audit after OMP upgrades because inherited behavior can change with upstream defaults. Because the managed config is a symlink to this repo, edits take effect when OMP next loads or reloads configuration; deployment is not a version-upgrade mechanism.
 - `mcp.json` remains a regular file: the role merges managed servers into existing `mcpServers`, preserves unowned entries, rejects symlinks/special files, and writes mode `0600` under `no_log`. Its Playwright entry keeps explicit `type: stdio` as the role's local transport contract for `bunx @playwright/mcp@latest`; the package is intentionally unpinned.
 - `agents/*.md` defines additional global OMP agents with OMP frontmatter and focused prompts. Specialist routing and effort policy belong in those sources rather than this overview.
@@ -47,7 +47,7 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 `omp-cursor` runs `omp --config "$HOME/.omp/agent/overlays/cursor.yml"` and forwards session arguments unchanged. It is a session mode, not a wrapper for OMP management subcommands; use `omp` directly for those.
 
-A named profile relocates and isolates the complete OMP user base; an overlay is a separate settings file and does not relocate that base. Both wrappers pass explicit YAML paths under `${HOME}/.omp/agent/overlays/` regardless of base/profile relocation. Do not assume credentials or other user-base state are inherited across bases. The Cursor overlay's `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
+A named profile relocates and isolates the complete OMP user base; an overlay is a separate settings file and does not relocate that base. The wrappers pass explicit YAML paths under `${HOME}/.omp/agent/overlays/` regardless of base/profile relocation. Do not assume credentials or other user-base state are inherited across bases. The Cursor overlay's `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
 
 The overlay favors Grok 4.7 in the Cursor catalog rather than mirroring the `openai-codex` base map. Cursor publishes 4.7 as per-effort SKUs (`grok-4.7-low|-high|-xhigh`), not a collapsible `:<effort>` family like Grok 4.6, so the overlay pins those ids:
 
@@ -75,6 +75,21 @@ The role assignments are:
 - `anthropic/claude-opus-5-5:high`: default; `anthropic/claude-opus-5-5:max`: slow and plan.
 - `anthropic/claude-sonnet-5-5:high`: task, designer, and vision; `anthropic/claude-sonnet-5-5:medium`: advisor.
 - `anthropic/claude-sonnet-5-5:low`: smol, tiny, and commit.
+
+## Claude with Sol advisor mode
+
+Use `omp-claude` above for Claude-only model selection, or launch Claude with a Sol advisor:
+
+```sh
+omp-claude-sol
+omp-claude-sol --cwd /path/to/repo "Review this change"
+```
+
+`omp-claude-sol` runs `omp --config "$HOME/.omp/agent/overlays/claude-sol.yml"` and forwards session arguments unchanged. Like the other wrappers, it is for sessions; use `omp` directly for management subcommands.
+
+The overlay keeps the Claude main and supporting role assignments listed above, except that advisor is explicitly pinned to `openai-codex/gpt-6.1-sol:low`. It does not introduce automatic effort or change the primary reasoning settings. Its model scope permits Anthropic catalog models and the Sol 6.1 advisor model, rather than the full Codex catalog. `omp-claude` remains restricted to `anthropic/*`.
+
+This is a settings-only overlay sharing the selected OMP user base. It does not select an account, relocate credentials, or isolate subscriptions; provider authentication remains in that shared base. Using the Sol advisor requires authentication with the OpenAI Codex provider as well as Anthropic.
 
 ## Codex subscription mode
 

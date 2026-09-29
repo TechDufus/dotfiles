@@ -352,3 +352,138 @@ function getPositions(sizes, leftOrRight, topOrBottom)
 
   return hs.fnutils.map(sizes, applyLeftOrRight)
 end
+
+
+--------------------------------------------------------------------------------
+-- Window Frame Helpers
+--------------------------------------------------------------------------------
+
+local function reportAXEnhancedUserInterfaceError(action, err)
+  if hs and type(hs.printf) == 'function' then
+    pcall(hs.printf, '%s: %s', action, tostring(err or 'unknown error'))
+  end
+end
+
+local function setAXEnhancedUserInterface(applicationElement, value)
+  local setterOk, setterResult, setterError = pcall(
+    applicationElement.setAttributeValue,
+    applicationElement,
+    'AXEnhancedUserInterface',
+    value
+  )
+  local readOk, currentValue, readError = pcall(
+    applicationElement.attributeValue,
+    applicationElement,
+    'AXEnhancedUserInterface'
+  )
+
+  if readOk and currentValue == value then
+    return true
+  end
+  if not readOk then
+    return false, currentValue
+  end
+  if not setterOk then
+    return false, setterResult
+  end
+  return false, setterError or readError or string.format(
+    'AXEnhancedUserInterface did not become %s',
+    tostring(value)
+  )
+end
+
+local function withAXEnhancedUserInterfaceDisabled(window, placement)
+  local application = window:application()
+  local applicationElement = application and hs.axuielement.applicationElement(application)
+  if not applicationElement then
+    return placement()
+  end
+
+  local readOk, wasEnabled = pcall(
+    applicationElement.attributeValue,
+    applicationElement,
+    'AXEnhancedUserInterface'
+  )
+  if not readOk or wasEnabled ~= true then
+    return placement()
+  end
+
+  local disableOk, disableError = setAXEnhancedUserInterface(applicationElement, false)
+  if not disableOk then
+    local restoreOk, restoreError = setAXEnhancedUserInterface(applicationElement, wasEnabled)
+    if not restoreOk then
+      reportAXEnhancedUserInterfaceError('Failed to restore AXEnhancedUserInterface', restoreError)
+    end
+    error(disableError or 'Failed to disable AXEnhancedUserInterface for window placement', 0)
+  end
+
+  local results = table.pack(pcall(placement))
+  local restoreOk, restoreError = setAXEnhancedUserInterface(applicationElement, wasEnabled)
+  if not restoreOk then
+    if results[1] then
+      error(restoreError or 'Failed to restore AXEnhancedUserInterface', 0)
+    end
+    reportAXEnhancedUserInterfaceError('Failed to restore AXEnhancedUserInterface', restoreError)
+  end
+
+  if not results[1] then
+    error(results[2], 0)
+  end
+
+  return table.unpack(results, 2, results.n)
+end
+
+function installAXEnhancedUserInterfaceFrameWorkaround()
+  local getObjectMetatable = hs and hs.getObjectMetatable
+  if type(getObjectMetatable) ~= 'function' then
+    return false
+  end
+
+  local windowMetatable = getObjectMetatable('hs.window')
+  if type(windowMetatable) ~= 'table' then
+    return false
+  end
+
+  local marker = '__dotfilesAXEnhancedUserInterfaceFrameWorkaround'
+  if windowMetatable[marker] then
+    return true
+  end
+
+  local function wrapWindowSetter(methodName, animated)
+    local original = windowMetatable[methodName]
+    if type(original) ~= 'function' then
+      return
+    end
+
+    if animated then
+      windowMetatable[methodName] = function(window, frame, duration)
+        local effectiveDuration = duration
+        if effectiveDuration == nil then
+          effectiveDuration = hs.window.animationDuration
+        end
+
+        if type(effectiveDuration) == 'number' and effectiveDuration > 0 then
+          return original(window, frame, duration)
+        end
+
+        return withAXEnhancedUserInterfaceDisabled(window, function()
+          return original(window, frame, duration)
+        end)
+      end
+    else
+      windowMetatable[methodName] = function(window, ...)
+        local args = table.pack(...)
+        return withAXEnhancedUserInterfaceDisabled(window, function()
+          return original(window, table.unpack(args, 1, args.n))
+        end)
+      end
+    end
+  end
+
+  wrapWindowSetter('setFrame', true)
+  wrapWindowSetter('setFrameWithWorkarounds', true)
+  wrapWindowSetter('setTopLeft', false)
+  wrapWindowSetter('setSize', false)
+  windowMetatable[marker] = true
+  return true
+end

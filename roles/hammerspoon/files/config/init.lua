@@ -93,6 +93,10 @@ hs.window.animationDuration = 0
 -- Terminal-like apps resize in discrete steps; this avoids bad frames at screen edges.
 hs.window.setFrameCorrectness = true
 
+-- Grid/layout helpers use the synchronous window frame setter for placement.
+installAXEnhancedUserInterfaceFrameWorkaround()
+
+
 local layout = hs.loadSpoon('GridLayout')
     :start()
     :setApps(apps)

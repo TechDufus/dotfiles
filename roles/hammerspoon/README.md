@@ -66,6 +66,22 @@ Personal configuration stays here:
 apps. Apps marked `launchOnly` in `apps.lua` use asynchronous LaunchServices
 activation instead of WorkspaceManager placement; currently GrokBot and Teams.
 
+### Window sizing
+
+`helpers.lua` scopes the [macOS enhanced-accessibility sizing workaround](https://github.com/Hammerspoon/hammerspoon/issues/3731)
+to synchronous frame, position, and size changes. It temporarily disables an enabled
+`AXEnhancedUserInterface` flag on the owning application, then restores it even when placement
+fails. Both the initial screen move and the subsequent cell resize need this protection.
+Attribute readback is authoritative: Brave can report a setter error despite applying the change.
+Layout geometry and persistent accessibility settings are unchanged.
+
+Focused regressions:
+
+```sh
+lua roles/hammerspoon/tests/test_ax_enhanced_ui.lua
+lua roles/hammerspoon/tests/test_window_cycle.lua
+```
+
 ## Role Defaults
 
 - `hammerspoon_gridlayout_release_url`
@@ -111,6 +127,8 @@ Legacy `lilHyper+o` and `Hyper+o` bindings still exist as alternate screen-move 
 
 - [files/config/init.lua](files/config/init.lua)
   Composition root. Loads spoons, injects config, and binds keys.
+- [files/config/helpers.lua](files/config/helpers.lua)
+  Shared helpers, including scoped accessibility handling for window placement.
 - [files/config/apps.lua](files/config/apps.lua)
   Logical app definitions, summon bindings, and LaunchServices-only exceptions for AX-unsafe apps.
 - [files/config/layouts.lua](files/config/layouts.lua)

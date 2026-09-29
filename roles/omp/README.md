@@ -153,6 +153,12 @@ Agent workflow policy starts at [`SKILL.md`](./files/skills/herdr-workflow/SKILL
 
 This skill management is separate from `omp_herdr_integration_enabled`, which controls Herdr's generated lifecycle and session reporter.
 
+## Test authoring and audit
+
+The global [`test-audit` skill](files/skills/test-audit/SKILL.md) is managed from `roles/omp/files/skills/test-audit` into `~/.omp/agent/skills/test-audit`. It applies when authoring, changing, reviewing, or auditing tests. This is a repository-neutral adaptation of OpenClaw's test-audit guidance, without OpenClaw toolchain dependencies; use the current repository's testing, review, and contribution conventions.
+
+Its authoring gate favors independent consumer-visible contracts and credible regression or boundary coverage over source-coupled checks. Cleanup requires evidence, not deletion quotas: reject incidental wording/source tests rather than re-pin them, preserve meaningful regressions and boundaries, and investigate baseline failures as possible bugs. Verify the intended regression failure and fix with focused checks plus an actual scenario smoke run. The optional [campaign reference](files/skills/test-audit/CAMPAIGN.md) covers broader audits, with mutation proof confined to a disposable isolated copy or worktree.
+
 ## Checkpoint commits and `/commit`
 
 The [`commit` skill](files/skills/commit/SKILL.md) and active `omp_commit` tool let the agent create autonomous local commits at coherent, verified checkpoints while broader work continues. `/commit [optional free-form context]` is an optional post-work fast path.

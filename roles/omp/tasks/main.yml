@@ -293,8 +293,6 @@
       - omp_merged_mcp_config.mcpServers.playwright.type == "stdio"
       - omp_merged_mcp_config.mcpServers.playwright.command == "bunx"
       - '"@playwright/mcp@latest" in omp_merged_mcp_config.mcpServers.playwright.args'
-      - omp_merged_mcp_config.mcpServers.granola.type == "http"
-      - omp_merged_mcp_config.mcpServers.granola.url == "https://mcp.granola.ai/mcp"
     quiet: true
 
 - name: "{{ role_name }} | Deploy global omp mcp config"

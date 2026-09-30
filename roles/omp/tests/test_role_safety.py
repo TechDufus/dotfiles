@@ -373,7 +373,6 @@ class OmpRoleSafetyTests(unittest.TestCase):
             )
             self.assertEqual(merged["mcpServers"]["playwright"]["type"], "stdio")
             self.assertEqual(merged["mcpServers"]["playwright"]["command"], "bunx")
-            self.assertEqual(merged["mcpServers"]["granola"]["type"], "http")
             self.assertEqual(stat.S_IMODE(mcp_path.stat().st_mode), 0o600)
 
     def test_malformed_source_config_is_unchanged_and_validation_scratch_is_removed(self) -> None:

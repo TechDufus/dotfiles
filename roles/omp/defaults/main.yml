@@ -78,6 +78,3 @@ omp_managed_mcp_servers:
     command: bunx
     args:
       - "@playwright/mcp@latest"
-  granola:
-    type: http
-    url: "https://mcp.granola.ai/mcp"

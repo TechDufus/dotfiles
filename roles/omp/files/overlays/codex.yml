@@ -1,6 +1,6 @@
 ---
 modelRoles:
-  default: openai-codex/gpt-6.1-sol:xhigh
+  default: openai-codex/gpt-6.1-sol:max
   smol: openai-codex/gpt-6.1-sol:low
   tiny: openai-codex/gpt-6.1-sol:low
   task: openai-codex/gpt-6.1-sol:high
@@ -10,6 +10,6 @@ modelRoles:
   vision: openai-codex/gpt-6.1-sol:high
   commit: openai-codex/gpt-6.1-sol:low
   reviewer: openai-codex/gpt-6.1-sol
-  advisor: openai-codex/gpt-6.1-sol:low
+  advisor: openai-codex/gpt-6.1-sol:medium
 enabledModels:
   - openai-codex/*

@@ -7,7 +7,7 @@ modelRoles:
   designer: openai-codex/gpt-6-astra
   vision: openai-codex/gpt-6.1-sol:high
   commit: openai-codex/gpt-6.1-sol:low
-  advisor: openai-codex/gpt-6.1-sol:low
+  advisor: openai-codex/gpt-6.1-sol:medium
   reviewer: openai-codex/gpt-6.1-sol
   default: openai-codex/gpt-6-astra:xhigh
 cycleOrder:

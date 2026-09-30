@@ -7,9 +7,11 @@
     "canary-1b-v2_474MB",
     "nvidia_parakeet-v3_494MB",
     "small.en",
-    "small"
+    "small",
+    "medium"
   ],
   "modeKeys" : [
+    "voice to text",
     "pro",
     "default"
   ],

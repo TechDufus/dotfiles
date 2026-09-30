@@ -1,7 +1,7 @@
 modelRoles:
   smol: openai-codex/gpt-6.1-sol:low
   tiny: openai-codex/gpt-6.1-sol:low
-  task: openai-codex/gpt-6.1-sol:high
+  task: openai-codex/gpt-6.1-sol
   slow: openai-codex/gpt-6-astra
   plan: openai-codex/gpt-6-astra
   designer: openai-codex/gpt-6-astra

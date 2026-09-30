@@ -48,7 +48,7 @@ omp-cursor --cwd /path/to/repo "Review this change"
 
 `omp-cursor` runs `omp --config "$HOME/.omp/agent/overlays/cursor.yml"` and forwards session arguments unchanged. It is a session mode, not a wrapper for OMP management subcommands; use `omp` directly for those.
 
-A named profile relocates and isolates the complete OMP user base; an overlay is a separate settings file and does not relocate that base. The wrappers pass explicit YAML paths under `${HOME}/.omp/agent/overlays/` regardless of base/profile relocation. Do not assume credentials or other user-base state are inherited across bases. The Cursor overlay's `cursor/*` model scope limits the picker and automatic fallback candidates to Cursor catalog models.
+A named profile relocates and isolates the complete OMP user base; an overlay is a separate settings file and does not relocate that base. The wrappers pass explicit YAML paths under `${HOME}/.omp/agent/overlays/` regardless of base/profile relocation. Do not assume credentials or other user-base state are inherited across bases. The Cursor overlay's `enabledModels` chat-selection and fallback scope is `cursor/*`; judge selection is independent.
 
 The overlay favors Grok 4.7 in the Cursor catalog rather than mirroring the `openai-codex` base map. Cursor publishes 4.7 as per-effort SKUs (`grok-4.7-low|-high|-xhigh`), not a collapsible `:<effort>` family like Grok 4.6, so the overlay pins those ids:
 
@@ -67,7 +67,7 @@ omp-claude --cwd /path/to/repo "Review this change"
 
 `omp-claude` runs `omp --config "$HOME/.omp/agent/overlays/claude.yml"` and forwards session arguments unchanged. It is a session mode, not a wrapper for OMP management subcommands; use `omp` directly for those.
 
-The Claude overlay changes model-role selection without selecting or relocating the user base. Its `anthropic/*` model scope limits the picker and automatic fallback candidates to Anthropic catalog models.
+The Claude overlay changes model-role selection without selecting or relocating the user base. Its `enabledModels` chat-selection and fallback scope is `anthropic/*`; judge selection is independent.
 
 Before launching, authenticate with the Anthropic provider using `omp login anthropic`. This selects the `anthropic` model provider; it does not opt in to Claude capability discovery. Target 18.3's pre-filter `.claude/settings.json` import limitation is documented below.
 
@@ -79,7 +79,7 @@ The role assignments are:
 
 ## Claude with Sol advisor mode
 
-Use `omp-claude` above for Claude-only model selection, or launch Claude with a Sol advisor:
+Use `omp-claude` above for Claude role routing, or launch Claude with a Sol advisor:
 
 ```sh
 omp-claude-sol
@@ -88,7 +88,7 @@ omp-claude-sol --cwd /path/to/repo "Review this change"
 
 `omp-claude-sol` runs `omp --config "$HOME/.omp/agent/overlays/claude-sol.yml"` and forwards session arguments unchanged. Like the other wrappers, it is for sessions; use `omp` directly for management subcommands.
 
-The overlay keeps the Claude main and supporting role assignments listed above, except that advisor is explicitly pinned to `openai-codex/gpt-6.1-sol:low`. It does not introduce automatic effort or change the primary reasoning settings. Its model scope permits Anthropic catalog models and the Sol 6.1 advisor model, rather than the full Codex catalog. `omp-claude` remains restricted to `anthropic/*`.
+The overlay keeps the Claude main and supporting role assignments listed above, except that advisor is explicitly pinned to `openai-codex/gpt-6.1-sol:low`. It does not introduce automatic effort or change the primary reasoning settings. Its `enabledModels` chat-selection and fallback scope contains `anthropic/*` and the Sol 6.1 advisor model, rather than the full Codex catalog. `omp-claude` retains only `anthropic/*`.
 
 This is a settings-only overlay sharing the selected OMP user base. It does not select an account, relocate credentials, or isolate subscriptions; provider authentication remains in that shared base. Using the Sol advisor requires authentication with the OpenAI Codex provider as well as Anthropic.
 
@@ -101,9 +101,15 @@ omp-codex
 omp-codex --cwd /path/to/repo "Review this change"
 ```
 
-`omp-codex` selects its managed CLI `--config` overlay and forwards session arguments unchanged, like `omp-cursor` and `omp-claude`. The overlay selects `default: openai-codex/gpt-6.1-sol:xhigh`; the base default is Astra at `xhigh`. Its `openai-codex/*` model scope limits the picker and automatic fallback candidates to Codex catalog models. Keep its supporting roles in sync with the base map when that changes.
+`omp-codex` selects its managed CLI `--config` overlay and forwards session arguments unchanged, like `omp-cursor` and `omp-claude`. The overlay selects `default: openai-codex/gpt-6.1-sol:max`; the base default is Astra at `xhigh`. Its `enabledModels` chat-selection and fallback scope is `openai-codex/*`; judge selection is independent. Keep its supporting roles in sync with the base map when that changes.
 
-Both configurations use GPT-6.1 Sol at `high` for task and vision work, and at `low` for smol, tiny, commit, and advisor work. Astra serves slow, plan, and designer work. Explicit Sol effort selectors avoid max reasoning for routine supporting work.
+Both configurations use GPT-6.1 Sol without an effort suffix for task work, at `high` for vision, at `low` for smol, tiny, and commit, and at `medium` for advisor work. Astra serves slow, plan, and designer work.
+
+### Shared TypeSafe / Jev behavior
+
+`enabledModels` scopes chat-picker choices and automatic fallback candidates, not judges; its globs match either `provider/id` or bare model ids, so these scopes are not strict provider boundaries. Native Jev uses the independent judge role. Without a `modelRoles.judge` override, its default chain is `typesafe/jev-latest`, `openrouter/~typesafe/jev-latest`, then `@tiny`, `@smol`, and `@default`. TypeSafe judge authentication belongs in the selected shared user base; no `typesafe/*` allowlist entry is required.
+
+`grep` stays local; semantic `find` uses the judge, and its default `auto` mode requires the primary native judgment API. After a real `judge_batch(...)` completes, inspect the returned batch's `status()` result: its `model` field identifies the actual answering model, not a preflight candidate.
 
 
 ## Herdr

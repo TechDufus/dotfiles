@@ -9,6 +9,12 @@ focus_pane_down = ["prefix+j", "ctrl+j"]
 focus_pane_up = ["prefix+k", "ctrl+k"]
 focus_pane_right = ["prefix+l", "ctrl+l"]
 
+resize_pane_left = "ctrl+shift+alt+h"
+resize_pane_down = "ctrl+shift+alt+j"
+resize_pane_up = "ctrl+shift+alt+k"
+resize_pane_right = "ctrl+shift+alt+l"
+clear_pane = "prefix+ctrl+k"
+
 navigate_workspace_up = "shift+k"
 navigate_workspace_down = "shift+j"
 previous_workspace = "prefix+alt+k"
@@ -16,6 +22,8 @@ next_workspace = "prefix+alt+j"
 
 previous_tab = ["prefix+p", "alt+shift+h"]
 next_tab = ["prefix+n", "alt+shift+l"]
+move_tab_previous = "alt+shift+left"
+move_tab_next = "alt+shift+right"
 
 previous_agent = ["prefix+alt+p", "ctrl+alt+k"]
 next_agent = ["prefix+alt+n", "ctrl+alt+j"]
@@ -48,6 +56,7 @@ window_title = "{workspace} — {tab} · {hostname}"
 status_indicators = "symbols"
 prompt_new_workspace_name = true
 agent_panel_sort = "priority"
+mobile_width_threshold = 96
 sidebar_width = 38
 sidebar_min_width = 26
 sidebar_max_width = 48
@@ -56,18 +65,22 @@ sidebar_collapsed_mode = "compact"
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", { token = "workspace", bold = true }, { token = "agent", dim = true }, "state_text"],
-  [{ token = "tab", bold = true }],
-  [{ token = "terminal_title_stripped", dim = true }],
+  ["state_icon", { token = "workspace", bold = true }],
+  [{ token = "machine", dim = true, rules = [{ equals = "Local", hide = true }] }, { token = "agent", dim = true }, { token = "tab", dim = true }],
+  [{ token = "terminal_title_stripped", fg = "#a6adc8", dim = false }],
 ]
 
 [ui.toast]
 delivery = "terminal"
 
+[theme.custom]
+sidebar_bg = "#11111b"
+active_row_bg = "#1e1e2e"
+selection_bg = "#313244"
+
 [advanced]
 scrollback_limit_bytes = 100_000_000
 
 [experimental]
-kitty_graphics = true
 pane_history = true
 switch_ascii_input_source_in_prefix = true

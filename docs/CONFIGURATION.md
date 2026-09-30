@@ -212,6 +212,95 @@ files contain machine-specific IDs.
 
 This is intentional. Config files are readable, portable, and self-contained. You look at the file and know exactly what it does.
 
+### Herdr presentation and shortcuts
+
+The configuration targets Herdr 0.9.3. Expanded desktop Agents use a vertical
+hierarchy with `row_gap = 0` and no per-agent layout overrides:
+
+- First identity row: state icon and bold workspace.
+- Second identity row: subdued machine label, dim agent identity, and dim
+  optional tab.
+- Optional third task row: `terminal_title_stripped` alone in Catppuccin
+  subtext (`#a6adc8`) without dimming.
+
+The agent identity keeps the second row populated for detected agents when
+optional context disappears. A lone auto-named tab is omitted from Agents
+context; missing tokens add neither text nor separators. The standalone title
+row disappears when its title is absent, leaving the identity rows intact.
+Long rows truncate to the available sidebar width rather than wrapping.
+
+The machine token's `rules = [{ equals = "Local", hide = true }]` hides exactly
+the case-sensitive label `Local`, including its separator. This is a label
+match, not a local-versus-remote connection test: remote labels other than
+`Local` stay visible, and a remote profile named `Local` would also be hidden.
+
+`ui.mobile_width_threshold = 96` selects native mobile layout at terminal
+widths of **96 columns or fewer**, including ordinary narrow desktop terminals.
+The condition uses columns only, not phone detection, orientation, aspect
+ratio, or terminal height. At 97 columns and above, desktop chrome returns.
+Mobile dedicates the width to the pane beneath its compact header rather than
+keeping a sidebar visible. Open its full-width switcher with default
+**Prefix, then W** (`Ctrl+B`, then `w`) or the header's switch button.
+
+Native mobile switcher agent entries have fixed rows: machine plus workspace
+on the first, then optional tab, state, and agent on the second. They truncate
+rather than wrap. Custom sidebar rows, token styles, the `Local` hide rule,
+and task titles are desktop-only; mobile still displays `Local` and does not
+show the terminal task title. Use short, distinct machine, workspace, and
+agent labels to keep identities distinguishable at narrow widths; layout
+settings cannot guarantee visibility of arbitrarily long labels.
+
+Herdr retains its inherited Catppuccin palette without new accent overrides.
+Only three surfaces change: sidebar background `#11111b`, active-row background
+`#1e1e2e`, and selection background `#313244`. These distinguish the desktop
+sidebar canvas, active item, and selection without recoloring the whole
+interface. The native mobile surface uses the inherited panel background,
+not the desktop-only `sidebar_bg` override.
+Ghostty's managed Catppuccin Mocha near-black canvas and OMP's
+`dark-catppuccin` remain separate application surfaces, not shared palette
+settings.
+
+Existing bindings remain intact. The added shortcuts are:
+
+| Action | Shortcut |
+|--------|----------|
+| Resize pane left/down/up/right | `Ctrl+Shift+Alt+H/J/K/L` |
+| Move tab previous/next | `Alt+Shift+Left/Right` |
+| Clear pane | Prefix, then `Ctrl+K` |
+
+The default prefix is `Ctrl+B`: clear pane therefore means `Ctrl+B`, then
+`Ctrl+K`, not the existing direct `Ctrl+K` pane-focus shortcut. Go To remains
+prefix then `G` or `O`. Pane focus, agent cycling/index shortcuts, the
+`Alt+Backtick` `gh dash` popup, priority ordering, symbols, hidden scrollbars,
+internal-only pane dividers, pane history, ASCII-prefix input switching, and
+100 MB scrollback remain unchanged. Graphics use the default-enabled
+`terminal.kitty_graphics`; the deprecated experimental graphics key is absent.
+
+Themes, sidebar layouts, and normal keybindings are client-local, including
+while viewing SSH machines. Deploy the canonical file locally, then reload
+the local client through Herdr's global-menu **reload config** action with
+Local selected; the action also reloads the selected server's config.
+`herdr server reload-config` addresses the server side and is not a substitute
+for reloading the client's presentation. Do not select a remote server for this
+local-only change. Reload does not restart panes; startup-only settings require
+a separately planned restart. The role does not automatically reload, stop,
+or restart any running server.
+
+On macOS, a normal role run fetches the HTTPS stable `latest.json` manifest,
+normalizes `arm64` to `aarch64`, and validates the matching HTTPS asset and its
+64-hex SHA-256 checksum. The checksum-backed download installs
+`~/.local/bin/herdr` with mode `0755`: missing or stale bytes converge to the
+current stable release, while matching bytes avoid another asset download.
+Manifest-dependent installation and the read-only `--version` probe are
+skipped in check mode. Updating the executable does not replace a running
+server process automatically; client/binary and running-server versions can
+temporarily differ. This macOS installer change does not modify Linux or remote
+machines.
+
+See the upstream [sidebar row layouts](https://herdr.dev/docs/configuration/#sidebar-row-layouts)
+and [config reference](https://herdr.dev/docs/config-reference/) for token and
+keybinding syntax.
+
 ## Commands
 
 ```bash

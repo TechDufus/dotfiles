@@ -96,7 +96,7 @@ tier:
 statusLine:
   transparent: true
 startup:
-  showSplash: true
+  changelogMode: hidden
 readLineNumbers: true
 eval:
   autoBackground:

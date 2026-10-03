@@ -203,8 +203,6 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             "Sparse KConfig writes for stable desktop preferences.",
             "plasma_browser_desktop_file: \"\"",
             "plasma_browser_desktop_file_candidates:",
-            "  - zen.desktop",
-            "  - app.zen_browser.zen.desktop",
             "plasma_browser_desktop_entry_dirs:",
             "/var/lib/flatpak/exports/share/applications",
             "plasma_desktop_kconfig_settings:",
@@ -271,7 +269,11 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.arch_tasks.index("Resolve browser desktop entry"),
             self.arch_tasks.index("Validate role-managed Plasma desktop settings"),
         )
-        self.assertNotIn("value: app.zen_browser.zen.desktop", self.defaults)
+        self.assertEqual(
+            yaml.safe_load(self.defaults)["plasma_browser_desktop_file_candidates"],
+            ["brave-browser.desktop"],
+        )
+        self.assertNotIn("value: brave-browser.desktop", self.defaults)
         self.assertNotIn("plasma_desktop_nested_kconfig_settings", self.defaults)
         self.assertNotIn("item.groups[0]", self.arch_tasks)
 
@@ -502,7 +504,6 @@ class PlasmaRoleConfigTests(unittest.TestCase):
         for layout_name, layout in self.layouts.items():
             with self.subTest(layout=layout_name):
                 self.assertEqual(set(layout["apps"]), expected_apps)
-                self.assertNotIn("orca", layout["apps"])
                 self.assertNotIn("default_region", layout)
                 cell_count = len(layout["cells"])
                 for app_name, cell in layout["apps"].items():
@@ -657,55 +658,24 @@ class PlasmaRoleConfigTests(unittest.TestCase):
             self.assertIn(marker, awesome_positions)
             self.assertIn(marker, hammerspoon_positions)
 
-        self.assertEqual(self.apps["terminal"]["key"], "g")
+        self.assertEqual(self.apps["terminal"]["key"], "t")
         self.assertEqual(self.apps["terminal"]["region"], "main")
         self.assertIn("name:ghostty", self.apps["terminal"]["match"])
         self.assertIn("desktopFileName:com.mitchellh.ghostty.desktop", self.apps["terminal"]["match"])
-        self.assertEqual(self.apps["orca"]["key"], "t")
-        self.assertEqual(self.apps["orca"]["exec"], "stably-orca")
-        self.assertNotIn("region", self.apps["orca"])
-        for selector in [
-            "class:orca",
-            "class:Orca",
-            "resourceClass:orca",
-            "resourceClass:Orca",
-            "desktopFileName:stably-orca",
-            "desktopFileName:stably-orca.desktop",
-        ]:
-            self.assertIn(selector, self.apps["orca"]["match"])
         self.assertEqual(self.apps["browser"]["region"], "wide")
         self.assertEqual(self.apps["browser"]["key"], "b")
-        self.assertEqual(
-            self.apps["browser"]["exec"],
-            ["zen", "zen-browser", "/usr/bin/flatpak run app.zen_browser.zen"],
-        )
+        self.assertEqual(self.apps["browser"]["exec"], ["brave", "brave-browser"])
         self.assertEqual(
             self.apps["browser"]["match"],
             [
-                "class:app.zen_browser.zen",
-                "class:zen",
-                "resourceClass:app.zen_browser.zen",
-                "resourceClass:zen",
-                "desktopFileName:app.zen_browser.zen",
-                "desktopFileName:zen",
-                "desktopFileName:app.zen_browser.zen.desktop",
+                "class:brave-browser",
+                "class:Brave-browser",
+                "resourceClass:brave-browser",
+                "resourceClass:Brave-browser",
+                "desktopFileName:brave-browser",
+                "desktopFileName:brave-browser.desktop",
             ],
         )
-        for required in [
-            'browser: {\n        key: "b"',
-            'exec: [',
-            '"zen"',
-            '"zen-browser"',
-            '"/usr/bin/flatpak run app.zen_browser.zen"',
-            '"class:app.zen_browser.zen"',
-            '"class:zen"',
-            '"resourceClass:app.zen_browser.zen"',
-            '"resourceClass:zen"',
-            '"desktopFileName:app.zen_browser.zen"',
-            '"desktopFileName:zen"',
-            '"desktopFileName:app.zen_browser.zen.desktop"',
-        ]:
-            self.assertIn(required, self.script)
         self.assertEqual(self.apps["discord"]["region"], "chat")
         self.assertEqual(self.apps["signal"]["key"], "C")
         self.assertEqual(self.apps["signal"]["region"], "chat")
@@ -792,8 +762,8 @@ class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_loads_config_and_serializes_json_for_kwin(self) -> None:
         config = plasma_summon_service.load_config(SUMMON_DIR)
         self.assertEqual(
-            {name: config["apps"][name]["key"] for name in ["terminal", "orca", "signal"]},
-            {"terminal": "g", "orca": "t", "signal": "C"},
+            {name: config["apps"][name]["key"] for name in ["terminal", "signal"]},
+            {"terminal": "t", "signal": "C"},
         )
         self.assertEqual(config["regions"]["main"]["w"], "65%")
         self.assertEqual(config["layouts"]["fourk"]["apps"]["browser"], 2)
@@ -810,7 +780,6 @@ class PlasmaSummonServiceTests(unittest.TestCase):
     def test_helper_launch_argv_is_whitelisted_by_app_registry(self) -> None:
         apps = plasma_summon_service.load_config(SUMMON_DIR)["apps"]
         self.assertEqual(plasma_summon_service.build_launch_argv(apps, "terminal"), ["ghostty"])
-        self.assertEqual(plasma_summon_service.build_launch_argv(apps, "orca"), ["stably-orca"])
         self.assertEqual(plasma_summon_service.build_launch_argv(apps, "signal"), ["signal-desktop"])
         with self.assertRaises(ValueError):
             plasma_summon_service.build_launch_argv(apps, "missing")
@@ -819,19 +788,19 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         apps = {
             "browser": {
                 "exec": [
-                    "zen --new-window",
-                    "/usr/bin/flatpak run app.zen_browser.zen",
+                    "brave --new-window",
+                    "/usr/bin/flatpak run com.brave.Browser",
                 ],
             },
         }
 
-        def native_zen_only(binary: str) -> str | None:
-            return "/usr/bin/zen" if binary == "zen" else None
+        def native_brave_only(binary: str) -> str | None:
+            return "/usr/bin/brave" if binary == "brave" else None
 
-        with patch.object(plasma_summon_service.shutil, "which", side_effect=native_zen_only):
+        with patch.object(plasma_summon_service.shutil, "which", side_effect=native_brave_only):
             self.assertEqual(
                 plasma_summon_service.build_launch_argv(apps, "browser"),
-                ["zen", "--new-window"],
+                ["brave", "--new-window"],
             )
 
         with (
@@ -846,7 +815,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         ):
             self.assertEqual(
                 plasma_summon_service.build_launch_argv(apps, "browser"),
-                ["/usr/bin/flatpak", "run", "app.zen_browser.zen"],
+                ["/usr/bin/flatpak", "run", "com.brave.Browser"],
             )
 
         with (
@@ -863,14 +832,14 @@ class PlasmaSummonServiceTests(unittest.TestCase):
                 plasma_summon_service.build_launch_argv(apps, "browser")
 
     def test_helper_dry_run_shell_quotes_selected_exec_candidate(self) -> None:
-        apps = {"browser": {"exec": ["zen --profile 'Default User'"]}}
+        apps = {"browser": {"exec": ["brave --profile-directory='Default User'"]}}
         with (
             patch.object(plasma_summon_service, "load_config", return_value={"apps": apps}),
-            patch.object(plasma_summon_service.shutil, "which", return_value="/usr/bin/zen"),
+            patch.object(plasma_summon_service.shutil, "which", return_value="/usr/bin/brave"),
         ):
             self.assertEqual(
                 plasma_summon_service.launch_app(Path("/unused"), "browser", dry_run=True),
-                "zen --profile 'Default User'",
+                "brave '--profile-directory=Default User'",
             )
 
     def test_helper_dry_run_does_not_spawn_processes(self) -> None:
@@ -1118,7 +1087,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
 
     def test_helper_encodes_app_shortcuts_for_all_prefixes_and_key_cases(self) -> None:
         apps = {
-            "terminal": {"key": "g"},
+            "terminal": {"key": "t"},
             "grokbot": {"key": "G"},
             "signal": {"key": "C"},
             "steam": {"exec": "steam"},
@@ -1130,7 +1099,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
         ]
         expected = []
         for app_name, letter in [
-            ("terminal", ord("G")),
+            ("terminal", ord("T")),
             ("grokbot", 0x02000000 + ord("G")),
             ("signal", 0x02000000 + ord("C")),
         ]:
@@ -1208,7 +1177,7 @@ class PlasmaSummonServiceTests(unittest.TestCase):
             f13_terminal_update.body,
             [
                 ["kwin", "Summon terminal via F13", "KWin", "Summon terminal"],
-                [[[0x0100003C, ord("G"), 0, 0]]],
+                [[[0x0100003C, ord("T"), 0, 0]]],
             ],
         )
 

@@ -7,7 +7,7 @@ const SUMMON_INTERFACE = "io.techdufus.PlasmaSummon";
 
 let apps = {
     terminal: {
-        key: "g",
+        key: "t",
         exec: "ghostty",
         match: [
             "class:com.mitchellh.ghostty",
@@ -22,33 +22,19 @@ let apps = {
         monitor: "HDMI-A-1",
         region: "main",
     },
-    orca: {
-        key: "t",
-        exec: "stably-orca",
-        match: [
-            "class:orca",
-            "class:Orca",
-            "resourceClass:orca",
-            "resourceClass:Orca",
-            "desktopFileName:stably-orca",
-            "desktopFileName:stably-orca.desktop",
-        ],
-    },
     browser: {
         key: "b",
         exec: [
-            "zen",
-            "zen-browser",
-            "/usr/bin/flatpak run app.zen_browser.zen",
+            "brave",
+            "brave-browser",
         ],
         match: [
-            "class:app.zen_browser.zen",
-            "class:zen",
-            "resourceClass:app.zen_browser.zen",
-            "resourceClass:zen",
-            "desktopFileName:app.zen_browser.zen",
-            "desktopFileName:zen",
-            "desktopFileName:app.zen_browser.zen.desktop",
+            "class:brave-browser",
+            "class:Brave-browser",
+            "resourceClass:brave-browser",
+            "resourceClass:Brave-browser",
+            "desktopFileName:brave-browser",
+            "desktopFileName:brave-browser.desktop",
         ],
         workspace: "2",
         monitor: "HDMI-A-1",

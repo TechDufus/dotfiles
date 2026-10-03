@@ -208,7 +208,6 @@ end)
 case("uppercase key binds as SHIFT + letter", function()
   M = fresh_engine()
   if not find_bind("SHIFT + c", "summon") then fail("SHIFT + c not bound in summon submap") end
-  if not find_bind("SHIFT + o", "summon") then fail("SHIFT + o not bound in summon submap") end
 end)
 
 -- macOS-only Hammerspoon targets with no Omarchy equivalent.

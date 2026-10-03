@@ -45,8 +45,7 @@ plasma_capslock_f13_arch_packages:
 
 plasma_browser_desktop_file: ""
 plasma_browser_desktop_file_candidates:
-  - zen.desktop
-  - app.zen_browser.zen.desktop
+  - brave-browser.desktop
 plasma_browser_desktop_entry_dirs:
   - "{{ ansible_facts['user_dir'] }}/.local/share/applications"
   - /usr/local/share/applications

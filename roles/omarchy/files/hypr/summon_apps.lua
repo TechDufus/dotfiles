@@ -16,7 +16,6 @@ return {
   { name = "teams", key = "m", classes = { "brave-teams.microsoft.com__v2_-Default" }, exec = { "omarchy-launch-webapp https://teams.microsoft.com/v2/" } },
   { name = "obsidian", key = "n", classes = { "md.obsidian.Obsidian", "obsidian" }, exec = { "obsidian" }, workspace = "3" },
   { name = "onepassword", key = "o", classes = { "com.onepassword.OnePassword", "1password" }, exec = { "1password" }, bring = true },
-  { name = "orca", key = "O", classes = { "orca" }, exec = { "stably-orca" } },
   { name = "spotify", key = "s", classes = { "spotify" }, exec = { "spotify-launcher", "spotify" }, workspace = "5" },
   { name = "terminal", key = "t", classes = { "com.mitchellh.ghostty", "ghostty", "foot" }, exec = { "ghostty", "xdg-terminal-exec" }, workspace = "1" },
   -- Macro target (CapsLock twice, then g): Raycast GIF search stand-in.

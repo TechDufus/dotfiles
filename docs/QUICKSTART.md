@@ -183,7 +183,7 @@ mirror the Hammerspoon registry in `roles/hammerspoon/files/config/apps.lua`):
 
 - Tap `CapsLock`, then an app letter: `a` Granola, `b` browser, `c` Cursor,
   `Shift+c` Signal, `d` Discord, `e` Outlook, `f` files, `m` Teams, `n`
-  Obsidian, `o` 1Password, `Shift+o` Orca, `s` Spotify, `t` terminal. Granola,
+  Obsidian, `o` 1Password, `s` Spotify, `t` terminal. Granola,
   Outlook, and Teams are Omarchy web apps. This focuses the app or launches it
   (apps with a home workspace open there). Summoning the focused app again
   toggles back to the previous window. The macOS-only Hammerspoon targets

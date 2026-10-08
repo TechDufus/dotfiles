@@ -186,6 +186,7 @@ Everything else is configured by editing the actual config files directly:
 | kitty | `roles/kitty/files/kitty.conf` |
 | ghostty | `roles/ghostty/files/config` |
 | herdr | `roles/herdr/files/config.toml` |
+| tern | `roles/tern/files/settings.json` |
 | cursor | `roles/cursor/files/` |
 | lfk | `roles/lfk/files/config.yaml` |
 | git | `roles/git/files/gitconfig` |
@@ -196,6 +197,8 @@ Everything else is configured by editing the actual config files directly:
 | omarchy summon engine | `roles/omarchy/files/hypr/summon.lua` |
 
 The Herdr role copies the entire canonical `roles/herdr/files/config.toml` to `~/.config/herdr/config.toml`; edit the tracked source rather than the live output.
+
+The Tern role syncs `roles/tern/files/settings.json` both ways instead of symlinking it, because Tern replaces the file when you change a setting in its UI. `dotfiles -t tern` deploys repo edits and reports in-app edits; `-e tern_capture=true` copies the live file into the repo. See `roles/tern/README.md`.
 
 Plasma owns a normal KDE session, stable desktop KConfig preferences in
 `plasma_desktop_kconfig_settings`, and a KWin script for the same summon,

@@ -1,0 +1,115 @@
+---
+- name: "{{ role_name }} | Skip outside Linux"
+  ansible.builtin.debug:
+    msg: "Tern settings are only managed on Linux; skipping."
+  when: ansible_facts['system'] != 'Linux'
+
+- name: "{{ role_name }} | Manage settings.json"
+  when: ansible_facts['system'] == 'Linux'
+  block:
+    - name: "{{ role_name }} | Refuse capture and force together"
+      ansible.builtin.assert:
+        that: not (tern_capture | bool and tern_force | bool)
+        fail_msg: "Pass either tern_capture=true or tern_force=true, not both."
+        quiet: true
+
+    - name: "{{ role_name }} | Check repo settings"
+      ansible.builtin.stat:
+        path: "{{ tern_settings_source }}"
+        checksum_algorithm: sha256
+      register: tern_repo_settings
+      failed_when: not tern_repo_settings.stat.isreg | default(false)
+
+    - name: "{{ role_name }} | Check live settings"
+      ansible.builtin.stat:
+        path: "{{ tern_settings_path }}"
+        follow: true
+        checksum_algorithm: sha256
+      register: tern_live_settings
+      failed_when: tern_live_settings.stat.exists and not tern_live_settings.stat.isreg
+
+    - name: "{{ role_name }} | Read last synced checksum"
+      ansible.builtin.slurp:
+        src: "{{ tern_sync_stamp_path }}"
+      register: tern_sync_stamp
+      failed_when: false
+
+    # Three-way decision against the last synced checksum: a repo-only change deploys, an
+    # in-app-only change is kept for capture, and a change on both sides needs a choice.
+    - name: "{{ role_name }} | Decide sync direction"
+      vars:
+        tern_repo_sum: "{{ tern_repo_settings.stat.checksum }}"
+        tern_live_sum: "{{ tern_live_settings.stat.checksum | default('') }}"
+        tern_synced_sum: "{{ tern_sync_stamp.content | default('') | b64decode | trim }}"
+      ansible.builtin.set_fact:
+        tern_sync: >-
+          {%- if not tern_live_settings.stat.exists -%}deploy
+          {%- elif tern_live_sum == tern_repo_sum -%}in_sync
+          {%- elif tern_force | bool -%}force
+          {%- elif tern_capture | bool -%}capture
+          {%- elif tern_live_sum == tern_synced_sum -%}deploy
+          {%- elif tern_repo_sum == tern_synced_sum -%}app_changed
+          {%- else -%}conflict
+          {%- endif -%}
+
+    - name: "{{ role_name }} | Ensure config directory"
+      ansible.builtin.file:
+        path: "{{ tern_config_dir }}"
+        state: directory
+        mode: "0755"
+      when: tern_sync in ['deploy', 'force']
+
+    - name: "{{ role_name }} | Deploy repo settings"
+      ansible.builtin.copy:
+        src: "{{ tern_settings_source }}"
+        dest: "{{ tern_settings_path }}"
+        mode: "0644"
+        backup: "{{ tern_sync == 'force' }}"
+      when: tern_sync in ['deploy', 'force']
+
+    - name: "{{ role_name }} | Capture live settings into the repo"
+      ansible.builtin.copy:
+        src: "{{ tern_settings_path }}"
+        dest: "{{ tern_settings_source }}"
+        remote_src: true
+        mode: "0644"
+      when: tern_sync == 'capture'
+
+    - name: "{{ role_name }} | Ensure sync stamp directory"
+      ansible.builtin.file:
+        path: "{{ tern_sync_stamp_path | dirname }}"
+        state: directory
+        mode: "0755"
+      when: tern_sync in ['deploy', 'force', 'capture', 'in_sync']
+
+    - name: "{{ role_name }} | Record synced checksum"
+      ansible.builtin.copy:
+        content: "{{ tern_live_settings.stat.checksum if tern_sync == 'capture' else tern_repo_settings.stat.checksum }}\n"
+        dest: "{{ tern_sync_stamp_path }}"
+        mode: "0644"
+      when: tern_sync in ['deploy', 'force', 'capture', 'in_sync']
+
+    - name: "{{ role_name }} | Report"
+      ansible.builtin.debug:
+        msg: "{{ tern_sync_messages[tern_sync] }}"
+      vars:
+        tern_sync_messages:
+          deploy: >-
+            Deployed {{ tern_settings_source }} to {{ tern_settings_path }}.
+            A running Tern applies it after "Reload settings" (command palette) or a restart.
+          force: >-
+            Overwrote {{ tern_settings_path }} with the repo copy (previous file backed up beside it).
+            A running Tern applies it after "Reload settings" (command palette) or a restart.
+          capture: >-
+            Captured {{ tern_settings_path }} into {{ tern_settings_source }}.
+            Review it with git diff and commit.
+          in_sync: Tern settings are in sync.
+          app_changed: >-
+            Tern settings were changed in the app since the last sync, so they were left alone.
+            Keep them: dotfiles -t tern -e tern_capture=true.
+            Discard them: dotfiles -t tern -e tern_force=true.
+          conflict: >-
+            {{ tern_settings_path }} and {{ tern_settings_source }} both changed since the last
+            sync (or no sync is recorded yet), so nothing was touched.
+            Keep the app's: dotfiles -t tern -e tern_capture=true, then merge with git diff.
+            Keep the repo's: dotfiles -t tern -e tern_force=true.

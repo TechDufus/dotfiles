@@ -66,6 +66,7 @@ default_roles:
   - sshfs
   - starship
   - taskfile
+  - tern
   - terraform
   - terragrunt
   - tldr

@@ -4,12 +4,12 @@ Keeps [Tern](https://stencil.so/tern)'s `settings.json` in this repo in both dir
 
 ## Scope
 
-- Syncs `roles/tern/files/settings.json` ↔ Tern's `settings.json` on Linux.
+- Syncs `roles/tern/files/settings.json` ↔ Tern's `settings.json` on macOS and Linux.
 - Does **not** install Tern. It is a closed beta behind a Stencil sign-in and updates itself; install it by hand.
 - Does not touch the rest of Tern's config folder (`known_hosts`, the hosts list, `account.lock`, plugins, themes).
 - Fonts come from the `fonts` role (`BerkeleyMono Nerd Font`).
 
-Tern's config folder is `$TERN_CONFIG_DIR`, else `$XDG_CONFIG_HOME/tern`, else `~/.config/tern`; the role resolves it the same way.
+Tern's config folder is `$TERN_CONFIG_DIR`, else `~/Library/Application Support/Tern` on macOS, else `$XDG_CONFIG_HOME/tern` (`~/.config/tern`) on Linux; the role resolves it the same way.
 
 ## How Tern stores settings
 

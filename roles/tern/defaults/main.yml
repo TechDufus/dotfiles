@@ -1,9 +1,12 @@
 ---
-# Tern resolves its config dir as $TERN_CONFIG_DIR, else $XDG_CONFIG_HOME/tern, else ~/.config/tern.
+# Tern's config dir (docs.stencil.so/tern/concepts/packages.md#directories): $TERN_CONFIG_DIR, else
+# ~/Library/Application Support/Tern on macOS, else $XDG_CONFIG_HOME/tern (~/.config/tern).
 tern_config_dir: >-
   {{ ansible_facts['env']['TERN_CONFIG_DIR']
-     | default((ansible_facts['env']['XDG_CONFIG_HOME']
-                | default(ansible_facts['env']['HOME'] ~ '/.config', true)) ~ '/tern', true) }}
+     | default(ansible_facts['env']['HOME'] ~ '/Library/Application Support/Tern'
+               if ansible_facts['system'] == 'Darwin'
+               else (ansible_facts['env']['XDG_CONFIG_HOME']
+                     | default(ansible_facts['env']['HOME'] ~ '/.config', true)) ~ '/tern', true) }}
 tern_settings_path: "{{ tern_config_dir }}/settings.json"
 tern_settings_source: "{{ role_path }}/files/settings.json"
 

@@ -186,8 +186,8 @@ mirror the Hammerspoon registry in `roles/hammerspoon/files/config/apps.lua`):
   Obsidian, `o` 1Password, `s` Spotify, `t` terminal. Granola,
   Outlook, and Teams are Omarchy web apps. This focuses the app or launches it.
   Summoning the focused app again toggles back to the previous window. The
-  macOS-only Hammerspoon targets (`Shift+g` Grok Bot, `h` Screen Sharing, `w`
-  WorkSpaces) are not bound.
+  macOS-only Hammerspoon targets (`Shift+g` Grok Bot, `h` Screen Sharing,
+  `Shift+t` Tern, `w` WorkSpaces) are not bound.
 - Tap `CapsLock` twice, then a macro: `a` cycle windows of the focused app, `s`
   region screenshot to clipboard, `e` emoji picker, `b` browser bookmark
   manager, `t` browser tab search, `g` GIF search (giphy web app). A third

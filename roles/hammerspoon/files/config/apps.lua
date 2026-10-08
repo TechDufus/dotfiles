@@ -57,6 +57,10 @@ return {
     id = 'com.mitchellh.ghostty',
     summon = 't', -- [T]erminal
   },
+  Tern        = {
+    id = 'so.stencil.tern',
+    summon = 'T', -- [T]ern
+  },
   WorkSpaces  = {
     id = 'com.amazon.workspaces',
     summon = 'w', -- AWS [W]orkSpaces

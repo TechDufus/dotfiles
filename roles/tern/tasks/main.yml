@@ -4,112 +4,92 @@
     msg: "Tern settings are only managed on Linux; skipping."
   when: ansible_facts['system'] != 'Linux'
 
-- name: "{{ role_name }} | Manage settings.json"
+- name: "{{ role_name }} | Sync settings.json"
   when: ansible_facts['system'] == 'Linux'
   block:
-    - name: "{{ role_name }} | Refuse capture and force together"
-      ansible.builtin.assert:
-        that: not (tern_capture | bool and tern_force | bool)
-        fail_msg: "Pass either tern_capture=true or tern_force=true, not both."
-        quiet: true
-
-    - name: "{{ role_name }} | Check repo settings"
-      ansible.builtin.stat:
-        path: "{{ tern_settings_source }}"
-        checksum_algorithm: sha256
-      register: tern_repo_settings
-      failed_when: not tern_repo_settings.stat.isreg | default(false)
+    - name: "{{ role_name }} | Read repo settings"
+      ansible.builtin.slurp:
+        src: "{{ tern_settings_source }}"
+      register: tern_repo_raw
 
     - name: "{{ role_name }} | Check live settings"
       ansible.builtin.stat:
         path: "{{ tern_settings_path }}"
         follow: true
-        checksum_algorithm: sha256
-      register: tern_live_settings
-      failed_when: tern_live_settings.stat.exists and not tern_live_settings.stat.isreg
+      register: tern_live_stat
+      failed_when: tern_live_stat.stat.exists and not tern_live_stat.stat.isreg
 
-    - name: "{{ role_name }} | Read last synced checksum"
+    - name: "{{ role_name }} | Read live settings"
       ansible.builtin.slurp:
-        src: "{{ tern_sync_stamp_path }}"
-      register: tern_sync_stamp
+        src: "{{ tern_settings_path }}"
+      register: tern_live_raw
+      when: tern_live_stat.stat.exists
+
+    - name: "{{ role_name }} | Read last synced settings"
+      ansible.builtin.slurp:
+        src: "{{ tern_settings_base_path }}"
+      register: tern_base_raw
       failed_when: false
 
-    # Three-way decision against the last synced checksum: a repo-only change deploys, an
-    # in-app-only change is kept for capture, and a change on both sides needs a choice.
-    - name: "{{ role_name }} | Decide sync direction"
-      vars:
-        tern_repo_sum: "{{ tern_repo_settings.stat.checksum }}"
-        tern_live_sum: "{{ tern_live_settings.stat.checksum | default('') }}"
-        tern_synced_sum: "{{ tern_sync_stamp.content | default('') | b64decode | trim }}"
+    # Per key: whichever side changed since the last sync wins (removals included); when both
+    # changed the same key, the repo wins and the app's value is reported and backed up.
+    - name: "{{ role_name }} | Merge repo and app changes"
       ansible.builtin.set_fact:
-        tern_sync: >-
-          {%- if not tern_live_settings.stat.exists -%}deploy
-          {%- elif tern_live_sum == tern_repo_sum -%}in_sync
-          {%- elif tern_force | bool -%}force
-          {%- elif tern_capture | bool -%}capture
-          {%- elif tern_live_sum == tern_synced_sum -%}deploy
-          {%- elif tern_repo_sum == tern_synced_sum -%}app_changed
-          {%- else -%}conflict
-          {%- endif -%}
+        tern_repo_settings: "{{ tern_repo_doc }}"
+        tern_live_settings: "{{ tern_live_doc }}"
+        tern_merge: "{{ tern_repo_doc | tern_three_way_merge(tern_live_doc, tern_base_doc) }}"
+      vars:
+        tern_repo_doc: "{{ tern_repo_raw.content | b64decode | from_json }}"
+        tern_live_doc: "{{ (tern_live_raw.content | b64decode | from_json) if tern_live_raw.content is defined else {} }}"
+        tern_base_doc: "{{ (tern_base_raw.content | b64decode | from_json) if tern_base_raw.content is defined else {} }}"
 
     - name: "{{ role_name }} | Ensure config directory"
       ansible.builtin.file:
         path: "{{ tern_config_dir }}"
         state: directory
         mode: "0755"
-      when: tern_sync in ['deploy', 'force']
 
-    - name: "{{ role_name }} | Deploy repo settings"
+    - name: "{{ role_name }} | Write merged settings to Tern"
       ansible.builtin.copy:
-        src: "{{ tern_settings_source }}"
+        content: "{{ tern_merge.merged | to_nice_json(indent=2, sort_keys=False) }}"
         dest: "{{ tern_settings_path }}"
         mode: "0644"
-        backup: "{{ tern_sync == 'force' }}"
-      when: tern_sync in ['deploy', 'force']
+        backup: "{{ tern_merge.conflicts | length > 0 }}"
+      when: not tern_live_stat.stat.exists or tern_live_settings != tern_merge.merged
+      register: tern_live_written
 
-    - name: "{{ role_name }} | Capture live settings into the repo"
+    - name: "{{ role_name }} | Write merged settings to the repo"
       ansible.builtin.copy:
-        src: "{{ tern_settings_path }}"
+        content: "{{ tern_merge.merged | to_nice_json(indent=2, sort_keys=False) }}"
         dest: "{{ tern_settings_source }}"
-        remote_src: true
         mode: "0644"
-      when: tern_sync == 'capture'
+      when: tern_repo_settings != tern_merge.merged
+      register: tern_repo_written
 
-    - name: "{{ role_name }} | Ensure sync stamp directory"
+    - name: "{{ role_name }} | Ensure state directory"
       ansible.builtin.file:
-        path: "{{ tern_sync_stamp_path | dirname }}"
+        path: "{{ tern_settings_base_path | dirname }}"
         state: directory
         mode: "0755"
-      when: tern_sync in ['deploy', 'force', 'capture', 'in_sync']
 
-    - name: "{{ role_name }} | Record synced checksum"
+    - name: "{{ role_name }} | Record merged settings as the last sync"
       ansible.builtin.copy:
-        content: "{{ tern_live_settings.stat.checksum if tern_sync == 'capture' else tern_repo_settings.stat.checksum }}\n"
-        dest: "{{ tern_sync_stamp_path }}"
+        content: "{{ tern_merge.merged | to_nice_json(indent=2, sort_keys=False) }}"
+        dest: "{{ tern_settings_base_path }}"
         mode: "0644"
-      when: tern_sync in ['deploy', 'force', 'capture', 'in_sync']
 
     - name: "{{ role_name }} | Report"
       ansible.builtin.debug:
-        msg: "{{ tern_sync_messages[tern_sync] }}"
+        msg: "{{ tern_report | select | list or ['Tern settings are in sync.'] }}"
       vars:
-        tern_sync_messages:
-          deploy: >-
-            Deployed {{ tern_settings_source }} to {{ tern_settings_path }}.
-            A running Tern applies it after "Reload settings" (command palette) or a restart.
-          force: >-
-            Overwrote {{ tern_settings_path }} with the repo copy (previous file backed up beside it).
-            A running Tern applies it after "Reload settings" (command palette) or a restart.
-          capture: >-
-            Captured {{ tern_settings_path }} into {{ tern_settings_source }}.
-            Review it with git diff and commit.
-          in_sync: Tern settings are in sync.
-          app_changed: >-
-            Tern settings were changed in the app since the last sync, so they were left alone.
-            Keep them: dotfiles -t tern -e tern_capture=true.
-            Discard them: dotfiles -t tern -e tern_force=true.
-          conflict: >-
-            {{ tern_settings_path }} and {{ tern_settings_source }} both changed since the last
-            sync (or no sync is recorded yet), so nothing was touched.
-            Keep the app's: dotfiles -t tern -e tern_capture=true, then merge with git diff.
-            Keep the repo's: dotfiles -t tern -e tern_force=true.
+        tern_report:
+          - >-
+            {{ 'Copied changes made in Tern into ' ~ tern_settings_source ~ '; review with git diff and commit,'
+               ~ ' or git restore it and rerun to drop them.' if tern_repo_written is changed else '' }}
+          - >-
+            {{ 'Updated ' ~ tern_settings_path ~ '. Run "Reload settings" in Tern (or restart it) before changing'
+               ~ ' anything there: a running Tern writes its old settings back on its next change.'
+               if tern_live_written is changed else '' }}
+          - >-
+            {{ ('Changed on both sides, kept the repo value (previous Tern file backed up beside it): '
+               ~ (tern_merge.conflicts | map('to_json') | join(', '))) if tern_merge.conflicts else '' }}

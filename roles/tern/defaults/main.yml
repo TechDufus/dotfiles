@@ -7,14 +7,7 @@ tern_config_dir: >-
 tern_settings_path: "{{ tern_config_dir }}/settings.json"
 tern_settings_source: "{{ role_path }}/files/settings.json"
 
-# Checksum of the settings last synced between the repo and the machine, so the role can tell
-# repo edits (deploy them) from in-app edits (keep them until captured).
-tern_sync_stamp_path: >-
+# The settings as last synced: the merge base that tells which side changed or removed a key.
+tern_settings_base_path: >-
   {{ ansible_facts['env']['XDG_STATE_HOME']
-     | default(ansible_facts['env']['HOME'] ~ '/.local/state', true) }}/dotfiles/tern-settings.sha256
-
-# One-shot overrides, passed with -e:
-#   tern_capture=true  copy the live settings.json into the repo
-#   tern_force=true    overwrite the live settings.json with the repo copy (backed up first)
-tern_capture: false
-tern_force: false
+     | default(ansible_facts['env']['HOME'] ~ '/.local/state', true) }}/dotfiles/tern-settings.base.json

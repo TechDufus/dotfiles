@@ -184,10 +184,10 @@ mirror the Hammerspoon registry in `roles/hammerspoon/files/config/apps.lua`):
 - Tap `CapsLock`, then an app letter: `a` Granola, `b` browser, `c` Cursor,
   `Shift+c` Signal, `d` Discord, `e` Outlook, `f` files, `m` Teams, `n`
   Obsidian, `o` 1Password, `s` Spotify, `t` terminal. Granola,
-  Outlook, and Teams are Omarchy web apps. This focuses the app or launches it
-  (apps with a home workspace open there). Summoning the focused app again
-  toggles back to the previous window. The macOS-only Hammerspoon targets
-  (`Shift+g` Grok Bot, `h` Screen Sharing, `w` WorkSpaces) are not bound.
+  Outlook, and Teams are Omarchy web apps. This focuses the app or launches it.
+  Summoning the focused app again toggles back to the previous window. The
+  macOS-only Hammerspoon targets (`Shift+g` Grok Bot, `h` Screen Sharing, `w`
+  WorkSpaces) are not bound.
 - Tap `CapsLock` twice, then a macro: `a` cycle windows of the focused app, `s`
   region screenshot to clipboard, `e` emoji picker, `b` browser bookmark
   manager, `t` browser tab search, `g` GIF search (giphy web app). A third
@@ -195,6 +195,26 @@ mirror the Hammerspoon registry in `roles/hammerspoon/files/config/apps.lua`):
 - `Esc`, `Ctrl+c`, or waiting 1 second cancels a pending summon.
 - `Super+H` hides the active window to the scratchpad (`Super+S` toggles it).
 - Compose moves to Right Alt; pressing both Shifts toggles Caps Lock.
+
+Window cells (engine `roles/omarchy/files/hypr/cells.lua`, layouts in
+`layouts.lua`; same model as the Hammerspoon and Plasma layouts):
+
+- Apps with a `workspace` in `summon_apps.lua` always open on that workspace,
+  however they were launched (summon, launcher, link, notification), and you
+  follow them there.
+- Each screen gets a layout. The laptop panel is Fullscreen: Hyprland's monocle
+  layout, every window full screen and one visible at a time; summon or
+  `Alt+Tab` flips between them. Every other screen is Standard Dev: browser in
+  the left 40%, terminal in the right 60%, everything else (including apps not
+  in the registry) floating in a centered overlay. A new window goes to its
+  app's cell and never resizes the others; windows sharing a cell split it. Add
+  `{ name = "DP-1", layout = "fourk" }` to `screens` to choose per monitor.
+- `Super+U` moves the focused window's app to another cell on that screen for
+  the session (`0` resets it). `Super+T` on an overlay tiles it into the
+  layout's `tile` cell.
+- `Super+L` cycles the workspace through the screen's layout, monocle, dwindle,
+  and scrolling, saved like Omarchy's toggle. It replaces Omarchy's
+  dwindle/scrolling toggle, which could not get back to the screen's layout.
 
 ### Internet Connection
 

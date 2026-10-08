@@ -85,7 +85,10 @@ the `neovim-git` AUR package, which conflicts with `omarchy-nvim`, and the
 `omarchy update` for system upgrades. The `omarchy` role injects a managed block
 into `~/.config/hypr/hyprland.lua` that loads the repo's Lua modules. If
 `omarchy refresh hyprland` rewrites that file, rerun `dotfiles -t omarchy` to
-restore the block.
+restore the block. Those modules replace Omarchy's tiling default: `cells.lua`
+sets `general.layout` to `lua:cells` (a Lua tiling layout driven by
+`layouts.lua`), puts laptop panels on Hyprland's monocle layout, and rebinds
+`Super+L`, `Super+J`, and `Alt+Tab` so they work with those layouts.
 
 The `omarchy` role also writes `~/.config/fcitx5/conf/keyboard.conf` to clear
 fcitx5's word-hint hotkeys (`Ctrl+Alt+H`/`Ctrl+Alt+J`) so herdr's

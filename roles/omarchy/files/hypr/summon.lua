@@ -1,38 +1,15 @@
 -- CapsLock summon leader for Omarchy/Hyprland. Managed by ~/.dotfiles roles/omarchy.
-local apps = require("hypr.dotfiles.summon_apps")
+local registry = require("hypr.dotfiles.registry")
+local apps = registry.apps
+local app_matches, find_app, app_for_window = registry.matches, registry.find, registry.for_window
 
 local LEADER = "code:66" -- CapsLock keycode; kb_options caps:none makes it a VoidSymbol key.
 local SUMMON, MACRO = "summon", "summon_macro"
 local TIMEOUT_MS = 1000 -- Hammerspoon registerTransientLeader timeoutSeconds = 1
-local PENDING_SECONDS = 10
 
 local M = {}
-local state = { seq = 0, return_to = {}, last = {}, pending = {} }
+local state = { seq = 0, return_to = {}, last = {} }
 M._state = state
-
-local function lower(s) return string.lower(s or "") end
-
-local function app_matches(app, win)
-  if not win then return false end
-  local class, initial = lower(win.class), lower(win.initial_class)
-  for _, cls in ipairs(app.classes) do
-    local want = lower(cls)
-    if class == want or initial == want then return true end
-  end
-  return false
-end
-
-local function find_app(name)
-  for _, app in ipairs(apps) do
-    if app.name == name then return app end
-  end
-end
-
-local function app_for_window(win)
-  for _, app in ipairs(apps) do
-    if app_matches(app, win) then return app end
-  end
-end
 
 local function is_special(win)
   return win.workspace ~= nil and string.sub(win.workspace.name or "", 1, 8) == "special:"
@@ -80,7 +57,6 @@ end
 local function launch(app)
   for _, cmd in ipairs(app.exec) do
     if o.cmd_present(string.match(cmd, "^%S+")) then
-      if app.workspace then state.pending[app.name] = os.time() + PENDING_SECONDS end
       hl.exec_cmd(o.launch(cmd))
       return
     end
@@ -163,23 +139,6 @@ function M.cycle_same_app()
   end
 end
 
-function M.place_pending(win)
-  if not win or not win.address then return end
-  local now = os.time()
-  for _, app in ipairs(apps) do
-    local expires = state.pending[app.name]
-    if expires and expires < now then
-      state.pending[app.name] = nil
-    elseif expires and app_matches(app, win) then
-      state.pending[app.name] = nil
-      state.last[app.name] = win.address
-      move(win.address, app.workspace, true)
-      focus(win.address)
-      return
-    end
-  end
-end
-
 local function set_submap(name) hl.dispatch(hl.dsp.submap(name)) end
 
 local function arm_timeout()
@@ -240,9 +199,6 @@ hl.define_submap(MACRO, function()
   hl.bind("escape", hl.dsp.submap("reset"))
   hl.bind("CTRL + c", hl.dsp.submap("reset"))
 end)
-
-hl.on("window.open", M.place_pending)
-hl.on("window.class", M.place_pending)
 
 _G.dotfiles_summon = M
 return M

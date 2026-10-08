@@ -87,8 +87,12 @@ local function fresh_engine(setup)
   }
   if setup then setup(fx) end
   package.loaded["hypr.dotfiles.summon_apps"] = nil
+  package.loaded["hypr.dotfiles.registry"] = nil
   package.preload["hypr.dotfiles.summon_apps"] = function()
     return dofile(ROLE .. "summon_apps.lua")
+  end
+  package.preload["hypr.dotfiles.registry"] = function()
+    return dofile(ROLE .. "registry.lua")
   end
   return dofile(ROLE .. "summon.lua")
 end
@@ -166,17 +170,6 @@ case("launch fallback when no window exists", function()
   M.summon("terminal")
   eq(#fx.exec, 1, "exec count")
   eq(fx.exec[1], "uwsm-app -- xdg-terminal-exec", "exec command")
-  if not M._state.pending.terminal then fail("pending.terminal not set") end
-end)
-
-case("summon-launched window moves to its home workspace", function()
-  local new_foot = window("0xnew", "foot", 7, 0)
-  fx.windows[#fx.windows + 1] = new_foot
-  M.place_pending(new_foot)
-  eq(#fx.log, 2, "dispatch count")
-  expect_move(fx.log[1], "0xnew", "1", true, "placement move")
-  expect_focus(fx.log[2], "0xnew", "placement focus")
-  eq(M._state.pending.terminal, nil, "pending.terminal")
 end)
 
 case("bring moves the window to the current workspace", function()

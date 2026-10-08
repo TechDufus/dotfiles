@@ -4,8 +4,11 @@ omarchy_hypr_dir: "{{ ansible_facts['user_dir'] }}/.config/hypr"
 omarchy_hypr_dotfiles_dir: "{{ omarchy_hypr_dir }}/dotfiles"
 omarchy_hypr_modules:
   - main.lua
+  - registry.lua
   - summon.lua
   - summon_apps.lua
+  - cells.lua
+  - layouts.lua
 # CapsLock is the summon leader, so Compose moves to Right Alt; both Shifts still toggle Caps Lock.
 omarchy_kb_extra_options:
   - caps:none

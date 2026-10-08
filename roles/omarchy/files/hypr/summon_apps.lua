@@ -4,7 +4,9 @@
 -- classes: exact window classes, case-insensitive (matched against class and initial_class).
 --   Omarchy web apps (omarchy-launch-webapp) get "brave-<host>__<path with / as _>-Default".
 -- exec: launch candidates; the first whose binary is on PATH wins (launched via uwsm-app).
--- workspace: home workspace for windows summon launches. bring: move an existing window to the current workspace.
+-- workspace: home workspace; every new window of the app opens there (cells.lua window rule), however it was
+--   launched. bring: summoning moves an existing window to the current workspace.
+-- Cells per screen layout live in layouts.lua, keyed by name.
 return {
   { name = "agenda", key = "a", classes = { "brave-notes.granola.ai__-Default" }, exec = { "omarchy-launch-webapp https://notes.granola.ai" } },
   { name = "browser", key = "b", classes = { "brave-browser", "chromium", "app.zen_browser.zen", "zen", "firefox" }, exec = { "omarchy-launch-browser" }, workspace = "2" },

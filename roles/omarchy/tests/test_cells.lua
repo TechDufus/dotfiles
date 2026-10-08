@@ -751,7 +751,7 @@ case("Super+L on a monocle screen cycles monocle -> dwindle -> scrolling -> mono
   eq(rules[#rules].spec.layout, "dwindle", "dwindle rule")
   eq(read_file(file), 'hl.workspace_rule({ workspace = "1", layout = "dwindle" })\n', "saved dwindle layout")
   eq(fx.prop_refreshes, 1, "properties refreshed")
-  eq(notifications()[1], "Workspace 1 layout: dwindle", "dwindle notification")
+  eq(notifications()[1], "Workspace 1 layout: tiles", "dwindle notification")
 
   ws.tiled_layout = "dwindle"
   press()
@@ -767,7 +767,7 @@ case("Super+L on a monocle screen cycles monocle -> dwindle -> scrolling -> mono
   eq(#rules, base + 3, "rule registered for the return")
   eq(rules[#rules].spec.layout, "monocle", "screen layout rule on return")
   eq(file_exists(file), false, "saved layout removed on return")
-  eq(notifications()[3], "Workspace 1 layout: monocle", "return notification")
+  eq(notifications()[3], "Workspace 1 layout: full screen", "return notification")
 end)
 
 case("Super+L returning to the screen layout replaces a saved layout Omarchy loaded at startup", function()

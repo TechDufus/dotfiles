@@ -212,9 +212,10 @@ Window cells (engine `roles/omarchy/files/hypr/cells.lua`, layouts in
 - `Super+U` moves the focused window's app to another cell on that screen for
   the session (`0` resets it). `Super+T` on an overlay tiles it into the
   layout's `tile` cell.
-- `Super+L` cycles the workspace through the screen's layout, monocle, dwindle,
-  and scrolling, saved like Omarchy's toggle. It replaces Omarchy's
-  dwindle/scrolling toggle, which could not get back to the screen's layout.
+- `Super+L` cycles the workspace through the screen's layout, full screen
+  (monocle), tiles (dwindle), and columns (scrolling), saved like Omarchy's
+  toggle. It replaces Omarchy's dwindle/scrolling toggle, which could not get
+  back to the screen's layout. `Super+Ctrl+L` locks the screen.
 
 ### Internet Connection
 

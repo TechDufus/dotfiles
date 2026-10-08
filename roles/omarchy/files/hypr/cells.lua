@@ -8,7 +8,8 @@ local paths = require("default.hypr.paths")
 
 local CELLS, MONOCLE = "lua:cells", "monocle"
 local ALTERNATES = { MONOCLE, "dwindle", "scrolling" } -- Super+L cycles a screen's own layout through these
-local LABELS = { [CELLS] = "cells", [MONOCLE] = "monocle", dwindle = "dwindle", scrolling = "scrolling" }
+-- What Super+L's notification calls each layout.
+local LABELS = { [CELLS] = "cells", [MONOCLE] = "full screen", dwindle = "tiles", scrolling = "columns" }
 -- Monitors appear after the config loads, so laptop panels get their monocle rule up front. Rules made here
 -- precede Omarchy's saved per-workspace layouts (default/hypr/toggles.lua loads later), so those still win.
 local BUILTIN_OUTPUTS = { "eDP-1", "eDP-2", "LVDS-1", "DSI-1" }
@@ -567,7 +568,7 @@ end))
 hl.on("config.props_refreshed", guarded(align_monocle))
 
 hl.unbind("SUPER + L")
-o.bind("SUPER + L", "Cycle workspace layout (screen cells/monocle, dwindle, scrolling)", guarded(M.cycle_layout))
+o.bind("SUPER + L", "Cycle workspace layout (cells or full screen, tiles, columns)", guarded(M.cycle_layout))
 o.bind("SUPER + U", "Move window to a cell", guarded(M.pick))
 hl.unbind("ALT + TAB")
 o.bind("ALT + TAB", "Focus on next window", guarded(cycle_windows(true)))

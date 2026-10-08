@@ -1,8 +1,9 @@
 {
   "theme": "Dark",
-  "prompt_style": "tern",
+  "copy_on_select": true,
   "font_family": "BerkeleyMono Nerd Font",
   "ui_font": "BerkeleyMono Nerd Font",
   "code_font": "BerkeleyMono Nerd Font",
-  "surface_chat": "Spine"
+  "opacity": 80,
+  "prompt_style": "tern"
 }

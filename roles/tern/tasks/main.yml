@@ -1,39 +1,32 @@
 ---
-- name: "{{ role_name }} | Read repo settings"
-  ansible.builtin.slurp:
-    src: "{{ tern_settings_source }}"
-  register: tern_repo_raw
-
-- name: "{{ role_name }} | Check live settings"
+- name: "{{ role_name }} | Check Tern settings"
   ansible.builtin.stat:
     path: "{{ tern_settings_path }}"
     follow: true
-  register: tern_live_stat
-  failed_when: tern_live_stat.stat.exists and not tern_live_stat.stat.isreg
+  register: tern_settings_stat
+  failed_when: >-
+    tern_settings_stat.stat.exists and not tern_settings_stat.stat.isreg
 
-- name: "{{ role_name }} | Read live settings"
+- name: "{{ role_name }} | Read Tern settings"
   ansible.builtin.slurp:
     src: "{{ tern_settings_path }}"
-  register: tern_live_raw
-  when: tern_live_stat.stat.exists
+  register: tern_settings_raw
+  when: tern_settings_stat.stat.exists
 
-- name: "{{ role_name }} | Read last synced settings"
-  ansible.builtin.slurp:
-    src: "{{ tern_settings_base_path }}"
-  register: tern_base_raw
-  failed_when: false
-
-# Per key: whichever side changed since the last sync wins (removals included); when both
-# changed the same key, the repo wins and the app's value is reported and backed up.
-- name: "{{ role_name }} | Merge repo and app changes"
+- name: "{{ role_name }} | Parse Tern settings"
   ansible.builtin.set_fact:
-    tern_repo_settings: "{{ tern_repo_doc }}"
-    tern_live_settings: "{{ tern_live_doc }}"
-    tern_merge: "{{ tern_repo_doc | tern_three_way_merge(tern_live_doc, tern_base_doc) }}"
+    tern_current_settings: >-
+      {{ (tern_settings_raw.content | b64decode | trim | default('{}', true))
+         | from_json if tern_settings_raw.content is defined else {} }}
+
+# Shared values win; nested objects merge key by key; keys the shared file doesn't name stay as they are.
+- name: "{{ role_name }} | Merge shared settings"
+  ansible.builtin.set_fact:
+    tern_merged_settings: >-
+      {{ tern_current_settings | combine(tern_shared_settings, recursive=true) }}
   vars:
-    tern_repo_doc: "{{ tern_repo_raw.content | b64decode | from_json }}"
-    tern_live_doc: "{{ (tern_live_raw.content | b64decode | from_json) if tern_live_raw.content is defined else {} }}"
-    tern_base_doc: "{{ (tern_base_raw.content | b64decode | from_json) if tern_base_raw.content is defined else {} }}"
+    tern_shared_settings: >-
+      {{ lookup('ansible.builtin.file', 'settings.json') | from_json }}
 
 - name: "{{ role_name }} | Ensure config directory"
   ansible.builtin.file:
@@ -41,47 +34,23 @@
     state: directory
     mode: "0755"
 
-- name: "{{ role_name }} | Write merged settings to Tern"
+- name: "{{ role_name }} | Write shared settings to Tern"
   ansible.builtin.copy:
-    content: "{{ tern_merge.merged | to_nice_json(indent=2, sort_keys=False) }}"
+    content: >-
+      {{ tern_merged_settings | to_nice_json(indent=2, sort_keys=False) }}
     dest: "{{ tern_settings_path }}"
     mode: "0644"
-    backup: "{{ tern_merge.conflicts | length > 0 }}"
-  when: not tern_live_stat.stat.exists or tern_live_settings != tern_merge.merged
-  register: tern_live_written
-
-- name: "{{ role_name }} | Write merged settings to the repo"
-  ansible.builtin.copy:
-    content: "{{ tern_merge.merged | to_nice_json(indent=2, sort_keys=False) }}"
-    dest: "{{ tern_settings_source }}"
-    mode: "0644"
-  when: tern_repo_settings != tern_merge.merged
-  register: tern_repo_written
-
-- name: "{{ role_name }} | Ensure state directory"
-  ansible.builtin.file:
-    path: "{{ tern_settings_base_path | dirname }}"
-    state: directory
-    mode: "0755"
-
-- name: "{{ role_name }} | Record merged settings as the last sync"
-  ansible.builtin.copy:
-    content: "{{ tern_merge.merged | to_nice_json(indent=2, sort_keys=False) }}"
-    dest: "{{ tern_settings_base_path }}"
-    mode: "0644"
+  when: tern_merged_settings != tern_current_settings
 
 - name: "{{ role_name }} | Report"
   ansible.builtin.debug:
-    msg: "{{ tern_report | select | list or ['Tern settings are in sync.'] }}"
+    msg: >-
+      Set {{ tern_changed_keys | join(', ') }} in {{ tern_settings_path }}.
+      Run "Reload settings" in Tern (or restart it) before changing anything there:
+      a running Tern writes its old settings back on its next change.
   vars:
-    tern_report:
-      - >-
-        {{ 'Copied changes made in Tern into ' ~ tern_settings_source ~ '; review with git diff and commit,'
-           ~ ' or git restore it and rerun to drop them.' if tern_repo_written is changed else '' }}
-      - >-
-        {{ 'Updated ' ~ tern_settings_path ~ '. Run "Reload settings" in Tern (or restart it) before changing'
-           ~ ' anything there: a running Tern writes its old settings back on its next change.'
-           if tern_live_written is changed else '' }}
-      - >-
-        {{ ('Changed on both sides, kept the repo value (previous Tern file backed up beside it): '
-           ~ (tern_merge.conflicts | map('to_json') | join(', '))) if tern_merge.conflicts else '' }}
+    tern_changed_keys: >-
+      {{ tern_merged_settings | dict2items
+         | reject('in', tern_current_settings | dict2items)
+         | map(attribute='key') | list }}
+  when: tern_merged_settings != tern_current_settings

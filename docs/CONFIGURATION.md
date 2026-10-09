@@ -198,7 +198,7 @@ Everything else is configured by editing the actual config files directly:
 
 The Herdr role copies the entire canonical `roles/herdr/files/config.toml` to `~/.config/herdr/config.toml`; edit the tracked source rather than the live output.
 
-The Tern role syncs `roles/tern/files/settings.json` both ways instead of symlinking it, because Tern replaces the file when you change a setting in its UI. Each `dotfiles -t tern` run merges repo edits and in-app edits per key against the last synced result and writes the merge to both Tern and the repo, so in-app changes show up in `git diff`. See `roles/tern/README.md`.
+The Tern role keeps only shared settings in `roles/tern/files/settings.json`; each `dotfiles -t tern` run writes those keys into the machine's Tern `settings.json` and leaves every other key, keybinds included, to that machine. Edit shared settings in the repo file, since changing one of them in Tern's UI is set back on the next run. See `roles/tern/README.md`.
 
 Plasma owns a normal KDE session, stable desktop KConfig preferences in
 `plasma_desktop_kconfig_settings`, and a KWin script for the same summon,

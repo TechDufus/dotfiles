@@ -8,9 +8,3 @@ tern_config_dir: >-
                else (ansible_facts['env']['XDG_CONFIG_HOME']
                      | default(ansible_facts['env']['HOME'] ~ '/.config', true)) ~ '/tern', true) }}
 tern_settings_path: "{{ tern_config_dir }}/settings.json"
-tern_settings_source: "{{ role_path }}/files/settings.json"
-
-# The settings as last synced: the merge base that tells which side changed or removed a key.
-tern_settings_base_path: >-
-  {{ ansible_facts['env']['XDG_STATE_HOME']
-     | default(ansible_facts['env']['HOME'] ~ '/.local/state', true) }}/dotfiles/tern-settings.base.json

@@ -15,10 +15,11 @@ Tern's config folder is `$TERN_CONFIG_DIR`, else `~/Library/Application Support/
 
 - Shared values are applied on every run, overriding changes made to them in Tern's UI. The role never writes back to the shared file.
 - Nested objects merge key by key; shared values win and each machine's other entries stay.
-- Lists and scalars are replaced whole; a shared `null` sets the value to `null`.
+- Lists and scalars are replaced whole.
 - Keys the shared file doesn't name are untouched: keybinds, window sizes, recent files and machine paths such as `shell` or `git.gpg_program` stay per machine.
 - Removing a key from the shared file stops managing it. Each machine keeps its current value until reset in Tern; the role never removes keys from Tern's file.
 - List only values that differ from Tern's defaults. Tern drops default-valued keys whenever it saves, so the role would keep adding them back.
+- Copy values exactly as Tern writes them. They are case-sensitive (`Spine`, not `spine`), and if Tern can't read one value it loads its defaults for every setting, then writes those back on its next save.
 - A missing or blank `settings.json` counts as empty. Invalid JSON, or a target that isn't a regular file, fails the run without writing.
 - The role writes only when the merged result differs as parsed data, so Tern's own formatting and key order never cause a rewrite.
 

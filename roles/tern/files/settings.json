@@ -1,5 +1,6 @@
 {
   "theme": "Dark",
+  "theme_dark": "dark-catppuccin",
   "copy_on_select": true,
   "font_family": "BerkeleyMono Nerd Font",
   "ui_font": "BerkeleyMono Nerd Font",

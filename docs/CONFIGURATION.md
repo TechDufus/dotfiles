@@ -186,7 +186,7 @@ Everything else is configured by editing the actual config files directly:
 | kitty | `roles/kitty/files/kitty.conf` |
 | ghostty | `roles/ghostty/files/config` |
 | herdr | `roles/herdr/files/config.toml` |
-| tern | `roles/tern/files/settings.json` |
+| tern | `roles/tern/files/settings.json`, `roles/tern/defaults/main.yml` (`tern_reset_settings`) |
 | cursor | `roles/cursor/files/` |
 | lfk | `roles/lfk/files/config.yaml` |
 | git | `roles/git/files/gitconfig` |
@@ -198,7 +198,7 @@ Everything else is configured by editing the actual config files directly:
 
 The Herdr role copies the entire canonical `roles/herdr/files/config.toml` to `~/.config/herdr/config.toml`; edit the tracked source rather than the live output.
 
-The Tern role keeps only shared settings in `roles/tern/files/settings.json`; each `dotfiles -t tern` run writes those keys into the machine's Tern `settings.json` and leaves every other key, keybinds included, to that machine. Edit shared settings in the repo file, since changing one of them in Tern's UI is set back on the next run. See `roles/tern/README.md`.
+The Tern role keeps only shared settings in `roles/tern/files/settings.json`; each `dotfiles -t tern` run writes those keys into the machine's Tern `settings.json` and leaves every other key, keybinds included, to that machine. Settings that should stay at Tern's default everywhere go in `tern_reset_settings`, and each run removes them from Tern's file. Edit shared settings in the repo, since changing one of them in Tern's UI is set back on the next run. See `roles/tern/README.md`.
 
 Plasma owns a normal KDE session, stable desktop KConfig preferences in
 `plasma_desktop_kconfig_settings`, and a KWin script for the same summon,

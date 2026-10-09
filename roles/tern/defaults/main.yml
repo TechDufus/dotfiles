@@ -8,3 +8,9 @@ tern_config_dir: >-
                else (ansible_facts['env']['XDG_CONFIG_HOME']
                      | default(ansible_facts['env']['HOME'] ~ '/.config', true)) ~ '/tern', true) }}
 tern_settings_path: "{{ tern_config_dir }}/settings.json"
+
+# Settings every machine keeps at Tern's default (top-level keys): each run removes them from Tern's
+# settings.json. Their default values can't go in files/settings.json: Tern drops them whenever it saves.
+tern_reset_settings:
+  - opacity       # 60 %
+  - surface_chat  # Reader

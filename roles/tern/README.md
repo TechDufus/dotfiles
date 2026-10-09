@@ -4,7 +4,7 @@ Keeps the settings that should match on every machine in `roles/tern/files/setti
 
 ## Scope
 
-- Applies `roles/tern/files/settings.json` to Tern's `settings.json` on macOS and Linux.
+- Applies `roles/tern/files/settings.json` to Tern's `settings.json` on macOS and Linux, and holds the settings in `tern_reset_settings` at Tern's defaults.
 - Does **not** install Tern. It is a closed beta behind a Stencil sign-in and updates itself; install it by hand.
 - Does not touch the rest of Tern's config folder (`known_hosts`, the hosts list, `account.lock`, plugins, themes).
 - Fonts come from the `fonts` role (`BerkeleyMono Nerd Font`).
@@ -17,8 +17,8 @@ Tern's config folder is `$TERN_CONFIG_DIR`, else `~/Library/Application Support/
 - Nested objects merge key by key; shared values win and each machine's other entries stay.
 - Lists and scalars are replaced whole.
 - Keys the shared file doesn't name are untouched: keybinds, window sizes, recent files and machine paths such as `shell` or `git.gpg_program` stay per machine.
-- Removing a key from the shared file stops managing it. Each machine keeps its current value until reset in Tern; the role never removes keys from Tern's file.
-- List only values that differ from Tern's defaults. Tern drops default-valued keys whenever it saves, so the role would keep adding them back.
+- Removing a key from the shared file stops managing it: each machine keeps its current value.
+- List only values that differ from Tern's defaults: Tern drops default-valued keys whenever it saves, so the role would keep adding them back. To hold a setting at its default on every machine, add its top-level key to `tern_reset_settings` in `defaults/main.yml` (now `opacity`, 60 %, and `surface_chat`, Reader); each run removes it from Tern's file. A key can't be in both places.
 - Copy values exactly as Tern writes them. They are case-sensitive (`Spine`, not `spine`), and if Tern can't read one value it loads its defaults for every setting, then writes those back on its next save.
 - A missing or blank `settings.json` counts as empty. Invalid JSON, or a target that isn't a regular file, fails the run without writing.
 - The role writes only when the merged result differs as parsed data, so Tern's own formatting and key order never cause a rewrite.
@@ -59,4 +59,4 @@ Two Tern behaviours shape this role:
 dotfiles -t tern  # apply shared settings to this machine
 ```
 
-When it changes Tern's settings, the run prints the keys it set and asks you to reload before changing anything in Tern.
+When it changes Tern's settings, the run prints the keys it changed and asks you to reload before changing anything in Tern.

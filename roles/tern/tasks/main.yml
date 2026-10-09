@@ -13,20 +13,29 @@
   register: tern_settings_raw
   when: tern_settings_stat.stat.exists
 
-- name: "{{ role_name }} | Parse Tern settings"
+- name: "{{ role_name }} | Parse settings"
   ansible.builtin.set_fact:
     tern_current_settings: >-
       {{ (tern_settings_raw.content | b64decode | trim | default('{}', true))
          | from_json if tern_settings_raw.content is defined else {} }}
+    tern_shared_settings: >-
+      {{ lookup('ansible.builtin.file', 'settings.json') | from_json }}
 
-# Shared values win; nested objects merge key by key; keys the shared file doesn't name stay as they are.
+- name: "{{ role_name }} | Check reset settings are not also shared"
+  ansible.builtin.assert:
+    that: tern_shared_settings | list | intersect(tern_reset_settings) | length == 0
+    fail_msg: >-
+      {{ tern_shared_settings | list | intersect(tern_reset_settings) | join(', ') }}: listed in both
+      files/settings.json and tern_reset_settings; keep each key in one of them.
+    quiet: true
+
+# Shared values win; nested objects merge key by key; keys the shared file doesn't name stay as they are,
+# except tern_reset_settings, which are removed so Tern uses its defaults.
 - name: "{{ role_name }} | Merge shared settings"
   ansible.builtin.set_fact:
     tern_merged_settings: >-
-      {{ tern_current_settings | combine(tern_shared_settings, recursive=true) }}
-  vars:
-    tern_shared_settings: >-
-      {{ lookup('ansible.builtin.file', 'settings.json') | from_json }}
+      {{ tern_current_settings | combine(tern_shared_settings, recursive=true)
+         | dict2items | rejectattr('key', 'in', tern_reset_settings) | items2dict }}
 
 - name: "{{ role_name }} | Ensure config directory"
   ansible.builtin.file:
@@ -45,12 +54,13 @@
 - name: "{{ role_name }} | Report"
   ansible.builtin.debug:
     msg: >-
-      Set {{ tern_changed_keys | join(', ') }} in {{ tern_settings_path }}.
+      Changed {{ tern_changed_keys | join(', ') }} in {{ tern_settings_path }}.
       Run "Reload settings" in Tern (or restart it) before changing anything there:
       a running Tern writes its old settings back on its next change.
   vars:
     tern_changed_keys: >-
-      {{ tern_merged_settings | dict2items
-         | reject('in', tern_current_settings | dict2items)
-         | map(attribute='key') | list }}
+      {{ (tern_merged_settings | dict2items
+          | reject('in', tern_current_settings | dict2items)
+          | map(attribute='key') | list)
+         + (tern_current_settings | list | reject('in', tern_merged_settings) | list) }}
   when: tern_merged_settings != tern_current_settings

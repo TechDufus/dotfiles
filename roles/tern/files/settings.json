@@ -7,6 +7,5 @@
   "copy_on_select": true,
   "font_family": "BerkeleyMono Nerd Font",
   "ui_font": "BerkeleyMono Nerd Font",
-  "code_font": "BerkeleyMono Nerd Font",
-  "prompt_style": "tern"
+  "code_font": "BerkeleyMono Nerd Font"
 }

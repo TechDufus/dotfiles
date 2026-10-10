@@ -34,6 +34,7 @@ return {
       apps = {
         browser = "standard_browser_left",
         terminal = "standard_terminal_right",
+        tern = "standard_terminal_right",
         agenda = "standard_utility_overlay",
         discord = "standard_utility_overlay",
         files = "standard_utility_overlay",
@@ -55,6 +56,7 @@ return {
       tile = "fourk_right_side",
       apps = {
         terminal = "fourk_left_large",
+        tern = "fourk_left_large",
         browser = "fourk_right_side",
         discord = "fourk_top_right",
         obsidian = "fourk_top_right",
@@ -74,6 +76,7 @@ return {
       tile = "hd_right_side",
       apps = {
         terminal = "hd_left_main",
+        tern = "hd_left_main",
         browser = "hd_right_side",
         agenda = "hd_float_center",
         discord = "hd_float_center",

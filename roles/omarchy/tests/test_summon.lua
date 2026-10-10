@@ -205,6 +205,8 @@ end)
 
 -- macOS-only Hammerspoon targets with no Omarchy equivalent.
 local MACOS_ONLY = { G = "Grok Bot", h = "Screen Sharing", w = "AWS WorkSpaces" }
+-- Omarchy-only summon keys: t summons Tern here, so Ghostty moved to T.
+local OMARCHY_ONLY = { T = "Ghostty" }
 
 case("summon keys match the Hammerspoon registry", function()
   M = fresh_engine()
@@ -218,7 +220,9 @@ case("summon keys match the Hammerspoon registry", function()
     end
   end
   for _, app in ipairs(dofile(ROLE .. "summon_apps.lua")) do
-    if app.key and not hs_keys[app.key] then fail("summon key " .. app.key .. " (" .. app.name .. ") not in Hammerspoon") end
+    if app.key and not hs_keys[app.key] and not OMARCHY_ONLY[app.key] then
+      fail("summon key " .. app.key .. " (" .. app.name .. ") not in Hammerspoon")
+    end
   end
 end)
 

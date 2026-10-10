@@ -1,5 +1,6 @@
 -- Summon registry (managed by ~/.dotfiles roles/omarchy).
--- Keys mirror roles/hammerspoon/files/config/apps.lua so macOS and Omarchy share muscle memory.
+-- Keys mirror roles/hammerspoon/files/config/apps.lua so macOS and Omarchy share muscle memory. Exception: t is
+--   Tern here (Ghostty on macOS), and Ghostty is on T, which macOS doesn't use.
 -- key: logical key after the CapsLock leader; uppercase = SHIFT + letter. No key = macro-only target.
 -- classes: exact window classes, case-insensitive (matched against class and initial_class).
 --   Omarchy web apps (omarchy-launch-webapp) get "brave-<host>__<path with / as _>-Default".
@@ -19,7 +20,8 @@ return {
   { name = "obsidian", key = "n", classes = { "md.obsidian.Obsidian", "obsidian" }, exec = { "obsidian" }, workspace = "3" },
   { name = "onepassword", key = "o", classes = { "com.onepassword.OnePassword", "1password" }, exec = { "1password" }, bring = true },
   { name = "spotify", key = "s", classes = { "spotify" }, exec = { "spotify-launcher", "spotify" }, workspace = "5" },
-  { name = "terminal", key = "t", classes = { "com.mitchellh.ghostty", "ghostty", "foot" }, exec = { "ghostty", "xdg-terminal-exec" }, workspace = "1" },
+  { name = "tern", key = "t", classes = { "so.stencil.tern" }, exec = { "tern" }, workspace = "1" },
+  { name = "terminal", key = "T", classes = { "com.mitchellh.ghostty", "ghostty", "foot" }, exec = { "ghostty", "xdg-terminal-exec" }, workspace = "1" },
   -- Macro target (CapsLock twice, then g): Raycast GIF search stand-in.
   { name = "gifs", classes = { "brave-giphy.com__-Default" }, exec = { "omarchy-launch-webapp https://giphy.com" } },
 }

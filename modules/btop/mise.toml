@@ -1,0 +1,9 @@
+[dotfiles."~/.config/btop/btop.conf"]
+source = "btop.conf"
+mode = "copy"
+variants = [{ os = "macos" }, { profile = "cachyos" }]
+
+[dotfiles."~/.config/btop/themes/catppuccin_mocha.theme"]
+source = "catppuccin_mocha.theme"
+mode = "copy"
+variants = [{ os = "macos" }, { profile = "cachyos" }]

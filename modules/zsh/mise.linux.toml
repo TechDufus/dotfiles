@@ -1,0 +1,8 @@
+[bootstrap.packages]
+"pacman:zsh" = "latest"
+
+[bootstrap.user]
+login_shell = "/usr/bin/zsh"
+
+[dotfiles]
+"~/.config/zsh/os_functions.zsh" = { source = "os/linux/os_functions.zsh", mode = "copy" }

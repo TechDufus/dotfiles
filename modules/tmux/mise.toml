@@ -1,0 +1,9 @@
+[dotfiles."~/.config/tmux/tmux.conf"]
+source = "tmux/tmux.conf"
+mode = "copy"
+variants = [{ os = "macos" }, { profile = "cachyos" }]
+
+# retired: agent-status was removed from the tmux config
+[dotfiles."~/.config/tmux/agent-status"]
+mode = "absent"
+variants = [{ os = "macos" }, { profile = "cachyos" }]

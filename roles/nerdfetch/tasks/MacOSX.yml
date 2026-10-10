@@ -1,5 +1,0 @@
----
-- name: "NerdFetch | MacOSX | Install NerdFetch"
-  community.general.homebrew:
-    name: nerdfetch
-    state: present

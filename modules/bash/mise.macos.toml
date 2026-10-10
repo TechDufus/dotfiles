@@ -1,0 +1,11 @@
+[bootstrap.repos."~/.oh-my-bash"]
+url = "https://github.com/ohmybash/oh-my-bash.git"
+
+[dotfiles]
+"~/.bashrc" = { source = "bashrc", mode = "copy" }
+"~/.profile" = { source = "profile", mode = "copy" }
+"~/.config/bash" = { source = "bash", mode = "copy" }
+"~/.config/bash/zz_os_functions.sh" = { source = "os/macos/zz_os_functions.sh", mode = "copy" }
+"~/.oh-my-bash/custom/themes/axin/axin.theme.sh" = { source = "themes/axin/axin.theme.sh", mode = "copy" }
+# retired
+"~/.config/bash/dotfiles_completions.sh" = { mode = "absent" }

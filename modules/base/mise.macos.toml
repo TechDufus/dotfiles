@@ -1,0 +1,6 @@
+[settings]
+system_packages.managers = ["brew", "brew-cask"]
+
+# Keep manually installed apps (and their TCC permissions) when identical to the cask.
+[bootstrap.brew]
+adopt = true

@@ -1,7 +1,0 @@
----
-- name: restart_docker
-  ansible.builtin.service:
-    name: docker
-    state: restarted
-  become: true
-  when: not ansible_host_environment_is_wsl

@@ -1,0 +1,3 @@
+# Omarchy ships herdr from its own pacman repo.
+[bootstrap.packages]
+"pacman:herdr" = "latest"

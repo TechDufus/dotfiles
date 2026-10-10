@@ -1,0 +1,21 @@
+[bootstrap.packages]
+"brew-cask:hammerspoon" = "latest"
+"brew-cask:karabiner-elements" = "latest"
+
+[dotfiles]
+"~/.config/karabiner/karabiner.json" = { source = "karabiner/karabiner.json", mode = "copy" }
+"~/.hammerspoon" = { source = "config", mode = "copy" }
+# Legacy top-level modules, now under config/
+"~/.hammerspoon/grid.lua" = { mode = "absent" }
+"~/.hammerspoon/karabiner.lua" = { mode = "absent" }
+"~/.hammerspoon/screens.lua" = { mode = "absent" }
+"~/.hammerspoon/summon.lua" = { mode = "absent" }
+"~/.hammerspoon/workspaces.lua" = { mode = "absent" }
+
+[tasks."bootstrap:hammerspoon"]
+description = "Install the GridLayout and WorkspaceManager spoons"
+run = "./bootstrap.sh"
+
+[tasks."test:hammerspoon"]
+description = "Run the hammerspoon Lua tests"
+run = ["lua tests/test_ax_enhanced_ui.lua", "lua tests/test_window_cycle.lua"]

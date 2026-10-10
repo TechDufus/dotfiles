@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"pacman:kitty" = "latest"
+
+[dotfiles]
+"~/.config/kitty/kitty.conf" = { source = "kitty.conf", mode = "copy" }

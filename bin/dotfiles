@@ -1,698 +1,127 @@
-#!/bin/bash
-# shellcheck shell=bash
-# shellcheck disable=SC2034  # Unused variables are exported for child scripts
+#!/usr/bin/env bash
+# Converge this machine with mise bootstrap.
+# Fresh machine: bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
+set -euo pipefail
 
-# Catppuccin Mocha color codes
-NC='\033[0m'
-BOLD='\033[1m'
+DOTFILES_DIR=${DOTFILES_DIR:-$HOME/.dotfiles}
+REPO_URL=https://github.com/TechDufus/dotfiles.git
+MISE_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/mise
 
-# Catppuccin Mocha colors
-CAT_ROSEWATER='\033[38;2;245;224;220m'
-CAT_FLAMINGO='\033[38;2;242;205;205m'
-CAT_PINK='\033[38;2;245;194;231m'
-CAT_MAUVE='\033[38;2;203;166;247m'
-CAT_RED='\033[38;2;243;139;168m'
-CAT_MAROON='\033[38;2;235;160;172m'
-CAT_PEACH='\033[38;2;250;179;135m'
-CAT_YELLOW='\033[38;2;249;226;175m'
-CAT_GREEN='\033[38;2;166;227;161m'
-CAT_TEAL='\033[38;2;148;226;213m'
-CAT_SKY='\033[38;2;137;220;235m'
-CAT_SAPPHIRE='\033[38;2;116;199;236m'
-CAT_BLUE='\033[38;2;137;180;250m'
-CAT_LAVENDER='\033[38;2;180;190;254m'
-CAT_TEXT='\033[38;2;205;214;244m'
-CAT_SUBTEXT1='\033[38;2;186;194;222m'
-CAT_SUBTEXT0='\033[38;2;166;173;200m'
-CAT_OVERLAY2='\033[38;2;147;153;178m'
-CAT_OVERLAY1='\033[38;2;127;132;156m'
-CAT_OVERLAY0='\033[38;2;108;112;134m'
-CAT_SURFACE2='\033[38;2;88;91;112m'
-CAT_SURFACE1='\033[38;2;69;71;90m'
-CAT_SURFACE0='\033[38;2;49;50;68m'
-CAT_BASE='\033[38;2;30;30;46m'
-CAT_MANTLE='\033[38;2;24;24;37m'
-CAT_CRUST='\033[38;2;17;17;27m'
+usage() {
+  cat <<EOF
+Usage: dotfiles [--profile] [mise bootstrap flags...]
 
-# Legacy mappings for easier use
-RED="$CAT_RED"
-GREEN="$CAT_GREEN"
-YELLOW="$CAT_YELLOW"
-BLUE="$CAT_BLUE"
-PURPLE="$CAT_MAUVE"
-CYAN="$CAT_TEAL"
-WHITE="$CAT_TEXT"
-ORANGE="$CAT_PEACH"
-LBLACK="$CAT_SURFACE0"
-LRED="$CAT_RED"
-LGREEN="$CAT_GREEN"
-LYELLOW="$CAT_YELLOW"
-LBLUE="$CAT_BLUE"
-LPURPLE="$CAT_MAUVE"
-LCYAN="$CAT_TEAL"
+Installs git and mise, clones or updates $DOTFILES_DIR, links
+$MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
 
-# Special
-SEA="$CAT_SAPPHIRE"
-OVERWRITE='\e[1A\e[K'
+Flags passed through to mise bootstrap:
+  --dry-run          preview every change without applying it
+  --only <parts>     run only these parts, e.g. --only dotfiles,tools
+  --force-dotfiles   replace files that conflict with [dotfiles] entries
 
-#emoji codes
-CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
-X_MARK="${RED}\xE2\x9C\x96${NC}"
-PIN="${RED}\xF0\x9F\x93\x8C${NC}"
-CLOCK="${GREEN}\xE2\x8C\x9B${NC}"
-ARROW="${SEA}\xE2\x96\xB6${NC}"
-BOOK="${RED}\xF0\x9F\x93\x8B${NC}"
-HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
-WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
-RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
+Other:
+  --profile          print the detected machine profile and exit
+  -h, --help         show this help
 
+Profiles: omarchy, cachyos, macos (override with DOTFILES_PROFILE=<profile>).
+State: mise dot status, mise bootstrap status. Checks: cd ~ && mise run check
+EOF
+}
 
-
-set -e
-
-# Check for tput (required for cursor control)
-if ! command -v tput &> /dev/null; then
-  echo -e "${CAT_RED}Error: 'tput' is required but not found.${NC}"
-  echo -e "${CAT_SUBTEXT1}Please install ncurses (Ubuntu: apt install ncurses-bin, Arch: pacman -S ncurses)${NC}"
+die() {
+  echo "dotfiles: $*" >&2
   exit 1
-fi
+}
 
-# Early check for help/version/debug flags (before setup)
+detect_profile() {
+  if [ -n "${DOTFILES_PROFILE:-}" ]; then
+    case $DOTFILES_PROFILE in
+      omarchy | cachyos | macos) echo "$DOTFILES_PROFILE" ;;
+      *) die "unsupported machine ($DOTFILES_PROFILE)" ;;
+    esac
+    return
+  fi
+  if [ "$(uname -s)" = Darwin ]; then
+    echo macos
+    return
+  fi
+  local id=unknown
+  if [ -r /etc/os-release ]; then
+    # shellcheck source=/dev/null
+    id=$(. /etc/os-release && echo "${ID:-unknown}")
+  fi
+  if [ "$id" = omarchy ] || [ -d /usr/share/omarchy ]; then
+    echo omarchy
+  elif [ "$id" = cachyos ]; then
+    echo cachyos
+  else
+    die "unsupported machine ($id)"
+  fi
+}
+
+install_prerequisites() {
+  if [ "$1" = macos ]; then
+    if ! command -v brew >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/brew ]; then
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    for pkg in git mise; do
+      command -v "$pkg" >/dev/null 2>&1 || brew install "$pkg"
+    done
+  elif ! command -v git >/dev/null 2>&1 || ! command -v mise >/dev/null 2>&1; then
+    # Never -Syu here: Omarchy blocks unmanaged system upgrades.
+    sudo pacman -S --needed --noconfirm git mise
+  fi
+}
+
+sync_repo() {
+  if [ ! -e "$DOTFILES_DIR/.git" ]; then
+    git clone "$REPO_URL" "$DOTFILES_DIR"
+  elif [ -n "$(git -C "$DOTFILES_DIR" status --porcelain --untracked-files=no)" ]; then
+    echo "dotfiles: local changes in $DOTFILES_DIR, skipping pull"
+  elif ! git -C "$DOTFILES_DIR" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+    echo "dotfiles: no upstream for $(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD), skipping pull"
+  else
+    git -C "$DOTFILES_DIR" pull --ff-only --quiet
+  fi
+}
+
+link_conf_d() {
+  local link="$MISE_DIR/conf.d" backup
+  mkdir -p "$MISE_DIR"
+  if { [ -e "$link" ] || [ -L "$link" ]; } && [ "$(readlink "$link" || true)" != "$DOTFILES_DIR/modules" ]; then
+    backup="$link.pre-dotfiles.$(date +%s)"
+    mv "$link" "$backup"
+    echo "dotfiles: moved existing $link to $backup"
+  fi
+  ln -sfn "$DOTFILES_DIR/modules" "$link"
+}
+
+write_miserc() {
+  local profile=$1 envs rc="$MISE_DIR/miserc.local.toml" want
+  if [ "$profile" = macos ]; then envs='[]'; else envs="[\"$profile\"]"; fi
+  want=$(printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = %s' "$envs")
+  if [ ! -f "$rc" ] || [ "$(cat "$rc")" != "$want" ]; then
+    printf '%s\n' "$want" >"$rc"
+  fi
+}
+
 for arg in "$@"; do
   case $arg in
-    -h|--help)
-      SHOW_HELP=true
+    -h | --help)
+      usage
+      exit 0
       ;;
-    --version)
-      SHOW_VERSION=true
-      ;;
-    --detect-os)
-      SHOW_DETECTED_OS=true
+    --profile)
+      detect_profile
+      exit 0
       ;;
   esac
 done
 
-# Cleanup function for exit
-cleanup() {
-  # Kill spinner if running
-  if [[ $SPINNER_PID != "" ]]; then
-    kill $SPINNER_PID 2>/dev/null || true
-    wait $SPINNER_PID 2>/dev/null || true
-  fi
-  # Show cursor
-  tput cnorm 2>/dev/null || true
-}
-
-# Set trap to cleanup on exit
-trap cleanup EXIT INT TERM
-
-# Paths
-VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
-OP_INSTALLED=false
-OP_AUTHENTICATED=false
-DOTFILES_LOG="$HOME/.dotfiles.log"
-DOTFILES_DIR="$HOME/.dotfiles"
-IS_FIRST_RUN="$HOME/.dotfiles_run"
-DOTFILES_VERSION="1.0.0"
-# Spinner PID tracking
-SPINNER_PID=""
-
-# Show usage/help information
-show_help() {
-  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} - Ansible-based dotfiles management"
-  echo ""
-  echo -e "${CAT_BLUE}USAGE:${NC}"
-  echo "    dotfiles [OPTIONS] [-- ANSIBLE_ARGS]"
-  echo ""
-  echo -e "${CAT_BLUE}OPTIONS:${NC}"
-  echo -e "    ${CAT_GREEN}-h, --help${NC}              Show this help message"
-  echo -e "    ${CAT_GREEN}--version${NC}               Show version information"
-  echo -e "    ${CAT_GREEN}--detect-os${NC}             Print normalized OS identifier and exit"
-  echo -e "    ${CAT_GREEN}--uninstall <role>${NC}      Uninstall a role (cleanup only)"
-  echo -e "    ${CAT_GREEN}--delete <role>${NC}         Uninstall and delete a role from dotfiles"
-  echo -e "    ${CAT_GREEN}-v, -vv, -vvv${NC}           Verbose mode (passed to ansible-playbook)"
-  echo ""
-  echo -e "${CAT_BLUE}EXAMPLES:${NC}"
-  echo -e "    ${CAT_SUBTEXT1}# Run full dotfiles installation${NC}"
-  echo "    dotfiles"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Install specific roles only${NC}"
-  echo "    dotfiles -t neovim,git,tmux"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Dry run (test without applying)${NC}"
-  echo "    dotfiles --check"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Uninstall a role${NC}"
-  echo "    dotfiles --uninstall neovim"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Delete a role completely${NC}"
-  echo "    dotfiles --delete old_role"
-  echo ""
-  echo -e "${CAT_BLUE}ANSIBLE ARGUMENTS:${NC}"
-  echo "    All arguments not recognized by dotfiles are passed to ansible-playbook."
-  echo "    Common options: -t <tags>, --check, -vvv, --list-tags"
-  echo ""
-  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/TechDufus/dotfiles${NC}"
-}
-
-# Show version information
-show_version() {
-  local git_hash=""
-  if [[ -d "$DOTFILES_DIR/.git" ]]; then
-    git_hash=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-  fi
-  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
-}
-
-# Spinner function that runs in background
-_spinner() {
-  local task_text="$1"
-  local chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-  local delay=0.08
-
-  # Hide cursor
-  tput civis 2>/dev/null || true
-
-  # Save cursor position
-  tput sc 2>/dev/null || true
-
-  while true; do
-    for char in "${chars[@]}"; do
-      # Restore cursor position and clear line
-      tput rc 2>/dev/null || true
-      tput el 2>/dev/null || true
-      printf "${CAT_OVERLAY1} [${CAT_SAPPHIRE}${char}${CAT_OVERLAY1}]  ${CAT_TEXT}${task_text}" >&2
-      sleep $delay
-    done
-  done
-}
-
-# Start a new task with spinner
-__task() {
-  # if a task is running, complete it first
-  if [[ $TASK != "" ]] && [[ $SPINNER_PID != "" ]]; then
-    _task_done
-  fi
-
-  # set new task
-  TASK=$1
-
-  # Start spinner in background
-  _spinner "$TASK" &
-  SPINNER_PID=$!
-
-  # Disable job control messages
-  disown $SPINNER_PID 2>/dev/null || true
-}
-
-# _cmd performs commands with error checking
-_cmd() {
-  #create log if it doesn't exist
-  if ! [[ -f $DOTFILES_LOG ]]; then
-    touch $DOTFILES_LOG
-  fi
-  # empty conduro.log
-  > $DOTFILES_LOG
-
-  # hide stdout, on error we print and exit
-  if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
-    return 0 # success
-  else
-    # Kill spinner if running
-    if [[ $SPINNER_PID != "" ]]; then
-      kill $SPINNER_PID 2>/dev/null || true
-      wait $SPINNER_PID 2>/dev/null || true
-      SPINNER_PID=""
-    fi
-
-    # Show cursor again
-    tput cnorm 2>/dev/null || true
-
-    # Clear the line and show error
-    printf "\r\033[K${CAT_RED} [✗]  ${CAT_TEXT}${TASK}${NC}\n"
-
-    # Show error details
-    local line
-    while read -r line; do
-      printf "      ${CAT_MAROON}%s${NC}\n" "$line"
-    done < "$DOTFILES_LOG"
-    printf "\n"
-
-    # remove log file
-    rm $DOTFILES_LOG
-    # exit installation
-    exit 1
-  fi
-}
-
-_clear_task() {
-  TASK=""
-}
-
-_task_done() {
-  # Kill spinner if running
-  if [[ $SPINNER_PID != "" ]]; then
-    kill $SPINNER_PID 2>/dev/null || true
-    wait $SPINNER_PID 2>/dev/null || true
-    SPINNER_PID=""
-  fi
-
-  # Show cursor again
-  tput cnorm 2>/dev/null || true
-
-  # Clear line and show success
-  printf "\r\033[K${CAT_GREEN} [✓]  ${CAT_TEXT}${TASK}\n"
-  _clear_task
-}
-
-ubuntu_setup() {
-  # Source os-release to get VERSION_ID
-  if [ -f /etc/os-release ]; then
-    source /etc/os-release
-  fi
-
-  if ! dpkg -s ansible >/dev/null 2>&1; then
-    __task "Installing Ansible (This may take a few minutes)"
-    _cmd "sudo apt-get update"
-    _cmd "sudo apt-get install -y software-properties-common"
-    _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
-    _cmd "sudo apt-get update"
-    _cmd "sudo apt-get install -y ansible"
-    _cmd "sudo apt-get install -y python3-argcomplete"
-  fi
-  if ! dpkg -s python3 >/dev/null 2>&1; then
-    __task "Installing Python3"
-    _cmd "sudo apt-get install -y python3"
-  fi
-
-  local UBUNTU_MAJOR_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
-  if [ "$UBUNTU_MAJOR_VERSION" -le 22 ] 2>/dev/null; then
-    if ! dpkg -s python3-pip >/dev/null 2>&1; then
-      __task "Installing Python3 Pip"
-      _cmd "sudo apt-get install -y python3-pip"
-    fi
-    if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-      __task "Installing Python3 Watchdog"
-      _cmd "sudo apt-get install -y python3-watchdog"
-    fi
-  fi
-}
-
-arch_setup() {
-  local packages=()
-
-  if ! command -v ansible >/dev/null 2>&1; then
-    packages+=(ansible python-argcomplete)
-  fi
-
-  if ! command -v python3 >/dev/null 2>&1; then
-    packages+=(python)
-  fi
-
-  if ! command -v pip3 >/dev/null 2>&1; then
-    packages+=(python-pip)
-  fi
-
-  if ! python3 -c "import watchdog" >/dev/null 2>&1; then
-    packages+=(python-watchdog)
-  fi
-
-  if ! command -v ssh >/dev/null 2>&1; then
-    packages+=(openssh)
-  fi
-
-  if ! command -v git >/dev/null 2>&1; then
-    packages+=(git)
-  fi
-
-  if (( ${#packages[@]} > 0 )); then
-    __task "Installing Arch bootstrap packages"
-    _cmd "sudo pacman -Syu --needed --noconfirm --disable-download-timeout ${packages[*]}"
-  fi
-
-  if command -v localectl >/dev/null 2>&1; then
-    __task "Setting Locale"
-    _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
-  fi
-}
-
-fedora_setup() {
-  if ! [ -x "$(command -v ansible)" ]; then
-    __task "Installing Ansible (This may take a few minutes)"
-    _cmd "sudo dnf install -y ansible"
-  fi
-  if ! [ -x "$(command -v python3)" ]; then
-    __task "Installing Python3"
-    _cmd "sudo dnf install -y python3"
-  fi
-  if ! [ -x "$(command -v pip3)" ]; then
-    __task "Installing Python3 Pip"
-    _cmd "sudo dnf install -y python3-pip"
-  fi
-  if ! rpm -q python3-argcomplete >/dev/null 2>&1; then
-    __task "Installing Python3 Argcomplete"
-    _cmd "sudo dnf install -y python3-argcomplete"
-    _cmd "sudo activate-global-python-argcomplete3 || true"
-  fi
-  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-    __task "Installing Python3 Watchdog"
-    _cmd "pip3 install --user watchdog"
-  fi
-}
-
-macos_setup() {
-  if ! [ -x "$(command -v brew)" ]; then
-    __task "Installing Homebrew (This may take 5-10 minutes)"
-    _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-  fi
-  if ! [ -x "$(command -v git)" ]; then
-    __task "Installing Git"
-    _cmd "brew install git"
-  fi
-  if ! [ -x "$(command -v ansible)" ]; then
-    __task "Installing Ansible"
-    _cmd "brew install ansible"
-  fi
-}
-
-update_ansible_galaxy() {
-  local os=$1
-  local requirements_file
-  local requirement_files=("$DOTFILES_DIR/requirements/common.yml")
-
-  if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
-    requirement_files+=("$DOTFILES_DIR/requirements/$os.yml")
-  fi
-
-  for requirements_file in "${requirement_files[@]}"; do
-    __task "Installing Ansible dependencies from ${requirements_file#$DOTFILES_DIR/}"
-    _cmd "ansible-galaxy collection install -r \"$requirements_file\""
-  done
-}
-
-confirmVaultAccess() {
-  __task "Checking for 1Password CLI"
-  if ! command -v op >/dev/null 2>&1; then
-    printf "${OVERWRITE}${CAT_RED} [X]  ${CAT_TEXT}Checking for 1Password CLI\n"
-    printf " ${WARNING}${CAT_MAROON}   1Password CLI is not installed.${NC}\n"
-    exit 1
-  fi
-  local op_version
-  op_version=$(op --version)
-  __task "1Password CLI found: [$op_version] -- Authenticating..."
-  if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
-  _task_done && printf "${CAT_GREEN} [✓] ${CAT_TEXT}Successfully authenticated with 1Password CLI! ☕\n"
-  return
-}
-
-detect_os() {
-  local os_release_file="${DOTFILES_OS_RELEASE:-/etc/os-release}"
-
-  if [ -f "$os_release_file" ]; then
-    local ID=""
-    local ID_LIKE=""
-    local id_lower=""
-    local id_like_lower=""
-    # shellcheck source=/dev/null
-    source "$os_release_file"
-
-    id_lower=$(printf '%s' "$ID" | tr '[:upper:]' '[:lower:]')
-    id_like_lower=$(printf '%s' "$ID_LIKE" | tr '[:upper:]' '[:lower:]')
-
-    case "$id_lower" in
-      ubuntu|fedora)
-        echo "$id_lower"
-        return
-        ;;
-      arch|archlinux|cachyos)
-        echo "arch"
-        return
-        ;;
-    esac
-
-    case " $id_like_lower " in
-      *" arch "*)
-        echo "arch"
-        return
-        ;;
-    esac
-
-    echo "$id_lower"
-  else
-    case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
-      darwin)
-        echo "darwin"
-        ;;
-      *)
-        uname -s | tr '[:upper:]' '[:lower:]'
-        ;;
-    esac
-  fi
-}
-
-print_banner() {
-  echo ""
-  echo -e "${CAT_SAPPHIRE}  ████████╗███████╗ ██████╗██╗  ██╗██████╗ ██╗   ██╗███████╗██╗   ██╗███████╗${NC}"
-  echo -e "${CAT_SAPPHIRE}  ╚══██╔══╝██╔════╝██╔════╝██║  ██║██╔══██╗██║   ██║██╔════╝██║   ██║██╔════╝${NC}"
-  echo -e "${CAT_SAPPHIRE}     ██║   █████╗  ██║     ███████║██║  ██║██║   ██║█████╗  ██║   ██║███████╗${NC}"
-  echo -e "${CAT_SAPPHIRE}     ██║   ██╔══╝  ██║     ██╔══██║██║  ██║██║   ██║██╔══╝  ██║   ██║╚════██║${NC}"
-  echo -e "${CAT_SAPPHIRE}     ██║   ███████╗╚██████╗██║  ██║██████╔╝╚██████╔╝██║     ╚██████╔╝███████║${NC}"
-  echo -e "${CAT_SAPPHIRE}     ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═╝      ╚═════╝ ╚══════╝${NC}"
-  echo ""
-  echo -e "${CAT_BLUE}      ██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗${NC}"
-  echo -e "${CAT_BLUE}      ██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝${NC}"
-  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗${NC}"
-  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║${NC}"
-  echo -e "${CAT_BLUE}      ██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║${NC}"
-  echo -e "${CAT_BLUE}      ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
-  echo ""
-}
-
-# Handle early exit for help/version/debug flags (before banner and setup)
-if [[ "${SHOW_HELP:-}" == "true" ]]; then
-  show_help
-  exit 0
-fi
-
-if [[ "${SHOW_VERSION:-}" == "true" ]]; then
-  show_version
-  exit 0
-fi
-
-if [[ "${SHOW_DETECTED_OS:-}" == "true" ]]; then
-  detect_os
-  exit 0
-fi
-
-print_banner
-
-dotfiles_os=$(detect_os)
-__task "Loading Setup for detected OS: $dotfiles_os"
-case $dotfiles_os in
-  ubuntu)
-    ubuntu_setup
-    ;;
-  arch)
-    arch_setup
-    ;;
-  fedora)
-    fedora_setup
-    ;;
-  darwin)
-    macos_setup
-    ;;
-  *)
-    printf "${CAT_RED} [✗]  ${CAT_TEXT}Unsupported OS: %s${NC}\n" "$dotfiles_os"
-    exit 1
-    ;;
-esac
-
-if ! [[ -d "$DOTFILES_DIR" ]]; then
-  __task "Downloading dotfiles repository (This may take a minute)"
-  _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
-  _task_done
-else
-  __task "Updating dotfiles repository"
-  _cmd "git -C $DOTFILES_DIR pull --quiet"
-  _task_done
-fi
-
-pushd "$DOTFILES_DIR" 2>&1 > /dev/null
-
-# Parse arguments for uninstall/delete
-UNINSTALL_ROLE=""
-DELETE_ROLE=""
-REMAINING_ARGS=()
-
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      show_help
-      exit 0
-      ;;
-    --version)
-      show_version
-      exit 0
-      ;;
-    --uninstall)
-      if [[ -z "$2" || "$2" == -* ]]; then
-        echo -e "${RED} [✗]  ${CAT_TEXT}Error: --uninstall requires a role name${NC}"
-        exit 1
-      fi
-      UNINSTALL_ROLE="$2"
-      shift 2
-      ;;
-    --delete)
-      if [[ -z "$2" || "$2" == -* ]]; then
-        echo -e "${RED} [✗]  ${CAT_TEXT}Error: --delete requires a role name${NC}"
-        exit 1
-      fi
-      DELETE_ROLE="$2"
-      shift 2
-      ;;
-    *)
-      REMAINING_ARGS+=("$1")
-      shift
-      ;;
-  esac
-done
-
-# Common function to run uninstall script
-run_uninstall_script() {
-  local role="$1"
-  local role_dir="$DOTFILES_DIR/roles/$role"
-  local uninstall_script="$role_dir/uninstall.sh"
-
-  if [[ ! -d "$role_dir" ]]; then
-    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${role}' not found${NC}"
-    return 1
-  fi
-
-  if [[ ! -f "$uninstall_script" ]]; then
-    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${role}' does not have an uninstall script${NC}"
-    return 1
-  fi
-
-  # Export functions and colors for use in uninstall script
-  export -f __task _task_done _clear_task _cmd _spinner
-  export SPINNER_PID TASK DOTFILES_LOG
-  export NC BOLD
-  export CAT_ROSEWATER CAT_FLAMINGO CAT_PINK CAT_MAUVE CAT_RED CAT_MAROON
-  export CAT_PEACH CAT_YELLOW CAT_GREEN CAT_TEAL CAT_SKY CAT_SAPPHIRE
-  export CAT_BLUE CAT_LAVENDER CAT_TEXT CAT_SUBTEXT1 CAT_SUBTEXT0
-  export CAT_OVERLAY2 CAT_OVERLAY1 CAT_OVERLAY0 CAT_SURFACE2 CAT_SURFACE1
-  export CAT_SURFACE0 CAT_BASE CAT_MANTLE CAT_CRUST
-  export RED GREEN YELLOW BLUE PURPLE CYAN WHITE LBLACK
-  export LRED LGREEN LYELLOW LBLUE LPURPLE LCYAN SEA OVERWRITE
-  export CHECK_MARK X_MARK PIN CLOCK ARROW BOOK HOT WARNING RIGHT_ANGLE
-
-  # Run uninstall script with exported environment
-  bash "$uninstall_script"
-  return 0
-}
-
-# Handle uninstall (cleanup only)
-if [[ -n "$UNINSTALL_ROLE" ]]; then
-  # Confirm uninstall
-  echo -e "${YELLOW} [?]  ${CAT_TEXT}This will uninstall ${BOLD}${CAT_MAUVE}${UNINSTALL_ROLE}${NC}."
-  read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if run_uninstall_script "$UNINSTALL_ROLE"; then
-      echo -e "${GREEN} [✓]  ${CAT_TEXT}${UNINSTALL_ROLE} has been uninstalled${NC}"
-    else
-      popd 2>&1 > /dev/null
-      exit 1
-    fi
-  else
-    echo -e "${YELLOW} [!]  ${CAT_TEXT}Uninstall cancelled${NC}"
-  fi
-  popd 2>&1 > /dev/null
-  exit 0
-fi
-
-# Handle delete (uninstall + remove role)
-if [[ -n "$DELETE_ROLE" ]]; then
-  ROLE_DIR="$DOTFILES_DIR/roles/$DELETE_ROLE"
-  UNINSTALL_SCRIPT="$ROLE_DIR/uninstall.sh"
-
-  # Check if role exists
-  if [[ ! -d "$ROLE_DIR" ]]; then
-    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${DELETE_ROLE}' not found${NC}"
-    popd 2>&1 > /dev/null
-    exit 1
-  fi
-
-  # Confirm delete
-  if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-    echo -e "${YELLOW} [?]  ${CAT_TEXT}This will uninstall ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} and ${BOLD}${CAT_RED}DELETE${NC} the role from your dotfiles."
-  else
-    echo -e "${YELLOW} [?]  ${CAT_TEXT}This will ${BOLD}${CAT_RED}DELETE${NC} the role ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} from your dotfiles."
-    echo -e "${YELLOW}      ${CAT_TEXT}Note: No uninstall script exists, so only the role directory will be removed.${NC}"
-  fi
-
-  read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Run uninstall script if it exists
-    if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-      if ! run_uninstall_script "$DELETE_ROLE"; then
-        echo -e "${YELLOW} [!]  ${CAT_TEXT}Uninstall script failed, but continuing with deletion...${NC}"
-      fi
-    fi
-
-    # Remove from group_vars/all.yml (with backup)
-    if grep -q "^  - $DELETE_ROLE$" "$DOTFILES_DIR/group_vars/all.yml"; then
-      __task "Removing $DELETE_ROLE from configuration"
-      cp "$DOTFILES_DIR/group_vars/all.yml" "$DOTFILES_DIR/group_vars/all.yml.bak"
-      # Use portable sed -i syntax (macOS requires '', Linux doesn't)
-      if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
-      else
-        sed -i "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
-      fi
-      _task_done
-    fi
-
-    # Remove role directory
-    __task "Removing $DELETE_ROLE role directory"
-    rm -rf "$ROLE_DIR"
-    _task_done
-
-    if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-      echo -e "${GREEN} [✓]  ${CAT_TEXT}${DELETE_ROLE} has been uninstalled and deleted${NC}"
-    else
-      echo -e "${GREEN} [✓]  ${CAT_TEXT}${DELETE_ROLE} has been deleted${NC}"
-    fi
-  else
-    echo -e "${YELLOW} [!]  ${CAT_TEXT}Delete cancelled${NC}"
-  fi
-  popd 2>&1 > /dev/null
-  exit 0
-fi
-
-update_ansible_galaxy "$dotfiles_os"
-
-# confirmVaultAccess
-
-rm -f $VAULT_SECRET_FILE
-_task_done
-ansible-playbook "$DOTFILES_DIR/main.yml" "${REMAINING_ARGS[@]}"
-
-popd 2>&1 > /dev/null
-
-if ! [[ -f "$IS_FIRST_RUN" ]]; then
-  echo ""
-  echo -e "${CHECK_MARK} ${CAT_GREEN}🎉 Dotfiles installation complete!${NC}"
-  echo ""
-  echo -e "${ARROW} ${CAT_TEAL}Next steps:${NC}"
-  echo -e "   1. Customize your setup: ${CAT_LAVENDER}nvim ~/.dotfiles/group_vars/all.yml${NC}"
-  echo -e "   2. Apply changes anytime: ${CAT_LAVENDER}dotfiles${NC}"
-  echo -e "   3. Get help: ${CAT_LAVENDER}https://discord.gg/5M4hjfyRBj${NC}"
-  echo ""
-  echo -e "${ARROW} ${CAT_TEAL}Please reboot your computer to complete the setup.${NC}"
-  echo ""
-  touch "$IS_FIRST_RUN"
-fi
-
-# vi:ft=sh:
+profile=$(detect_profile)
+install_prerequisites "$profile"
+sync_repo
+link_conf_d
+write_miserc "$profile"
+exec mise bootstrap --yes "$@"

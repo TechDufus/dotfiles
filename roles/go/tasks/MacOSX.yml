@@ -1,5 +1,0 @@
----
-- name: "Go | MacOSX | Install Go"
-  community.general.homebrew:
-    name: go
-    state: present

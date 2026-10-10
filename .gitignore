@@ -1,11 +1,9 @@
-vault-password.txt
-
 # Python cache directories
 __pycache__/
 *.pyc
 *.pyo
 
-roles/neovim/files/lazy-lock.json
+modules/neovim/nvim/lazy-lock.json
 
 # Defensive only: refresh rejects Git worktree destinations, but never stage a
 # local plaintext cache or its temporary files if XDG_STATE_HOME is misdirected.
@@ -17,15 +15,15 @@ secrets.zsh
 *.DS_Store
 
 # Company-specific Claude commands (not for public repo)
-roles/claude/files/commands/raft/
-roles/claude/files/skills/rafty
-roles/claude/files/commands/raft-*.md
-roles/claude/files/agents/raft-*.md
-roles/claude/files/hooks/peon-ping/
-roles/claude/files/skills/peon-ping-*/
+modules/claude/commands/raft/
+modules/claude/skills/rafty
+modules/claude/commands/raft-*.md
+modules/claude/agents/raft-*.md
+modules/claude/hooks/peon-ping/
+modules/claude/skills/peon-ping-*/
 
 # Herdr-managed Claude integration artifacts
-roles/claude/files/hooks/herdr-agent-state.sh
+modules/claude/hooks/herdr-agent-state.sh
 
 # Crush directory
 .crush/
@@ -33,16 +31,13 @@ roles/claude/files/hooks/herdr-agent-state.sh
 # Claude session snapshots (personal work state)
 .claude/snapshots/
 
-# Ansible cache/runtime directories
-.ansible/
-
 # OMP runtime state is ignored; project skills are repository-managed.
 .omp/*
 !.omp/skills/
 !.omp/skills/**
 
-# OMP advisory config locks follow managed symlinks into this role.
-roles/omp/files/**/config.yml.lock
+# OMP advisory config locks follow managed symlinks into this module.
+modules/omp/**/config.yml.lock
 
 # Logs
 logs
@@ -63,7 +58,6 @@ node_modules/
 *.njsproj
 *.sln
 *.sw?
-# OS specific
 
 # Task files
 tasks.json

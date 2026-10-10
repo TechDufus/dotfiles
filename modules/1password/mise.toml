@@ -1,0 +1,2 @@
+[dotfiles]
+"~/.config/1Password/ssh/agent.toml" = { source = "agent.toml", mode = "copy", permissions = "0600" }

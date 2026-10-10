@@ -1,0 +1,20 @@
+[dotfiles]
+"~/.zshenv" = { source = "zshenv", mode = "copy" }
+"~/.zshrc" = { source = "zshrc", mode = "copy" }
+"~/.p10k.zsh" = { source = "p10k.zsh", mode = "copy" }
+"~/.config/zsh" = { source = "zsh", mode = "copy", exclude = ["vars.secret"] }
+"~/.config/zsh/vars.secret" = { source = "zsh/vars.secret", mode = "copy", permissions = "0600" }
+# retired
+"~/.config/zsh/nvm_config.zsh" = { mode = "absent" }
+"~/.config/zsh/dotfiles_completions.zsh" = { mode = "absent" }
+
+[tasks."test:zsh"]
+description = "Run the zsh shell tests"
+run = '''
+rc=0
+for t in tests/test_*.sh; do
+  echo "== $t"
+  bash "$t" || rc=1
+done
+exit $rc
+'''

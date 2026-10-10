@@ -1,0 +1,57 @@
+name: mise
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Version lookups for github:/aqua tools hit the GitHub API.
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # `mise run` would otherwise install every [tools] entry before running tests.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
+jobs:
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install prerequisites
+        run: pacman -Syu --noconfirm mise git zsh lua bun jq python python-yaml
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Link modules as mise conf.d
+        run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      - name: Dry-run omarchy
+        run: MISE_AUTO_ENV=true MISE_ENV=omarchy mise bootstrap --dry-run --yes
+
+      - name: Dry-run cachyos
+        run: MISE_AUTO_ENV=true MISE_ENV=cachyos mise bootstrap --dry-run --yes
+
+      - name: Tests (omarchy)
+        run: MISE_AUTO_ENV=true MISE_ENV=omarchy mise run --jobs 1 'test:*'
+
+      - name: Tests (cachyos)
+        run: MISE_AUTO_ENV=true MISE_ENV=cachyos mise run --jobs 1 'test:*'
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install prerequisites
+        run: brew install mise lua
+
+      - name: Link modules as mise conf.d
+        run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      - name: Dry-run macos
+        run: MISE_AUTO_ENV=true mise bootstrap --dry-run --yes
+
+      - name: Tests (hammerspoon)
+        run: MISE_AUTO_ENV=true mise run test:hammerspoon

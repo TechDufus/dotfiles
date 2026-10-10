@@ -1,0 +1,3 @@
+[bootstrap.packages]
+"pacman:bun" = "latest"
+"pacman:helm" = "latest"

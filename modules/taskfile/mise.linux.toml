@@ -1,0 +1,2 @@
+[dotfiles]
+"~/Taskfile.yml" = { source = "Taskfile.yml", mode = "copy" }

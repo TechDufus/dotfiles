@@ -1,0 +1,3 @@
+[tasks."bootstrap:tern"]
+description = "Reset tern settings that must stay at Tern's defaults"
+run = "./bootstrap.sh"

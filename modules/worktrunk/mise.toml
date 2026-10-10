@@ -1,0 +1,3 @@
+# Copy mode never renders, so worktrunk's own {{ }} templates stay literal.
+[dotfiles]
+"~/.config/worktrunk/config.toml" = { source = "config.toml", mode = "copy" }

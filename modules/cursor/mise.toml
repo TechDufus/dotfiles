@@ -1,0 +1,22 @@
+[dotfiles]
+"~/.cursor/statusline.sh" = { source = "statusline.sh" }
+"~/.cursor/agents" = { source = "agents", mode = "symlink-each" }
+"~/.cursor/rules" = { source = "rules", mode = "symlink-each" }
+"~/.cursor/skills/commit" = { source = "skills/commit" }
+"~/.cursor/skills/orchestrate" = { source = "skills/orchestrate" }
+"~/.cursor/skills/ultraresearch" = { source = "skills/ultraresearch" }
+"~/.cursor/skills/ultrathink" = { source = "skills/ultrathink" }
+"~/.cursor/skills/verification" = { source = "skills/verification" }
+
+# cli-config.json also stores auth and machine-local cache, so it is merged, never linked.
+"~/.cursor/cli-config.json/managed" = { source = "cli-config.json", merge = true }
+"~/.cursor/cli-config.json" = { permissions = "0600" }
+
+[tasks."bootstrap:cursor"]
+description = "Install the Cursor agent CLI and pin its model and status line"
+run = "./bootstrap.sh"
+
+[tasks."test:cursor"]
+description = "Run the cursor statusline test"
+env = { PYTHONDONTWRITEBYTECODE = "1" }
+run = "python3 tests/test_statusline.py"

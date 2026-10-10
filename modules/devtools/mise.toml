@@ -1,0 +1,39 @@
+[tools]
+node = "lts"
+task = "latest"
+"go:golang.org/x/tools/gopls" = "latest"
+"go:github.com/mrjosh/helm-ls" = "latest"
+
+# Global npm CLIs
+"npm:yarn" = "latest"
+"npm:pnpm" = "latest"
+"npm:npm-check-updates" = "latest"
+"npm:serve" = "latest"
+"npm:clawpatch" = "latest"
+
+# Language servers
+"npm:typescript" = "latest"
+"npm:typescript-language-server" = "latest"
+"npm:yaml-language-server" = "latest"
+"npm:bash-language-server" = "latest"
+"npm:pyright" = "latest"
+"npm:@ansible/ansible-language-server" = "latest"
+"npm:dockerfile-language-server-nodejs" = "latest"
+"npm:@tailwindcss/language-server" = "latest"
+"npm:@astrojs/language-server" = "latest"
+"npm:graphql-language-service-cli" = "latest"
+"npm:svelte-language-server" = "latest"
+"npm:vscode-langservers-extracted" = "latest"
+"npm:@biomejs/biome" = "latest"
+"npm:@vue/language-server" = "latest"
+"npm:@prisma/language-server" = "latest"
+"npm:vim-language-server" = "latest"
+"npm:@olrtg/emmet-language-server" = "latest"
+"npm:intelephense" = "latest"
+
+[dotfiles]
+"~/.npmrc" = { source = "npmrc", mode = "copy" }
+
+[tasks."bootstrap:devtools"]
+description = "Ensure the traefik helm repo is configured"
+run = "./bootstrap.sh"

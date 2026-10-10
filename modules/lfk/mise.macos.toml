@@ -1,0 +1,2 @@
+[bootstrap.packages]
+"brew:janosmiko/tap/lfk" = "latest"

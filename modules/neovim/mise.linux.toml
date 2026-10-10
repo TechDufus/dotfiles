@@ -1,0 +1,8 @@
+[bootstrap.packages]
+"pacman:base-devel" = "latest"
+"pacman:cmake" = "latest"
+"pacman:libtool" = "latest"
+"pacman:pkgconf" = "latest"
+"pacman:ripgrep" = "latest"
+"pacman:tree-sitter-cli" = "latest"
+"pacman:unzip" = "latest"

@@ -1,6 +1,0 @@
----
-- name: "AWS | Install AWS CLI"
-  community.general.homebrew:
-    name: awscli
-    state: present
-    update_homebrew: true

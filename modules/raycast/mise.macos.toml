@@ -1,0 +1,3 @@
+[tasks."bootstrap:raycast"]
+description = "Install Raycast Beta from the official DMG (Apple Silicon, macOS 26+)"
+run = "./bootstrap.sh"

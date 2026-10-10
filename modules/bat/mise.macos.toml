@@ -1,0 +1,9 @@
+[bootstrap.packages]
+"brew:bat" = "latest"
+
+[dotfiles]
+"~/.config/bat/config" = { source = "config", mode = "copy" }
+
+[tasks."bootstrap:bat"]
+description = "Fetch the Catppuccin Mocha bat theme when missing"
+run = "./bootstrap.sh"

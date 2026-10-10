@@ -1,0 +1,4 @@
+[dotfiles]
+"~/.config/ghostty/config" = { source = "config", mode = "copy" }
+"~/.config/ghostty/shaders" = { source = "shaders", mode = "copy" }
+"~/.config/ghostty/themes" = { source = "themes", mode = "copy" }

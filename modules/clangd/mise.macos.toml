@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew:llvm" = "latest"
+
+[dotfiles]
+"~/.local/bin/clangd" = { source = "/opt/homebrew/opt/llvm/bin/clangd" }

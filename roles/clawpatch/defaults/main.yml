@@ -1,5 +1,0 @@
----
-role_name: clawpatch
-clawpatch_npm_package: clawpatch
-clawpatch_version: latest
-clawpatch_min_node_major: 22

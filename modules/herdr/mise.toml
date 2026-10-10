@@ -1,0 +1,2 @@
+[dotfiles]
+"~/.config/herdr/config.toml" = { source = "config.toml", mode = "copy" }

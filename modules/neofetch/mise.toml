@@ -1,0 +1,4 @@
+[dotfiles."~/.config/neofetch/config"]
+source = "config"
+mode = "copy"
+variants = [{ os = "macos" }, { profile = "cachyos" }]

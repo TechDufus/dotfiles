@@ -1,0 +1,4 @@
+# Omarchy ships these from its own pacman repo.
+[bootstrap.packages]
+"pacman:1password" = "latest"
+"pacman:1password-cli" = "latest"

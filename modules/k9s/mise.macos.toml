@@ -1,0 +1,8 @@
+[bootstrap.packages]
+"brew:k9s" = "latest"
+
+[dotfiles]
+"~/Library/Application Support/k9s/config.yaml" = { source = "config.yaml", mode = "copy" }
+"~/Library/Application Support/k9s/plugins.yaml" = { source = "plugins.yaml", mode = "copy" }
+"~/Library/Application Support/k9s/aliases.yaml" = { source = "aliases.yaml", mode = "copy" }
+"~/Library/Application Support/k9s/skins/catppuccin_mocha.yaml" = { source = "catppuccin_mocha.yaml", mode = "copy" }

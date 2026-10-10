@@ -1,0 +1,2 @@
+[bootstrap.packages]
+"pacman:obsidian" = "latest"

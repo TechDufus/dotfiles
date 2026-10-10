@@ -1,0 +1,3 @@
+[bootstrap.packages]
+"brew:oven-sh/bun/bun" = "latest"
+"brew:helm" = "latest"

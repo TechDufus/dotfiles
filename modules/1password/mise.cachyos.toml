@@ -1,0 +1,3 @@
+[bootstrap.packages]
+"aur:1password" = "latest"
+"aur:1password-cli" = "latest"

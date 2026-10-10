@@ -1,0 +1,7 @@
+[bootstrap.packages]
+"brew:git" = "latest"
+"brew:git-delta" = "latest"
+
+[dotfiles]
+"~/.config/git/dotfiles-macos.gitconfig" = { source = "dotfiles-macos.gitconfig" }
+"~/.config/git/config/dotfiles-macos" = { block = "[include]\n\tpath = ~/.config/git/dotfiles-macos.gitconfig\n" }

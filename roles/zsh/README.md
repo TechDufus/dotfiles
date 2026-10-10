@@ -171,6 +171,13 @@ alias update='sudo apt update && sudo apt upgrade -y'
 alias update='sudo dnf upgrade -y'
 ```
 
+**Arch / Omarchy** (`os/Archlinux/os_functions.zsh`):
+```bash
+alias update='omarchy update -y'          # Omarchy (its pacman hook blocks direct -Syu)
+alias update='paru -Syu --noconfirm'      # else paru, else yay, else pacman
+alias pacorphans='pacman -Qtdq'; clean-system  # orphan removal, cache + journal cleanup
+```
+
 ## Configuration Flow
 
 ```mermaid

@@ -4,7 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 extension_path="$repo_root/modules/omp/extensions/herd.ts"
 
-bun --check "$extension_path"
+# Parse gate only: CI has no @types/node or omp package, and bun >= 1.4.3 `--check` type-checks them.
+bun build --no-bundle "$extension_path" >/dev/null
 bun - "$extension_path" <<'TS'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

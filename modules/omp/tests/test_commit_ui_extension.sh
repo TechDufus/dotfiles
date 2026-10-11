@@ -7,7 +7,8 @@ watchdog_path="$repo_root/modules/omp/WATCHDOG.md"
 test_root="$(mktemp -d "${TMPDIR:-/tmp}/omp-commit-ui.XXXXXX")"
 trap 'rm -rf "$test_root"' EXIT
 
-bun --check "$extension_path"
+# Parse gate only: CI has no @types/node or omp package, and bun >= 1.4.3 `--check` type-checks them.
+bun build --no-bundle "$extension_path" >/dev/null
 
 bun - "$extension_path" "$watchdog_path" "$test_root" <<'TS'
 import { chmod, mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";

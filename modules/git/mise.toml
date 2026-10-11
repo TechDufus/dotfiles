@@ -1,5 +1,5 @@
 [dotfiles]
 "~/.config/git/dotfiles.gitconfig" = { source = "dotfiles.gitconfig" }
-"~/.config/git/commit_template" = { source = "commit_template", mode = "copy" }
+"~/.config/git/commit_template" = { source = "commit_template" }
 # basic string on purpose: \t and \n must become a real tab and newline
 "~/.config/git/config/dotfiles" = { block = "[include]\n\tpath = ~/.config/git/dotfiles.gitconfig\n\tpath = ~/.config/git/identity.gitconfig\n" }

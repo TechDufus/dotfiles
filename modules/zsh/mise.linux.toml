@@ -5,4 +5,4 @@
 login_shell = "/usr/bin/zsh"
 
 [dotfiles]
-"~/.config/zsh/os_functions.zsh" = { source = "os/linux/os_functions.zsh", mode = "copy" }
+"~/.config/zsh/os_functions.zsh" = { source = "os/linux/os_functions.zsh" }

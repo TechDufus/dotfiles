@@ -1,2 +1,2 @@
 [dotfiles]
-"~/.config/lfk/config.yaml" = { source = "config.yaml", mode = "copy" }
+"~/.config/lfk/config.yaml" = { source = "config.yaml" }

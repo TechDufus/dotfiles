@@ -2,4 +2,4 @@
 "brew:starship" = "latest"
 
 [dotfiles]
-"~/.config/starship.toml" = { source = "starship.toml", mode = "copy" }
+"~/.config/starship.toml" = { source = "starship.toml" }

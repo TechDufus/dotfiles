@@ -1,2 +1,3 @@
 [dotfiles]
+# Copied as a private file: 1Password rewrites it from "Configure for SSH Agent".
 "~/.config/1Password/ssh/agent.toml" = { source = "agent.toml", mode = "copy", permissions = "0600" }

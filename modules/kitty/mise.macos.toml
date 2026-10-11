@@ -2,4 +2,4 @@
 "brew-cask:kitty" = "latest"
 
 [dotfiles]
-"~/.config/kitty/kitty.conf" = { source = "kitty-macos.conf", mode = "copy" }
+"~/.config/kitty/kitty.conf" = { source = "kitty-macos.conf" }

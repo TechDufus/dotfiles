@@ -2,7 +2,7 @@
 "brew:bat" = "latest"
 
 [dotfiles]
-"~/.config/bat/config" = { source = "config", mode = "copy" }
+"~/.config/bat/config" = { source = "config" }
 
 [tasks."bootstrap:bat"]
 description = "Fetch the Catppuccin Mocha bat theme when missing"

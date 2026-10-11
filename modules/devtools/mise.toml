@@ -33,7 +33,11 @@ task = "latest"
 "npm:intelephense" = "latest"
 
 [dotfiles]
-"~/.npmrc" = { source = "npmrc", mode = "copy" }
+# Line edits, not a copy: `npm login` and `npm config set` rewrite ~/.npmrc, and a copy deleted
+# their auth tokens on every run.
+"~/.npmrc/author" = { line = "init-author-name=TechDufus" }
+"~/.npmrc/license" = { line = "init-license=MIT" }
+"~/.npmrc/save-exact" = { line = "save-exact=true" }
 
 [tasks."bootstrap:devtools"]
 description = "Ensure the traefik helm repo is configured"

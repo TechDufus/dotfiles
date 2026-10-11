@@ -8,4 +8,5 @@ claude = "latest"
 "~/.claude/hooks" = { source = "hooks", mode = "symlink" }
 "~/.claude/agents" = { source = "agents", mode = "symlink" }
 "~/.claude/.lsp.json" = { source = "lsp.json" }
+# Copied: plugin installs wrote into the repo through linked skills.
 "~/.claude/skills/skill-creator" = { source = "skills/skill-creator", mode = "copy" }

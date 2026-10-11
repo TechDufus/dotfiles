@@ -32,7 +32,7 @@
 "~/.local/bin/omp-claude-sol" = { source = "bin/omp-claude-sol" }
 "~/.local/bin/omp-codex" = { source = "bin/omp-codex" }
 
-"~/.omp/agent/AGENTS.md" = { source = "AGENTS.md", mode = "copy" }
+"~/.omp/agent/AGENTS.md" = { source = "AGENTS.md" }
 
 # mcp.json is a regular file (OAuth may store credentials in it), so it is merged, never linked.
 "~/.omp/agent/mcp.json/managed" = { source = "mcp-managed.json", merge = true }

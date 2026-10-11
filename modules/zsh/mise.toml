@@ -1,9 +1,9 @@
 [dotfiles]
-"~/.zshenv" = { source = "zshenv", mode = "copy" }
-"~/.zshrc" = { source = "zshrc", mode = "copy" }
-"~/.p10k.zsh" = { source = "p10k.zsh", mode = "copy" }
-"~/.config/zsh" = { source = "zsh", mode = "copy", exclude = ["vars.secret"] }
-"~/.config/zsh/vars.secret" = { source = "zsh/vars.secret", mode = "copy", permissions = "0600" }
+"~/.zshenv" = { source = "zshenv" }
+"~/.zshrc" = { source = "zshrc" }
+"~/.p10k.zsh" = { source = "p10k.zsh" }
+# Per-file links: a file deleted from zsh/ loses its link on the next apply.
+"~/.config/zsh" = { source = "zsh", mode = "symlink-each" }
 # retired
 "~/.config/zsh/nvm_config.zsh" = { mode = "absent" }
 "~/.config/zsh/dotfiles_completions.zsh" = { mode = "absent" }

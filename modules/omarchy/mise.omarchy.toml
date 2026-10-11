@@ -1,6 +1,6 @@
 [dotfiles]
 "~/.config/hypr/dotfiles" = { source = "hypr", mode = "symlink-each" }
-"~/.config/hypr/dotfiles/keyboard.lua" = { source = "keyboard.lua", mode = "copy" }
+# Copied: fcitx5's config tool saves by temp-file rename, which would replace a link.
 "~/.config/fcitx5/conf/keyboard.conf" = { source = "fcitx5/keyboard.conf", mode = "copy" }
 # Required from autostart.lua (not hyprland.lua) so Omarchy's refresh of hyprland.lua cannot drop it;
 # hyprland.lua loads hypr.autostart before default.hypr.toggles.
@@ -8,7 +8,7 @@
 
 [tasks."bootstrap:omarchy"]
 description = "Reload Hyprland, validate its config, restart fcitx5"
-sources = ["hypr/*.lua", "keyboard.lua", "fcitx5/keyboard.conf"]
+sources = ["hypr/*.lua", "fcitx5/keyboard.conf"]
 outputs = { auto = true }
 run = "./bootstrap.sh"
 

@@ -2,7 +2,7 @@
 "brew:FelixKratz/formulae/borders" = "latest"
 
 [dotfiles]
-"~/.config/borders/bordersrc" = { source = "bordersrc", mode = "copy", permissions = "0755" }
+"~/.config/borders/bordersrc" = { source = "bordersrc" }
 
 [tasks."bootstrap:borders"]
 description = "Trust the formula if required, then start the borders service"

@@ -5,4 +5,4 @@
 login_shell = "/opt/homebrew/bin/zsh"
 
 [dotfiles]
-"~/.config/zsh/os_functions.zsh" = { source = "os/macos/os_functions.zsh", mode = "copy" }
+"~/.config/zsh/os_functions.zsh" = { source = "os/macos/os_functions.zsh" }

@@ -1,4 +1,4 @@
 [dotfiles]
-"~/.config/ghostty/config" = { source = "config", mode = "copy" }
-"~/.config/ghostty/shaders" = { source = "shaders", mode = "copy" }
-"~/.config/ghostty/themes" = { source = "themes", mode = "copy" }
+"~/.config/ghostty/config" = { source = "config" }
+"~/.config/ghostty/shaders" = { source = "shaders", mode = "symlink-each" }
+"~/.config/ghostty/themes" = { source = "themes", mode = "symlink-each" }

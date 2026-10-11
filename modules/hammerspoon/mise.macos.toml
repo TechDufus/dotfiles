@@ -3,7 +3,10 @@
 "brew-cask:karabiner-elements" = "latest"
 
 [dotfiles]
+# Copied: Karabiner does not notice changes made through a symlinked karabiner.json.
 "~/.config/karabiner/karabiner.json" = { source = "karabiner/karabiner.json", mode = "copy" }
+# Copied: init.lua's pathwatcher reloads on changes inside ~/.hammerspoon, which edits to a
+# link's target elsewhere would not trigger.
 "~/.hammerspoon" = { source = "config", mode = "copy" }
 # Legacy top-level modules, now under config/
 "~/.hammerspoon/grid.lua" = { mode = "absent" }

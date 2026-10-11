@@ -22,7 +22,9 @@ task = "latest"
 "npm:@tailwindcss/language-server" = "latest"
 "npm:@astrojs/language-server" = "latest"
 "npm:graphql-language-service-cli" = "latest"
-"npm:svelte-language-server" = "latest"
+# svelte@4.2.20 (needed via ^4.2.19) is a real 4.x release, same publisher and upstream tag,
+# published without provenance after 5.0.0 had it; aube's no-downgrade policy blocks it otherwise.
+"npm:svelte-language-server" = { version = "latest", trust_policy_excludes = ["svelte@4.2.20"] }
 "npm:vscode-langservers-extracted" = "latest"
 "npm:@biomejs/biome" = "latest"
 "npm:@vue/language-server" = "latest"

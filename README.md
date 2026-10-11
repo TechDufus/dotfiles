@@ -1,4 +1,10 @@
+<div align="center">
+
 ![dotfiles-logo](https://github.com/TechDufus/dotfiles/assets/46715299/6c1d626d-28d2-41e3-bde5-981d9bf93462)
+
+[![CI status](https://github.com/TechDufus/dotfiles/actions/workflows/mise.yml/badge.svg)](https://github.com/TechDufus/dotfiles/actions/workflows/mise.yml)
+
+</div>
 
 # dotfiles
 
@@ -10,7 +16,8 @@ My personal dotfiles, applied with [mise](https://mise.jdx.dev/bootstrap.html) o
 | Desktop | `cachyos` | CachyOS (KDE Plasma, Steam) |
 | MacBook | `macos` | macOS |
 
-The repo is public for reference, not as a framework. Read before you borrow.
+> [!NOTE]
+> Public for reference, not as a framework. Read before you borrow.
 
 ## Bootstrap
 
@@ -18,7 +25,21 @@ The repo is public for reference, not as a framework. Read before you borrow.
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
 ```
 
-This installs git and mise, clones the repo to `~/.dotfiles`, links `~/.config/mise/conf.d` to `~/.dotfiles/modules`, records the machine profile, and runs `mise bootstrap`. Run `dotfiles` a second time on a fresh machine: some permissions and identity files apply only after the first run creates them.
+```mermaid
+flowchart TB
+  subgraph prep["bin/dotfiles"]
+    direction LR
+    git["install git, mise"] --> repo["clone or pull ~/.dotfiles"] --> link["link conf.d to modules/, record profile"]
+  end
+  subgraph boot["mise bootstrap"]
+    direction LR
+    pkgs["packages"] --> sys["/etc files, services"] --> dots["links, merges, blocks"] --> tools["tools"] --> tasks["module tasks"]
+  end
+  prep --> boot
+```
+
+> [!TIP]
+> On a fresh machine, run `dotfiles` twice: some permissions and identity files apply only after the first run creates them.
 
 ## Daily use
 

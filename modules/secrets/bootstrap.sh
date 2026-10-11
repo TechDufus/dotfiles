@@ -116,9 +116,13 @@ fi
   fi
 } | write_if_changed "$IDENTITY" 0644 || warn "could not write identity.gitconfig, skipped"
 
+# jj follows the same email as git (1Password, else the last synced value); noreply only fills a gap.
 if command -v jj >/dev/null 2>&1; then
-  if [ -z "$(jj config get user.email 2>/dev/null)" ]; then
-    jj config set --user user.email "${email:-$FALLBACK_EMAIL}" || warn "could not set jj user.email, skipped"
+  jj_email=$(jj config get user.email 2>/dev/null) || jj_email=""
+  want=$email
+  [ -n "$want" ] || [ -n "$jj_email" ] || want=$FALLBACK_EMAIL
+  if [ -n "$want" ] && [ "$want" != "$jj_email" ]; then
+    jj config set --user user.email "$want" || warn "could not set jj user.email, skipped"
   fi
 fi
 

@@ -1,3 +1,0 @@
-[bootstrap.packages]
-"brew-cask:1password" = "latest"
-"brew-cask:1password-cli" = "latest"

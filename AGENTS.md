@@ -20,7 +20,7 @@ Personal dotfiles for three machines, applied with mise: `mise bootstrap`, `[dot
 - Runtimes and global dev CLIs go in `modules/devtools`.
 
 ## Mapping rules
-1. Packages are `"<manager>:<name>" = "latest"`. `pacman:` for official repos. `aur:` only where the package is foreign on that machine (mise checks `pacman -Qm`); Omarchy's own repo ships brave-bin, 1password, 1password-cli, and herdr, so those are `pacman:` in `mise.omarchy.toml` and `aur:` or `[tools]` in `mise.cachyos.toml`. `brew:`/`brew-cask:` only in `mise.macos.toml` (elsewhere mise would install Linuxbrew); tap formulas use full names.
+1. Packages are `"<manager>:<name>" = "latest"`. `pacman:` for official repos. `aur:` only where the package is foreign on that machine (mise checks `pacman -Qm`); Omarchy's own repo ships brave-bin and herdr, so those are `pacman:` in `mise.omarchy.toml` and `aur:` or `[tools]` in `mise.cachyos.toml`. `brew:`/`brew-cask:` only in `mise.macos.toml` (elsewhere mise would install Linuxbrew); tap formulas use full names. Exception: the 1Password app and CLI are installed by the fail-soft `bootstrap:1password` task, because one failed package install stops the whole run and `dotfiles` must finish without 1Password.
 2. Tools that are not system packages (npm/bun/go globals, GitHub releases, curl installers) go in `[tools]` as `"latest"`: registry short name when one exists, otherwise `github:`/`go:`/`npm:`.
 3. Deploy modes. Decide by who writes the file:
    - Only you edit it and the app just reads it → symlink (the default; a live edit is a repo edit). A directory → `mode = "symlink-each"` when other tools also drop files into it (links for deleted sources are removed automatically), `mode = "symlink"` for a whole tree the repo owns.

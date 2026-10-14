@@ -14,7 +14,9 @@ My personal dotfiles, applied with [mise](https://mise.jdx.dev/bootstrap.html) o
 | --- | --- | --- |
 | Laptop | `omarchy` | Omarchy (Hyprland) |
 | Desktop | `cachyos` | CachyOS (KDE Plasma, Steam) |
-| MacBook | `macos` | macOS |
+| MacBook | `macos` | macOS (Apple Silicon) |
+
+Other systems stop with `unsupported machine`. The earlier Ansible version, which also covered Ubuntu, Fedora and WSL, is tagged [`ansible-final`](https://github.com/TechDufus/dotfiles/tree/ansible-final).
 
 > [!NOTE]
 > Public for reference, not as a framework. Read before you borrow.
@@ -37,6 +39,8 @@ flowchart TB
   end
   prep --> boot
 ```
+
+An existing `~/.config/mise/conf.d` that isn't already a link to `~/.dotfiles/modules` is moved to `conf.d.pre-dotfiles.<timestamp>` first.
 
 > [!TIP]
 > On a fresh machine, run `dotfiles` twice: some permissions and identity files apply only after the first run creates them.

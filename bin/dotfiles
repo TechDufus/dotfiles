@@ -91,6 +91,54 @@ sync_repo() {
   fi
 }
 
+# version_older <have> <want>: 0 when have < want, 1 when not, 2 when either side is
+# not dotted decimal. Compares field by field (2026.10.10 > 2026.10.6); bash 3.2 safe.
+version_older() {
+  local numeric='^[0-9]+(\.[0-9]+)*$' a b i x y
+  [[ $1 =~ $numeric && $2 =~ $numeric ]] || return 2
+  IFS=. read -r -a a <<<"$1"
+  IFS=. read -r -a b <<<"$2"
+  for ((i = 0; i < ${#a[@]} || i < ${#b[@]}; i++)); do
+    x=$((10#${a[i]:-0}))
+    y=$((10#${b[i]:-0}))
+    [ "$x" -eq "$y" ] && continue
+    [ "$x" -lt "$y" ] && return 0
+    return 1
+  done
+  return 1
+}
+
+installed_mise_version() { # first field of 'mise --version', e.g. 2026.10.6
+  local out first
+  out=$(mise --version 2>/dev/null || true)
+  read -r first _ <<<"$out" || true
+  echo "${first:-}"
+}
+
+# The modules need the mise named by min_version in modules/base/mise.toml; an older
+# mise ignores the module folders and bootstrap exits 0 having done nothing.
+check_mise_version() {
+  local file="$DOTFILES_DIR/modules/base/mise.toml" want have rc
+  [ -r "$file" ] || return 0
+  want=$(sed -n '/^min_version[[:space:]]*=/{s/^min_version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p;q;}' "$file")
+  [ -n "$want" ] || return 0
+  have=$(installed_mise_version)
+  rc=0
+  version_older "$have" "$want" || rc=$?
+  [ "$rc" -eq 0 ] || return 0 # new enough, or unparseable: do not block
+  if [ "$1" = macos ]; then
+    echo "dotfiles: mise $have is older than $want; running brew upgrade mise"
+    brew upgrade mise || echo "dotfiles: brew upgrade mise failed" >&2
+    have=$(installed_mise_version)
+    rc=0
+    version_older "$have" "$want" || rc=$?
+    [ "$rc" -eq 0 ] || return 0
+    die "mise $have is older than $want, which the modules need; run brew upgrade mise, then run dotfiles again"
+  fi
+  # Never sync/install here: pacman -Sy without -u is a partial upgrade, and Omarchy blocks it.
+  die "mise $have is older than $want, which the modules need; upgrade the system (update, or sudo pacman -Syu), then run dotfiles again"
+}
+
 link_conf_d() {
   local link="$MISE_DIR/conf.d" backup
   mkdir -p "$MISE_DIR"
@@ -127,6 +175,7 @@ done
 profile=$(detect_profile)
 install_prerequisites "$profile"
 sync_repo
+check_mise_version "$profile"
 link_conf_d
 write_miserc "$profile"
 exec mise bootstrap --yes "$@"

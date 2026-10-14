@@ -15,6 +15,11 @@ REAL_UNAME=$(command -v uname)
 
 cat >"$T/stub/mise" <<'EOF'
 #!/bin/sh
+# --version answers from $MISE_VERSION_FILE (default: a passing version); other argv is recorded.
+if [ "$1" = --version ]; then
+  cat "$MISE_VERSION_FILE" 2>/dev/null || echo "2026.10.6 linux-x64 (2026-10-09)"
+  exit 0
+fi
 printf '%s\n' "$@" >"$MISE_ARGV_FILE"
 exit 0
 EOF
@@ -26,7 +31,15 @@ case "$1" in
 esac
 exec "$REAL_UNAME" "$@"
 EOF
-printf '#!/bin/sh\nexit 0\n' >"$T/stub/brew"
+cat >"$T/stub/brew" <<'EOF'
+#!/bin/sh
+# Records argv; 'upgrade' installs the version in $STUB_BREW_UPGRADE_TO when set.
+printf '%s\n' "$*" >>"$BREW_ARGV_FILE"
+if [ "$1" = upgrade ] && [ -n "${STUB_BREW_UPGRADE_TO:-}" ]; then
+  echo "$STUB_BREW_UPGRADE_TO" >"$MISE_VERSION_FILE"
+fi
+exit 0
+EOF
 chmod +x "$T/stub/mise" "$T/stub/uname" "$T/stub/brew"
 
 FAILS=0
@@ -61,12 +74,14 @@ run_df() {
     esac
   done
   : >"$C/mise.argv"
+  : >"$C/brew.argv"
   if OUT=$(env -i \
     HOME="$HOME" PATH="$T/stub:$ORIG_PATH" GIT_CONFIG_NOSYSTEM=1 \
     XDG_CONFIG_HOME="$C/xdg/config" XDG_DATA_HOME="$C/xdg/data" \
     XDG_STATE_HOME="$C/xdg/state" XDG_CACHE_HOME="$C/xdg/cache" \
     DOTFILES_DIR="$DOTFILES_DIR" DOTFILES_SYSROOT="$SYSROOT" \
     MISE_ARGV_FILE="$C/mise.argv" REAL_UNAME="$REAL_UNAME" \
+    MISE_VERSION_FILE="$C/mise.version" BREW_ARGV_FILE="$C/brew.argv" \
     STUB_UNAME_S=Linux STUB_UNAME_M=x86_64 \
     ${envs[@]+"${envs[@]}"} \
     "$BIN" ${args[@]+"${args[@]}"} 2>"$C/stderr"); then
@@ -81,10 +96,12 @@ expect_eq() { [ "$1" = "$2" ] || fail "$3: expected '$2', got '$1'"; }
 expect_rc() { [ "$RC" -eq "$1" ] || fail "exit status: expected $1, got $RC (stderr: $ERR)"; }
 expect_contains() { case $1 in *"$2"*) ;; *) fail "$3: '$2' not in '$1'" ;; esac; }
 
-init_repo() { # init_repo <dir>: repo with one commit, no upstream
+init_repo() { # init_repo <dir>: repo with one commit (incl. modules/base/mise.toml), no upstream
   git init -q -b main "$1"
   echo one >"$1/f"
-  git -C "$1" add f
+  mkdir -p "$1/modules/base"
+  printf 'min_version = "2026.10.6"\n\n[tasks.bootstrap]\nrun = "true"\n' >"$1/modules/base/mise.toml"
+  git -C "$1" add f modules
   gitc -C "$1" commit -q -m one
 }
 
@@ -223,6 +240,95 @@ init_repo "$DOTFILES_DIR"
 run_df DOTFILES_PROFILE=cachyos --dry-run
 expect_rc 0
 expect_contains "$OUT" "no upstream for main" "message"
+
+# ---- mise version guard ----
+# set_mise_version <version>: what the stub mise reports for --version.
+set_mise_version() { echo "$1 linux-x64 (2026-01-01)" >"$C/mise.version"; }
+
+new_case mise-version-equal
+init_repo "$DOTFILES_DIR"
+set_mise_version 2026.10.6
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 0
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+new_case mise-version-numeric-compare
+init_repo "$DOTFILES_DIR"
+set_mise_version 2026.10.10
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 0
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+new_case mise-version-longer-field-count
+init_repo "$DOTFILES_DIR"
+set_mise_version 2027.1
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 0
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+new_case mise-version-too-old-linux
+init_repo "$DOTFILES_DIR"
+set_mise_version 2026.9.1
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 1
+expect_contains "$ERR" "mise 2026.9.1 is older than 2026.10.6" stderr
+expect_contains "$ERR" "pacman -Syu" "upgrade hint"
+expect_eq "$(cat "$C/mise.argv")" "" "mise bootstrap must not run"
+expect_eq "$(cat "$C/brew.argv")" "" "brew must not run on Linux"
+
+new_case mise-version-non-numeric
+init_repo "$DOTFILES_DIR"
+set_mise_version dev
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 0
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+new_case mise-version-no-min-line
+init_repo "$DOTFILES_DIR"
+printf '[tasks.bootstrap]\nrun = "true"\n' >"$DOTFILES_DIR/modules/base/mise.toml"
+set_mise_version 2020.1.1
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 0
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+new_case mise-version-no-base-file
+init_repo "$DOTFILES_DIR"
+rm "$DOTFILES_DIR/modules/base/mise.toml"
+set_mise_version 2020.1.1
+run_df DOTFILES_PROFILE=cachyos --dry-run
+expect_rc 0
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+# macOS cases reach brew only through the stub, and only when the real
+# /opt/homebrew/bin/brew (whose shellenv would shadow the stubs) is absent.
+if [ -x /opt/homebrew/bin/brew ]; then
+  echo "SKIP macos mise version cases: /opt/homebrew/bin/brew exists on this machine" >&2
+else
+  new_case mise-version-old-macos-upgrade-fixes
+  init_repo "$DOTFILES_DIR"
+  set_mise_version 2026.9.1
+  run_df DOTFILES_PROFILE=macos STUB_BREW_UPGRADE_TO="2026.10.10 macos-arm64 (2026-10-09)" --dry-run
+  expect_rc 0
+  expect_eq "$(cat "$C/brew.argv")" "upgrade mise" "brew argv"
+  expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
+
+  new_case mise-version-old-macos-still-old
+  init_repo "$DOTFILES_DIR"
+  set_mise_version 2026.9.1
+  run_df DOTFILES_PROFILE=macos --dry-run
+  expect_rc 1
+  expect_eq "$(cat "$C/brew.argv")" "upgrade mise" "brew argv (upgraded once)"
+  expect_contains "$ERR" "mise 2026.9.1 is older than 2026.10.6" stderr
+  expect_contains "$ERR" "brew upgrade mise" "upgrade hint"
+  expect_eq "$(cat "$C/mise.argv")" "" "mise bootstrap must not run"
+
+  new_case mise-version-current-macos-no-brew
+  init_repo "$DOTFILES_DIR"
+  set_mise_version 2026.10.10
+  run_df DOTFILES_PROFILE=macos --dry-run
+  expect_rc 0
+  expect_eq "$(cat "$C/brew.argv")" "" "brew must not run when mise is current"
+fi
 
 if [ "$FAILS" -ne 0 ]; then
   echo "test_bin_dotfiles: $FAILS failure(s)" >&2

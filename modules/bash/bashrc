@@ -107,7 +107,6 @@ plugins=(
   ansible
   bashmarks
   git
-  goenv
   golang
   kubectl
   progress

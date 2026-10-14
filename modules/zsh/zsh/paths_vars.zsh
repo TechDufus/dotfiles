@@ -14,7 +14,3 @@ addToPath /opt/whalebrew/bin
 addToPathFront "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
 addToPathFront "$HOME/.local/bin"
 addToPathFront /usr/lib/ccache
-
-if command -v rbenv >/dev/null 2>&1; then
-  addToPathFront /opt/homebrew/opt/ruby/bin
-fi

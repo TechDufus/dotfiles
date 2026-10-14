@@ -15,12 +15,50 @@ REAL_UNAME=$(command -v uname)
 
 cat >"$T/stub/mise" <<'EOF'
 #!/bin/sh
-# --version answers from $MISE_VERSION_FILE (default: a passing version); other argv is recorded.
+# --version answers from $MISE_VERSION_FILE (default: a passing version).
+# 'bootstrap --only X ...' (a stage) is recorded in $MISE_CALLS_FILE; any bootstrap call
+# overwrites $MISE_ARGV_FILE. Stage behaviour comes from the STUB_* variables.
 if [ "$1" = --version ]; then
   cat "$MISE_VERSION_FILE" 2>/dev/null || echo "2026.10.6 linux-x64 (2026-10-09)"
   exit 0
 fi
+case "$1 $2" in
+  "tasks ls") printf 'bootstrap\nbootstrap:alpha\nbootstrap:beta\nbootstrap:secrets\ntest:base\n'; exit 0 ;;
+  "ls --missing") exit 0 ;;
+  "bootstrap plan") echo "${STUB_PLAN_JSON:-{\}}"; exit 0 ;;
+  "bootstrap user") echo "/usr/bin/zsh  /bin/bash  ${STUB_SHELL_STATE:-set}"; exit 0 ;;
+  "dot status")
+    case " $* " in *" --json "*) echo '{"files":[],"edits":[]}'; exit 0 ;; esac
+    n=$(cat "$STUB_DOT_COUNT_FILE" 2>/dev/null || echo 0)
+    if [ "$n" -gt 0 ]; then echo $((n - 1)) >"$STUB_DOT_COUNT_FILE"; exit 1; fi
+    exit 0
+    ;;
+esac
 printf '%s\n' "$@" >"$MISE_ARGV_FILE"
+echo "$*" >>"$MISE_CALLS_FILE"
+only="" prev="" dry=0
+for a in "$@"; do
+  [ "$prev" != --only ] || only=$a
+  [ "$a" != --dry-run ] || dry=1
+  prev=$a
+done
+[ -n "$only" ] || exit 0
+echo "mise bootstrap: stub $only"
+if [ "$only" = "${STUB_FAIL_ONLY:-}" ]; then echo "stub: boom in $only"; exit 3; fi
+if [ "$dry" = 1 ]; then
+  case $only in
+    accounts,plugins,packages) printf 'mise pacman: 3 package(s) already installed\nsudo pacman -S --noconfirm --needed -- cowsay\n' ;;
+    tools) echo 'mise npm:left-pad@1.3.0 ⇢ would install' ;;
+  esac
+fi
+[ "$only" != task,final-hook ] || printf '%b' "${STUB_MODULES_OUT:-}"
+exit 0
+EOF
+cat >"$T/stub/sudo" <<'EOF'
+#!/bin/sh
+# Records argv; 'sudo -n true' answers with $STUB_SUDO_N (0 = passwordless).
+echo "$*" >>"$SUDO_LOG"
+[ "$*" != "-n true" ] || exit "${STUB_SUDO_N:-0}"
 exit 0
 EOF
 cat >"$T/stub/uname" <<'EOF'
@@ -40,7 +78,7 @@ if [ "$1" = upgrade ] && [ -n "${STUB_BREW_UPGRADE_TO:-}" ]; then
 fi
 exit 0
 EOF
-chmod +x "$T/stub/mise" "$T/stub/uname" "$T/stub/brew"
+chmod +x "$T/stub/mise" "$T/stub/uname" "$T/stub/brew" "$T/stub/sudo"
 
 FAILS=0
 CASE=""
@@ -74,14 +112,17 @@ run_df() {
     esac
   done
   : >"$C/mise.argv"
+  : >"$C/mise.calls"
+  : >"$C/sudo.log"
   : >"$C/brew.argv"
   if OUT=$(env -i \
     HOME="$HOME" PATH="$T/stub:$ORIG_PATH" GIT_CONFIG_NOSYSTEM=1 \
     XDG_CONFIG_HOME="$C/xdg/config" XDG_DATA_HOME="$C/xdg/data" \
     XDG_STATE_HOME="$C/xdg/state" XDG_CACHE_HOME="$C/xdg/cache" \
     DOTFILES_DIR="$DOTFILES_DIR" DOTFILES_SYSROOT="$SYSROOT" \
-    MISE_ARGV_FILE="$C/mise.argv" REAL_UNAME="$REAL_UNAME" \
+    MISE_ARGV_FILE="$C/mise.argv" MISE_CALLS_FILE="$C/mise.calls" REAL_UNAME="$REAL_UNAME" \
     MISE_VERSION_FILE="$C/mise.version" BREW_ARGV_FILE="$C/brew.argv" \
+    SUDO_LOG="$C/sudo.log" STUB_DOT_COUNT_FILE="$C/dot.count" \
     STUB_UNAME_S=Linux STUB_UNAME_M=x86_64 \
     ${envs[@]+"${envs[@]}"} \
     "$BIN" ${args[@]+"${args[@]}"} 2>"$C/stderr"); then
@@ -329,6 +370,147 @@ else
   expect_rc 0
   expect_eq "$(cat "$C/brew.argv")" "" "brew must not run when mise is current"
 fi
+
+# ---- UI mode (DOTFILES_UI=1: no terminal, no animation, just the final lines) ----
+STAGE_CALLS='bootstrap --yes --only accounts,plugins,packages
+bootstrap --yes --only files,services,firewall,compose
+bootstrap --yes --only repos,dotfiles
+bootstrap --yes --only mise-shell-activate,macos-defaults,macos-launchd-agents,linux-systemd-units,user
+bootstrap --yes --only tools
+bootstrap --yes --only task,final-hook'
+calls() { cat "$C/mise.calls"; }
+ui_case() { # ui_case <name> [run_df words]: fresh repo, cachyos, UI forced
+  local name=$1
+  shift
+  new_case "$name"
+  init_repo "$DOTFILES_DIR"
+  run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 "$@"
+}
+
+ui_case ui-stage-order
+expect_rc 0
+expect_eq "$(calls)" "$STAGE_CALLS" "stage invocations"
+expect_contains "$OUT" "◆ dotfiles" "header"
+expect_contains "$OUT" "cachyos ·" "header profile"
+expect_contains "$OUT" "no upstream for main" "repo warning line"
+expect_contains "$OUT" "✓ converged in" "footer"
+expect_contains "$OUT" "$C/xdg/state/dotfiles/last-run.log" "log path in footer"
+for s in packages system dotfiles shell tools modules; do expect_contains "$OUT" "✓ $s" "stage line $s"; done
+case $OUT in *$'\033'*) fail "escape sequences without a terminal" ;; esac
+LOGF="$C/xdg/state/dotfiles/last-run.log"
+expect_contains "$(cat "$LOGF")" "profile: cachyos" "log header"
+expect_contains "$(cat "$LOGF")" '$ mise bootstrap --yes --only files,services,firewall,compose' "stage command in log"
+expect_contains "$(cat "$LOGF")" "mise bootstrap: stub tools" "stage output in log"
+expect_contains "$OUT" "✓ packages   done" "result without plan details"
+expect_eq "$(calls | grep -c 'only repos,dotfiles')" 1 "no second pass when converged"
+if [ "$(id -u)" -ne 0 ]; then expect_eq "$(cat "$C/sudo.log")" "-n true" "a valid sudo ticket is not renewed"; fi
+
+ui_case ui-only-dotfiles --only dotfiles
+expect_rc 0
+expect_eq "$(calls)" "bootstrap --yes --only dotfiles" "--only dotfiles"
+expect_contains "$OUT" "✓ dotfiles" "dotfiles stage line"
+case $OUT in *"✓ tools"*) fail "tools stage shown for --only dotfiles" ;; esac
+
+ui_case ui-only-equals --only=tools,task
+expect_eq "$(calls)" "bootstrap --yes --only tools
+bootstrap --yes --only task" "--only=tools,task"
+
+ui_case ui-skip-tools --skip tools
+expect_rc 0
+expect_eq "$(calls)" "$(printf '%s\n' "$STAGE_CALLS" | grep -v 'only tools$')" "--skip tools"
+case $OUT in *"✓ tools"*) fail "tools stage shown for --skip tools" ;; esac
+
+ui_case ui-shell-chsh STUB_SHELL_STATE=differs
+expect_rc 0
+expect_contains "$OUT" "chsh may ask for your password" "shell stage on the terminal when chsh runs"
+expect_eq "$(calls)" "$STAGE_CALLS" "stage invocations with an attended shell stage"
+case $(cat "$C/xdg/state/dotfiles/last-run.log") in
+  *"--only mise-shell-activate,macos-defaults,macos-launchd-agents,linux-systemd-units,user (on the terminal"*) ;;
+  *) fail "attended shell stage not noted in the log" ;;
+esac
+ui_case ui-shell-set
+case $OUT in *chsh*) fail "chsh note shown although the shell is already set" ;; esac
+
+
+ui_case ui-failure STUB_FAIL_ONLY=files,services,firewall,compose
+expect_rc 3
+expect_eq "$(calls)" "$(printf '%s\n' "$STAGE_CALLS" | sed -n 1,2p)" "no stage after the failed one"
+expect_contains "$OUT" "✓ packages" "stage before the failure"
+expect_contains "$OUT" "✗ system" "failed stage line"
+expect_contains "$OUT" "stub: boom in files,services,firewall,compose" "log tail in the box"
+expect_contains "$OUT" "$C/xdg/state/dotfiles/last-run.log" "log path"
+expect_contains "$OUT" "✗ failed in" "footer"
+expect_contains "$(cat "$C/xdg/state/dotfiles/last-run.log")" '$ mise bootstrap --yes --only files,services,firewall,compose' "stage command in log"
+
+MODULES_OUT='[bootstrap:alpha] $ ./bootstrap.sh\nalpha fine\n[bootstrap:beta] sources up-to-date, skipping\n[bootstrap:secrets] $ ./bootstrap.sh\nsecrets: 1Password locked, skipped\n'
+PLAN='{"resources":[{"id":{"kind":"package","name":"pacman:jq"},"action":"noop"},{"id":{"kind":"package","name":"pacman:bat"},"action":"create"},{"id":{"kind":"file","name":"/etc/x"},"action":"noop"}]}'
+ui_case ui-module-warnings "STUB_MODULES_OUT=$MODULES_OUT" "STUB_PLAN_JSON=$PLAN"
+expect_rc 0
+expect_contains "$OUT" "✓ modules" "modules stage line"
+expect_contains "$OUT" "2 ran · 1 up to date" "modules result"
+expect_contains "$OUT" "! secrets" "warning names the module"
+expect_contains "$OUT" "1Password locked, skipped" "warning message"
+case $OUT in *"! beta"*) fail "an up-to-date task is not a warning" ;; esac
+if command -v jq >/dev/null 2>&1; then
+  expect_contains "$OUT" "1 present · 1 installed: bat" "package result"
+  expect_contains "$OUT" "1 file unchanged" "system file result"
+else
+  echo "SKIP plan details: jq missing" >&2
+fi
+
+# dot status --missing failing once: permission entries on merge-created files need a second pass.
+new_case ui-second-pass
+init_repo "$DOTFILES_DIR"
+echo 1 >"$C/dot.count"
+run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 -j 2 --force-dotfiles --yes
+expect_rc 0
+DOTFILES_CALL='bootstrap --yes --only repos,dotfiles -j 2 --force-dotfiles'
+expect_eq "$(calls | sed -n 3,4p)" "$DOTFILES_CALL
+$DOTFILES_CALL" "dotfiles stage runs twice, flags on both"
+expect_eq "$(calls | wc -l | tr -d ' ')" 7 "other stages run once"
+
+for plain_args in "--plain" "-v" "--prompt-secrets" "--only bogus" "--only dotfiles --skip tools"; do
+  new_case "plain-trigger $plain_args"
+  init_repo "$DOTFILES_DIR"
+  # shellcheck disable=SC2086
+  run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 $plain_args
+  expect_rc 0
+  want="bootstrap --yes ${plain_args#--plain}"
+  expect_eq "$(calls)" "${want% }" "single plain exec for '$plain_args'"
+  case $OUT in *"◆ dotfiles"*) fail "UI header in plain mode for '$plain_args'" ;; esac
+done
+new_case plain-ui-disabled
+init_repo "$DOTFILES_DIR"
+run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=0
+expect_eq "$(calls)" "bootstrap --yes" "DOTFILES_UI=0 stays plain"
+
+ui_case ui-dry-run --dry-run
+expect_rc 0
+expect_eq "$(calls)" "$(printf '%s\n' "$STAGE_CALLS" | sed 's/$/ --dry-run/')" "every stage gets --dry-run"
+expect_contains "$OUT" "dry run" "dry-run badge and footer"
+expect_contains "$OUT" "✓ dry run in" "footer"
+expect_contains "$OUT" "1 change" "packages change count"
+expect_contains "$OUT" "sudo pacman -S --noconfirm --needed -- cowsay" "change line"
+expect_contains "$OUT" "npm:left-pad@1.3.0 ⇢ would install" "tools change line"
+expect_contains "$OUT" "✓ system     no changes" "unchanged stage"
+expect_contains "$OUT" "would run 3 tasks" "module task count"
+expect_contains "$OUT" "alpha beta secrets" "module task names"
+case $OUT in *"mise bootstrap:"*) fail "section headers leak into the dry-run output" ;; esac
+expect_contains "$(cat "$C/xdg/state/dotfiles/last-run.log")" "args: --dry-run" "log header names the arguments"
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "SKIP sudo priming: running as root" >&2
+else
+  ui_case ui-sudo-primed STUB_SUDO_N=1
+  expect_contains "$(cat "$C/sudo.log")" "-v" "sudo -v runs when no ticket exists"
+  expect_contains "$OUT" "password needed" "sudo line"
+  ui_case ui-sudo-not-needed STUB_SUDO_N=1 --only tools,dotfiles
+  expect_eq "$(cat "$C/sudo.log")" "" "no sudo for parts that need none"
+fi
+
+usage_out=$(env -i HOME="$HOME" PATH="$T/stub:$ORIG_PATH" "$BIN" --help)
+expect_contains "$usage_out" "--plain" "help documents --plain"
+expect_contains "$usage_out" "last-run.log" "help names the log"
 
 if [ "$FAILS" -ne 0 ]; then
   echo "test_bin_dotfiles: $FAILS failure(s)" >&2

@@ -3,7 +3,7 @@
 Personal dotfiles for three machines, applied with mise: `mise bootstrap`, `[dotfiles]`, `[tools]`, and tasks. No Ansible.
 
 ## Layout
-- `bin/dotfiles`: curl entrypoint and daily wrapper. Installs git and mise, pulls this repo, links `~/.config/mise/conf.d` → `~/.dotfiles/modules`, writes the profile to `~/.config/mise/miserc.local.toml`, then runs `mise bootstrap --yes`.
+- `bin/dotfiles`: curl entrypoint and daily wrapper. Installs git and mise, pulls this repo, links `~/.config/mise/conf.d` → `~/.dotfiles/modules`, writes the profile to `~/.config/mise/miserc.local.toml`, then runs `mise bootstrap`. In a terminal it runs the bootstrap parts stage by stage behind a summary view and logs mise's output to `~/.local/state/dotfiles/last-run.log`; piped or with `--plain` it is one `mise bootstrap --yes` with mise's own output.
 - `modules/<name>/`: one mise conf.d folder per module: env files, config sources, `bootstrap.sh`, `tests/`.
 - `modules/base`: `min_version`, package managers, and the `bootstrap` and `check` tasks.
 

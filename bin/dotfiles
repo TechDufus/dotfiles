@@ -7,10 +7,24 @@ DOTFILES_DIR=${DOTFILES_DIR:-$HOME/.dotfiles}
 DOTFILES_SYSROOT=${DOTFILES_SYSROOT:-} # prefix for /etc and /usr lookups; exists for tests
 REPO_URL=https://github.com/TechDufus/dotfiles.git
 MISE_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/mise
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
+LOG=$STATE_DIR/last-run.log
+
+# Bootstrap stages, in mise's own order (mise bootstrap --help). 'files' with
+# phase = "pre-packages" would have to run before packages; no module uses it.
+STAGES="packages system dotfiles shell tools modules"
+KNOWN_PARTS=" accounts plugins packages files services firewall compose repos dotfiles mise-shell-activate macos-defaults macos-launchd-agents linux-systemd-units user tools task final-hook "
+SUDO_PARTS=" accounts plugins packages files services firewall linux-systemd-units user "
+
+UI=0 PLAIN=0 ANIM=0 COLOR=0 DRY=0 ONLY="" SKIP="" PASS=()
+CHILD="" SUDO_PID="" INFO="" LOG_OFF=0 RIGHT=78 NOW=0 T0=0 RUN_T0=0 HAVE_FRAC=0
+FIT="" ROW="" FMT="" DETAIL="" RESULT="" EXTRA=() WARNS=() TASK_TOTAL=0 COLS=80 HOST="" SELECTED=""
+RST="" BOLD="" C_TEXT="" C_SUB="" C_OVR="" C_SURF="" C_MAUVE="" C_BLUE="" C_GREEN="" C_YELLOW="" C_RED="" C_PEACH=""
+FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
 usage() {
   cat <<EOF
-Usage: dotfiles [--profile] [mise bootstrap flags...]
+Usage: dotfiles [--profile] [--plain] [mise bootstrap flags...]
 
 Installs git and mise, clones or updates $DOTFILES_DIR, links
 $MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
@@ -18,11 +32,19 @@ $MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
 Flags passed through to mise bootstrap:
   --dry-run          preview every change without applying it
   --only <parts>     run only these parts, e.g. --only dotfiles,tools
+  --skip <parts>     run everything except these parts
   --force-dotfiles   replace files that conflict with [dotfiles] entries
 
 Other:
+  --plain            print mise's own log instead of the progress screen
   --profile          print the detected machine profile and exit
   -h, --help         show this help
+
+On a terminal, dotfiles runs bootstrap in six stages (packages, system, dotfiles,
+shell, tools, modules) and draws a progress screen. mise's output goes to
+$LOG
+The screen is replaced by mise's own log with --plain, DOTFILES_UI=0, NO_COLOR,
+a non-terminal stdout/stderr, or any other flag (-v, --raw, -q, --from, ...).
 
 Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
 State: mise dot status, mise bootstrap status. Checks: cd ~ && mise run check
@@ -33,6 +55,8 @@ die() {
   echo "dotfiles: $*" >&2
   exit 1
 }
+
+# ---- detection, repo and mise setup (shared by both modes) ----
 
 detect_profile() {
   if [ -n "${DOTFILES_PROFILE:-}" ]; then
@@ -63,31 +87,71 @@ detect_profile() {
 }
 
 install_prerequisites() {
+  local pkg missing=""
   if [ "$1" = macos ]; then
     if ! command -v brew >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/brew ]; then
+      step run prereqs "installing Homebrew"
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      step ok prereqs "Homebrew installed"
     fi
     if [ -x /opt/homebrew/bin/brew ]; then
       eval "$(/opt/homebrew/bin/brew shellenv)"
     fi
     for pkg in git mise; do
-      command -v "$pkg" >/dev/null 2>&1 || brew install "$pkg"
+      if ! command -v "$pkg" >/dev/null 2>&1; then
+        step run prereqs "installing $pkg"
+        brew install "$pkg"
+        step ok prereqs "$pkg installed"
+      fi
     done
-  elif ! command -v git >/dev/null 2>&1 || ! command -v mise >/dev/null 2>&1; then
+    return 0
+  fi
+  for pkg in git mise; do
+    command -v "$pkg" >/dev/null 2>&1 || missing="$missing${missing:+ }$pkg"
+  done
+  if [ -n "$missing" ]; then
+    step run prereqs "installing $missing"
     # Never -Syu here: Omarchy blocks unmanaged system upgrades.
     sudo pacman -S --needed --noconfirm git mise
+    step ok prereqs "installed $missing"
   fi
 }
 
+# warn_step <label> <ui text> <plain text>: a '!' row in the UI, a "dotfiles:" line otherwise.
+warn_step() {
+  if [ "$UI" = 1 ]; then step warn "$1" "$2"; else echo "dotfiles: $3"; fi
+}
+
+pull_repo() {
+  local before after count
+  before=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD)
+  git -C "$DOTFILES_DIR" pull --ff-only --quiet
+  [ "$UI" = 1 ] || return 0
+  after=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD)
+  if [ "$before" = "$after" ]; then
+    step ok repo "up to date"
+    return 0
+  fi
+  count=$(git -C "$DOTFILES_DIR" rev-list --count "$before..$after")
+  step ok repo "pulled $count commit$([ "$count" -eq 1 ] || echo s) ($before → $after)"
+}
+
 sync_repo() {
+  local branch
   if [ ! -e "$DOTFILES_DIR/.git" ]; then
-    git clone "$REPO_URL" "$DOTFILES_DIR"
+    if [ "$UI" = 1 ]; then
+      git clone --quiet "$REPO_URL" "$DOTFILES_DIR"
+      step ok repo cloned
+    else
+      git clone "$REPO_URL" "$DOTFILES_DIR"
+    fi
   elif [ -n "$(git -C "$DOTFILES_DIR" status --porcelain --untracked-files=no)" ]; then
-    echo "dotfiles: local changes in $DOTFILES_DIR, skipping pull"
+    warn_step repo "local changes; not pulled" "local changes in $DOTFILES_DIR, skipping pull"
   elif ! git -C "$DOTFILES_DIR" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
-    echo "dotfiles: no upstream for $(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD), skipping pull"
+    branch=$(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD)
+    warn_step repo "no upstream for $branch" "no upstream for $branch, skipping pull"
   else
-    git -C "$DOTFILES_DIR" pull --ff-only --quiet
+    pull_repo
   fi
 }
 
@@ -145,7 +209,7 @@ link_conf_d() {
   if { [ -e "$link" ] || [ -L "$link" ]; } && [ "$(readlink "$link" || true)" != "$DOTFILES_DIR/modules" ]; then
     backup="$link.pre-dotfiles.$(date +%s)"
     mv "$link" "$backup"
-    echo "dotfiles: moved existing $link to $backup"
+    warn_step conf.d "moved existing conf.d to $backup" "moved existing $link to $backup"
   fi
   ln -sfn "$DOTFILES_DIR/modules" "$link"
 }
@@ -158,6 +222,690 @@ write_miserc() {
     printf '%s\n' "$want" >"$rc"
   fi
 }
+
+# ---- mode selection: UI only for a terminal and arguments the stages can replay ----
+
+in_list() { # in_list <a,b,c> <item>
+  case ",$1," in *",$2,"*) return 0 ;; esac
+  return 1
+}
+
+add_filter() { # add_filter <--only|--skip> <a,b>: fails on a name mise would reject
+  local part
+  local IFS=,
+  for part in $2; do
+    case $KNOWN_PARTS in *" $part "*) ;; *) return 1 ;; esac
+  done
+  if [ "$1" = --only ]; then ONLY="$ONLY${ONLY:+,}$2"; else SKIP="$SKIP${SKIP:+,}$2"; fi
+}
+
+# parse_ui_args <args>: fills PASS/DRY/ONLY/SKIP; fails for anything the stages cannot
+# replay, so mise sees those arguments untouched in plain mode.
+parse_ui_args() {
+  local a
+  PASS=() DRY=0 ONLY="" SKIP=""
+  while [ $# -gt 0 ]; do
+    a=$1
+    shift
+    case $a in
+      -n | --dry-run) DRY=1 PASS+=(--dry-run) ;;
+      -y | --yes) ;; # every stage already passes --yes
+      --force-dotfiles | --update | --skip-dirty | --locked) PASS+=("$a") ;;
+      -j | --jobs)
+        [ $# -gt 0 ] && [[ $1 =~ ^[0-9]+$ ]] || return 1
+        PASS+=("$a" "$1")
+        shift
+        ;;
+      --jobs=*)
+        [[ ${a#*=} =~ ^[0-9]+$ ]] || return 1
+        PASS+=("$a")
+        ;;
+      --only | --skip)
+        [ $# -gt 0 ] || return 1
+        add_filter "$a" "$1" || return 1
+        shift
+        ;;
+      --only=* | --skip=*) add_filter "${a%%=*}" "${a#*=}" || return 1 ;;
+      *) return 1 ;;
+    esac
+  done
+  [ -z "$ONLY" ] || [ -z "$SKIP" ] # mise rejects --only together with --skip
+}
+
+use_ui() {
+  [ "$PLAIN" = 0 ] || return 1
+  [ "${DOTFILES_UI:-}" != 0 ] || return 1
+  parse_ui_args "$@" || return 1
+  [ "${DOTFILES_UI:-}" = 1 ] && return 0 # forced: no terminal needed, no animation
+  [ -t 1 ] && [ -t 2 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${NO_COLOR:-}" ]
+}
+
+# ---- terminal helpers ----
+
+# ensure_utf8: the layout counts characters, so ${#x} must see UTF-8.
+ensure_utf8() {
+  local probe='✓' loc
+  [ "${#probe}" -eq 1 ] && return 0
+  for loc in C.UTF-8 en_US.UTF-8; do
+    export LC_ALL=$loc
+    [ "${#probe}" -eq 1 ] && return 0
+  done
+  unset LC_ALL
+}
+
+term_cols() { # -> COLS
+  COLS=""
+  if [ -n "${COLUMNS:-}" ]; then
+    COLS=$COLUMNS
+  elif [ "$ANIM" = 1 ]; then
+    read -r _ COLS < <({ stty size </dev/tty; } 2>/dev/null) || true
+  fi
+  case $COLS in '' | *[!0-9]*) COLS=80 ;; esac
+}
+
+setup_colors() {
+  [ "$COLOR" = 1 ] || return 0
+  RST=$'\033[0m' BOLD=$'\033[1m'
+  C_TEXT=$'\033[38;2;205;214;244m' C_SUB=$'\033[38;2;166;173;200m' C_OVR=$'\033[38;2;127;132;156m'
+  C_SURF=$'\033[38;2;88;91;112m' C_MAUVE=$'\033[38;2;203;166;247m' C_BLUE=$'\033[38;2;137;180;250m'
+  C_GREEN=$'\033[38;2;166;227;161m' C_YELLOW=$'\033[38;2;249;226;175m' C_RED=$'\033[38;2;243;139;168m'
+  C_PEACH=$'\033[38;2;250;179;135m'
+}
+
+now_ms() { # NOW in ms; $EPOCHREALTIME needs bash 5, /bin/bash 3.2 falls back to whole seconds
+  if [ -n "${EPOCHREALTIME:-}" ]; then
+    local t=${EPOCHREALTIME/[.,]/}
+    NOW=$((10#$t / 1000))
+  else
+    NOW=$((SECONDS * 1000))
+  fi
+}
+
+fmt_time() { # fmt_time <ms> -> FMT: 18.2s, 4s, 1m 12s
+  local ms=$1 s
+  s=$((ms / 1000))
+  if [ "$s" -ge 60 ]; then
+    FMT="$((s / 60))m $((s % 60))s"
+  elif [ "$HAVE_FRAC" = 1 ]; then
+    FMT="$s.$(((ms % 1000) / 100))s"
+  else
+    FMT="${s}s"
+  fi
+}
+
+fit() { # fit <text> <width> -> FIT, truncated with an ellipsis
+  if [ "${#1}" -gt "$2" ]; then FIT="${1:0:$(($2 - 1))}…"; else FIT=$1; fi
+}
+
+rule() { # rule <width> -> REP of that many ─
+  printf -v REP '%*s' "$1" ''
+  REP=${REP// /─}
+}
+
+osc() { # osc <state;percent>: terminal tab progress (OSC 9;4)
+  [ "$ANIM" = 0 ] || printf '\033]9;4;%s\a' "$1"
+  return 0
+}
+
+# stage_row <color> <glyph> <label> <detail> <elapsed> -> ROW (4-space indent, label padded to 10)
+stage_row() {
+  local room=$((RIGHT - 2 - 17 - 8)) pad
+  fit "$4" "$room"
+  if [ -n "$5" ]; then
+    printf -v pad '%*s' $((room - ${#FIT})) ''
+    printf -v ROW '    %s%s%s %s%-10s%s %s%s%s%s %s%7s%s' "$1" "$2" "$RST" "$BOLD$C_TEXT" "$3" "$RST" "$C_SUB" "$FIT" "$RST" "$pad" "$C_OVR" "$5" "$RST"
+  else
+    printf -v ROW '    %s%s%s %s%-10s%s %s%s%s' "$1" "$2" "$RST" "$BOLD$C_TEXT" "$3" "$RST" "$C_SUB" "$FIT" "$RST"
+  fi
+}
+
+row_out() { # print ROW, replacing a spinner frame when animated
+  if [ "$ANIM" = 1 ]; then printf '\r\033[K'; fi
+  printf '%s\n' "$ROW"
+}
+
+# step <ok|run|warn|fail> <label> <text>: one finished line before or between stages (UI only)
+step() {
+  [ "$UI" = 1 ] || return 0
+  case $1 in
+    ok) stage_row "$C_GREEN" ✓ "$2" "$3" "" ;;
+    run) stage_row "$C_BLUE" → "$2" "$3" "" ;;
+    warn) stage_row "$C_YELLOW" '!' "$2" "$3" "" ;;
+    fail) stage_row "$C_RED" ✗ "$2" "$3" "" ;;
+  esac
+  row_out
+}
+
+draw_header() { # draw_header <profile>
+  local branch="" sha="" meta badge="" width=$((RIGHT - 2)) inner gap top
+  inner=$((width - 2))
+  if [ -e "$DOTFILES_DIR/.git" ]; then
+    branch=$(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    sha=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || true)
+  fi
+  short_host
+  meta="$1 · ${USER:-$(id -un)}@$HOST${branch:+ · $branch}${sha:+ $sha}"
+  [ "$DRY" = 0 ] || badge="  dry run"
+  # Too long: drop "user@" before cutting into the branch and commit.
+  [ "${#meta}" -le $((inner - 14 - ${#badge})) ] || meta="$1 · $HOST${branch:+ · $branch}${sha:+ $sha}"
+  fit "$meta" $((inner - 14 - ${#badge}))
+  meta=$FIT
+  printf -v gap '%*s' $((inner - 14 - ${#meta} - ${#badge})) ''
+  rule $((width - 2))
+  top=$REP
+  printf '\n  %s╭%s╮%s\n' "$C_SURF" "$top" "$RST"
+  printf '  %s│%s %s◆%s %sdotfiles%s  %s%s%s%s%s%s%s %s│%s\n' "$C_SURF" "$RST" "$C_MAUVE" "$RST" "$BOLD$C_TEXT" "$RST" \
+    "$C_SUB" "$meta" "$RST" "$gap" "$C_PEACH" "$badge" "$RST" "$C_SURF" "$RST"
+  printf '  %s╰%s╯%s\n\n' "$C_SURF" "$top" "$RST"
+}
+
+short_host() { # -> HOST
+  HOST=${HOSTNAME:-}
+  [ -n "$HOST" ] || HOST=$(uname -n)
+  HOST=${HOST%%.*}
+}
+
+# draw_box <title> <lines on stdin>: rounded box of the last lines of a failed stage
+draw_box() {
+  local width=$((RIGHT - 4)) inner line pad
+  inner=$((width - 4))
+  rule $((width - 5 - ${#1}))
+  printf '    %s╭─ %s%s%s %s╮%s\n' "$C_SURF" "$C_SUB" "$1" "$C_SURF" "$REP" "$RST"
+  while IFS= read -r line; do
+    fit "${line//$'\t'/ }" "$inner"
+    printf -v pad '%*s' $((inner - ${#FIT})) ''
+    printf '    %s│%s %s%s%s%s %s│%s\n' "$C_SURF" "$RST" "$C_SUB" "$FIT" "$RST" "$pad" "$C_SURF" "$RST"
+  done
+  rule $((width - 2))
+  printf '    %s╰%s╯%s\n' "$C_SURF" "$REP" "$RST"
+}
+
+# ---- log, live detail and results of one stage ----
+
+strip_ansi() { sed $'s/\033\\[[0-9;?]*[A-Za-z]//g; s/\r$//'; }
+stage_out() { tail -c +"$((LOG_OFF + 1))" "$LOG"; }
+stage_lines() { stage_out | sed $'s/\033\\[[0-9;?]*[A-Za-z]//g; s/\r$//; /^[[:space:]]*$/d'; }
+
+# live_detail <stage> -> DETAIL: the latest log line, or "<module> (k of N)" while modules run
+live_detail() {
+  local line k="" name=""
+  DETAIL=""
+  if [ "$1" = modules ]; then
+    # mise prints "[bootstrap:<name>] $ <cmd>" when a task starts, "... skipping" when up to date
+    read -r k name < <(stage_lines | awk '/^\[bootstrap:[^]]+\] (\$ |.*skipping)/ { n++; s = $0; sub(/^\[bootstrap:/, "", s); sub(/\].*/, "", s); name = s } END { if (n) print n, name }') || true
+    [ -n "$k" ] || return 0
+    if [ "$TASK_TOTAL" -gt 0 ]; then DETAIL="$name ($k of $TASK_TOTAL)"; else DETAIL="$name ($k)"; fi
+    return 0
+  fi
+  while IFS= read -r line; do
+    [ -z "${line//[[:space:]]/}" ] || DETAIL=${line#mise }
+  done < <(stage_out | tail -n 5 | strip_ansi)
+  return 0
+}
+
+spin() { # spin <label>: animate until CHILD exits; no-op without a terminal
+  [ "$ANIM" = 1 ] || return 0
+  local i=0 detail=""
+  printf '\033[?25l'
+  while kill -0 "$CHILD" 2>/dev/null; do
+    if [ $((i % 3)) -eq 0 ]; then
+      if [ -n "${2:-}" ]; then DETAIL=$2; else live_detail "$1"; fi
+      detail=$DETAIL
+    fi
+    now_ms
+    fmt_time $((NOW - T0))
+    stage_row "$C_MAUVE" "${FRAMES[$((i % 10))]}" "$1" "$detail" "$FMT"
+    printf '\r\033[K%s' "$ROW"
+    sleep 0.1
+    i=$((i + 1))
+  done
+  printf '\033[?25h'
+}
+
+# mise_stage <label> <parts>: one 'mise bootstrap --only <parts>' with all output in the log
+mise_stage() {
+  local rc=0 a
+  {
+    printf '\n$ mise bootstrap --yes --only %s' "$2"
+    for a in ${PASS[@]+"${PASS[@]}"}; do printf ' %s' "$a"; done
+    printf '\n'
+  } >>"$LOG"
+  LOG_OFF=$(($(wc -c <"$LOG")))
+  mise bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} </dev/null >>"$LOG" 2>&1 &
+  CHILD=$!
+  spin "$1"
+  wait "$CHILD" || rc=$?
+  CHILD=""
+  return "$rc"
+}
+
+# The user part runs `chsh -s`, which may ask for a password. When the login shell has to
+# change, run that stage on the terminal, without the spinner, so the prompt is seen.
+shell_needs_chsh() {
+  local state
+  state=$( (cd "$HOME" && mise bootstrap user status) 2>/dev/null | awk 'NR == 1 { print $NF }')
+  [ -n "$state" ] && [ "$state" != set ] && [ "$state" != skipped ]
+}
+
+mise_stage_attended() { # mise_stage_attended <label> <parts>
+  local rc=0
+  printf '\n$ mise bootstrap --yes --only %s (on the terminal, not logged)\n' "$2" >>"$LOG"
+  LOG_OFF=$(($(wc -c <"$LOG")))
+  step run "$1" "chsh may ask for your password"
+  mise bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} || rc=$?
+  return "$rc"
+}
+
+# Permission entries on files that merges create in the first pass apply only on a second one.
+dotfiles_converged() {
+  (cd "$HOME" && mise dot status --missing) >/dev/null 2>&1
+}
+
+add_extra() { EXTRA+=("$1"); }
+add_warn() { WARNS+=("$1"$'\t'"$2"); }
+
+# gather_info: a few read-only mise queries, in parallel, for the result texts (cosmetic; may fail)
+gather_info() {
+  INFO=$STATE_DIR/info
+  rm -rf "$INFO"
+  mkdir -p "$INFO"
+  (
+    cd "$HOME" || exit 0
+    mise tasks ls --name-only >"$INFO/tasks" 2>/dev/null &
+    if [ "$DRY" = 0 ]; then
+      mise ls --missing >"$INFO/missing" 2>/dev/null &
+      if command -v jq >/dev/null 2>&1; then
+        mise bootstrap plan --json >"$INFO/plan.json" 2>/dev/null &
+        mise dot status --json >"$INFO/dot.json" 2>/dev/null &
+      fi
+    fi
+    wait
+  ) </dev/null &
+  CHILD=$!
+  if [ "$ANIM" = 1 ]; then
+    now_ms
+    T0=$NOW
+    spin checking "reading machine state"
+    printf '\r\033[K'
+  fi
+  wait "$CHILD" || true
+  CHILD=""
+  TASK_TOTAL=$(grep -c '^bootstrap:' "$INFO/tasks" 2>/dev/null || true)
+  TASK_TOTAL=${TASK_TOTAL:-0}
+}
+
+jq_tsv() { # jq_tsv <file> <filter> -> one tab-separated line; fails quietly without jq or data
+  [ -s "$1" ] && command -v jq >/dev/null 2>&1 || return 1
+  jq -r "$2 | @tsv" "$1" 2>/dev/null
+}
+
+plural() { # plural <n> <word>
+  if [ "$1" -eq 1 ]; then echo "$1 $2"; else echo "$1 ${2}s"; fi
+}
+
+result_packages() {
+  local line present changed names more=""
+  # shellcheck disable=SC2016 # jq variables, not shell
+  line=$(jq_tsv "$INFO/plan.json" '[.resources[] | select(.id.kind == "package")] as $p
+    | [$p[] | select(.action != "noop")] as $c
+    | [($p | length) - ($c | length), ($c | length), ($c | map(.id.name | sub("^[^:]*:"; "")) | .[:3] | join(", "))]') || return 0
+  IFS=$'\t' read -r present changed names <<<"$line" || true
+  [ "${present:-x}" -ge 0 ] 2>/dev/null || return 0
+  [ "$changed" -le 3 ] || more=", …"
+  RESULT=""
+  [ "$present" -eq 0 ] || RESULT="$present present"
+  [ "$changed" -eq 0 ] || RESULT="${RESULT:+$RESULT · }$changed installed: $names$more"
+  RESULT=${RESULT:-done}
+}
+
+result_system() {
+  local line same changed
+  # shellcheck disable=SC2016
+  line=$(jq_tsv "$INFO/plan.json" '[.resources[] | select(.id.kind == "file")] as $f
+    | [$f[] | select(.action != "noop")] as $c
+    | [($f | length) - ($c | length), ($c | length)]') || return 0
+  IFS=$'\t' read -r same changed <<<"$line" || true
+  [ "${same:-x}" -ge 0 ] 2>/dev/null || return 0
+  RESULT=""
+  [ "$same" -eq 0 ] || RESULT="$(plural "$same" file) unchanged"
+  [ "$changed" -eq 0 ] || RESULT="${RESULT:+$RESULT · }$changed updated"
+  RESULT=${RESULT:-done}
+}
+
+result_dotfiles() {
+  local line same changed
+  # shellcheck disable=SC2016
+  line=$(jq_tsv "$INFO/dot.json" '[(.files // [])[], (.edits // [])[]] as $e
+    | [$e[] | select((.state == "applied" or .state == "absent" or .state == "tracked") | not)] as $p
+    | [($e | length) - ($p | length), ($p | length)]') || return 0
+  IFS=$'\t' read -r same changed <<<"$line" || true
+  [ "${same:-x}" -ge 0 ] 2>/dev/null || return 0
+  RESULT=""
+  [ "$same" -eq 0 ] || RESULT="$same in place"
+  [ "$changed" -eq 0 ] || RESULT="${RESULT:+$RESULT · }$changed updated"
+  RESULT=${RESULT:-done}
+}
+
+result_shell() {
+  local line word shell=""
+  while IFS= read -r line; do
+    case $line in *login_shell*)
+      for word in $line; do
+        case $word in /*) shell=${word##*/} ;; esac
+      done
+      ;;
+    esac
+  done < <(stage_lines)
+  RESULT="done"
+  if [ -n "$shell" ]; then RESULT="login shell $shell"; fi
+}
+
+result_tools() { # tools mise reported as missing before the stage were installed by it
+  local name n=0 names="" more=""
+  while read -r name _; do
+    [ -n "$name" ] || continue
+    n=$((n + 1))
+    if [ "$n" -le 3 ]; then names="$names${names:+, }$name"; fi
+  done <"$INFO/missing" 2>/dev/null || true
+  [ "$n" -le 3 ] || more=", …"
+  if [ "$n" -eq 0 ]; then RESULT="all current"; else RESULT="$n installed: $names$more"; fi
+}
+
+# Task headers and bodies from 'mise run': ran/skipped counts plus the first fail-soft
+# message ("... skipped"/"... skipping") per task.
+result_modules() {
+  local kind a b ran=0 skipped=0
+  while IFS=$'\t' read -r kind a b; do
+    case $kind in
+      W) add_warn "$a" "${b#"$a": }" ;;
+      S)
+        ran=$a
+        skipped=$b
+        ;;
+    esac
+  done < <(stage_lines | awk '
+    /^\[bootstrap:[^]]+\] / {
+      name = $0; sub(/^\[bootstrap:/, "", name); sub(/\].*/, "", name)
+      rest = $0; sub(/^\[bootstrap:[^]]+\] /, "", rest)
+      if (rest ~ /^\$ /) { ran++; next }
+      if (rest ~ /skipping/) { skipped++; next }
+      $0 = rest
+    }
+    /^mise / { next }
+    name != "" && !(name in seen) && /skipped|skipping/ { seen[name] = 1; print "W\t" name "\t" $0 }
+    END { print "S\t" ran + 0 "\t" skipped + 0 }')
+  RESULT="done"
+  if [ $((ran + skipped)) -gt 0 ]; then RESULT="$ran ran"; fi
+  if [ "$skipped" -gt 0 ]; then RESULT="$RESULT · $skipped up to date"; fi
+}
+
+# Dry run: mise prints "mise bootstrap: <part>" headers, "mise <part>: ..." status lines and the
+# commands it would run bare. A change is any bare line or a "<tool> ⇢ would install" line.
+# "(if changed)" edits (templated merges) cannot be predicted, so they are not counted.
+dry_changes() {
+  local line
+  while IFS= read -r line; do
+    case $line in
+      "mise bootstrap:"* | "[bootstrap]"* | "mise WARN"*) ;;
+      *"⇢ "*) printf '%s\n' "${line#mise }" ;;
+      "mise "* | *"(if changed)") ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done < <(stage_lines)
+}
+
+wrap_words() { # wrap_words <width> <words...>: one add_extra per wrapped line
+  local width=$1 line="" word
+  shift
+  for word in "$@"; do
+    if [ -n "$line" ] && [ $((${#line} + ${#word} + 1)) -gt "$width" ]; then
+      add_extra "$line"
+      line=""
+    fi
+    line="$line${line:+ }$word"
+  done
+  if [ -n "$line" ]; then add_extra "$line"; fi
+}
+
+result_dry() {
+  local line n=0 task tasks=()
+  if [ "$1" = modules ]; then
+    while IFS= read -r task; do
+      case $task in bootstrap:*) tasks+=("${task#bootstrap:}") ;; esac
+    done <"$INFO/tasks" 2>/dev/null || true
+    if [ "${#tasks[@]}" -eq 0 ]; then
+      RESULT="would run the bootstrap task"
+    else
+      RESULT="would run $(plural "${#tasks[@]}" task)"
+      wrap_words $((RIGHT - 10)) "${tasks[@]}"
+    fi
+    return 0
+  fi
+  while IFS= read -r line; do
+    n=$((n + 1))
+    if [ "$n" -le 8 ]; then add_extra "$line"; fi
+  done < <(dry_changes)
+  if [ "$n" -gt 8 ]; then add_extra "… $((n - 8)) more"; fi
+  case $n in
+    0) RESULT="no changes" ;;
+    1) RESULT="1 change" ;;
+    *) RESULT="$n changes" ;;
+  esac
+}
+
+stage_result() { # stage_result <stage> -> RESULT, EXTRA, WARNS
+  RESULT="done" EXTRA=() WARNS=()
+  if [ "$DRY" = 1 ]; then
+    result_dry "$1"
+    return 0
+  fi
+  case $1 in
+    packages) result_packages ;;
+    system) result_system ;;
+    dotfiles) result_dotfiles ;;
+    shell) result_shell ;;
+    tools) result_tools ;;
+    modules) result_modules ;;
+  esac
+  return 0
+}
+
+stage_ok() { # stage_ok <stage> <elapsed>
+  local line name msg
+  stage_result "$1"
+  stage_row "$C_GREEN" ✓ "$1" "$RESULT" "$2"
+  row_out
+  for line in ${EXTRA[@]+"${EXTRA[@]}"}; do
+    fit "$line" $((RIGHT - 10))
+    printf '        %s%s%s\n' "$C_OVR" "$FIT" "$RST"
+  done
+  for line in ${WARNS[@]+"${WARNS[@]}"}; do
+    name=${line%%$'\t'*}
+    msg=${line#*$'\t'}
+    stage_row "$C_YELLOW" '!' "$name" "$msg" ""
+    row_out
+  done
+}
+
+stage_failed() { # stage_failed <stage> <status> <elapsed>
+  stage_row "$C_RED" ✗ "$1" "failed (exit $2)" "$3"
+  row_out
+  osc "2;100"
+  stage_lines | tail -n 15 | draw_box "$1 · last lines"
+}
+
+# ---- sudo ----
+
+# prime_sudo <parts>: ask for the password up front, visibly, so no spinner hides a prompt.
+prime_sudo() {
+  local part need=0
+  local IFS=,
+  for part in $1; do
+    case $SUDO_PARTS in *" $part "*) need=1 ;; esac
+  done
+  [ "$need" = 1 ] && [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 || return 0
+  sudo -n true 2>/dev/null && return 0
+  step run sudo "password needed for system changes"
+  if sudo -v; then
+    # Keep the ticket alive for the whole run; output is closed so no pipe waits on the sleep.
+    (while kill -0 $$ 2>/dev/null; do
+      sudo -n -v 2>/dev/null
+      sleep 50
+    done) >/dev/null 2>&1 &
+    SUDO_PID=$!
+  else
+    step warn sudo "not authenticated; mise will ask again"
+  fi
+}
+
+# ---- run ----
+
+# shellcheck disable=SC2329 # runs from the trap handlers
+kill_tree() { # kill_tree <pid>: the process and everything below it, children first
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null || true); do
+    kill_tree "$child"
+  done
+  kill "$1" 2>/dev/null || true
+}
+
+# shellcheck disable=SC2329 # runs from trap
+ui_cleanup() {
+  [ -z "$CHILD" ] || kill_tree "$CHILD"
+  [ -z "$SUDO_PID" ] || kill "$SUDO_PID" 2>/dev/null || true
+  if [ "$ANIM" = 1 ]; then
+    printf '\033[?25h'
+    osc "0"
+  fi
+  [ -z "$INFO" ] || rm -rf "$INFO"
+}
+
+# shellcheck disable=SC2329 # runs from trap
+on_signal() { # on_signal <exit status>
+  trap - INT TERM
+  [ -z "$CHILD" ] || kill_tree "$CHILD"
+  CHILD=""
+  if [ "$ANIM" = 1 ]; then printf '\r\033[K\033[?25h'; fi
+  step warn stopped "interrupted"
+  exit "$1"
+}
+
+ui_init() {
+  UI=1
+  [ -z "${EPOCHREALTIME:-}" ] || HAVE_FRAC=1
+  if [ -t 1 ] && [ -t 2 ] && [ "${TERM:-dumb}" != dumb ]; then ANIM=1; fi
+  COLOR=$ANIM
+  [ -z "${NO_COLOR:-}" ] || COLOR=0
+  setup_colors
+  ensure_utf8
+  term_cols
+  RIGHT=$COLS
+  [ "$RIGHT" -le 80 ] || RIGHT=80
+  RIGHT=$((RIGHT - 2))
+  [ "$RIGHT" -ge 50 ] || RIGHT=50
+  now_ms
+  RUN_T0=$NOW
+  mkdir -p "$STATE_DIR"
+  printf 'dotfiles run: %s\nprofile: %s\nargs: %s\n' "$(date)" "$1" "${*:2}" >"$LOG"
+  trap ui_cleanup EXIT
+  trap 'on_signal 130' INT
+  trap 'on_signal 143' TERM
+  draw_header "$1"
+}
+
+ui_footer() { # ui_footer <status>
+  local label color glyph short=$LOG
+  now_ms
+  fmt_time $((NOW - RUN_T0))
+  if [ "$1" -ne 0 ]; then
+    glyph=✗ color=$C_RED label="failed in $FMT"
+  elif [ "$DRY" = 1 ]; then
+    glyph=✓ color=$C_GREEN label="dry run in $FMT"
+  else
+    glyph=✓ color=$C_GREEN label="converged in $FMT"
+  fi
+  case $LOG in "$HOME"/*) short=\~"${LOG#"$HOME"}" ;; esac
+  rule $((RIGHT - 2))
+  printf '\n  %s%s%s\n' "$C_SURF" "$REP" "$RST"
+  printf '    %s%s%s %s%s%s\n' "$color" "$glyph" "$RST" "$BOLD$C_TEXT" "$label" "$RST"
+  printf '    %slog %s%s\n\n' "$C_OVR" "$short" "$RST"
+}
+
+run_stages() {
+  local stage parts stages=() all="" i=0 n rc=0
+  for stage in $STAGES; do
+    select_parts "$stage"
+    parts=$SELECTED
+    [ -z "$parts" ] || stages+=("$stage:$parts")
+  done
+  n=${#stages[@]}
+  if [ "$n" -eq 0 ]; then
+    step warn stages "nothing selected"
+    return 0
+  fi
+  for stage in ${stages[@]+"${stages[@]}"}; do all="$all,${stage#*:}"; done
+  prime_sudo "$all"
+  gather_info
+  for stage in ${stages[@]+"${stages[@]}"}; do
+    ui_run_stage "${stage%%:*}" "${stage#*:}" "$i" "$n" || rc=$?
+    [ "$rc" -eq 0 ] || return "$rc"
+    i=$((i + 1))
+  done
+}
+
+# select_parts <stage> -> SELECTED: the stage's parts (mise's own order) after --only/--skip
+select_parts() {
+  local part all
+  local IFS=,
+  case $1 in
+    packages) all=accounts,plugins,packages ;;
+    system) all=files,services,firewall,compose ;;
+    dotfiles) all=repos,dotfiles ;;
+    shell) all=mise-shell-activate,macos-defaults,macos-launchd-agents,linux-systemd-units,user ;;
+    tools) all=tools ;;
+    modules) all=task,final-hook ;;
+  esac
+  SELECTED=""
+  for part in $all; do
+    if [ -n "$ONLY" ] && ! in_list "$ONLY" "$part"; then continue; fi
+    if in_list "$SKIP" "$part"; then continue; fi
+    SELECTED="$SELECTED${SELECTED:+,}$part"
+  done
+}
+
+ui_run_stage() { # ui_run_stage <stage> <parts> <index> <total>
+  local rc=0
+  osc "1;$(($3 * 100 / $4))"
+  now_ms
+  T0=$NOW
+  if [ "$1" = shell ] && [ "$DRY" = 0 ] && shell_needs_chsh; then
+    mise_stage_attended "$1" "$2" || rc=$?
+  else
+    mise_stage "$1" "$2" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ "$1" = dotfiles ] && [ "$DRY" = 0 ] && ! dotfiles_converged; then
+    mise_stage "$1" "$2" || rc=$?
+  fi
+  now_ms
+  fmt_time $((NOW - T0))
+  if [ "$rc" -ne 0 ]; then
+    stage_failed "$1" "$rc" "$FMT"
+    return "$rc"
+  fi
+  stage_ok "$1" "$FMT"
+  osc "1;$((($3 + 1) * 100 / $4))"
+}
+
+# ---- main ----
+
+args=()
+for arg in "$@"; do
+  case $arg in
+    --plain) PLAIN=1 ;;
+    *) args+=("$arg") ;;
+  esac
+done
+set -- ${args[@]+"${args[@]}"}
 
 for arg in "$@"; do
   case $arg in
@@ -173,9 +921,15 @@ for arg in "$@"; do
 done
 
 profile=$(detect_profile)
+if use_ui "$@"; then ui_init "$profile" "$@"; fi
 install_prerequisites "$profile"
 sync_repo
 check_mise_version "$profile"
 link_conf_d
 write_miserc "$profile"
-exec mise bootstrap --yes "$@"
+if [ "$UI" = 0 ]; then exec mise bootstrap --yes "$@"; fi
+
+status=0
+run_stages || status=$?
+ui_footer "$status"
+exit "$status"

@@ -42,8 +42,10 @@ flowchart TB
 
 An existing `~/.config/mise/conf.d` that isn't already a link to `~/.dotfiles/modules` is moved to `conf.d.pre-dotfiles.<timestamp>` first.
 
+In a terminal, `dotfiles` runs those steps one stage at a time with a live summary, applies the dotfiles a second time when the first pass created files that other entries need, and keeps mise's full output in `~/.local/state/dotfiles/last-run.log`.
+
 > [!TIP]
-> On a fresh machine, run `dotfiles` twice: some permissions and identity files apply only after the first run creates them.
+> Piped, or with `--plain`, `dotfiles` prints mise's own output and skips that second pass: on a fresh machine, run it twice.
 
 ## Daily use
 
@@ -51,6 +53,7 @@ An existing `~/.config/mise/conf.d` that isn't already a link to `~/.dotfiles/mo
 | --- | --- |
 | `dotfiles` | Pull the repo, then converge this machine |
 | `dotfiles --dry-run` | Preview every change |
+| `dotfiles --plain` | mise's own output instead of the summary (also when piped) |
 | `mise dot status` | Show the state of every managed file |
 | `mise run check` | Dry run plus module tests (run it from `~`) |
 | `update` | Full system upgrade (`omarchy update`, `paru -Syu`, or Homebrew) |

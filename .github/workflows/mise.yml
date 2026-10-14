@@ -38,6 +38,68 @@ jobs:
       - name: Tests (cachyos)
         run: MISE_AUTO_ENV=true MISE_ENV=cachyos mise run --jobs 1 'test:*'
 
+  # Scoped real apply: only the dotfiles and tools steps. Packages, services,
+  # system files and the bootstrap task need systemd, an AUR helper, multilib
+  # and Omarchy's repo, none of which a stock container has; the dry-runs in
+  # `arch` cover those. This job catches what dry-runs cannot: tool installs
+  # that fail (npm trust policy, go builds) and dotfile entries that do not converge.
+  apply:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      # cachyos declares node = "lts", which the npm: tools need; omarchy relies
+      # on Omarchy pinning node globally.
+      MISE_AUTO_ENV: "true"
+      MISE_ENV: cachyos
+      # Registry lookups (proxy.golang.org, npm) time out at the 20s default.
+      MISE_FETCH_REMOTE_VERSIONS_TIMEOUT: 120s
+      MISE_HTTP_TIMEOUT: 120s
+    steps:
+      # gcc: go: tools with cgo (helm-ls). On a real machine base-devel comes from the packages step.
+      - name: Install prerequisites
+        run: pacman -Syu --noconfirm mise git zsh go gcc
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Link modules as mise conf.d
+        run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      - name: Apply dotfiles and tools
+        run: mise bootstrap --only dotfiles,tools --yes
+
+      # Permission-only entries (~/.omp/agent/mcp.json, ~/.cursor/cli-config.json) cannot
+      # apply until a merge has created the file, so a fresh machine needs two runs.
+      - name: Apply again (settle first-run leftovers)
+        run: mise bootstrap --only dotfiles,tools --yes
+
+      - name: Apply a third time (must change nothing)
+        run: |
+          mise bootstrap --only dotfiles,tools --yes 2>&1 | tee apply3.log
+          grep -F 'all files are applied' apply3.log
+          grep -F 'all edits are applied' apply3.log
+          grep -F 'all tools are installed' apply3.log
+          mise dot status --missing
+          # `mise ls --missing` prints one row per missing tool and exits 0 either way.
+          missing=$(mise ls --missing)
+          if [ -n "$missing" ]; then echo "missing tools:"; echo "$missing"; exit 1; fi
+
+      - name: Smoke test shells
+        run: |
+          # zshenv puts the mise shims on PATH for every shell.
+          shims="$HOME/.local/share/mise/shims"
+          for tool in node gopls task; do
+            [ "$(zsh -c "command -v $tool")" = "$shims/$tool" ] || { echo "non-interactive zsh: $tool not at $shims/$tool"; exit 1; }
+          done
+          # The first interactive start clones zinit and its plugins; that output and the
+          # terminal control codes around it make the last line unusable, so tag ours.
+          out=$(TERM=xterm zsh -ic 'print -r -- NODE=$(command -v node)' 2>/dev/null </dev/null | grep -ao 'NODE=[^[:cntrl:]]*' | tail -n 1 || true)
+          [ "$out" = "NODE=$shims/node" ] || { echo "interactive zsh: got '$out', want NODE=$shims/node"; exit 1; }
+
   macos:
     runs-on: macos-latest
     steps:

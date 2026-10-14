@@ -21,10 +21,17 @@ jobs:
         run: pacman -Syu --noconfirm mise git zsh lua bun jq python python-yaml
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Link modules as mise conf.d
         run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      # mise older than conf.d folder support loads no module and `mise bootstrap` exits 0
+      # having done nothing; fail loudly instead. Run from ~ so no project config can shadow `check`.
+      - name: Verify modules loaded
+        run: |
+          cd ~
+          mise tasks info check >/dev/null || { echo "modules did not load (mise $(mise --version))"; exit 1; }
 
       - name: Dry-run omarchy
         run: MISE_AUTO_ENV=true MISE_ENV=omarchy mise bootstrap --dry-run --yes
@@ -64,10 +71,15 @@ jobs:
         run: pacman -Syu --noconfirm mise git zsh go gcc
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Link modules as mise conf.d
         run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      - name: Verify modules loaded
+        run: |
+          cd ~
+          mise tasks info check >/dev/null || { echo "modules did not load (mise $(mise --version))"; exit 1; }
 
       - name: Apply dotfiles and tools
         run: mise bootstrap --only dotfiles,tools --yes
@@ -104,13 +116,22 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
+      # The runner image sets HOMEBREW_NO_AUTO_UPDATE=1 and ships a weeks-old Homebrew
+      # snapshot (it poured mise 2026.9.1 while Homebrew had 2026.10.10); update first.
       - name: Install prerequisites
-        run: brew install mise lua
+        run: |
+          brew update
+          brew install mise lua
 
       - name: Link modules as mise conf.d
         run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      - name: Verify modules loaded
+        run: |
+          cd ~
+          mise tasks info check >/dev/null || { echo "modules did not load (mise $(mise --version))"; exit 1; }
 
       - name: Dry-run macos
         run: MISE_AUTO_ENV=true mise bootstrap --dry-run --yes

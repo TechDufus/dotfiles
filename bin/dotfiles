@@ -4,6 +4,7 @@
 set -euo pipefail
 
 DOTFILES_DIR=${DOTFILES_DIR:-$HOME/.dotfiles}
+DOTFILES_SYSROOT=${DOTFILES_SYSROOT:-} # prefix for /etc and /usr lookups; exists for tests
 REPO_URL=https://github.com/TechDufus/dotfiles.git
 MISE_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/mise
 
@@ -23,7 +24,7 @@ Other:
   --profile          print the detected machine profile and exit
   -h, --help         show this help
 
-Profiles: omarchy, cachyos, macos (override with DOTFILES_PROFILE=<profile>).
+Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
 State: mise dot status, mise bootstrap status. Checks: cd ~ && mise run check
 EOF
 }
@@ -42,15 +43,17 @@ detect_profile() {
     return
   fi
   if [ "$(uname -s)" = Darwin ]; then
+    # mise's brew manager and Homebrew's installer support only Apple Silicon.
+    [ "$(uname -m)" = arm64 ] || die "unsupported machine (Intel Mac)"
     echo macos
     return
   fi
   local id=unknown
-  if [ -r /etc/os-release ]; then
+  if [ -r "$DOTFILES_SYSROOT/etc/os-release" ]; then
     # shellcheck source=/dev/null
-    id=$(. /etc/os-release && echo "${ID:-unknown}")
+    id=$(. "$DOTFILES_SYSROOT/etc/os-release" && echo "${ID:-unknown}")
   fi
-  if [ "$id" = omarchy ] || [ -d /usr/share/omarchy ]; then
+  if [ "$id" = omarchy ] || [ -d "$DOTFILES_SYSROOT/usr/share/omarchy" ]; then
     echo omarchy
   elif [ "$id" = cachyos ]; then
     echo cachyos
@@ -64,7 +67,9 @@ install_prerequisites() {
     if ! command -v brew >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/brew ]; then
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-    eval "$(/opt/homebrew/bin/brew shellenv)"
+    if [ -x /opt/homebrew/bin/brew ]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
     for pkg in git mise; do
       command -v "$pkg" >/dev/null 2>&1 || brew install "$pkg"
     done

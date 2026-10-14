@@ -6,4 +6,11 @@ run = "mise run --jobs 1 'bootstrap:*'"
 
 [tasks.check]
 description = "Preview this machine and run module tests"
+# From home: inside modules/base mise also loads this file as a project
+# config, whose tasks run from ~ (test:base would not find its tests).
+dir = "{{env.HOME}}"
 run = ["mise bootstrap --dry-run --yes", "mise run --jobs 1 'test:*'"]
+
+[tasks."test:base"]
+description = "Test bin/dotfiles profile detection, conf.d linking, miserc and pull rules"
+run = "bash tests/test_bin_dotfiles.sh"

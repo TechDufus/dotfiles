@@ -16,7 +16,7 @@ STAGES="packages system dotfiles shell tools modules"
 KNOWN_PARTS=" accounts plugins packages files services firewall compose repos dotfiles mise-shell-activate macos-defaults macos-launchd-agents linux-systemd-units user tools task final-hook "
 SUDO_PARTS=" accounts plugins packages files services firewall linux-systemd-units user "
 
-UI=0 PLAIN=0 ANIM=0 COLOR=0 DRY=0 ONLY="" SKIP="" PASS=()
+UI=0 PLAIN=0 ANIM=0 COLOR=0 DRY=0 ONLY="" SKIP="" PASS=() FORCE_PREVIEW=0
 CHILD="" SUDO_PID="" INFO="" LOG_OFF=0 RIGHT=78 NOW=0 T0=0 RUN_T0=0 HAVE_FRAC=0
 FIT="" ROW="" FMT="" DETAIL="" RESULT="" EXTRA=() WARNS=() TASK_TOTAL=0 COLS=80 HOST="" SELECTED=""
 RST="" BOLD="" C_TEXT="" C_SUB="" C_OVR="" C_SURF="" C_MAUVE="" C_BLUE="" C_GREEN="" C_YELLOW="" C_RED="" C_PEACH=""
@@ -28,12 +28,14 @@ Usage: dotfiles [--profile] [--plain] [mise bootstrap flags...]
 
 Installs git and mise, clones or updates $DOTFILES_DIR, links
 $MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
+A real file or folder where a module wants a link (a fresh Omarchy's own
+configs) is moved to <path>.pre-dotfiles.<epoch> first, never overwritten.
 
 Flags passed through to mise bootstrap:
   --dry-run          preview every change without applying it
   --only <parts>     run only these parts, e.g. --only dotfiles,tools
   --skip <parts>     run everything except these parts
-  --force-dotfiles   replace files that conflict with [dotfiles] entries
+  --force-dotfiles   overwrite conflicting files instead of moving them aside
 
 Other:
   --plain            print mise's own log instead of the progress screen
@@ -221,6 +223,61 @@ write_miserc() {
   if [ ! -f "$rc" ] || [ "$(cat "$rc")" != "$want" ]; then
     printf '%s\n' "$want" >"$rc"
   fi
+}
+
+# wants_dotfiles <args>: false when --only leaves the dotfiles part out or --skip names it.
+wants_dotfiles() {
+  local only="" skip=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --only | --skip)
+        [ $# -gt 1 ] || break
+        if [ "$1" = --only ]; then only="$only,$2"; else skip="$skip,$2"; fi
+        shift 2
+        continue
+        ;;
+      --only=*) only="$only,${1#*=}" ;;
+      --skip=*) skip="$skip,${1#*=}" ;;
+    esac
+    shift
+  done
+  if [ -n "$only" ] && ! in_list "$only" dotfiles; then return 1; fi
+  ! in_list "$skip" dotfiles
+}
+
+# mise refuses to replace a real file or directory with a link, and a fresh Omarchy ships
+# its own ghostty, kitty and nvim configs. Move every target mise would refuse to
+# <target>.pre-dotfiles.<epoch> first, as the Ansible version kept backups. A dry run only
+# reports them and previews with --force-dotfiles, which writes nothing then.
+set_aside_conflicts() { # set_aside_conflicts <args>
+  local dry=0 a out path target stamp n=0
+  wants_dotfiles "$@" || return 0
+  for a in "$@"; do
+    case $a in -n | --dry-run) dry=1 ;; esac
+  done
+  out=$( (cd "$HOME" && mise dot apply --dry-run) </dev/null 2>&1 || true)
+  case $out in *"refusing to overwrite existing files"*) ;; *) return 0 ;; esac
+  stamp=$(date +%s)
+  while IFS= read -r path; do
+    # shellcheck disable=SC2088 # mise lists paths with a literal "~/", which we expand here
+    case $path in
+      "~/"*) target=$HOME/${path#"~/"} ;;
+      *) target=$path ;;
+    esac
+    { [ -e "$target" ] || [ -L "$target" ]; } || continue
+    n=$((n + 1))
+    if [ "$dry" = 1 ]; then
+      warn_step backup "would move $path aside" "would move $path to $path.pre-dotfiles.$stamp"
+    else
+      mv "$target" "$target.pre-dotfiles.$stamp"
+      warn_step backup "moved $path aside" "moved $path to $path.pre-dotfiles.$stamp"
+    fi
+  done < <(printf '%s\n' "$out" | awk '/refusing to overwrite existing files/ { p = 1; next }
+    p && /^  [~\/]/ { sub(/^  /, ""); print; next }
+    p { exit }')
+  [ "$n" -gt 0 ] || return 0
+  if [ "$dry" = 1 ]; then FORCE_PREVIEW=1; fi
+  if [ "$UI" = 1 ]; then printf '        %skept as <path>.pre-dotfiles.%s%s\n' "$C_OVR" "$stamp" "$RST"; fi
 }
 
 # ---- mode selection: UI only for a terminal and arguments the stages can replay ----
@@ -927,7 +984,12 @@ sync_repo
 check_mise_version "$profile"
 link_conf_d
 write_miserc "$profile"
-if [ "$UI" = 0 ]; then exec mise bootstrap --yes "$@"; fi
+set_aside_conflicts "$@"
+if [ "$UI" = 0 ]; then
+  if [ "$FORCE_PREVIEW" = 1 ]; then set -- --force-dotfiles "$@"; fi
+  exec mise bootstrap --yes "$@"
+fi
+if [ "$FORCE_PREVIEW" = 1 ]; then PASS+=(--force-dotfiles); fi
 
 status=0
 run_stages || status=$?

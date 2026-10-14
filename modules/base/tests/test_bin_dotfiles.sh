@@ -33,6 +33,14 @@ case "$1 $2" in
     if [ "$n" -gt 0 ]; then echo $((n - 1)) >"$STUB_DOT_COUNT_FILE"; exit 1; fi
     exit 0
     ;;
+  "dot apply")
+    # Like mise when targets exist and are not links: $STUB_REFUSE is a ':' list of them.
+    [ -n "${STUB_REFUSE:-}" ] || exit 0
+    echo "mise ERROR files: refusing to overwrite existing files (use --force):"
+    echo "$STUB_REFUSE" | tr ':' '\n' | sed 's/^/  /'
+    echo "mise ERROR Version: stub"
+    exit 1
+    ;;
 esac
 printf '%s\n' "$@" >"$MISE_ARGV_FILE"
 echo "$*" >>"$MISE_CALLS_FILE"
@@ -511,6 +519,57 @@ fi
 usage_out=$(env -i HOME="$HOME" PATH="$T/stub:$ORIG_PATH" "$BIN" --help)
 expect_contains "$usage_out" "--plain" "help documents --plain"
 expect_contains "$usage_out" "last-run.log" "help names the log"
+
+# ---- targets mise refuses to replace with a link (a fresh Omarchy's own configs) ----
+SB_CONFIG="$T/home/.config" # the sandbox HOME's .config, never the real one
+seed_conflicts() {
+  rm -rf "$SB_CONFIG"
+  mkdir -p "$SB_CONFIG/ghostty" "$SB_CONFIG/nvim"
+  echo omarchy >"$SB_CONFIG/ghostty/config"
+  echo starter >"$SB_CONFIG/nvim/init.lua"
+}
+backups() { # moved-aside paths under .config, timestamps replaced by N
+  find "$SB_CONFIG" -maxdepth 2 -name '*.pre-dotfiles.*' | sed "s|^$T/home/||; s/\.pre-dotfiles\.[0-9]*$/.pre-dotfiles.N/" | sort | tr '\n' ' '
+}
+REFUSE='STUB_REFUSE=~/.config/ghostty/config:~/.config/nvim'
+MOVED='.config/ghostty/config.pre-dotfiles.N .config/nvim.pre-dotfiles.N '
+
+new_case conflicts-plain
+init_repo "$DOTFILES_DIR"
+seed_conflicts
+run_df DOTFILES_PROFILE=cachyos "$REFUSE"
+expect_rc 0
+expect_eq "$(backups)" "$MOVED" "refused targets moved aside"
+expect_eq "$(cat "$SB_CONFIG"/ghostty/config.pre-dotfiles.*)" omarchy "moved file keeps its content"
+expect_eq "$(cat "$SB_CONFIG"/nvim.pre-dotfiles.*/init.lua)" starter "moved directory keeps its content"
+expect_contains "$OUT" "moved ~/.config/nvim to ~/.config/nvim.pre-dotfiles." "plain message"
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes " "no --force-dotfiles after moving"
+
+new_case conflicts-dry-run
+init_repo "$DOTFILES_DIR"
+seed_conflicts
+run_df DOTFILES_PROFILE=cachyos "$REFUSE" --dry-run
+expect_rc 0
+expect_eq "$(backups)" "" "a dry run moves nothing"
+expect_contains "$OUT" "would move ~/.config/ghostty/config" "dry run reports"
+expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --force-dotfiles --dry-run " "preview as if moved"
+
+new_case conflicts-without-dotfiles
+init_repo "$DOTFILES_DIR"
+seed_conflicts
+run_df DOTFILES_PROFILE=cachyos "$REFUSE" --only tools
+expect_eq "$(backups)" "" "--only tools leaves them in place"
+
+new_case conflicts-ui
+init_repo "$DOTFILES_DIR"
+seed_conflicts
+run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 "$REFUSE"
+expect_rc 0
+expect_eq "$(backups)" "$MOVED" "UI moves them too"
+expect_contains "$OUT" "moved ~/.config/nvim aside" "UI row"
+expect_contains "$OUT" "kept as <path>.pre-dotfiles." "UI note"
+expect_eq "$(calls)" "$STAGE_CALLS" "stages unchanged, no --force-dotfiles"
+rm -rf "$SB_CONFIG"
 
 if [ "$FAILS" -ne 0 ]; then
   echo "test_bin_dotfiles: $FAILS failure(s)" >&2

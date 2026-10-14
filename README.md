@@ -40,7 +40,7 @@ flowchart TB
   prep --> boot
 ```
 
-An existing `~/.config/mise/conf.d` that isn't already a link to `~/.dotfiles/modules` is moved to `conf.d.pre-dotfiles.<timestamp>` first.
+Nothing in the way gets overwritten. An existing `~/.config/mise/conf.d` that isn't already a link to `~/.dotfiles/modules`, and any real file or folder where a module wants a link (on a fresh Omarchy: its own ghostty, kitty and nvim configs, and omp's), is moved to `<name>.pre-dotfiles.<timestamp>` first.
 
 In a terminal, `dotfiles` runs those steps one stage at a time with a live summary, applies the dotfiles a second time when the first pass created files that other entries need, and keeps mise's full output in `~/.local/state/dotfiles/last-run.log`.
 

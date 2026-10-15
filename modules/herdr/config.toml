@@ -1,6 +1,9 @@
 onboarding = false
 
 [keys]
+# Omarchy's own herdr config sets ctrl+space; this file merges into it.
+prefix = "ctrl+b"
+
 goto = ["prefix+g", "prefix+o"]
 open_notification_target = "prefix+shift+o"
 

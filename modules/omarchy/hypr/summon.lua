@@ -20,7 +20,11 @@ local function exists(address)
 end
 
 local function focus(address)
-  hl.dispatch(hl.dsp.focus({ window = "address:" .. address }))
+  local sel = "address:" .. address
+  hl.dispatch(hl.dsp.focus({ window = sel }))
+  -- Cell windows overlap, so the summoned one comes forward.
+  local win = hl.get_window(sel)
+  if win and win.floating then hl.dispatch(hl.dsp.window.alter_zorder({ window = sel, mode = "top" })) end
 end
 
 local function move(address, workspace, follow)

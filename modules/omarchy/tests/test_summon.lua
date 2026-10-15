@@ -31,6 +31,7 @@ hl = {
     submap = function(name) return { kind = "submap", name = name } end,
     window = {
       move = function(args) return { kind = "move", args = args } end,
+      alter_zorder = function(args) return { kind = "zorder", args = args } end,
     },
     send_key_state = function(args) return { kind = "key", args = args } end,
   },
@@ -182,6 +183,19 @@ case("bring moves the window to the current workspace", function()
   eq(#fx.log, 2, "dispatch count")
   expect_move(fx.log[1], "0xn", "1", false, "bring move")
   expect_focus(fx.log[2], "0xn", "bring focus")
+end)
+
+case("summoning a floating window focuses then raises it", function()
+  M = fresh_engine(function(f)
+    f.windows = { window("0xt", "ghostty", 1, 1, { floating = true }) }
+    f.active = brave
+  end)
+  M.summon("terminal")
+  expect_focus(fx.log[#fx.log - 1], "0xt", "summon focus")
+  local d = last_dispatch()
+  if not d or d.kind ~= "zorder" then fail("expected a zorder dispatch last") end
+  eq(d.args.window, "address:0xt", "zorder window")
+  eq(d.args.mode, "top", "zorder mode")
 end)
 
 case("leader cycles idle -> summon -> macro -> summon (Hammerspoon parity)", function()

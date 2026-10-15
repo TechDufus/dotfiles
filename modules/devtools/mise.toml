@@ -1,11 +1,12 @@
 [tools]
 task = "latest"
+# The registry uses native aqua releases; npm:pnpm requires lifecycle scripts.
+pnpm = "latest"
 "go:golang.org/x/tools/gopls" = "latest"
 "go:github.com/mrjosh/helm-ls" = "latest"
 
 # Global npm CLIs
 "npm:yarn" = "latest"
-"npm:pnpm" = "latest"
 "npm:npm-check-updates" = "latest"
 "npm:serve" = "latest"
 "npm:clawpatch" = "latest"
@@ -28,7 +29,6 @@ task = "latest"
 "npm:@biomejs/biome" = "latest"
 "npm:@vue/language-server" = "latest"
 "npm:@prisma/language-server" = "latest"
-"npm:vim-language-server" = "latest"
 "npm:@olrtg/emmet-language-server" = "latest"
 "npm:intelephense" = "latest"
 

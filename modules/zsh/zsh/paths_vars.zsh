@@ -11,6 +11,8 @@ addToPath "$HOME/.bun/bin"
 addToPath "$HOME/.dotfiles/bin"
 addToPath "$HOME/.cargo/bin"
 addToPath /opt/whalebrew/bin
+addToPath "$HOME/.magnitude/bin"
+addToPath "$HOME/.grok/bin"
 addToPathFront "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
 addToPathFront "$HOME/.local/bin"
 addToPathFront /usr/lib/ccache

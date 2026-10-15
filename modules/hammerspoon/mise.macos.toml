@@ -20,5 +20,5 @@ description = "Install the GridLayout and WorkspaceManager spoons"
 run = "./bootstrap.sh"
 
 [tasks."test:hammerspoon"]
-description = "Run the hammerspoon Lua tests"
-run = ["lua tests/test_ax_enhanced_ui.lua", "lua tests/test_window_cycle.lua"]
+description = "Run the Hammerspoon Lua and isolated Spoon installer tests"
+run = ["lua tests/test_ax_enhanced_ui.lua", "lua tests/test_window_cycle.lua", "python3 tests/test_bootstrap.py"]

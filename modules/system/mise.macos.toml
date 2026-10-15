@@ -1,13 +1,2 @@
 [bootstrap.packages]
 "brew:jq" = "latest"
-
-[bootstrap.files."/private/etc/sudoers.d/techdufus"]
-content = "{{ get_env(name='USER', default='root') }} ALL=(ALL) NOPASSWD: ALL\n"
-template = true
-owner = "root"
-group = "wheel"
-mode = "0440"
-
-[tasks."bootstrap:system"]
-description = "Validate sudoers"
-run = "sudo visudo -cf /private/etc/sudoers.d/techdufus"

@@ -16,8 +16,13 @@ if [[ ! -f "$loader" ]]; then
   exit 1
 fi
 
-tmp_dir="$(cd "$(mktemp -d)" && pwd -P)"
-trap 'rm -rf "$tmp_dir"' EXIT
+if ! tmp_dir="$(mktemp -d)"; then
+  echo "test_secret_loading: could not create fixture directory" >&2
+  exit 1
+fi
+[[ -n "$tmp_dir" && -d "$tmp_dir" ]] || exit 1
+tmp_dir="$(cd -- "$tmp_dir" && pwd -P)" || exit 1
+trap 'rm -rf -- "$tmp_dir"' EXIT
 bin_dir="$tmp_dir/bin"
 mkdir -p "$bin_dir"
 
@@ -189,6 +194,7 @@ run_zsh() {
   env -i \
     HOME="$home_dir" \
     TMPDIR="$run_tmp_dir" \
+    TMPPREFIX="$run_tmp_dir/zsh" \
     XDG_STATE_HOME="$state_dir" \
     PATH="$bin_dir:/usr/bin:/bin" \
     OP_ACCOUNT=fixture-account \
@@ -763,8 +769,8 @@ export TEST_INTERRUPT=fixture-new
 print ready > "$OP_CONFIG_DIR/ready"
 sleep 15
 ZSH
-env -i HOME="$home_dir" TMPDIR="$run_tmp_dir" XDG_STATE_HOME="$state_dir" \
-  PATH="$bin_dir:/usr/bin:/bin" OP_CONFIG_DIR="$op_config_dir" \
+env -i HOME="$home_dir" TMPDIR="$run_tmp_dir" TMPPREFIX="$run_tmp_dir/zsh" \
+  XDG_STATE_HOME="$state_dir" PATH="$bin_dir:/usr/bin:/bin" OP_CONFIG_DIR="$op_config_dir" \
   python3 - "$zsh_bin" <<'PY'
 import os
 from pathlib import Path

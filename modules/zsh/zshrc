@@ -42,6 +42,7 @@ _dotfiles_zsh_function_dirs=(
   $HOME/.local/share/zsh/functions(N-/)
   $HOME/.local/share/zsh/functions/*(N-/)
   $HOME/.local/share/zsh/functions/*/*(N-/)
+  $HOME/.grok/completions/zsh(N-/)
   /usr/local/share/zsh/site-functions(N-/)
   /opt/homebrew/share/zsh/site-functions(N-/)
   /usr/share/zsh/site-functions(N-/)

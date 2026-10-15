@@ -6,7 +6,7 @@ set -euo pipefail
 DOTFILES_DIR=${DOTFILES_DIR:-$HOME/.dotfiles}
 DOTFILES_SYSROOT=${DOTFILES_SYSROOT:-} # prefix for /etc and /usr lookups; exists for tests
 REPO_URL=https://github.com/TechDufus/dotfiles.git
-MISE_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/mise
+MISE_DIR=${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
 LOG=$STATE_DIR/last-run.log
 
@@ -16,8 +16,8 @@ STAGES="packages system dotfiles shell tools modules"
 KNOWN_PARTS=" accounts plugins packages files services firewall compose repos dotfiles mise-shell-activate macos-defaults macos-launchd-agents linux-systemd-units user tools task final-hook "
 SUDO_PARTS=" accounts plugins packages files services firewall linux-systemd-units user "
 
-UI=0 PLAIN=0 ANIM=0 COLOR=0 DRY=0 ONLY="" SKIP="" PASS=() FORCE_PREVIEW=0
-CHILD="" SUDO_PID="" INFO="" LOG_OFF=0 RIGHT=78 NOW=0 T0=0 RUN_T0=0 HAVE_FRAC=0
+UI=0 PLAIN=0 ANIM=0 COLOR=0 DRY=0 ONLY="" SKIP="" PASS=() CONFIG_ARGS=() FORCE_PREVIEW=0
+CHILD="" SUDO_PID="" INFO="" PREVIEW_DIR="" LOG_OFF=0 RIGHT=78 NOW=0 T0=0 RUN_T0=0 HAVE_FRAC=0
 FIT="" ROW="" FMT="" DETAIL="" RESULT="" EXTRA=() WARNS=() TASK_TOTAL=0 COLS=80 HOST="" SELECTED=""
 RST="" BOLD="" C_TEXT="" C_SUB="" C_OVR="" C_SURF="" C_MAUVE="" C_BLUE="" C_GREEN="" C_YELLOW="" C_RED="" C_PEACH=""
 FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
@@ -29,10 +29,10 @@ Usage: dotfiles [--profile] [--plain] [mise bootstrap flags...]
 Installs git and mise, clones or updates $DOTFILES_DIR, links
 $MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
 A real file or folder where a module wants a link (a fresh Omarchy's own
-configs) is moved to <path>.pre-dotfiles.<epoch> first, never overwritten.
+configs) is kept in a unique <path>.pre-dotfiles.<epoch>.<random>/original backup.
 
 Flags passed through to mise bootstrap:
-  --dry-run          preview every change without applying it
+  --dry-run          preview this checkout without installing or changing setup
   --only <parts>     run only these parts, e.g. --only dotfiles,tools
   --skip <parts>     run everything except these parts
   --force-dotfiles   overwrite conflicting files instead of moving them aside
@@ -48,6 +48,14 @@ $LOG
 The screen is replaced by mise's own log with --plain, DOTFILES_UI=0, NO_COLOR,
 a non-terminal stdout/stderr, or any other flag (-v, --raw, -q, --from, ...).
 
+Dry runs require an existing compatible mise and a local modules checkout. They
+do not pull, install prerequisites, replace live mise config, or move conflicts.
+They still evaluate trusted mise config templates and may update mise metadata,
+state and caches; deployment, hook and bootstrap-task commands are only previewed.
+Configured candidates preview in their original config context. First-run scratch
+preview replaces conf.d as apply would; retained global files/tasks require an
+isolated rehearsal or already-configured candidate. Custom MISE_GLOBAL_CONFIG_FILE
+and MISE_CONFIG_FILE selections are unsupported for both setup and preflight.
 Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
 State: mise dot status, mise bootstrap status. Checks: cd ~ && mise run check
 EOF
@@ -185,13 +193,27 @@ installed_mise_version() { # first field of 'mise --version', e.g. 2026.10.6
 # mise ignores the module folders and bootstrap exits 0 having done nothing.
 check_mise_version() {
   local file="$DOTFILES_DIR/modules/base/mise.toml" want have rc
-  [ -r "$file" ] || return 0
+  if [ ! -r "$file" ]; then
+    [ "$DRY" = 0 ] || die "cannot preview without $file; provide a local checkout with DOTFILES_DIR"
+    return 0
+  fi
   want=$(sed -n '/^min_version[[:space:]]*=/{s/^min_version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p;q;}' "$file")
-  [ -n "$want" ] || return 0
+  if [ -z "$want" ]; then
+    [ "$DRY" = 0 ] || die "cannot determine the checkout's minimum mise version from $file"
+    return 0
+  fi
   have=$(installed_mise_version)
   rc=0
   version_older "$have" "$want" || rc=$?
-  [ "$rc" -eq 0 ] || return 0 # new enough, or unparseable: do not block
+  if [ "$DRY" = 1 ]; then
+    [ "$rc" -ne 2 ] || die "cannot verify mise version '$have'; install a released mise >= $want, then retry --dry-run"
+    [ "$rc" -eq 0 ] || return 0
+    if [ "$1" = macos ]; then
+      die "mise $have is older than $want; run brew upgrade mise separately, then retry --dry-run"
+    fi
+    die "mise $have is older than $want; upgrade the system (update, or sudo pacman -Syu) separately, then retry --dry-run"
+  fi
+  [ "$rc" -eq 0 ] || return 0 # preserve normal apply's handling of development versions
   if [ "$1" = macos ]; then
     echo "dotfiles: mise $have is older than $want; running brew upgrade mise"
     brew upgrade mise || echo "dotfiles: brew upgrade mise failed" >&2
@@ -205,25 +227,82 @@ check_mise_version() {
   die "mise $have is older than $want, which the modules need; upgrade the system (update, or sudo pacman -Syu), then run dotfiles again"
 }
 
+# Reserve a new sibling directory before moving, so even simultaneous runs cannot
+# overwrite an earlier backup or move a target inside an existing backup directory.
+backup_target() { # backup_target <target> -> BACKUP
+  local container
+  container=$(mktemp -d "$1.pre-dotfiles.$(date +%s).XXXXXX") || die "cannot reserve a backup for $1"
+  BACKUP=$container/original
+  if ! mv "$1" "$BACKUP"; then
+    rmdir "$container" 2>/dev/null || true
+    die "cannot preserve $1 at $BACKUP"
+  fi
+}
+
 link_conf_d() {
   local link="$MISE_DIR/conf.d" backup
   mkdir -p "$MISE_DIR"
   if { [ -e "$link" ] || [ -L "$link" ]; } && [ "$(readlink "$link" || true)" != "$DOTFILES_DIR/modules" ]; then
-    backup="$link.pre-dotfiles.$(date +%s)"
-    mv "$link" "$backup"
+    backup_target "$link"
+    backup=$BACKUP
     warn_step conf.d "moved existing conf.d to $backup" "moved existing $link to $backup"
   fi
   ln -sfn "$DOTFILES_DIR/modules" "$link"
 }
 
+miserc_content() {
+  local envs
+  if [ "$1" = macos ]; then envs='[]'; else envs="[\"$1\"]"; fi
+  printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = %s' "$envs"
+}
+
 write_miserc() {
-  local profile=$1 envs rc="$MISE_DIR/miserc.local.toml" want
-  if [ "$profile" = macos ]; then envs='[]'; else envs="[\"$profile\"]"; fi
-  want=$(printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = %s' "$envs")
+  local rc="$MISE_DIR/miserc.local.toml" want
+  want=$(miserc_content "$1")
   if [ ! -f "$rc" ] || [ "$(cat "$rc")" != "$want" ]; then
     printf '%s\n' "$want" >"$rc"
   fi
 }
+# Preview in the original context when setup already matches. Only first-run
+# configuration without retained global files can be faithfully represented in
+# scratch; moving a user file changes lexical config_source and adjacent resources.
+prepare_preview() { # prepare_preview <profile>
+  local live=$MISE_DIR file name configured=0 want
+  command -v mise >/dev/null 2>&1 || die "--dry-run needs an existing mise; install mise separately, then retry"
+  check_mise_version "$1"
+  DOTFILES_DIR=$(cd "$DOTFILES_DIR" && pwd -P)
+  case $live in /*) ;; *) live=$PWD/$live ;; esac
+  want=$(miserc_content "$1")
+  if [ "$(readlink "$live/conf.d" 2>/dev/null || true)" = "$DOTFILES_DIR/modules" ] &&
+    [ -f "$live/miserc.local.toml" ] && [ "$(cat "$live/miserc.local.toml")" = "$want" ]; then
+    configured=1
+  fi
+  if [ "$configured" = 0 ]; then
+    for file in "$live"/* "$live"/.[!.]* "$live"/..?*; do
+      { [ -e "$file" ] || [ -L "$file" ]; } || continue
+      name=${file##*/}
+      case $name in conf.d | miserc.local.toml) continue ;; esac
+      die "cannot faithfully preview unconfigured candidate with retained global configuration $file; use an isolated HOME/MISE_CONFIG_DIR for first-run rehearsal; original-context preview requires conf.d/profile already configured to this candidate"
+    done
+  fi
+  PREVIEW_DIR=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-preview.XXXXXX") || die "cannot create scratch preview configuration"
+  trap ui_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  if [ "$configured" = 0 ]; then
+    MISE_DIR=$PREVIEW_DIR/mise
+    mkdir -p "$MISE_DIR"
+    # Actual apply replaces the whole live conf.d. Do not retain entries that
+    # would disappear during that cutover, even if they look like overrides.
+    ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
+    write_miserc "$1"
+    export MISE_CONFIG_DIR=$MISE_DIR
+  fi
+  STATE_DIR=$PREVIEW_DIR/state
+  LOG=$STATE_DIR/last-run.log
+  echo "dotfiles: previewing local modules; no setup, pull, or conflict moves (mise may evaluate config templates and update metadata, state and caches)"
+}
+
 
 # wants_dotfiles <args>: false when --only leaves the dotfiles part out or --skip names it.
 wants_dotfiles() {
@@ -245,39 +324,68 @@ wants_dotfiles() {
   ! in_list "$skip" dotfiles
 }
 
-# mise refuses to replace a real file or directory with a link, and a fresh Omarchy ships
-# its own ghostty, kitty and nvim configs. Move every target mise would refuse to
-# <target>.pre-dotfiles.<epoch> first, as the Ansible version kept backups. A dry run only
-# reports them and previews with --force-dotfiles, which writes nothing then.
-set_aside_conflicts() { # set_aside_conflicts <args>
-  local dry=0 a out path target stamp n=0
-  wants_dotfiles "$@" || return 0
-  for a in "$@"; do
-    case $a in -n | --dry-run) dry=1 ;; esac
-  done
-  out=$( (cd "$HOME" && mise dot apply --dry-run) </dev/null 2>&1 || true)
-  case $out in *"refusing to overwrite existing files"*) ;; *) return 0 ;; esac
-  stamp=$(date +%s)
-  while IFS= read -r path; do
-    # shellcheck disable=SC2088 # mise lists paths with a literal "~/", which we expand here
-    case $path in
-      "~/"*) target=$HOME/${path#"~/"} ;;
-      *) target=$path ;;
+# Global config-selection flags must affect the safety probe as well as bootstrap.
+collect_config_args() {
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -E | --env | -P | -C | --cd)
+        [ $# -gt 1 ] || die "$1 needs a value"
+        CONFIG_ARGS+=("$1" "$2")
+        shift
+        ;;
+      --env=* | --profile=* | --cd=* | -E?* | -P?* | -C?* | --no-config) CONFIG_ARGS+=("$1") ;;
     esac
-    { [ -e "$target" ] || [ -L "$target" ]; } || continue
-    n=$((n + 1))
-    if [ "$dry" = 1 ]; then
-      warn_step backup "would move $path aside" "would move $path to $path.pre-dotfiles.$stamp"
+    shift
+  done
+}
+
+# mise's refusal diagnostic is the only failure we can safely recover from without
+# a JSON parser on a first-run machine. Validate the entire diagnostic and every
+# target before moving anything; unknown errors remain errors, not a partial plan.
+set_aside_conflicts() { # set_aside_conflicts <args>
+  local out rc=0 line target other state=before paths=() path
+  wants_dotfiles "$@" || return 0
+  out=$(MISE_FRIENDLY_ERROR=1 MISE_LOG_LEVEL=error MISE_COLOR=0 CLICOLOR_FORCE=0 mise dot apply --dry-run ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} </dev/null 2>&1) || rc=$?
+  [ "$rc" -ne 0 ] || return 0
+  while IFS= read -r line; do
+    case $state:$line in
+      "before:mise ERROR files: refusing to overwrite existing files (use --force):") state=paths ;;
+      paths:"  "~/* | paths:"  "/*)
+        path=${line#  }
+        case $path in "~/"*) target=$HOME/${path#"~/"} ;; *) target=$path ;; esac
+        # Reject ambiguous paths (including traversal) rather than backing up a
+        # different location from the one mise checked. No shell evaluation.
+        case $target in
+          / | */ | *//* | */./* | */../* | */. | */.. | *[[:cntrl:]]*)
+            state=invalid; break ;;
+        esac
+        { [ -e "$target" ] || [ -L "$target" ]; } || { state=invalid; break; }
+        for other in ${paths[@]+"${paths[@]}"}; do
+          case "$target/" in "$other/"*) state=invalid ;; esac
+          case "$other/" in "$target/"*) state=invalid ;; esac
+        done
+        [ "$state" != invalid ] || break
+        paths+=("$target")
+        ;;
+      paths:"mise ERROR Version: "?*) state=version ;;
+      "version:mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information") state=done ;;
+      *) state=invalid; break ;;
+    esac
+  done <<<"$out"
+  if [ "$state" != done ] || [ "${#paths[@]}" -eq 0 ] || [ "$rc" -ne 1 ]; then
+    printf '%s\n' "$out" >&2
+    echo "dotfiles: dotfile preview failed; no conflict targets were moved" >&2
+    return "$rc"
+  fi
+  for target in "${paths[@]}"; do
+    if [ "$DRY" = 1 ]; then
+      warn_step backup "would move $target aside" "would preserve $target in a unique $target.pre-dotfiles.<epoch>.<random>/original backup"
     else
-      mv "$target" "$target.pre-dotfiles.$stamp"
-      warn_step backup "moved $path aside" "moved $path to $path.pre-dotfiles.$stamp"
+      backup_target "$target"
+      warn_step backup "moved $target aside" "moved $target to $BACKUP"
     fi
-  done < <(printf '%s\n' "$out" | awk '/refusing to overwrite existing files/ { p = 1; next }
-    p && /^  [~\/]/ { sub(/^  /, ""); print; next }
-    p { exit }')
-  [ "$n" -gt 0 ] || return 0
-  if [ "$dry" = 1 ]; then FORCE_PREVIEW=1; fi
-  if [ "$UI" = 1 ]; then printf '        %skept as <path>.pre-dotfiles.%s%s\n' "$C_OVR" "$stamp" "$RST"; fi
+  done
+  if [ "$DRY" = 1 ]; then FORCE_PREVIEW=1; fi
 }
 
 # ---- mode selection: UI only for a terminal and arguments the stages can replay ----
@@ -835,6 +943,7 @@ ui_cleanup() {
     osc "0"
   fi
   [ -z "$INFO" ] || rm -rf "$INFO"
+  [ -z "$PREVIEW_DIR" ] || rm -rf "$PREVIEW_DIR"
 }
 
 # shellcheck disable=SC2329 # runs from trap
@@ -885,7 +994,11 @@ ui_footer() { # ui_footer <status>
   rule $((RIGHT - 2))
   printf '\n  %s%s%s\n' "$C_SURF" "$REP" "$RST"
   printf '    %s%s%s %s%s%s\n' "$color" "$glyph" "$RST" "$BOLD$C_TEXT" "$label" "$RST"
-  printf '    %slog %s%s\n\n' "$C_OVR" "$short" "$RST"
+  if [ "$DRY" = 1 ]; then
+    printf '    %spreview log is temporary; use --plain to retain output%s\n\n' "$C_OVR" "$RST"
+  else
+    printf '    %slog %s%s\n\n' "$C_OVR" "$short" "$RST"
+  fi
 }
 
 run_stages() {
@@ -901,7 +1014,7 @@ run_stages() {
     return 0
   fi
   for stage in ${stages[@]+"${stages[@]}"}; do all="$all,${stage#*:}"; done
-  prime_sudo "$all"
+  [ "$DRY" = 1 ] || prime_sudo "$all"
   gather_info
   for stage in ${stages[@]+"${stages[@]}"}; do
     ui_run_stage "${stage%%:*}" "${stage#*:}" "$i" "$n" || rc=$?
@@ -977,17 +1090,48 @@ for arg in "$@"; do
   esac
 done
 
+# A custom selected global file suppresses conf.d in mise. Supporting it here
+# would make setup and preview disagree about whether candidate modules load.
+if [ "${MISE_GLOBAL_CONFIG_FILE+x}" = x ] || [ "${MISE_CONFIG_FILE+x}" = x ]; then
+  die "MISE_GLOBAL_CONFIG_FILE/MISE_CONFIG_FILE is unsupported by dotfiles setup and preflight; unset it and use config.toml in MISE_CONFIG_DIR for retained user overrides"
+fi
+
 profile=$(detect_profile)
-if use_ui "$@"; then ui_init "$profile" "$@"; fi
-install_prerequisites "$profile"
-sync_repo
-check_mise_version "$profile"
-link_conf_d
-write_miserc "$profile"
+requested_dry=0
+for arg in "$@"; do
+  case $arg in -n | --dry-run) requested_dry=1 ;; esac
+done
+if use_ui "$@"; then UI=1; fi
+DRY=$requested_dry
+collect_config_args "$@"
+if [ "$DRY" = 1 ]; then
+  for arg in "$@"; do
+    case $arg in
+      --prompt-vars)
+        die "--prompt-vars saves answers even during mise dry runs; omit it for read-only preflight"
+        ;;
+      --adopt | --adopt=*)
+        die "--adopt is not supported by read-only preflight; set DOTFILES_DIR to a local checkout instead"
+        ;;
+    esac
+  done
+fi
+if [ "$DRY" = 1 ]; then prepare_preview "$profile"; fi
+if [ "$UI" = 1 ]; then ui_init "$profile" "$@"; fi
+if [ "$DRY" = 0 ]; then
+  install_prerequisites "$profile"
+  sync_repo
+  check_mise_version "$profile"
+  link_conf_d
+  write_miserc "$profile"
+fi
 set_aside_conflicts "$@"
 if [ "$UI" = 0 ]; then
   if [ "$FORCE_PREVIEW" = 1 ]; then set -- --force-dotfiles "$@"; fi
-  exec mise bootstrap --yes "$@"
+  if [ "$DRY" = 0 ]; then exec mise bootstrap --yes "$@"; fi
+  status=0
+  mise bootstrap --yes "$@" || status=$?
+  exit "$status"
 fi
 if [ "$FORCE_PREVIEW" = 1 ]; then PASS+=(--force-dotfiles); fi
 

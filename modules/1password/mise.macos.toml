@@ -1,0 +1,3 @@
+[dotfiles]
+# This Mac offers SSH keys from Personal only; keep other machines' selection unchanged.
+"~/.config/1Password/ssh/agent.toml" = { source = "agent.macos.toml", mode = "copy", permissions = "0600" }

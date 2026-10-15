@@ -1,6 +1,4 @@
 # Preserve this Mac's minimal Claude profile; the shared profile is intentionally unchanged.
-# Before replacing ~/.claude/hooks, preserve its Herdr-generated herdr-agent-state.sh
-# in this module's ignored hooks/ path; the tracked sources do not supply that script.
 [dotfiles]
 "~/.claude/settings.json" = { source = "./settings.macos.json", mode = "symlink" }
 

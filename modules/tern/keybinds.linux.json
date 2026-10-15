@@ -1,0 +1,8 @@
+{
+  "keybinds": {
+    "ctrl+]": "next_pane",
+    "ctrl+[": "previous_pane",
+    "ctrl+shift+]": "next_tab_across_sessions",
+    "ctrl+shift+[": "previous_tab_across_sessions"
+  }
+}

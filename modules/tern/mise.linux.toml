@@ -1,2 +1,3 @@
 [dotfiles]
 "~/.config/tern/settings.json/shared" = { source = "settings.json", merge = true }
+"~/.config/tern/settings.json/keybinds" = { source = "keybinds.linux.json", merge = true }

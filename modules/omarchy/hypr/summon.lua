@@ -192,7 +192,7 @@ hl.define_submap(SUMMON, function()
   hl.bind("CTRL + c", hl.dsp.submap("reset"))
 end)
 
--- Mirrors the Hammerspoon macro modal (modules/hammerspoon/config/init.lua `macros`).
+-- Mirrors the Hammerspoon macro modal (modules/hammerspoon/config/init.lua `macros`); p is Omarchy-only.
 hl.define_submap(MACRO, function()
   o.bind("a", "Cycle windows of the active app", run(M.cycle_same_app))
   o.bind("s", "Screenshot region to clipboard", run(function() hl.exec_cmd("omarchy-capture-screenshot region copy") end))
@@ -200,6 +200,8 @@ hl.define_submap(MACRO, function()
   o.bind("b", "Browser bookmarks", run(function() M.browser_shortcut("CTRL SHIFT", "O") end))
   o.bind("t", "Browser tab search", run(function() M.browser_shortcut("CTRL SHIFT", "A") end))
   o.bind("g", "GIF search", run(function() M.summon("gifs") end))
+  -- Same picker as Hyper+P; cells.lua sets the global, looked up at press time so load order does not matter.
+  o.bind("p", "Pick this screen's layout", run(function() _G.dotfiles_cells.pick_layout() end))
   hl.bind("escape", hl.dsp.submap("reset"))
   hl.bind("CTRL + c", hl.dsp.submap("reset"))
 end)

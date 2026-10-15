@@ -649,6 +649,10 @@ for address, win in pairs(live) do
   if win.floating and not state.floated[address] then state.native_float[address] = true end
 end
 save()
+-- The reload may have changed gaps (looknfeel.lua, Omarchy's no-gaps toggle) or layouts.lua: re-snap them.
+local restored = {}
+for address in pairs(state.floated) do restored[#restored + 1] = address end
+replace_floated(restored)
 
 hl.on("window.open", guarded(function(win)
   if not win or not win.address then return end

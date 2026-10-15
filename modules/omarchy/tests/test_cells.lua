@@ -515,7 +515,10 @@ case("a config reload keeps user-tiled windows tiled and Super+U overrides, and 
   local out = layout_pass(area, { spot })
   box_eq(out[1].box, 1920, 30, 5120, 1410, "user-tiled window stays tiled across the area after the reload")
   run_timers()
-  eq(#fx.log, 0, "no re-float after the reload")
+  eq(#dispatches("float"), 0, "no re-float after the reload")
+  for _, d in ipairs(fx.log) do
+    if d.args.window == "address:0xs" then fail("user-tiled window touched after the reload") end
+  end
   eq(M.cell_for(term, "standard", M.config.layouts.standard), "standard_utility_overlay", "override survives the reload")
 
   -- A window that no longer exists is forgotten: a new window reusing its address floats normally.
@@ -534,6 +537,27 @@ case("Super+U choices survive a logout", function()
   M = load_cells({ windows = { term }, state_home = state_home, runtime_dir = mktemp() })
   eq(M.cell_for(term, "standard", M.config.layouts.standard), "standard_utility_overlay", "override survives the logout")
   eq(next(M._state.user_tiled), nil, "no window state from the old session")
+end)
+
+case("a config reload re-snaps floated windows to the new gaps", function()
+  load_cells({ options = { ["general.gaps_in"] = 5, ["general.gaps_out"] = 10, ["general.border_size"] = 2 } })
+  local browser = window("0xb", "brave-browser")
+  emit("window.open", browser)
+  browser.floating = true
+  local dirs = { state_home = fx.state_home, runtime_dir = fx.runtime_dir }
+
+  load_cells({
+    windows = { browser }, state_home = dirs.state_home, runtime_dir = dirs.runtime_dir,
+    options = { ["general.gaps_in"] = 2, ["general.gaps_out"] = 4, ["general.border_size"] = 2 },
+  })
+  run_timers()
+  eq(#fx.log, 2, "already floating: resize and move only")
+  eq(fx.log[1].kind, "resize", "first dispatch")
+  eq(fx.log[1].args.x, 2038, "resize w")
+  eq(fx.log[1].args.y, 1398, "resize h")
+  eq(fx.log[2].kind, "move", "second dispatch")
+  eq(fx.log[2].args.x, 1926, "move x")
+  eq(fx.log[2].args.y, 36, "move y")
 end)
 
 case("a window that opened floating and is tiled with Super+T tiles across the area and stays there", function()

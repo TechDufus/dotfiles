@@ -6,12 +6,25 @@
 # hyprland.lua loads hypr.autostart before default.hypr.toggles.
 "~/.config/hypr/autostart.lua/dotfiles" = { block = 'require("hypr.dotfiles.main")' }
 
+# Omarchy themes: each repo is cloned into ~/.config/omarchy/themes/<name>, where Omarchy's
+# theme menu finds it (the name drops "omarchy-" and "-theme"). The url must match an existing
+# clone's origin exactly, or mise stops the run. `dotfiles --update` fast-forwards them.
+[bootstrap.repos."~/.config/omarchy/themes/pulsar"]
+url = "https://github.com/bjarneo/omarchy-pulsar-theme"
+
 [tasks."bootstrap:omarchy"]
 description = "Reload Hyprland, validate its config, restart fcitx5"
 sources = ["hypr/*.lua", "fcitx5/keyboard.conf"]
 outputs = { auto = true }
 run = "./bootstrap.sh"
 
+# Switches to this theme once per value; a later pick in Omarchy's theme menu stays until it
+# changes. Built-in themes (catppuccin, tokyo-night, ...) need no repo entry above.
+[tasks."bootstrap:omarchy-theme"]
+description = "Switch to the default Omarchy theme once per default"
+env = { OMARCHY_DEFAULT_THEME = "pulsar" }
+run = "./theme.sh"
+
 [tasks."test:omarchy"]
-description = "Run the summon and cells Lua tests"
-run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua"]
+description = "Run the summon, cells and default-theme tests"
+run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "bash tests/test_theme.sh"]

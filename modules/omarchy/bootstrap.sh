@@ -2,18 +2,10 @@
 # Applies the Hyprland Lua modules and the fcitx5 keyboard config after `mise dot` deployed them.
 set -euo pipefail
 
-# Agent and SSH shells lack HYPRLAND_INSTANCE_SIGNATURE, and long-lived herdr/tmux panes keep a
-# stale one after Hyprland restarts. Use it only if that instance is live, else find the running
-# one, so a run from anywhere reloads and validates instead of caching an unvalidated success.
-sig=${HYPRLAND_INSTANCE_SIGNATURE:-}
-live=""
-if command -v hyprctl >/dev/null 2>&1; then
-  live=$(hyprctl instances -j 2>/dev/null | jq -r '.[].instance' 2>/dev/null || true)
-fi
-if [ -n "$sig" ] && ! grep -qxF -- "$sig" <<<"$live"; then
-  sig=""
-fi
-[ -n "$sig" ] || sig=$(head -n 1 <<<"$live")
+# shellcheck source=hypr-instance.sh source-path=SCRIPTDIR
+. "$(dirname "$0")/hypr-instance.sh"
+hypr_live_sig
+sig=$HYPR_SIG
 if [ -z "$sig" ]; then
   echo "omarchy: not in Hyprland; applies at next login"
   exit 0

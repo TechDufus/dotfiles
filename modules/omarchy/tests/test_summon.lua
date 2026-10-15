@@ -204,7 +204,7 @@ case("uppercase key binds as SHIFT + letter", function()
 end)
 
 -- macOS-only Hammerspoon targets with no Omarchy equivalent.
-local MACOS_ONLY = { G = "Grok Bot", h = "Screen Sharing", w = "AWS WorkSpaces" }
+local MACOS_ONLY = { h = "Screen Sharing", w = "AWS WorkSpaces" }
 -- Omarchy-only summon keys: t summons Tern here, so Ghostty moved to T.
 local OMARCHY_ONLY = { T = "Ghostty" }
 

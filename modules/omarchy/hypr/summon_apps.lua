@@ -10,7 +10,7 @@
 -- Cells per screen layout live in layouts.lua, keyed by name.
 return {
   { name = "agenda", key = "a", classes = { "brave-notes.granola.ai__-Default" }, exec = { "omarchy-launch-webapp https://notes.granola.ai" } },
-  { name = "browser", key = "b", classes = { "brave-browser", "chromium", "app.zen_browser.zen", "zen", "firefox" }, exec = { "omarchy-launch-browser" }, workspace = "2" },
+  { name = "browser", key = "b", classes = { "brave-browser", "chromium", "app.zen_browser.zen", "zen", "firefox" }, exec = { "omarchy-launch-browser" }, workspace = "1" },
   { name = "cursor", key = "c", classes = { "cursor" }, exec = { "cursor" } },
   { name = "signal", key = "C", classes = { "signal" }, exec = { "signal-desktop" }, workspace = "4" },
   { name = "discord", key = "d", classes = { "discord", "brave-discord.com__channels_@me-Default" }, exec = { "discord" }, workspace = "4" },

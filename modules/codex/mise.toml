@@ -1,6 +1,3 @@
-[tools]
-codex = "latest"
-
 [dotfiles]
 "~/.codex/AGENTS.md" = { source = "AGENTS.md" }
 "~/.codex/skills/work" = { source = "skills/work" }

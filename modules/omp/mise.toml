@@ -1,6 +1,3 @@
-[tools]
-"github:can1357/oh-my-pi" = "latest"
-
 [dotfiles]
 "~/.omp" = { permissions = "0700" }
 "~/.omp/agent" = { permissions = "0700" }

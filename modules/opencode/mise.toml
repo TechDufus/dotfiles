@@ -1,6 +1,3 @@
-[tools]
-opencode = "latest"
-
 # Omarchy keeps no opencode config.
 [dotfiles."~/.config/opencode/opencode.json"]
 source = "opencode.json"

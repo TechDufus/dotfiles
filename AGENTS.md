@@ -46,6 +46,7 @@ Retiring a file: replace its entry with `mode = "absent"` for one release, then 
 - Never manage `~/.config/hypr/hyprland.lua`; hook in only through the `autostart.lua` block.
 - No tmux, btop, or opencode config on Omarchy; Omarchy owns those.
 - herdr comes from Omarchy's pacman package there.
+- Tools Omarchy installs with `omarchy-mise-install` (codex, claude, omp, grok, pi, …; see `/usr/share/omarchy/install/user/mise.sh`) get `~/.local/bin` wrappers that run `mise use -g`. Declaring one in a module's `mise.toml` or `mise.linux.toml` makes that fail with "declared in multiple global config files"; declare it only in `mise.macos.toml` / `mise.cachyos.toml`.
 
 ## Other landmines
 - No plaintext secrets; reference 1Password with `op://` only.

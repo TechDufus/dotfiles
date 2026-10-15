@@ -1,0 +1,5 @@
+# Omarchy installs claude through a ~/.local/bin wrapper that runs `mise use -g`, which writes
+# ~/.config/mise/config.toml. A second global declaration here makes that command fail
+# ("declared in multiple global config files"), so only non-Omarchy machines declare it.
+[tools]
+claude = "latest"

@@ -1,6 +1,3 @@
-[tools]
-claude = "latest"
-
 [dotfiles]
 "~/.claude/settings.json" = { source = "settings.json" }
 "~/.claude/scripts" = { source = "scripts", mode = "symlink" }

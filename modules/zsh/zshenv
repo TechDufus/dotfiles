@@ -8,8 +8,8 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   esac
 fi
 
-# PATH lives in paths_vars.zsh. Interactive .zshrc skips those files so the
-# list is not duplicated. Agent `zsh -c` never reaches .zshrc.
+# PATH lives in paths_vars.zsh, including for agents that never reach .zshrc.
+# Darwin login shells reapply it in .zshrc after /etc/zprofile's path_helper.
 _dotfiles_zsh_config="${HOME}/.config/zsh"
 if [[ -r "${_dotfiles_zsh_config}/paths_functions.zsh" && -r "${_dotfiles_zsh_config}/paths_vars.zsh" ]]; then
   source "${_dotfiles_zsh_config}/paths_functions.zsh"

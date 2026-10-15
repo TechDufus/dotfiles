@@ -17,6 +17,7 @@ return {
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
+    { "ColinKennedy/mega.cmdparse", dependencies = { "ColinKennedy/mega.logging" } },
     -- The below dependencies are optional
     "hrsh7th/nvim-cmp",
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons

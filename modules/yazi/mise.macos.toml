@@ -1,0 +1,9 @@
+[bootstrap.packages]
+"brew:yazi" = "latest"
+
+[dotfiles]
+# Own only the configuration files; Yazi and ya retain plugins and runtime state.
+"~/.config/yazi/yazi.toml" = { source = "yazi.toml" }
+"~/.config/yazi/theme.toml" = { source = "theme.toml" }
+# The legacy keymap contained comments only; use Yazi's current built-in bindings.
+"~/.config/yazi/keymap.toml" = { mode = "absent" }

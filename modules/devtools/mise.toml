@@ -13,7 +13,9 @@ pnpm = "latest"
 
 # Language servers
 "npm:typescript" = "latest"
-"npm:typescript-language-server" = "latest"
+# Keep TLS and its required JavaScript SDK on the compatible TypeScript 6 generation.
+# Disable SDK bin links so the server's private dependency cannot shadow the global tsc.
+"npm:typescript-language-server" = { version = "6", postinstall = 'npm install --prefix "$MISE_TOOL_INSTALL_PATH" --save-exact --omit=dev --ignore-scripts --bin-links=false --no-audit --no-fund typescript@6' }
 "npm:yaml-language-server" = "latest"
 "npm:bash-language-server" = "latest"
 "npm:pyright" = "latest"

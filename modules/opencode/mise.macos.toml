@@ -3,3 +3,7 @@
 # ("declared in multiple global config files"), so only non-Omarchy machines declare it.
 [tools]
 opencode = "latest"
+
+[dotfiles]
+# Retire the obsolete companion config, not the plugin in opencode.json.
+"~/.config/opencode/oh-my-opencode.json" = { mode = "absent" }

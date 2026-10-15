@@ -13,6 +13,13 @@ addToPath "$HOME/.cargo/bin"
 addToPath /opt/whalebrew/bin
 addToPath "$HOME/.magnitude/bin"
 addToPath "$HOME/.grok/bin"
-addToPathFront "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
-addToPathFront "$HOME/.local/bin"
+# macOS app-managed links must not shadow configured runtimes; Linux/Omarchy
+# wrappers intentionally remain ahead of mise.
+if [[ "$OSTYPE" == darwin* ]]; then
+  addToPathFront "$HOME/.local/bin"
+  addToPathFront "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
+else
+  addToPathFront "${XDG_DATA_HOME:-$HOME/.local/share}/mise/shims"
+  addToPathFront "$HOME/.local/bin"
+fi
 addToPathFront /usr/lib/ccache

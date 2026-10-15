@@ -8,3 +8,4 @@
 "brew:ansible-lint" = "latest"
 "brew:ripgrep" = "latest"
 "brew:neovim" = "latest"
+"brew:ruby" = "latest" # Mason's Solargraph requires newer Ruby than macOS provides.

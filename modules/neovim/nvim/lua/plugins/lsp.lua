@@ -23,6 +23,16 @@ return {
     'mason-org/mason.nvim',
     lazy = false,
     opts = {},
+    config = function(_, opts)
+      if vim.fn.has('macunix') == 1 then
+        -- macOS's system Ruby cannot install Solargraph's current dependencies.
+        local ruby = vim.system({ 'brew', '--prefix', 'ruby' }, { text = true }):wait()
+        assert(ruby.code == 0, 'Neovim requires the declared Homebrew Ruby package')
+        local bin = vim.trim(ruby.stdout) .. '/bin'
+        vim.env.PATH = bin .. ':' .. vim.env.PATH
+      end
+      require('mason').setup(opts)
+    end,
   },
 
   -- Autocompletion
@@ -299,6 +309,25 @@ return {
     end,
     event = { "CmdlineEnter" },
     ft = { "go", 'gomod' },
-    build = ':lua require("go.install").update_all_sync()' -- if you need to install/update all binaries
+    -- nvim-go's installer is asynchronous; Lazy must observe each tool's result.
+    build = function()
+      for _, tool in ipairs(require('go.config').tools) do
+        if tool.enable ~= false then
+          local manager = tool.pkg_mgr or 'go'
+          local command
+          if manager == 'go' then
+            command = { 'go', 'install', tool.src .. '@latest' }
+          elseif manager == 'npm' then
+            command = { 'npm', 'install', '--global', tool.src }
+          else
+            error('Unsupported nvim-go tool package manager: ' .. manager)
+          end
+          local result = vim.system(command, { text = true }):wait()
+          if result.code ~= 0 then
+            error(('Failed to install %s:\n%s'):format(tool.name, result.stderr or result.stdout or ''))
+          end
+        end
+      end
+    end,
   },
 }

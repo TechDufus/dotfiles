@@ -57,6 +57,10 @@ assert_equal "$PATH" "$target-extra:$first:$target" 'append must not duplicate e
 
 # Exercise actual paths_vars files with both new and inherited tool paths.
 # These files are only inspected via command lookup; no fixture binary is run.
+# Branch simulations supplement native execution; they are not native Linux runs.
+native_ostype="$OSTYPE"
+for path_platform in native darwin-simulated linux-simulated; do
+[[ "$path_platform" != native ]] && OSTYPE="$path_platform" || OSTYPE="$native_ostype"
 for data_mode in explicit fallback; do
   if [[ "$data_mode" == explicit ]]; then
     export XDG_DATA_HOME="$CASE_ROOT/data"
@@ -76,14 +80,13 @@ for data_mode in explicit fallback; do
     source "$PATH_VARS"
     assert_equal "$(command -v dotfiles-path-runtime)" "$shims/dotfiles-path-runtime" \
       'mise tools must resolve ahead of old Homebrew runtimes'
-    assert_equal "$(command -v dotfiles-path-wrapper)" "$wrappers/dotfiles-path-wrapper" \
-      'intentional local wrappers must resolve ahead of mise shims'
+    wrapper_owner="$wrappers"
+    [[ "$OSTYPE" != darwin* ]] || wrapper_owner="$shims"
+    assert_equal "$(command -v dotfiles-path-wrapper)" "$wrapper_owner/dotfiles-path-wrapper" \
+      'macOS mise tools and Linux/Omarchy wrappers must retain platform precedence'
     assert_equal "$(command -v dotfiles-path-unrelated)" "$other/dotfiles-path-unrelated" \
       'unrelated executable entries must survive startup ordering'
-    case ":$PATH:" in
-      *":$wrappers:$shims:$old:$other:"*) ;;
-      *) printf 'unexpected shell path ordering: %s\n' "$PATH" >&2; exit 1 ;;
-    esac
+    # Ordering is verified through competing executable lookup, not PATH text.
     original="$PATH"
     source "$PATH_VARS"
     assert_equal "$PATH" "$original" 'sourcing path configuration twice must be idempotent'
@@ -91,6 +94,8 @@ for data_mode in explicit fallback; do
     [[ -f "$old/dotfiles-path-runtime" && -f "$shims/dotfiles-path-wrapper" ]]
   done
 done
+done
+OSTYPE="$native_ostype"
 
 if [[ "$SHELL_KIND" == bash ]]; then
   optional_tools='magnitude minimax lmstudio'
@@ -223,6 +228,93 @@ for optional in missing present; do
     cd "$tmp_dir/work"
     isolated_env /bin/sh "$tmp_dir/check-profile"
   )
+done
+
+# Exercise the actual startup sequence, not just direct helper sourcing. -d
+# isolates host global startup; the fixture login profile reproduces a competing
+# PATH reorder, and also runs Apple's real path_helper when available on Darwin.
+startup_home="$tmp_dir/startup home"
+startup_zdot="$tmp_dir/startup-zdot"
+mkdir -p "$startup_home/.config/zsh" "$startup_home/.local/bin" "$startup_zdot"
+cp "$repo_root/modules/zsh/zsh/paths_functions.zsh" \
+  "$repo_root/modules/zsh/zsh/paths_vars.zsh" "$startup_home/.config/zsh/"
+for directory in "$tmp_dir/old-homebrew/bin" "$tmp_dir/data/mise/shims"; do
+  printf '#!/bin/sh\nexit 99\n' > "$directory/dotfiles-login-runtime"
+  chmod +x "$directory/dotfiles-login-runtime"
+done
+for directory in "$tmp_dir/data/mise/shims" "$startup_home/.local/bin"; do
+  printf '#!/bin/sh\nexit 99\n' > "$directory/dotfiles-login-wrapper"
+  chmod +x "$directory/dotfiles-login-wrapper"
+done
+cat > "$startup_zdot/.zshenv" <<'STARTUP_ENV'
+# Explicit simulations are branch guards, not evidence of a different host OS.
+[[ "$STARTUP_PLATFORM" == native ]] || OSTYPE="$STARTUP_PLATFORM"
+source "$STARTUP_ZSHENV"
+STARTUP_OS="$OSTYPE"
+STARTUP_NATIVE_PATH_HELPER=0
+STARTUP_PROFILE=0
+STARTUP_ENV
+cat > "$startup_zdot/.zprofile" <<'STARTUP_PROFILE'
+if [[ "$STARTUP_PLATFORM" == native && "$OSTYPE" == darwin* && -x /usr/libexec/path_helper ]]; then
+  eval "$(/usr/libexec/path_helper -s)"
+  STARTUP_NATIVE_PATH_HELPER=1
+fi
+export PATH="$CASE_ROOT/old-homebrew/bin:$PATH"
+STARTUP_PROFILE=1
+STARTUP_PROFILE
+cat > "$startup_zdot/.zshrc" <<'STARTUP_RC'
+# No host application may run as a side effect of sourcing the shipped rc.
+zoxide() { :; }
+source "$ZSHRC"
+STARTUP_RC
+cat > "$tmp_dir/check-startup" <<'STARTUP_CHECK'
+set -e
+assert_lookup() {
+  local actual="$(command -v "$1")"
+  if [[ "$actual" != "$2/$1" ]]; then
+    print -u2 -- "$STARTUP_PLATFORM $STARTUP_MODE: $1 expected $2/$1, got $actual"
+    exit 1
+  fi
+}
+expected="$XDG_DATA_HOME/mise/shims"
+wrapper="$HOME/.local/bin"
+[[ "$STARTUP_OS" != darwin* ]] || wrapper="$XDG_DATA_HOME/mise/shims"
+if [[ "$STARTUP_MODE" == login ]]; then
+  [[ "$STARTUP_PROFILE" == 1 ]]
+  if [[ "$STARTUP_OS" != darwin* ]]; then
+    # Linux/Omarchy retains the profile's order; do not apply the Mac repair.
+    expected="$CASE_ROOT/old-homebrew/bin"
+  fi
+  if [[ "$STARTUP_PLATFORM" == native && "$STARTUP_OS" == darwin* ]]; then
+    [[ "$STARTUP_NATIVE_PATH_HELPER" == 1 ]]
+  fi
+else
+  [[ "$STARTUP_PROFILE" == 0 ]]
+fi
+assert_lookup dotfiles-login-runtime "$expected"
+assert_lookup dotfiles-login-wrapper "$wrapper"
+original="$PATH"
+source "$ZDOTDIR/.zshrc"
+[[ "$PATH" == "$original" ]] || {
+  print -u2 -- "$STARTUP_PLATFORM $STARTUP_MODE: repeated rc changed PATH"
+  exit 1
+}
+assert_lookup dotfiles-login-runtime "$expected"
+assert_lookup dotfiles-login-wrapper "$wrapper"
+print -- "startup PATH passed: $STARTUP_PLATFORM ($STARTUP_OS), $STARTUP_MODE"
+STARTUP_CHECK
+for platform in native darwin-simulated linux-simulated; do
+  for mode in login nonlogin; do
+    startup_args=(-dic)
+    [[ "$mode" != login ]] || startup_args=(-dlic)
+    (
+      cd "$tmp_dir/work"
+      isolated_env HOME="$startup_home" ZDOTDIR="$startup_zdot" \
+        STARTUP_ZSHENV="$repo_root/modules/zsh/zshenv" \
+        STARTUP_PLATFORM="$platform" STARTUP_MODE="$mode" \
+        "$zsh_bin" "${startup_args[@]}" 'source "$CASE_ROOT/check-startup"'
+    )
+  done
 done
 
 printf '%s\n' 'shell PATH behavioral tests passed (Bash, Zsh, and POSIX profile)'

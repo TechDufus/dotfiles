@@ -165,7 +165,9 @@ zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
 
 for file in $HOME/.config/zsh/*.zsh(N); do
   case "${file:t}" in
-    paths_functions.zsh|paths_vars.zsh) continue ;;
+    paths_functions.zsh|paths_vars.zsh)
+      [[ "$OSTYPE" == darwin* && -o login ]] || continue
+      ;;
   esac
   source "$file"
 done

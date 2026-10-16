@@ -16,7 +16,7 @@ My personal dotfiles, applied with [mise](https://mise.jdx.dev/bootstrap.html). 
 | `macos` | macOS (Apple Silicon) |
 | `cachyos` | CachyOS (KDE Plasma) |
 
-Profiles describe the operating system and session, not the chassis. On Omarchy, its native tooling owns the desktop and gaming stack; CachyOS-specific gaming, KDE, and GPU policy is not automatically migrated.
+Profiles describe the operating system and session, not the chassis. The wrapper and Taskfile recognize Omarchy by OS ID or an installation at `~/.local/share/omarchy` or `/usr/share/omarchy`; an explicit `DOTFILES_PROFILE` takes precedence. On Omarchy, its native tooling owns the desktop and gaming stack; CachyOS-specific gaming, KDE, and GPU policy is not automatically migrated.
 
 Other systems stop with `unsupported machine`. The earlier Ansible provisioning version, which also covered Ubuntu, Fedora and WSL, is tagged [`ansible-final`](https://github.com/TechDufus/dotfiles/tree/ansible-final).
 

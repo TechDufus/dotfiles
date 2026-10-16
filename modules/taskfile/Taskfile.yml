@@ -8,7 +8,7 @@ vars:
           omarchy|cachyos) printf '%s\n' "$DOTFILES_PROFILE" ;;
           *) printf '%s\n' unsupported ;;
         esac
-      elif [ -d /usr/share/omarchy ]; then
+      elif [ -d /usr/share/omarchy ] || [ -d "$HOME/.local/share/omarchy" ]; then
         printf '%s\n' omarchy
       else
         [ ! -r /etc/os-release ] || . /etc/os-release

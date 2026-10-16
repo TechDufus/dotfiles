@@ -99,7 +99,7 @@ detect_profile() {
     # shellcheck source=/dev/null
     id=$(. "$DOTFILES_SYSROOT/etc/os-release" && echo "${ID:-unknown}")
   fi
-  if [ "$id" = omarchy ] || [ -d "$DOTFILES_SYSROOT/usr/share/omarchy" ]; then
+  if [ "$id" = omarchy ] || [ -d "$DOTFILES_SYSROOT/usr/share/omarchy" ] || [ -d "$HOME/.local/share/omarchy" ]; then
     echo omarchy
   elif [ "$id" = cachyos ]; then
     echo cachyos

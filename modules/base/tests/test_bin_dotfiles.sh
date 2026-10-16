@@ -233,6 +233,24 @@ mkdir -p "$SYSROOT/usr/share/omarchy"
 run_df --profile
 expect_rc 0
 expect_eq "$OUT" omarchy profile
+new_case arch-plus-home-omarchy-dir
+printf 'ID=arch\n' >"$SYSROOT/etc/os-release"
+mkdir -p "$C/home/.local/share/omarchy"
+run_df HOME="$C/home" --profile
+expect_rc 0
+expect_eq "$OUT" omarchy profile
+new_case cachyos-plus-home-omarchy-dir
+printf 'ID=cachyos\n' >"$SYSROOT/etc/os-release"
+mkdir -p "$C/home/.local/share/omarchy"
+run_df HOME="$C/home" --profile
+expect_rc 0
+expect_eq "$OUT" omarchy profile
+new_case override-home-omarchy-dir
+printf 'ID=arch\n' >"$SYSROOT/etc/os-release"
+mkdir -p "$C/home/.local/share/omarchy"
+run_df HOME="$C/home" DOTFILES_PROFILE=cachyos --profile
+expect_rc 0
+expect_eq "$OUT" cachyos profile
 detect ubuntu-rejected ubuntu "FAIL:unsupported machine (ubuntu)"
 detect no-os-release - "FAIL:unsupported machine (unknown)"
 detect override-macos ubuntu macos DOTFILES_PROFILE=macos

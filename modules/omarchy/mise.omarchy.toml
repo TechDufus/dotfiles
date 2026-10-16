@@ -12,14 +12,17 @@ sources = ["hypr/*.lua", "fcitx5/keyboard.conf"]
 outputs = { auto = true }
 run = "./bootstrap.sh"
 
+# Omarchy themes from git repos: each is cloned into ~/.config/omarchy/themes/<name>, where
+# Omarchy's theme menu finds it (<name> drops "omarchy-" and "-theme"). The url must match an
+# existing clone's origin exactly, or mise stops the run. `dotfiles --update` fast-forwards them.
+[bootstrap.repos."~/.config/omarchy/themes/ayaka"]
+url = "https://github.com/abhijeet-swami/omarchy-ayaka-theme.git"
+
 # Switches to this theme once per value; a later pick in Omarchy's theme menu stays until it
-# changes. Built-in themes (catppuccin, tokyo-night, ...) need nothing else. For a theme from a
-# git repo, add a `[bootstrap.repos."~/.config/omarchy/themes/<name>"]` entry with its `url`:
-# mise clones it where Omarchy's menu looks (<name> drops "omarchy-" and "-theme"), and
-# `dotfiles --update` fast-forwards it. The url must match an existing clone's origin exactly.
+# changes. Built-in themes (catppuccin, tokyo-night, ...) need no repo entry above.
 [tasks."bootstrap:omarchy-theme"]
 description = "Switch to the default Omarchy theme once per default"
-env = { OMARCHY_DEFAULT_THEME = "catppuccin" }
+env = { OMARCHY_DEFAULT_THEME = "ayaka" }
 run = "./theme.sh"
 
 [tasks."test:omarchy"]

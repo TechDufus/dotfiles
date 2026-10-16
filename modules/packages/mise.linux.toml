@@ -1,5 +1,5 @@
 [bootstrap.packages]
-"pacman:discord" = "latest"
+"pacman:discord" = { version = "latest", env = "personal" }
 "pacman:spotify-launcher" = "latest"
 "pacman:signal-desktop" = "latest"
 "pacman:fzf" = "latest"

@@ -7,6 +7,9 @@ DOTFILES_DIR=${DOTFILES_DIR:-$HOME/.dotfiles}
 DOTFILES_SYSROOT=${DOTFILES_SYSROOT:-} # prefix for /etc and /usr lookups; exists for tests
 REPO_URL=https://github.com/TechDufus/dotfiles.git
 MISE_DIR=${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}
+PURPOSE_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles
+PURPOSE_FILE=$PURPOSE_DIR/purpose
+PURPOSE=personal
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
 LOG=$STATE_DIR/last-run.log
 
@@ -32,7 +35,7 @@ FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
 usage() {
   cat <<EOF
-Usage: dotfiles [--profile] [--plain] [mise bootstrap flags...]
+Usage: dotfiles [--profile | --purpose | --set-purpose work|personal] [--plain] [mise bootstrap flags...]
 
 Installs git and mise, clones or updates $DOTFILES_DIR, links
 $MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
@@ -49,6 +52,8 @@ Flags passed through to mise bootstrap:
 Other:
   --plain            print mise's own log instead of the progress screen
   --profile          print the detected machine profile and exit
+  --purpose          print the saved machine purpose (default: personal) and exit
+  --set-purpose <p>  save work or personal and update mise selection only; standalone
   -h, --help         show this help
 
 On a terminal, dotfiles runs bootstrap in six stages (packages, system, dotfiles,
@@ -69,6 +74,9 @@ preview replaces conf.d as apply would; retained global files/tasks require an
 isolated rehearsal or already-configured candidate. Custom MISE_GLOBAL_CONFIG_FILE
 and MISE_CONFIG_FILE selections are unsupported for both setup and preflight.
 Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
+Purpose is independent of the OS profile and stored at $PURPOSE_FILE.
+Purpose queries/setters do not install, sync, or provision. Setters reject all other
+flags, including --dry-run. Explicit mise -E/MISE_ENV remains an intentional override.
 State: mise dot status, mise bootstrap status. Checks: cd ~ && mise run check
 EOF
 }
@@ -105,6 +113,44 @@ detect_profile() {
     echo cachyos
   else
     die "unsupported machine ($id)"
+  fi
+}
+
+validate_purpose_target() {
+  [ ! -L "$PURPOSE_DIR" ] && { [ ! -e "$PURPOSE_DIR" ] || [ -d "$PURPOSE_DIR" ]; } ||
+    die "unsafe purpose directory $PURPOSE_DIR; use a real directory"
+  [ ! -L "$PURPOSE_FILE" ] && { [ ! -e "$PURPOSE_FILE" ] || [ -f "$PURPOSE_FILE" ]; } ||
+    die "unsafe purpose target $PURPOSE_FILE; use a regular, non-symlink file"
+}
+
+read_purpose() {
+  local value
+  validate_purpose_target
+  PURPOSE=personal
+  [ -e "$PURPOSE_FILE" ] || return 0
+  for value in work personal; do
+    if printf '%s\n' "$value" | cmp -s - "$PURPOSE_FILE" ||
+      printf '%s' "$value" | cmp -s - "$PURPOSE_FILE"; then
+      PURPOSE=$value
+      return 0
+    fi
+  done
+  die "invalid purpose at $PURPOSE_FILE; expected exactly work or personal (optionally followed by one newline); correct the file before retrying"
+}
+
+write_purpose() {
+  local tmp
+  validate_purpose_target
+  if [ -f "$PURPOSE_FILE" ] &&
+    { printf '%s\n' "$PURPOSE" | cmp -s - "$PURPOSE_FILE" ||
+      printf '%s' "$PURPOSE" | cmp -s - "$PURPOSE_FILE"; }; then
+    return 0
+  fi
+  mkdir -p "$PURPOSE_DIR" || die "cannot create purpose directory $PURPOSE_DIR"
+  tmp=$(mktemp "$PURPOSE_DIR/.purpose.XXXXXX") || die "cannot prepare purpose at $PURPOSE_FILE"
+  if ! printf '%s\n' "$PURPOSE" >"$tmp" || ! mv -f "$tmp" "$PURPOSE_FILE"; then
+    rm -f "$tmp"
+    die "cannot save purpose at $PURPOSE_FILE"
   fi
 }
 
@@ -264,15 +310,29 @@ link_conf_d() {
 
 miserc_content() {
   local envs
-  if [ "$1" = macos ]; then envs='[]'; else envs="[\"$1\"]"; fi
+  if [ "$1" = macos ]; then envs="[\"$PURPOSE\"]"; else envs="[\"$1\", \"$PURPOSE\"]"; fi
   printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = %s' "$envs"
 }
 
+validate_miserc_target() {
+  local rc="$MISE_DIR/miserc.local.toml"
+  { [ ! -e "$MISE_DIR" ] || [ -d "$MISE_DIR" ]; } ||
+    die "unsafe mise configuration directory $MISE_DIR"
+  [ ! -L "$rc" ] && { [ ! -e "$rc" ] || [ -f "$rc" ]; } ||
+    die "unsafe mise discovery target $rc; use a regular, non-symlink file"
+}
+
 write_miserc() {
-  local rc="$MISE_DIR/miserc.local.toml" want
+  local rc="$MISE_DIR/miserc.local.toml" want tmp
+  validate_miserc_target
   want=$(miserc_content "$1")
   if [ ! -f "$rc" ] || [ "$(cat "$rc")" != "$want" ]; then
-    printf '%s\n' "$want" >"$rc"
+    mkdir -p "$MISE_DIR" || die "cannot create mise configuration directory $MISE_DIR"
+    tmp=$(mktemp "$MISE_DIR/.miserc.XXXXXX") || die "cannot prepare mise discovery settings"
+    if ! printf '%s\n' "$want" >"$tmp" || ! mv -f "$tmp" "$rc"; then
+      rm -f "$tmp"
+      die "cannot update mise discovery settings; purpose activation failed; retry dotfiles --set-purpose $PURPOSE after correcting the target"
+    fi
   fi
 }
 # Preview in the original context when setup already matches. Only first-run
@@ -294,6 +354,9 @@ prepare_preview() { # prepare_preview <profile>
       { [ -e "$file" ] || [ -L "$file" ]; } || continue
       name=${file##*/}
       case $name in conf.d | miserc.local.toml) continue ;; esac
+      if [ "$(readlink "$live/conf.d" 2>/dev/null || true)" = "$DOTFILES_DIR/modules" ]; then
+        die "cannot faithfully preview mismatched discovery settings with retained global configuration $file; run dotfiles --set-purpose $PURPOSE with the same DOTFILES_PROFILE (config-only; no provisioning), then retry --dry-run"
+      fi
       die "cannot faithfully preview unconfigured candidate with retained global configuration $file; use an isolated HOME/MISE_CONFIG_DIR for first-run rehearsal; original-context preview requires conf.d/profile already configured to this candidate"
     done
   fi
@@ -1081,6 +1144,33 @@ ui_run_stage() { # ui_run_stage <stage> <parts> <index> <total>
 
 # ---- main ----
 
+# Purpose operations are standalone: validate the original arguments before
+# stripping presentation flags or honoring help/profile shortcuts.
+purpose_operation=0
+for arg in "$@"; do
+  case $arg in --purpose | --purpose=* | --set-purpose | --set-purpose=*) purpose_operation=1 ;; esac
+done
+if [ "$purpose_operation" = 1 ]; then
+  case ${1:-} in
+    --purpose)
+      [ "$#" -eq 1 ] || die "--purpose is a standalone operation"
+      read_purpose
+      printf '%s\n' "$PURPOSE"
+      exit 0
+      ;;
+    --set-purpose)
+      [ "$#" -eq 2 ] || die "--set-purpose requires exactly one value and no other flags"
+      selected_purpose=$2
+      ;;
+    --set-purpose=*)
+      [ "$#" -eq 1 ] || die "--set-purpose is a standalone operation; omit bootstrap flags, including --dry-run"
+      selected_purpose=${1#*=}
+      ;;
+    *) die "--purpose and --set-purpose must be standalone operations" ;;
+  esac
+  case $selected_purpose in work | personal) ;; *) die "--set-purpose expects work or personal" ;; esac
+fi
+
 args=()
 for arg in "$@"; do
   case $arg in
@@ -1110,6 +1200,15 @@ if [ "${MISE_GLOBAL_CONFIG_FILE+x}" = x ] || [ "${MISE_CONFIG_FILE+x}" = x ]; th
 fi
 
 profile=$(detect_profile)
+read_purpose
+if [ "$purpose_operation" = 1 ]; then
+  validate_miserc_target
+  PURPOSE=$selected_purpose
+  write_purpose
+  write_miserc "$profile"
+  printf 'dotfiles: purpose set to %s (configuration only; no provisioning)\n' "$PURPOSE"
+  exit 0
+fi
 requested_dry=0
 for arg in "$@"; do
   case $arg in -n | --dry-run) requested_dry=1 ;; esac

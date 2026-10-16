@@ -12,6 +12,7 @@ zsh_bin="$(command -v "$zsh_bin")"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
+tmp_dir="$(cd -- "$tmp_dir" && pwd -P)" || exit 1
 
 home_dir="$tmp_dir/home"
 state_dir="$tmp_dir/state"

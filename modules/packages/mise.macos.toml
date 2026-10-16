@@ -23,7 +23,7 @@
 "brew:podman-compose" = "latest"
 # Helm needs this when only podman is installed.
 "brew:docker-credential-helper" = "latest"
-"brew-cask:discord" = "latest"
+"brew-cask:discord" = { version = "latest", env = "personal" }
 "brew-cask:spotify" = "latest"
 "brew-cask:brave-browser" = "latest"
 "brew-cask:aldente" = "latest"

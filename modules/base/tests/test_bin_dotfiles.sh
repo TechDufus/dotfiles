@@ -8,6 +8,8 @@ BIN=$(cd "$HERE/../../.." && pwd)/bin/dotfiles
 ORIG_PATH=$PATH
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
+# Native mise canonicalizes module paths; fixture discovery must use the same root.
+T=$(cd "$T" && pwd -P)
 
 export HOME="$T/home" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir -p "$HOME" "$T/stub"
@@ -258,10 +260,168 @@ detect override-bogus cachyos "FAIL:unsupported machine (bogus)" DOTFILES_PROFIL
 detect darwin-arm64 - macos STUB_UNAME_S=Darwin STUB_UNAME_M=arm64
 detect darwin-intel - "FAIL:unsupported machine (Intel Mac)" STUB_UNAME_S=Darwin STUB_UNAME_M=x86_64
 
+# ---- persistent machine purpose; setters must never provision ----
+expect_no_provisioning() {
+  local file
+  for file in mise.calls mise.argv mise.dot.argv git.argv curl.argv brew.argv sudo.log; do
+    expect_eq "$(cat "$C/$file")" "" "config-only operation leaves $file empty"
+  done
+  [ ! -e "$C/xdg/state/dotfiles" ] || fail "config-only operation wrote bootstrap state"
+}
+
+new_case purpose-default-query
+run_df --purpose
+expect_rc 0
+expect_eq "$OUT" personal "absent purpose defaults to personal without OS detection"
+expect_no_provisioning
+[ ! -e "$C/xdg/config" ] || fail "purpose query created configuration"
+
+new_case purpose-set-without-mise-or-checkout
+mkdir -p "$C/path" "$MISE_DIR/conf.d"
+for cmd in bash cmp cat mkdir mktemp mv rm; do
+  ln -s "$(command -v "$cmd")" "$C/path/$cmd"
+done
+echo retained >"$MISE_DIR/conf.d/user.toml"
+echo '[settings]' >"$MISE_DIR/config.toml"
+run_df DOTFILES_PROFILE=macos PATH="$C/path" --set-purpose work
+expect_rc 0
+expect_no_provisioning
+expect_eq "$(cat "$C/xdg/config/dotfiles/purpose")" work "saved work purpose"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["work"]' "macOS native purpose selection"
+[ ! -e "$DOTFILES_DIR" ] || fail "setter created a checkout"
+[ ! -L "$MISE_DIR/conf.d" ] || fail "setter replaced conf.d"
+expect_eq "$(cat "$MISE_DIR/conf.d/user.toml")" retained "setter preserves existing discovery ownership"
+expect_eq "$(cat "$MISE_DIR/config.toml")" '[settings]' "setter preserves global overrides"
+touch -t 200001010000 "$C/xdg/config/dotfiles/purpose" "$MISE_DIR/miserc.local.toml"
+touch -t 200101010000 "$C/ref"
+PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
+MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
+run_df DOTFILES_PROFILE=macos PATH="$C/path" --set-purpose=work
+expect_rc 0
+expect_no_provisioning
+expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "repeated setter preserves purpose bytes"
+expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "repeated setter preserves discovery bytes"
+[ ! "$C/xdg/config/dotfiles/purpose" -nt "$C/ref" ] || fail "repeated setter rewrote purpose"
+[ ! "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ] || fail "repeated setter rewrote mise settings"
+run_df --purpose
+expect_rc 0
+expect_eq "$OUT" work "query retains work across invocations"
+expect_no_provisioning
+init_repo "$DOTFILES_DIR"
+run_df DOTFILES_PROFILE=cachyos
+expect_rc 0
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "work"]' "ordinary apply persists purpose and distro selection"
+run_df DOTFILES_PROFILE=omarchy --set-purpose personal
+expect_rc 0
+expect_no_provisioning
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal"]' "switching purpose preserves Linux profile"
+run_df --purpose
+expect_rc 0
+expect_eq "$OUT" personal "personal switch persists"
+
+new_case purpose-home-config-fallback
+run_df HOME="$C/home" XDG_CONFIG_HOME= DOTFILES_PROFILE=macos --set-purpose work
+expect_rc 0
+expect_eq "$(cat "$C/home/.config/dotfiles/purpose")" work "unset XDG config uses HOME"
+run_df HOME="$C/home" XDG_CONFIG_HOME= --purpose
+expect_rc 0
+expect_eq "$OUT" work "HOME-scoped query reads saved value"
+
+for bad_args in \
+  "--purpose=work" "--purpose work" "--set-purpose" "--set-purpose=" "--set-purpose business" \
+  "--set-purpose work --dry-run" "--dry-run --set-purpose=work" \
+  "--set-purpose work --plain" "--set-purpose work --profile" \
+  "--set-purpose work --help" "--set-purpose work --only tools" \
+  "--set-purpose work --set-purpose personal" "--purpose --set-purpose work"; do
+  new_case "purpose-invalid-arguments-$bad_args"
+  # shellcheck disable=SC2086
+  run_df DOTFILES_PROFILE=cachyos $bad_args
+  expect_rc 1
+  expect_no_provisioning
+  [ ! -e "$C/xdg/config" ] || fail "invalid arguments wrote configuration"
+done
+
+new_case purpose-discovery-write-fails
+run_df DOTFILES_PROFILE=cachyos --set-purpose work
+expect_rc 0
+MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
+mkdir "$C/path"
+cat >"$C/path/mktemp" <<'EOF'
+#!/bin/sh
+case "$1" in */.miserc.*) exit 73 ;; esac
+exec "$REAL_MKTEMP" "$@"
+EOF
+chmod +x "$C/path/mktemp"
+run_df DOTFILES_PROFILE=cachyos PATH="$C/path:$T/stub:$ORIG_PATH" REAL_MKTEMP="$(command -v mktemp)" --set-purpose personal
+expect_rc 1
+expect_no_provisioning
+expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "failed discovery write preserves prior settings"
+case $OUT in *"purpose set to"*) fail "setter claimed activation after a discovery write failure" ;; esac
+
+for stored_kind in empty unknown multiline extra-newline nul; do
+  new_case "purpose-invalid-stored-$stored_kind"
+  mkdir -p "$C/xdg/config/dotfiles"
+  case $stored_kind in
+    empty) : >"$C/xdg/config/dotfiles/purpose" ;;
+    unknown) printf 'private-invalid-value\n' >"$C/xdg/config/dotfiles/purpose" ;;
+    multiline) printf 'work\npersonal\n' >"$C/xdg/config/dotfiles/purpose" ;;
+    extra-newline) printf 'work\n\n' >"$C/xdg/config/dotfiles/purpose" ;;
+    nul) printf 'work\0\n' >"$C/xdg/config/dotfiles/purpose" ;;
+  esac
+  PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
+  for operation in query setter apply preview; do
+    case $operation in
+      query) purpose_args=(--purpose) ;;
+      setter) purpose_args=(--set-purpose personal) ;;
+      apply) purpose_args=() ;;
+      preview) purpose_args=(--dry-run) ;;
+    esac
+    run_df DOTFILES_PROFILE=cachyos ${purpose_args[@]+"${purpose_args[@]}"}
+    expect_rc 1
+    expect_contains "$ERR" "invalid purpose" "malformed state rejected before setup"
+    case $OUT$ERR in *private-invalid-value*) fail "diagnostic disclosed invalid stored contents" ;; esac
+    expect_no_provisioning
+    expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "invalid state remains untouched"
+    [ ! -e "$MISE_DIR" ] || fail "invalid stored purpose created mise configuration"
+  done
+done
+
+for target_kind in symlink dangling-symlink directory fifo parent-symlink parent-file miserc-symlink miserc-directory; do
+  new_case "purpose-unsafe-$target_kind"
+  mkdir -p "$C/xdg/config/dotfiles"
+  echo unrelated >"$C/unrelated"
+  case $target_kind in
+    symlink) ln -s "$C/unrelated" "$C/xdg/config/dotfiles/purpose" ;;
+    dangling-symlink) ln -s "$C/missing" "$C/xdg/config/dotfiles/purpose" ;;
+    directory) mkdir "$C/xdg/config/dotfiles/purpose" ;;
+    fifo) mkfifo "$C/xdg/config/dotfiles/purpose" ;;
+    parent-symlink)
+      rmdir "$C/xdg/config/dotfiles"
+      mkdir "$C/other"
+      ln -s "$C/other" "$C/xdg/config/dotfiles"
+      ;;
+    parent-file)
+      rmdir "$C/xdg/config/dotfiles"
+      echo unrelated >"$C/xdg/config/dotfiles"
+      ;;
+    miserc-symlink)
+      mkdir "$MISE_DIR"
+      ln -s "$C/unrelated" "$MISE_DIR/miserc.local.toml"
+      ;;
+    miserc-directory) mkdir -p "$MISE_DIR/miserc.local.toml" ;;
+  esac
+  run_df DOTFILES_PROFILE=cachyos --set-purpose work
+  expect_rc 1
+  expect_contains "$ERR" "unsafe" "unsafe target rejected"
+  expect_no_provisioning
+  expect_eq "$(cat "$C/unrelated")" unrelated "setter preserves unrelated target"
+  [ ! -e "$C/missing" ] || fail "setter followed dangling purpose link"
+  if [ "$target_kind" = miserc-symlink ] || [ "$target_kind" = miserc-directory ]; then
+    [ ! -e "$C/xdg/config/dotfiles/purpose" ] || fail "unsafe discovery target changed purpose"
+  fi
+done
+
 # ---- conf.d link, miserc, mise argv ----
-EXPECTED_RC='# written by bin/dotfiles; set DOTFILES_PROFILE to override
-auto_env = true
-env = ["cachyos"]'
 
 new_case fresh-link
 init_repo "$DOTFILES_DIR"
@@ -269,7 +429,7 @@ run_df DOTFILES_PROFILE=cachyos
 expect_rc 0
 [ -L "$MISE_DIR/conf.d" ] || fail "conf.d is not a symlink"
 expect_eq "$(readlink "$MISE_DIR/conf.d")" "$DOTFILES_DIR/modules" "conf.d target"
-expect_eq "$(cat "$MISE_DIR/miserc.local.toml")" "$EXPECTED_RC" "miserc content"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "personal"]' "distro and default purpose selection"
 
 # Rerun must not rewrite an unchanged miserc.
 touch -t 200001010000 "$MISE_DIR/miserc.local.toml"
@@ -280,7 +440,7 @@ if [ "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ]; then fail "miserc rewritten t
 # A changed profile must rewrite it.
 run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy"]' "miserc after profile change"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal"]' "miserc after profile change"
 
 new_case existing-real-conf-d
 init_repo "$DOTFILES_DIR"
@@ -312,9 +472,7 @@ else
   init_repo "$DOTFILES_DIR"
   run_df DOTFILES_PROFILE=macos
   expect_rc 0
-  expect_eq "$(cat "$MISE_DIR/miserc.local.toml")" '# written by bin/dotfiles; set DOTFILES_PROFILE to override
-auto_env = true
-env = []' "macos miserc content"
+  expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["personal"]' "macos purpose selection"
 fi
 
 # ---- pull rules ----
@@ -368,8 +526,9 @@ expect_eq "$(cat "$C/curl.argv")" "" "preflight does not download prerequisites"
 expect_eq "$(cat "$C/git.argv")" "" "plain preflight does not sync the checkout"
 expect_eq "$(git -C "$DOTFILES_DIR" rev-parse HEAD)" "$OLD" "checkout unchanged"
 [ ! -e "$MISE_DIR" ] || fail "first preflight created live mise configuration"
+[ ! -e "$C/xdg/config/dotfiles/purpose" ] || fail "first preflight persisted default purpose"
 expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run --only tools,task --locked " "selection and lock flags reach preview"
-expect_contains "$(cat "$C/mise.profile")" 'env = []' "macOS candidate profile"
+expect_contains "$(cat "$C/mise.profile")" 'env = ["personal"]' "macOS candidate purpose"
 expect_contains "$(cat "$C/mise.env")" "data=$C/mise/data" "installed-tool data is preserved"
 expect_contains "$(cat "$C/mise.env")" "state=$C/mise/state" "installed-tool state is preserved"
 expect_contains "$(cat "$C/mise.env")" "cache=$C/mise/cache" "metadata cache location is preserved"
@@ -377,6 +536,9 @@ expect_eq "$(find "$C/tmp" -mindepth 1 | wc -l | tr -d ' ')" 0 "scratch configur
 
 new_case dry-run-previews-replacement-not-old-conf-d
 init_repo "$DOTFILES_DIR"
+mkdir -p "$C/xdg/config/dotfiles"
+printf 'work\n' >"$C/xdg/config/dotfiles/purpose"
+PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
 mkdir -p "$MISE_DIR/conf.d/private"
 printf '[tools]\nnode = "22"\n' >"$MISE_DIR/conf.d/personal.toml"
 printf '[tools]\ngo = "1.24"\n' >"$MISE_DIR/conf.d/private/mise.toml"
@@ -391,7 +553,8 @@ node = "22"' "discarded configuration remains untouched on disk"
 expect_eq "$(cat "$MISE_DIR/miserc.local.toml")" '# existing profile override' "live profile untouched"
 [ ! "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ] || fail "live profile was rewritten"
 expect_eq "$(find "$MISE_DIR" -name '*.pre-dotfiles.*' | wc -l | tr -d ' ')" 0 "preflight creates no backups"
-expect_contains "$(cat "$C/mise.profile")" 'env = ["cachyos"]' "candidate profile matches eventual apply"
+expect_contains "$(cat "$C/mise.profile")" 'env = ["cachyos", "work"]' "scratch preview selects the saved purpose"
+expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "scratch preview preserves saved purpose"
 
 # Config-relative adjacent resources require their original configuration context.
 new_case dry-run-retained-global-needs-original-context
@@ -406,18 +569,39 @@ expect_contains "$ERR" "isolated HOME/MISE_CONFIG_DIR" "actionable isolated-rehe
 expect_eq "$(cat "$C/mise.calls")" "" "ambiguous configuration never reaches bootstrap"
 [ ! -e "$MISE_DIR/conf.d" ] || fail "rejected preflight configured live mise"
 ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
-printf '%s\n' "$EXPECTED_RC" >"$MISE_DIR/miserc.local.toml"
+run_df DOTFILES_PROFILE=cachyos --set-purpose personal
+expect_rc 0
 run_df DOTFILES_PROFILE=cachyos STUB_EXPECT_CONTEXT="$MISE_DIR" STUB_EXPECT_OVERRIDE="$MISE_DIR/config.toml" --dry-run
 expect_rc 0
 expect_contains "$(cat "$C/mise.env")" "config=$MISE_DIR" "configured preview keeps original configuration context"
 expect_eq "$(cat "$MISE_DIR/adjacent.txt")" adjacent-resource "adjacent resource remains available"
 [ ! -L "$MISE_DIR/config.toml" ] || fail "configured preview replaced the original file with a scratch reference"
 
-# Even a correct conf.d link is not equivalent when apply would change profile.
-printf '# another profile\n' >"$MISE_DIR/miserc.local.toml"
+# A legacy owned profile cannot be relocated around retained global resources.
+printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = ["cachyos"]\n' >"$MISE_DIR/miserc.local.toml"
+MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
+CONFIG_BEFORE=$(cksum "$MISE_DIR/config.toml")
+PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
 run_df DOTFILES_PROFILE=cachyos --dry-run
 expect_rc 1
-expect_contains "$ERR" "cannot faithfully preview" "profile mismatch does not silently use another context"
+expect_contains "$ERR" "cannot faithfully preview" "legacy selection does not silently relocate retained globals"
+expect_contains "$ERR" "dotfiles --set-purpose personal" "legacy settings have config-only upgrade guidance"
+expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "rejected preview preserves legacy discovery"
+expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "rejected preview preserves saved purpose"
+run_df DOTFILES_PROFILE=cachyos --set-purpose work
+expect_rc 0
+expect_no_provisioning
+PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
+MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
+touch -t 200001010000 "$C/xdg/config/dotfiles/purpose" "$MISE_DIR/miserc.local.toml"
+touch -t 200101010000 "$C/ref"
+run_df DOTFILES_PROFILE=cachyos STUB_EXPECT_CONTEXT="$MISE_DIR" STUB_EXPECT_OVERRIDE="$MISE_DIR/config.toml" --dry-run
+expect_rc 0
+expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "configured preview preserves purpose"
+expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "configured preview preserves discovery"
+expect_eq "$(cksum "$MISE_DIR/config.toml")" "$CONFIG_BEFORE" "upgrade and preview preserve retained global config"
+[ ! "$C/xdg/config/dotfiles/purpose" -nt "$C/ref" ] || fail "configured preview rewrote purpose"
+[ ! "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ] || fail "configured preview rewrote discovery"
 
 for selected_var in MISE_GLOBAL_CONFIG_FILE MISE_CONFIG_FILE; do
   for mode in apply dry-run; do
@@ -438,6 +622,40 @@ done
 # Opt-in native consumer proof, using only a caller-supplied trusted mise binary.
 # Native fixtures exercise config discovery and preview only: no install/apply/task runs.
 if [ -n "${DOTFILES_TEST_REAL_MISE:-}" ]; then
+  new_case native-purpose-selection
+  init_repo "$DOTFILES_DIR"
+  mkdir -p "$C/native"
+  ln -s "$DOTFILES_TEST_REAL_MISE" "$C/native/mise"
+  cat >>"$DOTFILES_DIR/modules/base/mise.toml" <<'EOF'
+[dotfiles]
+"~/PURPOSE_SHARED_PROOF" = { source = "shared.txt" }
+EOF
+  echo shared >"$DOTFILES_DIR/modules/base/shared.txt"
+  for layer in work personal cachyos omarchy; do
+    printf '[dotfiles]\n"~/PURPOSE_%s_PROOF" = { source = "%s.txt" }\n' "$layer" "$layer" >"$DOTFILES_DIR/modules/base/mise.$layer.toml"
+    echo "$layer" >"$DOTFILES_DIR/modules/base/$layer.txt"
+  done
+  for distro in cachyos omarchy; do
+    for purpose in work personal; do
+      run_df DOTFILES_PROFILE="$distro" --set-purpose "$purpose"
+      expect_rc 0
+      PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
+      MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
+      # First preview uses scratch because the config-only setter never links conf.d.
+      run_df DOTFILES_PROFILE="$distro" PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
+      expect_rc 0
+      expect_contains "$OUT$ERR" "PURPOSE_SHARED_PROOF" "native preview retains shared target"
+      expect_contains "$OUT$ERR" "PURPOSE_${distro}_PROOF" "native preview retains Linux distro target"
+      expect_contains "$OUT$ERR" "PURPOSE_${purpose}_PROOF" "native preview selects saved-purpose target"
+      if [ "$purpose" = work ]; then other=personal; else other=work; fi
+      case $OUT$ERR in *"PURPOSE_${other}_PROOF"*) fail "native preview selected the other purpose's target" ;; esac
+      expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "native preview preserves classification"
+      expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "native preview preserves live discovery"
+      [ ! -e "$HOME/PURPOSE_SHARED_PROOF" ] || fail "native preview deployed shared dotfile"
+      [ ! -e "$HOME/PURPOSE_${purpose}_PROOF" ] || fail "native preview deployed purpose dotfile"
+    done
+  done
+
   new_case native-source-relative-preview
   init_repo "$DOTFILES_DIR"
   mkdir -p "$MISE_DIR" "$C/native"
@@ -454,7 +672,8 @@ if [ -n "${DOTFILES_TEST_REAL_MISE:-}" ]; then
   [ ! -e "$MISE_DIR/conf.d" ] || fail "rejected native preview configured live mise"
   [ ! -e "$HOME/.config/context-link" ] || fail "rejected native preview deployed a target"
   ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
-  printf '%s\n' "$EXPECTED_RC" >"$MISE_DIR/miserc.local.toml"
+  run_df DOTFILES_PROFILE=cachyos --set-purpose personal
+  expect_rc 0
   run_df DOTFILES_PROFILE=cachyos PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
   expect_rc 0
   expect_contains "$OUT$ERR" "$MISE_DIR/adjacent.txt" "native consumer resolves the adjacent source in its original context"

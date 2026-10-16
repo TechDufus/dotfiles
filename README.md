@@ -33,7 +33,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/
 flowchart TB
   subgraph prep["bin/dotfiles"]
     direction LR
-    git["install git, mise"] --> repo["clone or pull ~/.dotfiles"] --> link["link conf.d to modules/, record profile"]
+    git["install git, mise"] --> repo["clone or pull ~/.dotfiles"] --> link["link conf.d to modules/, record profile + purpose"]
   end
   subgraph boot["mise bootstrap"]
     direction LR
@@ -56,15 +56,46 @@ In a terminal, `dotfiles` runs those steps one stage at a time with a live summa
 | `dotfiles` | Pull the repo, then converge this machine |
 | `dotfiles --dry-run` | Preview local modules without setup, pulling, or conflict moves; requires compatible mise already installed |
 | `dotfiles --plain` | mise's own output instead of the summary (also when piped) |
+| `dotfiles --purpose` | Print the effective work/personal purpose without setup |
+| `dotfiles --set-purpose work` | Record work purpose and update mise discovery settings only; no provisioning |
+| `dotfiles --set-purpose personal` | Switch back to personal without provisioning |
 | `mise dot status` | Show the state of every managed file |
 | `MISE_TASK_RUN_AUTO_INSTALL=false mise run check` | Dry run plus module tests; use the full validation command below from `~` |
 | `update` | Profile-specific system upgrade: native `omarchy-update`, CachyOS package tasks, or Homebrew |
 
 The wrapper evaluates mise configuration and tasks from **HOME by default**, even when invoked inside another project. `DOTFILES_DIR` selects the source checkout, not the task context. An explicit `-C` / `--cd` deliberately selects another context for preview, bootstrap, and status, preserves paths relative to the caller's original directory, and selects plain mode. That project's tools, dotfiles, and tasks can then participate; use this override only intentionally.
 
-Dry-run retains the configured global context when this checkout and profile are already configured. First-run previews use scratch configuration; retained global configuration that cannot be represented faithfully causes an explicit refusal. Custom `MISE_GLOBAL_CONFIG_FILE`/`MISE_CONFIG_FILE` selections are unsupported by the wrapper. Mise can still evaluate trusted templates and update metadata/state/caches: use isolated HOME/XDG/mise directories and filesystem confinement for experiments.
+Dry-run retains the configured global context when this checkout, profile, and purpose are already configured. First-run previews use scratch configuration; retained global configuration that cannot be represented faithfully causes an explicit refusal. If an older generated mise selection lacks purpose, run the config-only `dotfiles --set-purpose work` (or `personal`) first, then retry the preview. Preview never updates the live purpose or discovery settings. Custom `MISE_GLOBAL_CONFIG_FILE`/`MISE_CONFIG_FILE` selections are unsupported by the wrapper. Mise can still evaluate trusted templates and update metadata/state/caches: use isolated HOME/XDG/mise directories and filesystem confinement for experiments.
 
 Taskfile maintenance follows the OS profile: Omarchy uses its native updater. CachyOS retains its package/AUR maintenance, cache cleanup, and Plasma/Steam desktop-health checks; those CachyOS-only consumers are not installed or run on Omarchy.
+
+### Machine purpose
+
+Purpose is independent of the OS profile: any supported profile can be `work` or `personal`. An unmarked machine defaults to `personal`, preserving the usual setup on other machines. The local, untracked marker is `${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/purpose`; invalid or empty stored values stop the wrapper before provisioning rather than silently selecting personal.
+
+`dotfiles --set-purpose work` and `dotfiles --set-purpose personal` only save that marker and regenerate mise discovery settings. They do not install prerequisites, sync the repo, replace `conf.d`, move conflicts, run tasks, or apply packages/dotfiles. Run the setter on its own, not with bootstrap flags such as `--dry-run`. `dotfiles --purpose` is a read-only query of the effective purpose.
+
+The wrapper owns generated `${XDG_CONFIG_HOME:-$HOME/.config}/mise/miserc.local.toml`; do not hand-edit purpose there. The setter and normal setup keep `auto_env = true` and persist `env = ["work"]` (or `["personal"]`) on macOS, and `env = ["omarchy", "work"]` / `["cachyos", "work"]` on Linux (substitute `personal` when selected). Subsequent raw mise commands use this persisted selection; a marker alone does not configure raw mise before the setter or normal setup has generated it.
+
+Package restrictions use mise's native [`[bootstrap.packages]` `env` option](https://mise.jdx.dev/bootstrap/packages/#by-config-environment): `env = "work"` is work-only, `env = "personal"` is personal-only, and omitting `env` is shared, still subject to the existing platform/profile declarations. Discord is personal-only on macOS and Linux; all other app declarations and shared shortcuts are unchanged. Selecting work does **not uninstall** an existing Discord installation or disable its shortcuts.
+
+This is an installation preference, not an allowlist or organizational/security enforcement. It does not restrict unrelated apps installed by bootstrap tasks or external installers; any future restriction on those apps must also cover their installer/configuration owner. Explicit native `MISE_ENV` or `mise -E` selections can intentionally override generated environments; preserve the distro environment when doing so on Linux.
+
+Read-only inspection from HOME, with compatible mise and existing package-manager prerequisites:
+
+```bash
+cd ~
+dotfiles --purpose
+mise bootstrap packages status --json
+# macOS: compare requested packages without changing the saved purpose.
+MISE_AUTO_ENV=true mise -E work bootstrap packages status --json
+MISE_AUTO_ENV=true mise -E personal bootstrap packages status --json
+# Linux: retain the actual distro environment (use cachyos instead if applicable).
+MISE_AUTO_ENV=true mise -E omarchy,work bootstrap packages status --json
+MISE_AUTO_ENV=true mise -E omarchy,personal bootstrap packages status --json
+```
+
+[`status`](https://mise.jdx.dev/cli/bootstrap/packages/status.html) does not install packages or use sudo. Discord should be absent from the work request and present in the personal control; shared package requests should remain unchanged. A work status does not prove Discord is absent from the machine, and cross-platform selection on macOS is not native Linux runtime verification.
 
 ## Validation
 

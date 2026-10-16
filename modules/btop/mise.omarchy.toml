@@ -1,0 +1,4 @@
+# Omarchy owns btop's theme (color_theme = "current"); the repo owns only settings.conf's keys.
+[tasks."bootstrap:btop"]
+description = "Set the btop.conf keys this repo owns, keeping Omarchy's theme"
+run = "./settings.sh settings.conf omarchy.conf"

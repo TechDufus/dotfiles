@@ -25,7 +25,7 @@ Personal dotfiles applied with mise: `mise bootstrap`, `[dotfiles]`, `[tools]`, 
 2. Tools that are not system packages (npm/bun/go globals, GitHub releases, curl installers) go in `[tools]` as `"latest"`: registry short name when one exists, otherwise `github:`/`go:`/`npm:`.
 3. Deploy modes. Decide by who writes the file:
    - Only you edit it and the app just reads it → symlink (the default; a live edit is a repo edit). A directory → `mode = "symlink-each"` when other tools also drop files into it (links for deleted sources are removed automatically), `mode = "symlink"` for a whole tree the repo owns.
-   - The app also writes it: JSON/TOML/YAML → `merge = true` for the keys the repo owns; other formats → `line` or `block` edits (e.g. `~/.npmrc`, where `npm login` writes tokens).
+   - The app also writes it: JSON/TOML/YAML → `merge = true` for the keys the repo owns; other formats → `line` or `block` edits (e.g. `~/.npmrc`, where `npm login` writes tokens). A non-JSON/TOML/YAML file the app rewrites wholesale drops blocks, so its owned keys are task-set instead (`modules/btop/settings.sh`).
    - `mode = "copy"` only when a link cannot work: the app replaces the file by temp-file rename, rewrites it wholesale, refuses symlinks, or must see a real file. Put the reason in a comment on the entry. Directory copies are additive, and `dotfiles` overwrites live edits to copies (save them first with `mise dot add`).
    - Never put secrets or app runtime state in a linked file: this repo is public.
    - Per-user template values use `get_env` only in supported `[bootstrap.files]` (`template = true`) and merge sources (`template = "tera"`). Never trust `$USER` or a root fallback as the recipient of a sudoers grant; derive the actual invoking non-root UID.
@@ -50,7 +50,8 @@ Retiring a file: `mode = "absent"` removes the target unconditionally, including
 ## Omarchy landmines
 - Never write under `/usr/share/omarchy`.
 - Never manage `~/.config/hypr/hyprland.lua`; hook in only through the `autostart.lua` block.
-- No tmux, btop, or opencode config on Omarchy; Omarchy owns those.
+- No tmux or opencode config on Omarchy; Omarchy owns those.
+- btop on Omarchy: Omarchy owns the theme (`color_theme = "current"` → `themes/current.theme`) and its shipped `btop.conf`; `bootstrap:btop` sets only the keys in `modules/btop/settings.conf`. Never deploy the whole `btop.conf` there.
 - herdr comes from Omarchy's pacman package there.
 - Tools Omarchy installs with `omarchy-mise-install` (codex, claude, omp, grok, pi, …; see `/usr/share/omarchy/install/user/mise.sh`) get `~/.local/bin` wrappers that run `mise use -g`. Declaring one in a module's `mise.toml` or `mise.linux.toml` makes that fail with "declared in multiple global config files"; declare it only in `mise.macos.toml` / `mise.cachyos.toml`.
 - Omarchy owns its desktop and gaming stack. Do not port CachyOS-specific gaming, KDE, or GPU policy automatically; keep retained CachyOS support profile-scoped.

@@ -1,6 +1,6 @@
 -- Summon registry (managed by ~/.dotfiles modules/omarchy).
 -- Keys mirror modules/hammerspoon/config/apps.lua so macOS and Omarchy share muscle memory. Exception: t is
---   Tern here (Ghostty on macOS), and Ghostty is on T, which macOS doesn't use.
+--   Tern here and T (Shift+t) is Ghostty; macOS uses t for Ghostty and T (Shift+t) for Tern.
 -- key: logical key after the CapsLock leader; uppercase = SHIFT + letter. No key = macro-only target.
 -- classes: exact window classes, case-insensitive (matched against class and initial_class).
 --   Omarchy web apps (omarchy-launch-webapp) get "brave-<host>__<path with / as _>-Default".

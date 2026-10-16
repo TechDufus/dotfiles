@@ -135,19 +135,21 @@ case "${1-}" in
     shift
     record_operation "run:$account"
 
-    while IFS= read -r entry; do
-      name="${entry%%=*}"
-      reference="${entry#*=}"
-      case "$reference" in
-        op://fixture/*)
-          export_fixture "$name" "$reference" || exit "$?"
-          ;;
-      esac
-    done <<EOF
-$(env)
-EOF
+    # Stream the environment: Apple sh materializes expanded heredocs outside
+    # TMPDIR, which makes this fixture fail under otherwise valid confinement.
+    env | {
+      while IFS= read -r entry; do
+        name="${entry%%=*}"
+        reference="${entry#*=}"
+        case "$reference" in
+          op://fixture/*)
+            export_fixture "$name" "$reference" || exit "$?"
+            ;;
+        esac
+      done
 
-    exec "$@"
+      exec "$@"
+    }
     ;;
   *)
     exit 71

@@ -10,6 +10,14 @@ MISE_DIR=${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
 LOG=$STATE_DIR/last-run.log
 
+# Machine configuration is home-scoped, not the invoking project's mise config.
+# Explicit -C/--cd keeps mise's own caller-relative directory selection semantics.
+MISE_CWD=$HOME
+mise_in_context() (
+  cd "$MISE_CWD" || exit
+  exec mise "$@"
+)
+
 # Bootstrap stages, in mise's own order (mise bootstrap --help). 'files' with
 # phase = "pre-packages" would have to run before packages; no module uses it.
 STAGES="packages system dotfiles shell tools modules"
@@ -36,6 +44,7 @@ Flags passed through to mise bootstrap:
   --only <parts>     run only these parts, e.g. --only dotfiles,tools
   --skip <parts>     run everything except these parts
   --force-dotfiles   overwrite conflicting files instead of moving them aside
+  -C, --cd <dir>     explicitly select a context (relative to the caller's cwd)
 
 Other:
   --plain            print mise's own log instead of the progress screen
@@ -47,6 +56,9 @@ shell, tools, modules) and draws a progress screen. mise's output goes to
 $LOG
 The screen is replaced by mise's own log with --plain, DOTFILES_UI=0, NO_COLOR,
 a non-terminal stdout/stderr, or any other flag (-v, --raw, -q, --from, ...).
+Configuration discovery, conflict checks and bootstrap default to HOME, even when
+called inside another project. Explicit -C/--cd selects that project's context
+for both the safety probe and bootstrap; its tools, links and tasks may run.
 
 Dry runs require an existing compatible mise and a local modules checkout. They
 do not pull, install prerequisites, replace live mise config, or move conflicts.
@@ -184,7 +196,7 @@ version_older() {
 
 installed_mise_version() { # first field of 'mise --version', e.g. 2026.10.6
   local out first
-  out=$(mise --version 2>/dev/null || true)
+  out=$(mise_in_context --version 2>/dev/null || true)
   read -r first _ <<<"$out" || true
   echo "${first:-}"
 }
@@ -331,9 +343,11 @@ collect_config_args() {
       -E | --env | -P | -C | --cd)
         [ $# -gt 1 ] || die "$1 needs a value"
         CONFIG_ARGS+=("$1" "$2")
+        case $1 in -C | --cd) MISE_CWD=$PWD ;; esac
         shift
         ;;
-      --env=* | --profile=* | --cd=* | -E?* | -P?* | -C?* | --no-config) CONFIG_ARGS+=("$1") ;;
+      --cd=* | -C?*) MISE_CWD=$PWD; CONFIG_ARGS+=("$1") ;;
+      --env=* | --profile=* | -E?* | -P?* | --no-config) CONFIG_ARGS+=("$1") ;;
     esac
     shift
   done
@@ -345,14 +359,14 @@ collect_config_args() {
 set_aside_conflicts() { # set_aside_conflicts <args>
   local out rc=0 line target other state=before paths=() path
   wants_dotfiles "$@" || return 0
-  out=$(MISE_FRIENDLY_ERROR=1 MISE_LOG_LEVEL=error MISE_COLOR=0 CLICOLOR_FORCE=0 mise dot apply --dry-run ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} </dev/null 2>&1) || rc=$?
+  out=$(MISE_FRIENDLY_ERROR=1 MISE_LOG_LEVEL=error MISE_COLOR=0 CLICOLOR_FORCE=0 mise_in_context dot apply --dry-run ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} </dev/null 2>&1) || rc=$?
   [ "$rc" -ne 0 ] || return 0
   while IFS= read -r line; do
     case $state:$line in
       "before:mise ERROR files: refusing to overwrite existing files (use --force):") state=paths ;;
-      paths:"  "~/* | paths:"  "/*)
+      paths:"  "\~/* | paths:"  "/*)
         path=${line#  }
-        case $path in "~/"*) target=$HOME/${path#"~/"} ;; *) target=$path ;; esac
+        case $path in \~/*) target=$HOME/${path#"~/"} ;; *) target=$path ;; esac
         # Reject ambiguous paths (including traversal) rather than backing up a
         # different location from the one mise checked. No shell evaluation.
         case $target in
@@ -368,11 +382,11 @@ set_aside_conflicts() { # set_aside_conflicts <args>
         paths+=("$target")
         ;;
       paths:"mise ERROR Version: "?*) state=version ;;
-      "version:mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information") state=done ;;
+      "version:mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information") state='done' ;;
       *) state=invalid; break ;;
     esac
   done <<<"$out"
-  if [ "$state" != done ] || [ "${#paths[@]}" -eq 0 ] || [ "$rc" -ne 1 ]; then
+  if [ "$state" != 'done' ] || [ "${#paths[@]}" -eq 0 ] || [ "$rc" -ne 1 ]; then
     printf '%s\n' "$out" >&2
     echo "dotfiles: dotfile preview failed; no conflict targets were moved" >&2
     return "$rc"
@@ -636,7 +650,7 @@ mise_stage() {
     printf '\n'
   } >>"$LOG"
   LOG_OFF=$(($(wc -c <"$LOG")))
-  mise bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} </dev/null >>"$LOG" 2>&1 &
+  mise_in_context bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} </dev/null >>"$LOG" 2>&1 &
   CHILD=$!
   spin "$1"
   wait "$CHILD" || rc=$?
@@ -648,7 +662,7 @@ mise_stage() {
 # change, run that stage on the terminal, without the spinner, so the prompt is seen.
 shell_needs_chsh() {
   local state
-  state=$( (cd "$HOME" && mise bootstrap user status) 2>/dev/null | awk 'NR == 1 { print $NF }')
+  state=$(mise_in_context bootstrap user status ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} 2>/dev/null | awk 'NR == 1 { print $NF }')
   [ -n "$state" ] && [ "$state" != set ] && [ "$state" != skipped ]
 }
 
@@ -657,13 +671,13 @@ mise_stage_attended() { # mise_stage_attended <label> <parts>
   printf '\n$ mise bootstrap --yes --only %s (on the terminal, not logged)\n' "$2" >>"$LOG"
   LOG_OFF=$(($(wc -c <"$LOG")))
   step run "$1" "chsh may ask for your password"
-  mise bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} || rc=$?
+  mise_in_context bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} || rc=$?
   return "$rc"
 }
 
 # Permission entries on files that merges create in the first pass apply only on a second one.
 dotfiles_converged() {
-  (cd "$HOME" && mise dot status --missing) >/dev/null 2>&1
+  mise_in_context dot status --missing ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >/dev/null 2>&1
 }
 
 add_extra() { EXTRA+=("$1"); }
@@ -675,13 +689,12 @@ gather_info() {
   rm -rf "$INFO"
   mkdir -p "$INFO"
   (
-    cd "$HOME" || exit 0
-    mise tasks ls --name-only >"$INFO/tasks" 2>/dev/null &
+    mise_in_context tasks ls --name-only ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/tasks" 2>/dev/null &
     if [ "$DRY" = 0 ]; then
-      mise ls --missing >"$INFO/missing" 2>/dev/null &
+      mise_in_context ls --missing ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/missing" 2>/dev/null &
       if command -v jq >/dev/null 2>&1; then
-        mise bootstrap plan --json >"$INFO/plan.json" 2>/dev/null &
-        mise dot status --json >"$INFO/dot.json" 2>/dev/null &
+        mise_in_context bootstrap plan --json ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/plan.json" 2>/dev/null &
+        mise_in_context dot status --json ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/dot.json" 2>/dev/null &
       fi
     fi
     wait
@@ -925,7 +938,7 @@ prime_sudo() {
 
 # ---- run ----
 
-# shellcheck disable=SC2329 # runs from the trap handlers
+# shellcheck disable=SC2329,SC2317 # called indirectly by the EXIT/INT/TERM trap handlers
 kill_tree() { # kill_tree <pid>: the process and everything below it, children first
   local child
   for child in $(pgrep -P "$1" 2>/dev/null || true); do
@@ -934,7 +947,7 @@ kill_tree() { # kill_tree <pid>: the process and everything below it, children f
   kill "$1" 2>/dev/null || true
 }
 
-# shellcheck disable=SC2329 # runs from trap
+# shellcheck disable=SC2329,SC2317 # invoked indirectly by the EXIT trap
 ui_cleanup() {
   [ -z "$CHILD" ] || kill_tree "$CHILD"
   [ -z "$SUDO_PID" ] || kill "$SUDO_PID" 2>/dev/null || true
@@ -946,7 +959,7 @@ ui_cleanup() {
   [ -z "$PREVIEW_DIR" ] || rm -rf "$PREVIEW_DIR"
 }
 
-# shellcheck disable=SC2329 # runs from trap
+# shellcheck disable=SC2329,SC2317 # invoked indirectly by the INT/TERM traps
 on_signal() { # on_signal <exit status>
   trap - INT TERM
   [ -z "$CHILD" ] || kill_tree "$CHILD"
@@ -1128,9 +1141,12 @@ fi
 set_aside_conflicts "$@"
 if [ "$UI" = 0 ]; then
   if [ "$FORCE_PREVIEW" = 1 ]; then set -- --force-dotfiles "$@"; fi
-  if [ "$DRY" = 0 ]; then exec mise bootstrap --yes "$@"; fi
+  if [ "$DRY" = 0 ]; then
+    cd "$MISE_CWD"
+    exec mise bootstrap --yes "$@"
+  fi
   status=0
-  mise bootstrap --yes "$@" || status=$?
+  mise_in_context bootstrap --yes "$@" || status=$?
   exit "$status"
 fi
 if [ "$FORCE_PREVIEW" = 1 ]; then PASS+=(--force-dotfiles); fi

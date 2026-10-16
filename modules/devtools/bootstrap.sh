@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Keep the traefik helm repo configured (trailing slash on the URL is ignored).
+# Keep the traefik name mapped to its Helm repo URL (trailing slashes are ignored).
 set -uo pipefail
 
 name=traefik
@@ -10,8 +10,8 @@ if ! command -v helm >/dev/null 2>&1; then
   exit 0
 fi
 
-current=$(helm repo list -o yaml 2>/dev/null | sed -n "s/^[[:space:]-]*url:[[:space:]]*//p" | sed 's#/*$##')
-if printf '%s\n' "$current" | grep -qxF "$url"; then
+current=$(helm repo list -o table 2>/dev/null | awk -v name="$name" '$1 == name { sub(/\/+$/, "", $2); print $2 }')
+if [ "$current" = "$url" ]; then
   exit 0
 fi
 

@@ -1,13 +1,6 @@
 [bootstrap.packages]
 "brew:ollama" = "latest"
 
-# retired: OMP/Qwen helper files from the removed default Ollama setup
-[dotfiles]
-"~/.config/ollama/Modelfile.qwen-omp" = { mode = "absent" }
-"~/.local/bin/ollama-qwen" = { mode = "absent" }
-"~/.local/bin/ollama-qwen-start" = { mode = "absent" }
-"~/.local/bin/ollama-qwen-stop" = { mode = "absent" }
-
 [tasks."bootstrap:ollama"]
 description = "Start the ollama service and wait for its API"
 run = "./bootstrap.sh"

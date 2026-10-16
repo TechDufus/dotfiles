@@ -112,6 +112,22 @@ jobs:
           out=$(TERM=xterm zsh -ic 'print -r -- NODE=$(command -v node)' 2>/dev/null </dev/null | grep -ao 'NODE=[^[:cntrl:]]*' | tail -n 1 || true)
           [ "$out" = "NODE=$shims/node" ] || { echo "interactive zsh: got '$out', want NODE=$shims/node"; exit 1; }
 
+  system-sudoers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install sudoers test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes sudo bubblewrap
+
+      # Use the packaged bubblewrap/AppArmor policy; never weaken host namespace
+      # restrictions or run this suite as root. Missing support must fail loudly.
+      - name: Test isolated sudoers policy as the runner account
+        run: bash modules/system/tests/test_sudoers.sh
+
   macos:
     runs-on: macos-latest
     steps:
@@ -123,7 +139,7 @@ jobs:
       - name: Install prerequisites
         run: |
           brew update
-          brew install mise lua
+          brew install mise lua jq python oven-sh/bun/bun
 
       - name: Link modules as mise conf.d
         run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
@@ -134,7 +150,12 @@ jobs:
           mise tasks info check >/dev/null || { echo "modules did not load (mise $(mise --version))"; exit 1; }
 
       - name: Dry-run macos
-        run: MISE_AUTO_ENV=true mise bootstrap --dry-run --yes
+        run: |
+          cd ~
+          MISE_AUTO_ENV=true mise bootstrap --dry-run --yes
 
-      - name: Tests (hammerspoon)
-        run: MISE_AUTO_ENV=true mise run test:hammerspoon
+      - name: Tests (all loaded macos modules)
+        run: |
+          cd ~
+          # Enable the native source-relative fixture, not just its stubbed cases.
+          MISE_AUTO_ENV=true DOTFILES_TEST_REAL_MISE="$(command -v mise)" mise run --jobs 1 'test:*'

@@ -1,14 +1,8 @@
 [bootstrap.packages]
+"pacman:diffutils" = "latest"
 "pacman:jq" = "latest"
 "pacman:open-iscsi" = "latest"
 "pacman:unzip" = "latest"
-
-[bootstrap.files."/etc/sudoers.d/techdufus"]
-content = "{{ get_env(name='USER', default='root') }} ALL=(ALL) NOPASSWD: ALL\n"
-template = true
-owner = "root"
-group = "root"
-mode = "0440"
 
 [bootstrap.files."/etc/udev/rules.d/90-disable-logitech-receiver-wakeup.rules"]
 source = "udev/rules.d/90-disable-logitech-receiver-wakeup.rules"
@@ -17,5 +11,11 @@ group = "root"
 mode = "0644"
 
 [tasks."bootstrap:system"]
-description = "Validate sudoers, reload udev, set keymap and locale"
+description = "Install validated sudoers, reload udev, set keymap and locale"
 run = "./bootstrap.sh"
+
+# Requires a non-root Linux process with working bubblewrap user namespaces.
+# Keep this explicit: ordinary container CI may forbid namespace creation.
+[tasks."check:system-sudoers"]
+description = "Test sudoers with real visudo in an isolated Linux namespace"
+run = "bash ./tests/test_sudoers.sh"

@@ -1,5 +1,23 @@
 version: '3'
 
+vars:
+  SYSTEM_PROFILE:
+    sh: |
+      if [ -n "${DOTFILES_PROFILE:-}" ]; then
+        case "$DOTFILES_PROFILE" in
+          omarchy|cachyos) printf '%s\n' "$DOTFILES_PROFILE" ;;
+          *) printf '%s\n' unsupported ;;
+        esac
+      elif [ -d /usr/share/omarchy ]; then
+        printf '%s\n' omarchy
+      else
+        [ ! -r /etc/os-release ] || . /etc/os-release
+        case "${ID:-}" in
+          omarchy|cachyos) printf '%s\n' "$ID" ;;
+          *) printf '%s\n' unsupported ;;
+        esac
+      fi
+
 tasks:
   default:
     desc: Show available tasks
@@ -7,31 +25,38 @@ tasks:
       - task --list
 
   # ====================
-  # Arch/CachyOS System Update Tasks
+  # Profile-owned System Update Tasks
   # ====================
   update:
-    desc: Refresh package databases and upgrade the system
+    desc: Upgrade through the native Omarchy or CachyOS package owner
     platforms: [linux]
     cmds:
-      - sudo pacman -Syu --disable-download-timeout
+      - |
+        case "{{.SYSTEM_PROFILE}}" in
+          omarchy) omarchy-update ;;
+          cachyos) sudo pacman -Syu --disable-download-timeout ;;
+          *) echo "System updates require the Omarchy or CachyOS profile" >&2; exit 1 ;;
+        esac
 
   upgrade:
-    desc: Alias for Arch's full-system upgrade
+    desc: Alias for the profile's full-system upgrade
     platforms: [linux]
     cmds:
       - task: update
 
   full-upgrade:
-    desc: Full system upgrade plus dotfiles package reconciliation
+    desc: Native system upgrade plus dotfiles reconciliation preview
     platforms: [linux]
     cmds:
-      - sudo pacman -Syu --disable-download-timeout
+      - task: update
       - mise bootstrap --dry-run
 
   aur-upgrade:
-    desc: Upgrade AUR packages when an AUR helper is installed
+    desc: Upgrade CachyOS AUR packages when an AUR helper is installed
     platforms: [linux]
     preconditions:
+      - sh: test "{{.SYSTEM_PROFILE}}" = cachyos
+        msg: "Standalone AUR upgrades are CachyOS-only; on Omarchy use task update"
       - sh: command -v paru || command -v yay
         msg: "Install paru or yay before running AUR upgrades"
     cmds:
@@ -43,8 +68,11 @@ tasks:
         fi
 
   clean-cache:
-    desc: Clean pacman package cache safely
+    desc: Clean the CachyOS pacman package cache safely
     platforms: [linux]
+    preconditions:
+      - sh: test "{{.SYSTEM_PROFILE}}" = cachyos
+        msg: "Standalone package cache cleanup is CachyOS-only; Omarchy's updater owns its package lifecycle"
     cmds:
       - |
         if command -v paccache >/dev/null 2>&1; then
@@ -102,8 +130,11 @@ tasks:
       - journalctl --disk-usage
 
   clean-system:
-    desc: Comprehensive system cleanup (logs, temp, cache)
+    desc: Comprehensive CachyOS system cleanup (logs, temp, cache)
     platforms: [linux]
+    preconditions:
+      - sh: test "{{.SYSTEM_PROFILE}}" = cachyos
+        msg: "Comprehensive cleanup is CachyOS-only; Omarchy's updater owns its package lifecycle"
     cmds:
       - task: clean-logs
       - task: clean-temp
@@ -181,15 +212,20 @@ tasks:
   # CachyOS / Plasma Validation
   # ====================
   desktop-health:
-    desc: Validate Plasma/summon/Steam runtime state
+    desc: Validate CachyOS Plasma/summon/Steam runtime state
     platforms: [linux]
+    preconditions:
+      - sh: test "{{.SYSTEM_PROFILE}}" = cachyos
+        msg: "Desktop health requires the CachyOS Plasma/Steam profile"
+      - sh: command -v plasma-summon-service && command -v steam-health && command -v systemctl
+        msg: "Install the CachyOS Plasma summon and Steam health prerequisites first"
     cmds:
       - plasma-summon-service --print-config
       - systemctl --user is-active plasma-summon.service
       - steam-health --runtime --strict
 
   dotfiles-check:
-    desc: Check Arch/CachyOS desktop roles without applying changes
+    desc: Preview this profile's dotfiles without applying changes
     platforms: [linux]
     cmds:
       - mise bootstrap --dry-run

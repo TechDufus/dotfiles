@@ -8,6 +8,8 @@ wm_url="https://github.com/TechDufus/WorkspaceManager.spoon/releases/latest/down
 tmp=$(mktemp -d) || { echo "hammerspoon: could not create temp dir, skipped"; exit 0; }
 transaction=""
 committed=0
+# Invoked indirectly by the EXIT trap below.
+# shellcheck disable=SC2317
 cleanup() {
   trap '' HUP INT TERM
   local name failed=0
@@ -16,11 +18,11 @@ cleanup() {
     # the shell could record their success.
     for name in GridLayout.spoon WorkspaceManager.spoon; do
       if [ -e "$transaction/old/$name" ] || [ -L "$transaction/old/$name" ]; then
-        if ! rm -rf "$spoons/$name" || ! mv "$transaction/old/$name" "$spoons/$name"; then
+        if ! rm -rf "${spoons:?}/$name" || ! mv "$transaction/old/$name" "${spoons:?}/$name"; then
           failed=1
         fi
       elif [ -f "$transaction/absent-$name" ]; then
-        rm -rf "$spoons/$name" || failed=1
+        rm -rf "${spoons:?}/$name" || failed=1
       fi
     done
   fi
@@ -43,7 +45,9 @@ mkdir -p "$tmp/staged/GridLayout.spoon" || skip "could not create staging direct
 unzip -q -o "$tmp/GridLayout.spoon.zip" -d "$tmp/staged/GridLayout.spoon" || skip "GridLayout unzip failed"
 unzip -q -o "$tmp/WorkspaceManager.spoon.zip" -d "$tmp/staged" || skip "WorkspaceManager unzip failed"
 for file in GridLayout.spoon/{init,state,events,helpers}.lua WorkspaceManager.spoon/{init,summon,workspace_manager}.lua; do
-  [ -s "$tmp/staged/$file" ] && [ ! -L "$tmp/staged/$file" ] || skip "missing required file $file"
+  if [ ! -s "$tmp/staged/$file" ] || [ -L "$tmp/staged/$file" ]; then
+    skip "missing required file $file"
+  fi
 done
 # Reject symlinks before patching or installing archive contents.
 [ -z "$(find "$tmp/staged" -type l -print)" ] || skip "archive contains symlinks"

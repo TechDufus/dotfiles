@@ -1,4 +1,5 @@
 [bootstrap.packages]
+"pacman:ansible-lint" = "latest"
 "pacman:base-devel" = "latest"
 "pacman:cmake" = "latest"
 "pacman:libtool" = "latest"

@@ -20,6 +20,10 @@ cat >"$T/stub/mise" <<'EOF'
 # --version answers from $MISE_VERSION_FILE (default: a passing version).
 # 'bootstrap --only X ...' (a stage) is recorded in $MISE_CALLS_FILE; any bootstrap call
 # overwrites $MISE_ARGV_FILE. Stage behaviour comes from the STUB_* variables.
+if [ -n "${STUB_EXPECT_CWD:-}" ] && [ "$PWD" != "$STUB_EXPECT_CWD" ]; then
+  echo "unexpected mise cwd: $PWD" >&2
+  exit 15
+fi
 if [ "$1" = --version ]; then
   cat "$MISE_VERSION_FILE" 2>/dev/null || echo "2026.10.6 linux-x64 (2026-10-09)"
   exit 0
@@ -414,7 +418,7 @@ for selected_var in MISE_GLOBAL_CONFIG_FILE MISE_CONFIG_FILE; do
 done
 
 # Opt-in native consumer proof, using only a caller-supplied trusted mise binary.
-# Both runs use the same source-relative fixture; no install, apply or task runs.
+# Native fixtures exercise config discovery and preview only: no install/apply/task runs.
 if [ -n "${DOTFILES_TEST_REAL_MISE:-}" ]; then
   new_case native-source-relative-preview
   init_repo "$DOTFILES_DIR"
@@ -435,9 +439,76 @@ if [ -n "${DOTFILES_TEST_REAL_MISE:-}" ]; then
   printf '%s\n' "$EXPECTED_RC" >"$MISE_DIR/miserc.local.toml"
   run_df DOTFILES_PROFILE=cachyos PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
   expect_rc 0
-  expect_contains "$OUT" "$MISE_DIR/adjacent.txt" "native consumer resolves the adjacent source in its original context"
+  expect_contains "$OUT$ERR" "$MISE_DIR/adjacent.txt" "native consumer resolves the adjacent source in its original context"
   [ ! -e "$HOME/.config/context-link" ] || fail "native preview deployed a target"
   expect_eq "$(cat "$MISE_DIR/adjacent.txt")" adjacent-resource "native preview leaves adjacent resource unchanged"
+
+  # The audit's real project fixture: a local tool, source-relative dotfile and
+  # overriding root bootstrap task must not leak into an ordinary machine run.
+  cat >"$DOTFILES_DIR/modules/base/mise.toml" <<'EOF'
+min_version = "2026.10.6"
+[tasks.bootstrap]
+run = "mise run --jobs 1 'bootstrap:*'"
+[tasks."bootstrap:HOME_CONTEXT_PROOF"]
+run = "touch {{env.HOME}}/HOME_BOOTSTRAP_MUST_NOT_RUN"
+EOF
+  cat >"$C/work/mise.toml" <<'EOF'
+[tools]
+node = "22.0.0"
+[dotfiles]
+"~/PROJECT_DOTFILE_CWD_PROOF" = { source = "adjacent.txt" }
+[tasks.bootstrap]
+run = "echo PROJECT_ROOT_BOOTSTRAP_MUST_NOT_RUN > \"{{env.HOME}}/PROJECT_ROOT_BOOTSTRAP_MUST_NOT_RUN\""
+[tasks."bootstrap:UNRELATED_CWD_PROOF"]
+run = "touch {{env.HOME}}/PROJECT_CHILD_BOOTSTRAP_MUST_NOT_RUN"
+EOF
+  echo project-resource >"$C/work/adjacent.txt"
+  echo existing-project-target >"$HOME/PROJECT_DOTFILE_CWD_PROOF"
+  native_preview() {
+    run_df DOTFILES_PROFILE=cachyos PATH="$C/native:$T/stub:$ORIG_PATH" \
+      MISE_OFFLINE=1 MISE_TASK_RUN_AUTO_INSTALL=0 MISE_TRUSTED_CONFIG_PATHS="$C" "$@" --dry-run
+  }
+  expect_home_context() {
+    expect_rc 0
+    case $OUT$ERR in
+      *PROJECT_* | *UNRELATED_CWD_PROOF* | *node@22.0.0*)
+        fail "caller project contaminated the home preview: $OUT$ERR" ;;
+    esac
+  }
+  native_preview --plain
+  expect_home_context
+  # Native mise emits tool/task dry-run previews on stderr, unlike some dotfile output.
+  expect_contains "$OUT$ERR" "mise run --jobs 1 'bootstrap:*'" "home root bootstrap task selected"
+  expect_contains "$OUT$ERR" "$MISE_DIR/adjacent.txt" "home preview retains original source-relative config"
+
+  # Every supported directory-flag spelling retains caller-relative semantics.
+  for cd_form in short long long-equals short-attached; do
+    case $cd_form in
+      short) context_args=(-C .) ;;
+      long) context_args=(--cd .) ;;
+      long-equals) context_args=(--cd=.) ;;
+      short-attached) context_args=(-C.) ;;
+    esac
+    native_preview --plain "${context_args[@]}"
+    expect_rc 0
+    expect_contains "$OUT$ERR" "$C/work/adjacent.txt" "explicit context resolves project-relative source"
+    expect_contains "$OUT$ERR" "node@22.0.0" "explicit context selects project tool"
+    expect_contains "$OUT$ERR" "PROJECT_ROOT_BOOTSTRAP_MUST_NOT_RUN" "explicit context selects project bootstrap"
+    # Existing target requires the same project's conflict probe to request force.
+    expect_contains "$OUT$ERR" "PROJECT_DOTFILE_CWD_PROOF" "explicit context previews the conflicting project target"
+  done
+  native_preview --plain -C "$HOME"
+  expect_home_context
+  native_preview DOTFILES_UI=1 --only dotfiles,tools,task
+  expect_home_context
+  expect_contains "$OUT$ERR" "HOME_CONTEXT_PROOF" "UI task discovery uses the home context"
+  expect_eq "$(cat "$HOME/PROJECT_DOTFILE_CWD_PROOF")" existing-project-target "all previews preserve the conflicting target"
+  [ ! -e "$HOME/HOME_BOOTSTRAP_MUST_NOT_RUN" ] || fail "home bootstrap task executed during preview"
+  [ ! -e "$HOME/PROJECT_ROOT_BOOTSTRAP_MUST_NOT_RUN" ] || fail "project root task executed during preview"
+  [ ! -e "$HOME/PROJECT_CHILD_BOOTSTRAP_MUST_NOT_RUN" ] || fail "project child task executed during preview"
+  [ ! -e "$HOME/.config/context-link" ] || fail "context previews deployed the global link"
+  [ ! -e "$C/mise/data/installs" ] || fail "context previews installed a tool"
+  rm "$HOME/PROJECT_DOTFILE_CWD_PROOF"
 else
   echo "SKIP native source-relative preview: set DOTFILES_TEST_REAL_MISE to a trusted mise executable" >&2
 fi
@@ -703,6 +774,15 @@ new_case plain-ui-disabled
 init_repo "$DOTFILES_DIR"
 run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=0
 expect_eq "$(calls)" "bootstrap --yes" "DOTFILES_UI=0 stays plain"
+
+new_case home-context-plain
+init_repo "$DOTFILES_DIR"
+run_df DOTFILES_PROFILE=cachyos STUB_EXPECT_CWD="$HOME" --only dotfiles
+expect_rc 0
+new_case home-context-ui
+init_repo "$DOTFILES_DIR"
+run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 STUB_EXPECT_CWD="$HOME"
+expect_rc 0
 
 ui_case ui-dry-run --dry-run
 expect_rc 0

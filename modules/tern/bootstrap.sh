@@ -4,6 +4,8 @@
 # Fail-soft.
 set -uo pipefail
 
+# Match the standard roots declared by the native mise merge entries.
+# TERN_CONFIG_DIR and nondefault XDG_CONFIG_HOME roots are not managed.
 if [ "$(uname -s)" = Darwin ]; then
   settings="$HOME/Library/Application Support/Tern/settings.json"
 else

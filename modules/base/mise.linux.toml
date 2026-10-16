@@ -1,0 +1,2 @@
+[settings]
+system_packages.managers = ["pacman", "aur"]

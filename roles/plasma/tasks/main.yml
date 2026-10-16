@@ -1,4 +1,0 @@
----
-- name: "{{ role_name }} | Run Arch Linux tasks"
-  ansible.builtin.include_tasks: Archlinux.yml
-  when: ansible_facts['distribution'] == 'Archlinux'

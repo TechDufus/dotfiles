@@ -1,0 +1,22 @@
+min_version = "2026.10.6"
+
+[settings]
+# mise's own interactive prompts, such as the `mise run` task picker.
+color_theme = "catppuccin"
+
+[tasks.bootstrap]
+description = "Run every bootstrap:<module> task, one at a time"
+run = "mise run --jobs 1 'bootstrap:*'"
+
+[tasks.check]
+description = "Preview this machine and run module tests"
+# Disable task auto-install before mise starts, not in task-local env (too late):
+# cd ~ && MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true DOTFILES_TEST_REAL_MISE="$(command -v mise)" mise run check
+# From home: inside modules/base mise also loads this file as a project
+# config, whose tasks run from ~ (test:base would not find its tests).
+dir = "{{env.HOME}}"
+run = ["mise bootstrap --dry-run --yes", "mise run --jobs 1 'test:*'"]
+
+[tasks."test:base"]
+description = "Test bin/dotfiles profile detection, conf.d linking, miserc and pull rules"
+run = "bash tests/test_bin_dotfiles.sh"

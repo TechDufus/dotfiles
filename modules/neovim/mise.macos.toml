@@ -1,0 +1,11 @@
+[bootstrap.packages]
+"brew:cmake" = "latest"
+"brew:curl" = "latest"
+"brew:pkgconf" = "latest"
+"brew:libtool" = "latest"
+"brew:tree-sitter-cli" = "latest"
+"brew:unzip" = "latest"
+"brew:ansible-lint" = "latest"
+"brew:ripgrep" = "latest"
+"brew:neovim" = "latest"
+"brew:ruby" = "latest" # Mason's Solargraph requires newer Ruby than macOS provides.

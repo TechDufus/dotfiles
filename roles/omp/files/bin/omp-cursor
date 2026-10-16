@@ -1,3 +1,0 @@
-#!/bin/sh
-omp update
-exec omp --config "${HOME}/.omp/agent/overlays/cursor.yml" "$@"

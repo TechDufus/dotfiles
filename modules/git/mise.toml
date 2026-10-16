@@ -1,0 +1,13 @@
+[dotfiles]
+"~/.config/git/dotfiles.gitconfig" = { source = "dotfiles.gitconfig" }
+"~/.config/git/commit_template" = { source = "commit_template" }
+# Git reads ~/.gitconfig after its XDG global file. bootstrap:git moves only our
+# exact include blocks to the end of that file, preserving other global content.
+
+[tasks."bootstrap:git"]
+description = "Conservatively migrate managed Git includes after historical globals"
+run = "if command -v python3 >/dev/null 2>&1; then python3 bootstrap.py; else echo 'git: Python 3 unavailable; global include migration skipped' >&2; fi"
+
+[tasks."test:git"]
+description = "Test managed global precedence with real Git in isolated homes"
+run = "python3 tests/test_global_config.py"

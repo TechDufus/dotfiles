@@ -1,0 +1,2 @@
+[dotfiles]
+"~/.config/nvim" = { source = "nvim", mode = "symlink" }

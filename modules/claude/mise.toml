@@ -1,0 +1,9 @@
+[dotfiles]
+"~/.claude/settings.json" = { source = "settings.json" }
+"~/.claude/scripts" = { source = "scripts", mode = "symlink" }
+"~/.claude/commands" = { source = "commands", mode = "symlink" }
+"~/.claude/hooks" = { source = "hooks", mode = "symlink" }
+"~/.claude/agents" = { source = "agents", mode = "symlink" }
+"~/.claude/.lsp.json" = { source = "lsp.json" }
+# Copied: plugin installs wrote into the repo through linked skills.
+"~/.claude/skills/skill-creator" = { source = "skills/skill-creator", mode = "copy" }

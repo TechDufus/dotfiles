@@ -1,0 +1,4 @@
+[dotfiles]
+# Merged, not copied: herdr's settings screen writes its own keys (theme, sound, toasts, onboarding)
+# into this file in place; a copy reverted them on every run.
+"~/.config/herdr/config.toml/shared" = { source = "config.toml", merge = true }

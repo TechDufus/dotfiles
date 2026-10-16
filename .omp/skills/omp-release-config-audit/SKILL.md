@@ -6,7 +6,7 @@ condition: Use when reviewing OMP upgrades or release changes for compatibility 
 
 # OMP release and configuration audit
 
-Use this project-local, ancestor-discovered skill to decide whether a bounded set of OMP releases changes the safety, compatibility, or intent of repository-managed OMP behavior. It belongs in `.omp/skills/` and is not a role-managed or global OMP deployment. It is an evidence-gathering audit, not an upgrade or configuration-edit workflow.
+Use this project-local, ancestor-discovered skill to decide whether a bounded set of OMP releases changes the safety, compatibility, or intent of repository-managed OMP behavior. It belongs in `.omp/skills/` and is not a module-managed or global OMP deployment. It is an evidence-gathering audit, not an upgrade or configuration-edit workflow.
 
 ## Non-negotiable evidence rules
 

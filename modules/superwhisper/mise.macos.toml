@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew-cask:superwhisper" = "latest"
+
+[dotfiles]
+"~/Documents/Superwhisper/settings/settings.json" = { source = "settings.json" }

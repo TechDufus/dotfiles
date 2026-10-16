@@ -1,0 +1,9 @@
+# Retire Linux-only links left by the former roles on this Mac.
+# CachyOS continues to manage its own Plasma configuration independently.
+[dotfiles]
+"~/.config/plasma-summon/apps.toml" = { mode = "absent" }
+"~/.config/plasma-summon/layouts.toml" = { mode = "absent" }
+"~/.config/plasma-summon/regions.toml" = { mode = "absent" }
+"~/.config/rofimoji.rc" = { mode = "absent" }
+"~/.config/systemd/user/plasma-summon.service" = { mode = "absent" }
+"~/.local/bin/plasma-summon-service" = { mode = "absent" }

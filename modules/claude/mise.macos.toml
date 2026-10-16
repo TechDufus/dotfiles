@@ -1,0 +1,6 @@
+# Preserve this Mac's minimal Claude profile; the shared profile is intentionally unchanged.
+[dotfiles]
+"~/.claude/settings.json" = { source = "./settings.macos.json", mode = "symlink" }
+
+[tools]
+claude = "latest"

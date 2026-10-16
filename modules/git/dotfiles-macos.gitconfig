@@ -1,0 +1,9 @@
+[core]
+	pager = delta
+[delta]
+	negative = true
+	side-by-side = true
+[delta "interactive"]
+	diffFilter = delta --color-only --features=interactive
+[merge]
+	conflictStyle = zdiff3

@@ -1,6 +1,0 @@
----
-- name: "Neofetch | Ubuntu | Install neofetch"
-  ansible.builtin.apt:
-    name: neofetch
-    state: present
-  become: true

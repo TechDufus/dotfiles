@@ -1,0 +1,30 @@
+[dotfiles]
+"~/.config/hypr/dotfiles" = { source = "hypr", mode = "symlink-each" }
+# Copied: fcitx5's config tool saves by temp-file rename, which would replace a link.
+"~/.config/fcitx5/conf/keyboard.conf" = { source = "fcitx5/keyboard.conf", mode = "copy" }
+# Required from autostart.lua (not hyprland.lua) so Omarchy's refresh of hyprland.lua cannot drop it;
+# hyprland.lua loads hypr.autostart before default.hypr.toggles.
+"~/.config/hypr/autostart.lua/dotfiles" = { block = 'require("hypr.dotfiles.main")' }
+
+[tasks."bootstrap:omarchy"]
+description = "Reload Hyprland, validate its config, restart fcitx5"
+sources = ["hypr/*.lua", "fcitx5/keyboard.conf"]
+outputs = { auto = true }
+run = "./bootstrap.sh"
+
+# Omarchy themes from git repos: each is cloned into ~/.config/omarchy/themes/<name>, where
+# Omarchy's theme menu finds it (<name> drops "omarchy-" and "-theme"). The url must match an
+# existing clone's origin exactly, or mise stops the run. `dotfiles --update` fast-forwards them.
+[bootstrap.repos."~/.config/omarchy/themes/ayaka"]
+url = "https://github.com/abhijeet-swami/omarchy-ayaka-theme.git"
+
+# Switches to this theme once per value; a later pick in Omarchy's theme menu stays until it
+# changes. Built-in themes (catppuccin, tokyo-night, ...) need no repo entry above.
+[tasks."bootstrap:omarchy-theme"]
+description = "Switch to the default Omarchy theme once per default"
+env = { OMARCHY_DEFAULT_THEME = "ayaka" }
+run = "./theme.sh"
+
+[tasks."test:omarchy"]
+description = "Run the summon, cells and default-theme tests"
+run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "bash tests/test_theme.sh"]

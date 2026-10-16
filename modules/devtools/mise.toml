@@ -1,0 +1,46 @@
+[tools]
+task = "latest"
+# The registry uses native aqua releases; npm:pnpm requires lifecycle scripts.
+pnpm = "latest"
+"go:golang.org/x/tools/gopls" = "latest"
+"go:github.com/mrjosh/helm-ls" = "latest"
+
+# Global npm CLIs
+"npm:yarn" = "latest"
+"npm:npm-check-updates" = "latest"
+"npm:serve" = "latest"
+"npm:clawpatch" = "latest"
+
+# Language servers
+"npm:typescript" = "latest"
+# Keep TLS and its required JavaScript SDK on the compatible TypeScript 6 generation.
+# Disable SDK bin links so the server's private dependency cannot shadow the global tsc.
+"npm:typescript-language-server" = { version = "6", postinstall = 'npm install --prefix "$MISE_TOOL_INSTALL_PATH" --save-exact --omit=dev --ignore-scripts --bin-links=false --no-audit --no-fund typescript@6' }
+"npm:yaml-language-server" = "latest"
+"npm:bash-language-server" = "latest"
+"npm:pyright" = "latest"
+"npm:@ansible/ansible-language-server" = "latest"
+"npm:dockerfile-language-server-nodejs" = "latest"
+"npm:@tailwindcss/language-server" = "latest"
+"npm:@astrojs/language-server" = "latest"
+"npm:graphql-language-service-cli" = "latest"
+# svelte@4.2.20 (needed via ^4.2.19) is a real 4.x release, same publisher and upstream tag,
+# published without provenance after 5.0.0 had it; aube's no-downgrade policy blocks it otherwise.
+"npm:svelte-language-server" = { version = "latest", trust_policy_excludes = ["svelte@4.2.20"] }
+"npm:vscode-langservers-extracted" = "latest"
+"npm:@biomejs/biome" = "latest"
+"npm:@vue/language-server" = "latest"
+"npm:@prisma/language-server" = "latest"
+"npm:@olrtg/emmet-language-server" = "latest"
+"npm:intelephense" = "latest"
+
+[dotfiles]
+# Line edits, not a copy: `npm login` and `npm config set` rewrite ~/.npmrc, and a copy deleted
+# their auth tokens on every run.
+"~/.npmrc/author" = { line = "init-author-name=TechDufus" }
+"~/.npmrc/license" = { line = "init-license=MIT" }
+"~/.npmrc/save-exact" = { line = "save-exact=true" }
+
+[tasks."bootstrap:devtools"]
+description = "Ensure the traefik helm repo is configured"
+run = "./bootstrap.sh"

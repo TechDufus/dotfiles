@@ -1,0 +1,3 @@
+# Links never render, so worktrunk's own {{ }} templates stay literal. Approvals live in approvals.toml.
+[dotfiles]
+"~/.config/worktrunk/config.toml" = { source = "config.toml" }

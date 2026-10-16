@@ -1,0 +1,76 @@
+#:schema https://yazi-rs.github.io/schemas/theme.json
+# Catppuccin Mocha preferences, mapped to Yazi 26.9.1's theme sections.
+
+[mgr]
+cwd = { fg = "#94e2d5" }
+find_keyword = { fg = "#f9e2af", italic = true }
+find_position = { fg = "#f5c2e7", bg = "reset", italic = true }
+marker_selected = { fg = "#a6e3a1", bg = "#a6e3a1" }
+marker_copied = { fg = "#f9e2af", bg = "#f9e2af" }
+marker_cut = { fg = "#f38ba8", bg = "#f38ba8" }
+border_symbol = "|"
+border_style = { fg = "#7f849c" }
+
+[indicator]
+current = { fg = "#1e1e2e", bg = "#89b4fa" }
+preview = { underline = true }
+
+[tabs]
+active = { fg = "#1e1e2e", bg = "#cdd6f4" }
+inactive = { fg = "#cdd6f4", bg = "#45475a" }
+
+[mode]
+normal_main = { fg = "#1e1e2e", bg = "#89b4fa", bold = true }
+select_main = { fg = "#1e1e2e", bg = "#a6e3a1", bold = true }
+unset_main = { fg = "#1e1e2e", bg = "#f2cdcd", bold = true }
+
+[status]
+sep_left = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+progress_label = { fg = "#cdd6f4", bold = true }
+progress_normal = { fg = "#89b4fa", bg = "#45475a" }
+progress_error = { fg = "#f38ba8", bg = "#45475a" }
+perm_type = { fg = "#89b4fa" }
+perm_read = { fg = "#f9e2af" }
+perm_write = { fg = "#f38ba8" }
+perm_exec = { fg = "#a6e3a1" }
+perm_sep = { fg = "#7f849c" }
+
+[input]
+border = { fg = "#89b4fa" }
+
+[pick]
+border = { fg = "#89b4fa" }
+active = { fg = "#f5c2e7" }
+
+[tasks]
+border = { fg = "#89b4fa" }
+hovered = { underline = true }
+
+[which]
+mask = { bg = "#313244" }
+cand = { fg = "#94e2d5" }
+rest = { fg = "#9399b2" }
+desc = { fg = "#f5c2e7" }
+separator = "  "
+separator_style = { fg = "#585b70" }
+
+[help]
+chord = { fg = "#f5c2e7" }
+action = { fg = "#94e2d5" }
+hovered = { bg = "#313244", bold = true }
+
+[filetype]
+rules = [
+  { mime = "**/image/*", fg = "#94e2d5" },
+  { mime = "**/{audio,video}/*", fg = "#f9e2af" },
+  { mime = "**/application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,lzma,compress,archive,cpio,arj,xar,ms-cab*}", fg = "#f5c2e7" },
+  { url = "*.rs", fg = "#fab387" },
+  { url = "*.go", fg = "#89dceb" },
+  { url = "*.{py,js,json}", fg = "#f9e2af" },
+  { url = "*.{ts,lua}", fg = "#89b4fa" },
+  { url = "*.sh", fg = "#a6e3a1" },
+  { url = "*.{toml,yaml,yml}", fg = "#f38ba8" },
+  { url = "*/", fg = "#89b4fa" },
+  { url = "*", fg = "#cdd6f4" },
+]

@@ -1,0 +1,12 @@
+[bootstrap.packages]
+"brew:oven-sh/bun/bun" = "latest"
+"brew:helm" = "latest"
+# Public ansible/ansible-doc/ansible-playbook executables for the retained language server.
+"brew:ansible" = "latest"
+# Standard-library runtime for the conservative Git global-config migration.
+"brew:python" = "latest"
+
+# Omarchy pins node in ~/.config/mise/config.toml; declaring it in mise.toml would shadow that pin
+# whenever mise runs inside this folder (cwd config), e.g. for bootstrap:devtools.
+[tools]
+node = "lts"

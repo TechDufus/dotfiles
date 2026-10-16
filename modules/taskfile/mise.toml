@@ -1,0 +1,3 @@
+[tasks."bootstrap:taskfile"]
+description = "Fetch the task bash completion when missing"
+run = "./bootstrap.sh"

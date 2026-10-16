@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew-cask:kitty" = "latest"
+
+[dotfiles]
+"~/.config/kitty/kitty.conf" = { source = "kitty-macos.conf" }

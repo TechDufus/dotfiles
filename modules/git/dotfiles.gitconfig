@@ -1,0 +1,22 @@
+[color]
+	ui = auto
+[diff]
+	colorMoved = zebra
+[fetch]
+	prune = true
+[init]
+	defaultBranch = main
+[rerere]
+	enabled = true
+[pull]
+	ff = only
+	rebase = true
+[rebase]
+	autoStash = true
+[user]
+	name = TechDufus
+[alias]
+	undo = reset HEAD~1 --mixed
+	br = branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate
+[commit]
+	template = ~/.config/git/commit_template

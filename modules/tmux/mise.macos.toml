@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"brew:tmux" = "latest"
+
+[bootstrap.repos."~/.tmux/plugins/tpm"]
+url = "https://github.com/tmux-plugins/tpm"

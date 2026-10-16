@@ -1,0 +1,18 @@
+# Omarchy keeps no opencode config.
+[dotfiles."~/.config/opencode/opencode.json"]
+source = "opencode.json"
+variants = [{ os = "macos" }, { profile = "cachyos" }]
+
+[dotfiles."~/.config/opencode/scripts"]
+source = "scripts"
+mode = "symlink"
+variants = [{ os = "macos" }, { profile = "cachyos" }]
+
+[dotfiles."~/.config/opencode/command"]
+source = "command"
+mode = "symlink"
+variants = [{ os = "macos" }, { profile = "cachyos" }]
+
+[dotfiles."~/.config/opencode/AGENTS.md"]
+source = "AGENTS.md"
+variants = [{ os = "macos" }, { profile = "cachyos" }]

@@ -1,0 +1,9 @@
+[dotfiles]
+# Copied as a private file: 1Password rewrites it from "Configure for SSH Agent".
+"~/.config/1Password/ssh/agent.toml" = { source = "agent.toml", mode = "copy", permissions = "0600" }
+
+# Installed by a task, not [bootstrap.packages]: a failed package install would stop the whole
+# run, and dotfiles must finish without 1Password.
+[tasks."bootstrap:1password"]
+description = "Install the 1Password app and CLI when missing (warns instead of failing)"
+run = "./bootstrap.sh"

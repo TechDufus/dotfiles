@@ -1,0 +1,6 @@
+[bootstrap.packages]
+"brew:ollama" = "latest"
+
+[tasks."bootstrap:ollama"]
+description = "Start the ollama service and wait for its API"
+run = "./bootstrap.sh"

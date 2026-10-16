@@ -1,5 +1,0 @@
----
-- name: "Pwsh | MacOSX | Install pwsh"
-  community.general.homebrew_cask:
-    name: powershell
-    state: present

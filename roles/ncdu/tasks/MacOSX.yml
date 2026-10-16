@@ -1,5 +1,0 @@
----
-- name: "NCDU | MacOSX | Install ncdu"
-  community.general.homebrew:
-    name: ncdu
-    state: present

@@ -1,5 +1,0 @@
----
-- name: "Install"
-  ansible.builtin.homebrew:
-    name: slides
-    state: present

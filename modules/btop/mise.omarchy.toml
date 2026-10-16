@@ -1,4 +1,10 @@
-# Omarchy owns btop's theme (color_theme = "current"); the repo owns only settings.conf's keys.
+# btop loads AMD GPU stats from librocm_smi64.so at runtime; without it the gpu0 box in
+# omarchy.conf is dropped. NVIDIA (libnvidia-ml) and Intel need no package here.
+[bootstrap.packages]
+"pacman:rocm-smi-lib" = "latest"
+
+# Omarchy owns btop's theme (color_theme = "current"); the repo owns only the keys in
+# settings.conf and omarchy.conf.
 [tasks."bootstrap:btop"]
 description = "Set the btop.conf keys this repo owns, keeping Omarchy's theme"
 run = "./settings.sh settings.conf omarchy.conf"

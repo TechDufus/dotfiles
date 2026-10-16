@@ -51,7 +51,7 @@ Retiring a file: `mode = "absent"` removes the target unconditionally, including
 - Never write under `/usr/share/omarchy`.
 - Never manage `~/.config/hypr/hyprland.lua`; hook in only through the `autostart.lua` block.
 - No tmux or opencode config on Omarchy; Omarchy owns those.
-- btop on Omarchy: Omarchy owns the theme (`color_theme = "current"` → `themes/current.theme`) and its shipped `btop.conf`; `bootstrap:btop` sets only the keys in `modules/btop/settings.conf`. Never deploy the whole `btop.conf` there.
+- btop on Omarchy: Omarchy owns the theme (`color_theme = "current"` → `themes/current.theme`) and its shipped `btop.conf`; `bootstrap:btop` sets only the keys in `modules/btop/settings.conf` and `omarchy.conf`. Never deploy the whole `btop.conf` there.
 - herdr comes from Omarchy's pacman package there.
 - Tools Omarchy installs with `omarchy-mise-install` (codex, claude, omp, grok, pi, …; see `/usr/share/omarchy/install/user/mise.sh`) get `~/.local/bin` wrappers that run `mise use -g`. Declaring one in a module's `mise.toml` or `mise.linux.toml` makes that fail with "declared in multiple global config files"; declare it only in `mise.macos.toml` / `mise.cachyos.toml`.
 - Omarchy owns its desktop and gaming stack. Do not port CachyOS-specific gaming, KDE, or GPU policy automatically; keep retained CachyOS support profile-scoped.

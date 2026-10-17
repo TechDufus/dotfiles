@@ -23,14 +23,14 @@ reset_settings() {
 
 # Native deployment owns only the standard root. Its cleanup must not redirect
 # to an unrelated app configuration just because alternate-root vars are set.
-printf '%s\n' '{"opacity":60,"surface_chat":"Reader","theme":"custom","user":{"opacity":42},"unmanaged":[1,2]}' >"$standard"
-printf '%s\n' '{"opacity":17,"surface_chat":"User choice","private":"alternate"}' >"$alternate"
-printf '%s\n' '{"opacity":19,"surface_chat":"User choice","private":"xdg"}' >"$xdg"
+printf '%s\n' '{"opacity":60,"surface_chat":"Console","theme":"custom","user":{"opacity":42},"unmanaged":[1,2]}' >"$standard"
+printf '%s\n' '{"opacity":17,"private":"alternate"}' >"$alternate"
+printf '%s\n' '{"opacity":19,"private":"xdg"}' >"$xdg"
 cp "$alternate" "$T/alternate.before"
 cp "$xdg" "$T/xdg.before"
 reset_settings
-jq -e '. == {"theme":"custom","user":{"opacity":42},"unmanaged":[1,2]}' "$standard" >/dev/null \
-  || fail "reset did not remove only the top-level default-owned keys"
+jq -e '. == {"surface_chat":"Console","theme":"custom","user":{"opacity":42},"unmanaged":[1,2]}' "$standard" >/dev/null \
+  || fail "reset did not remove only top-level opacity (the managed surface_chat must survive)"
 cmp -s "$alternate" "$T/alternate.before" || fail "reset changed the unsupported TERN_CONFIG_DIR root"
 cmp -s "$xdg" "$T/xdg.before" || fail "reset changed the unsupported XDG_CONFIG_HOME root"
 

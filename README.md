@@ -179,7 +179,7 @@ Tap CapsLock twice, or F16 once, for the macro leader: `s` takes a screenshot to
 
 Native mise merges and the bootstrap reset both use the standard Tern roots: `~/Library/Application Support/Tern` on macOS and `~/.config/tern` on Linux. `TERN_CONFIG_DIR` and a custom `XDG_CONFIG_HOME` are not supported by this module; the old role's alternate-root behavior is not carried forward.
 
-Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs, BerkeleyMono Nerd Font, and copy-on-select. Bootstrap removes the legacy explicit opacity and `surface_chat` overrides so Tern's defaults apply. Use **Reload settings (`Control+Shift+F5`)** after settings cleanup; the macOS held-key-repeat preference above instead requires a full quit and reopen.
+Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs, BerkeleyMono Nerd Font, copy-on-select, and the Console chat style (`surface_chat`). Bootstrap removes the legacy explicit opacity override so Tern's default applies. Use **Reload settings (`Control+Shift+F5`)** after settings cleanup; the macOS held-key-repeat preference above instead requires a full quit and reopen.
 
 The launch keys intentionally differ: **CapsLock → Shift+T** opens Tern on macOS; **CapsLock → t** opens it on Omarchy, where Shift+T opens Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
 

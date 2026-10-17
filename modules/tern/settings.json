@@ -5,6 +5,7 @@
   "material": "Glass",
   "tabs": "Vertical",
   "copy_on_select": true,
+  "surface_chat": "Console",
   "font_family": "BerkeleyMono Nerd Font",
   "ui_font": "BerkeleyMono Nerd Font",
   "code_font": "BerkeleyMono Nerd Font"

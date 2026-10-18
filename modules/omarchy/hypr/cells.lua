@@ -470,6 +470,12 @@ function M.move_to_screen(step)
           w = win.size.x / from.w, h = win.size.y / from.h,
         }
       end
+      -- The move asks for the window's place on the other screen (Hammerspoon always snapped there), so a window
+      -- you tiled (Super+T) goes back to its cell, as Super+U does.
+      if not relative and state.user_tiled[address] then
+        state.user_tiled[address] = nil
+        save()
+      end
       hl.dispatch(hl.dsp.window.move({ window = "address:" .. address, workspace = tostring(ws.id), follow = true }))
       if relative then
         hl.timer(guarded(function()

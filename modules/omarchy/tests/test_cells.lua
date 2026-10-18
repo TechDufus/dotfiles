@@ -1158,6 +1158,30 @@ case("moving a window to another screen: a native float keeps its relative box, 
   eq(#fx.timers, 0, "fullscreen window: no placement")
 end)
 
+case("Super+O takes a window you tiled (Super+T) back into its cell on the other screen", function()
+  local spot = window("0xs", "spotify")
+  local M = load_cells({ monitors = { builtin_monitor(), dp1(), dp2_rotated() }, windows = { spot },
+    active_window = spot, active_monitor = dp1() })
+  emit("window.open", spot) -- cells floats it
+  spot.floating = false -- the user tiled it again
+  layout_pass(usable(dp1()), { spot })
+  eq(M._state.user_tiled["0xs"], true, "tiled by the user")
+  fx.log = {}
+
+  fx.binds["SUPER + O"].handler()
+  eq(fx.log[1].args.workspace, "3", "next screen's workspace")
+  eq(M._state.user_tiled["0xs"], nil, "the move opts back into cells")
+  spot.monitor, spot.workspace = dp2_rotated(), { id = 3, name = "3", tiled_layout = CELLS }
+  -- dp2 usable area 7040,130 2560x1410: spotify's standard cell is the utility overlay.
+  local out = layout_pass(usable(dp2_rotated()), { spot })
+  box_eq(out[1].box, 7360, 271, 1920, 1128, "opens over its cell, not across the area")
+  fx.log = {}
+  run_timers()
+  local raise = table.remove(fx.log) -- it followed the move, so it is focused and comes to the top
+  eq(raise.kind, "alter_zorder", "focused window raised")
+  expect_snap("0xs", 7360, 271, 1920, 1128, "snapped into its cell")
+end)
+
 case("Super+U choices are per screen: two screens on one layout keep separate cells and each survives a reload", function()
   local function screens()
     local a, b = dp1(), dp2_rotated()

@@ -5,6 +5,7 @@
 # Required from autostart.lua (not hyprland.lua) so Omarchy's refresh of hyprland.lua cannot drop it;
 # hyprland.lua loads hypr.autostart before default.hypr.toggles.
 "~/.config/hypr/autostart.lua/dotfiles" = { block = 'require("hypr.dotfiles.main")' }
+"~/.config/omarchy/hooks/post-update.d/dotfiles-plugin-update.hook" = { source = "plugin-update.hook" }
 
 [tasks."bootstrap:omarchy"]
 description = "Reload Hyprland, validate its config, restart fcitx5"
@@ -26,15 +27,13 @@ env = { OMARCHY_DEFAULT_THEME = "ayaka" }
 run = "./theme.sh"
 
 # Shell plugins from git repos, cloned where `omarchy plugin add` puts them:
-# ~/.config/omarchy/plugins/<manifest id>. `omarchy update` never updates them, so each tracks its
-# main branch: every `dotfiles` run fast-forwards it to the latest commit.
+# ~/.config/omarchy/plugins/<manifest id>. Unpinned, so an offline `dotfiles` run never fetches
+# them; `omarchy update` brings them to latest through plugin-update.hook, as does `dotfiles --update`.
 [bootstrap.repos."~/.config/omarchy/plugins/iamanro.omp-usage"]
 url = "https://github.com/iamanro/omarchy-omp-usage.git"
-ref = "main"
 
 [bootstrap.repos."~/.config/omarchy/plugins/robzolkos.github"]
 url = "https://github.com/robzolkos/omarchy-github.git"
-ref = "main"
 
 # Puts the plugins above in the bar and takes the stock Agents widget out (omp-usage replaces it),
 # once per value of the two lists: a later change in the bar stays until a list changes.

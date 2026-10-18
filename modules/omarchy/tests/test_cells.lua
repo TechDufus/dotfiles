@@ -72,6 +72,7 @@ hl = {
       cycle_next = function(a) return { kind = "cycle_next", args = a } end,
       bring_to_top = function(a) return { kind = "bring_to_top", args = a } end,
       alter_zorder = function(a) return { kind = "alter_zorder", args = a } end,
+      fullscreen = function(a) return { kind = "fullscreen", args = a } end,
     },
     focus = function(a) return { kind = "focus", args = a } end,
     layout = function(msg) return { kind = "layout", msg = msg } end,
@@ -1272,6 +1273,32 @@ case("a fullscreen window is left alone by placement and lands in its cell when 
   eq(#fx.timers, 1, "placement queued on leaving fullscreen")
   run_timers()
   expect_snap("0xt", 3968, 30, 3072, 1410, "cell after leaving fullscreen")
+end)
+
+case("fullscreen Hyprland dropped across a reload is restored; one the app left stays left", function()
+  local video = window("0xv", "brave-browser", { fullscreen = 2 })
+  local wide = window("0xw", "ghostty", { fullscreen = 1 })
+  local left = window("0xl", "foot", { fullscreen = 2 })
+  load_cells({ windows = { video, wide, left } })
+  left.fullscreen = 0
+  emit("window.fullscreen", left) -- the app exited fullscreen itself
+  local dirs = home_rule_dirs()
+
+  -- The reload swaps the workspace layout and Hyprland forgets the fullscreen state without an event.
+  video.fullscreen, wide.fullscreen = 0, 0
+  load_cells({ windows = { video, wide, left }, state_home = dirs.state_home, runtime_dir = dirs.runtime_dir })
+  fx.log = {}
+  emit("config.props_refreshed")
+  local restored = {}
+  for _, d in ipairs(dispatches("fullscreen")) do restored[d.args.window] = d.args end
+  eq(restored["address:0xv"] and restored["address:0xv"].mode, "fullscreen", "fullscreen restored")
+  eq(restored["address:0xw"] and restored["address:0xw"].mode, "maximized", "maximized restored")
+  eq(restored["address:0xl"], nil, "a window that left fullscreen is not put back")
+
+  video.fullscreen, wide.fullscreen = 2, 1
+  fx.log = {}
+  emit("config.props_refreshed")
+  eq(#dispatches("fullscreen"), 0, "nothing to restore once Hyprland agrees")
 end)
 
 case("Super+U assign snaps a floated window into the chosen cell and raises it when focused", function()

@@ -759,9 +759,9 @@ hl.on("monitor.layout_changed", guarded(function()
   for address in pairs(state.floated) do addresses[#addresses + 1] = address end
   replace_floated(addresses)
 end))
--- Hyprland 0.56 drops a window's fullscreen state without telling the app when its workspace changes tiled layout
--- (config reloads, Super+L, Hyper+P). The app stays fullscreen, so Chromium hides its tabs again on every focus
--- change. Put the window back in the mode it last reported to keep both sides in sync.
+-- Hyprland 0.56 drops a window's fullscreen state without telling the app when it rebuilds the workspace's tiled
+-- layout (seen on config reloads; Super+L and Hyper+P take the same path in its source). The app stays fullscreen,
+-- so Chromium hides its tabs again on every focus change. Put the window back in the mode it last reported.
 local function restore_fullscreen()
   for address, mode in pairs(state.fullscreen) do
     local win = hl.get_window("address:" .. address)

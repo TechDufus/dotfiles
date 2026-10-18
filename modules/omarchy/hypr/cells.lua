@@ -30,7 +30,7 @@ local state = {
   user_tiled = {},    -- address -> true: you tiled it after it floated (Super+T); it tiles across the whole area
   unmatched = {},     -- address -> true: opened without a registry class (it may arrive later)
   queued = {},        -- address -> true: placement deferred out of a layout pass or event
-  overrides = {},     -- layout key -> app key -> region (Super+U)
+  overrides = {},     -- screen key -> layout key -> app key -> region (Super+U), kept across logouts
   pinned = {},        -- workspace id -> layout of the per-workspace rule Super+L or a screen change declared
   screen_layouts = {}, -- screen key -> layout key (Hyper+P, Hyper+;), kept across logouts
   screen_rules = {},  -- output -> layout its m[output] s[0] workspace rule declares
@@ -88,12 +88,15 @@ local function screen_key(mon)
   return mon.name
 end
 
--- Layout key and table for a monitor from the first matching `screens` entry.
+-- Layout key and table for a monitor from the first matching `screens` entry. desc is a plain prefix of the
+-- monitor's description (Hyprland's `desc:` semantics).
 local function default_layout(mon)
   for _, screen in ipairs(config.screens) do
     local by_name = screen.name == nil or (mon ~= nil and screen.name == mon.name)
+    local by_desc = screen.desc == nil
+      or (mon ~= nil and type(mon.description) == "string" and mon.description:sub(1, #screen.desc) == screen.desc)
     local by_panel = screen.builtin == nil or screen.builtin == is_builtin(mon)
-    if by_name and by_panel then return screen.layout, config.layouts[screen.layout] end
+    if by_name and by_desc and by_panel then return screen.layout, config.layouts[screen.layout] end
   end
 end
 
@@ -120,10 +123,12 @@ local function app_key(win)
   return "class:" .. string.lower(win.class or ""), nil
 end
 
--- Region name for a window: Super+U override, else the layout's cell for its app, else layout.default.
-function M.cell_for(win, key, layout)
+-- Region name for a window on a screen: that screen's Super+U override for its app in this layout, else the
+-- layout's cell for the app, else layout.default.
+function M.cell_for(win, mon, key, layout)
   local id, app = app_key(win)
-  local override = state.overrides[key] and state.overrides[key][id]
+  local screen = state.overrides[screen_key(mon)]
+  local override = screen and screen[key] and screen[key][id]
   if override and config.regions[override] then return override end
   return (app and layout.apps and layout.apps[app.name]) or layout.default
 end
@@ -212,6 +217,8 @@ end
 -- yourself (Super+T) are left alone.
 function M.place(win)
   if not win or not win.address or not win.workspace or win.group then return end
+  -- A fullscreen window keeps its geometry; window.fullscreen re-places it when it leaves.
+  if (win.fullscreen or 0) ~= 0 then return end
   local address = win.address
   local key, layout = M.layout_for(win.monitor)
   if win.workspace.tiled_layout ~= CELLS or not layout or layout.monocle then
@@ -219,7 +226,7 @@ function M.place(win)
     return
   end
   if state.user_tiled[address] or (win.floating and not state.floated[address]) then return end
-  local region = config.regions[M.cell_for(win, key, layout)]
+  local region = config.regions[M.cell_for(win, win.monitor, key, layout)]
   if region then snap(win, region) end
 end
 
@@ -254,7 +261,7 @@ local function recalculate(ctx)
   local tiled = {}
   for _, target in ipairs(targets) do
     local win = target.window
-    local region = cells and win and not win.group and config.regions[M.cell_for(win, key, layout)]
+    local region = cells and win and not win.group and config.regions[M.cell_for(win, mon, key, layout)]
     if region then
       local address = win.address
       if state.floated[address] or state.native_float[address] then
@@ -436,7 +443,8 @@ function M.choose_layout(output, index)
 end
 
 -- Hammerspoon lilHyper+o / Hyper+o: screens left to right (then top to bottom), wrapping; the window lands in its
--- cell there (window.move_to_workspace also queues the placement; place_later runs it once).
+-- cell there (window.move_to_workspace also queues the placement; place_later runs it once). Windows cells does
+-- not own (dialogs, Omarchy's pop-outs) keep their box relative to the screen instead; fullscreen ones only move.
 function M.move_to_screen(step)
   local win = hl.get_active_window()
   if not win or not win.monitor then return end
@@ -450,10 +458,31 @@ function M.move_to_screen(step)
   end)
   for i, m in ipairs(mons) do
     if m.name == win.monitor.name then
-      local ws = mons[(i - 1 + step) % #mons + 1].active_workspace
+      local target = mons[(i - 1 + step) % #mons + 1]
+      local ws = target.active_workspace
       if not ws then return end
-      hl.dispatch(hl.dsp.window.move({ window = "address:" .. win.address, workspace = tostring(ws.id), follow = true }))
-      place_later(win.address)
+      local address = win.address
+      local relative
+      if win.floating and not state.floated[address] and (win.fullscreen or 0) == 0 and win.at and win.size then
+        local from = usable_area(win.monitor)
+        relative = {
+          x = (win.at.x - from.x) / from.w, y = (win.at.y - from.y) / from.h,
+          w = win.size.x / from.w, h = win.size.y / from.h,
+        }
+      end
+      hl.dispatch(hl.dsp.window.move({ window = "address:" .. address, workspace = tostring(ws.id), follow = true }))
+      if relative then
+        hl.timer(guarded(function()
+          local moved = hl.get_window("address:" .. address)
+          if not moved or not moved.monitor then return end
+          local box = scaled(usable_area(moved.monitor), relative)
+          local sel = "address:" .. address
+          hl.dispatch(hl.dsp.window.resize({ window = sel, x = round(box.w), y = round(box.h) }))
+          hl.dispatch(hl.dsp.window.move({ window = sel, x = round(box.x), y = round(box.y) }))
+        end), { timeout = 1, type = "oneshot" })
+      elseif (win.fullscreen or 0) == 0 then
+        place_later(address)
+      end
       return
     end
   end
@@ -483,7 +512,7 @@ function M.pick()
     return
   end
   local id = app_key(win)
-  local current = M.cell_for(win, key, layout)
+  local current = M.cell_for(win, win.monitor, key, layout)
   local options = {}
   for i, region in ipairs(layout.cells or {}) do
     local label = string.format("%d  %s", i, pretty(region, key))
@@ -501,19 +530,22 @@ function M.assign(address, key, index)
   local win = hl.get_window("address:" .. address)
   local layout = config.layouts[key]
   if not win or win.group or not layout or layout.monocle then return end
-  local id = app_key(win)
-  state.overrides[key] = state.overrides[key] or {}
+  local id, screen = app_key(win), screen_key(win.monitor)
+  if not screen then return end
   local cell = (layout.cells or {})[index]
   if index == 0 then
-    state.overrides[key][id] = nil
+    local apps = state.overrides[screen] and state.overrides[screen][key]
+    if apps then apps[id] = nil end
   elseif cell then
-    state.overrides[key][id] = cell
+    state.overrides[screen] = state.overrides[screen] or {}
+    state.overrides[screen][key] = state.overrides[screen][key] or {}
+    state.overrides[screen][key][id] = cell
   else
     return
   end
   save_choices()
   state.user_tiled[address], state.native_float[address] = nil, nil
-  local region = config.regions[M.cell_for(win, key, layout)]
+  local region = config.regions[M.cell_for(win, win.monitor, key, layout)]
   if region then snap(win, region) else save() end
 end
 
@@ -605,15 +637,22 @@ end
 hl.layout.register("cells", { recalculate = recalculate })
 hl.config({ general = { layout = CELLS } })
 
--- Super+U choices from earlier sessions. Drop those that name a layout or region since removed from layouts.lua.
+-- Super+U and Hyper+P choices from earlier sessions. Keep only well-formed entries: screen -> layout -> app ->
+-- region, naming a layout and region still in layouts.lua. Anything else (including the older layout -> app ->
+-- region shape, which has no per-screen level) is dropped.
 local choices_ok, choices = pcall(dofile, CHOICES_FILE)
 if choices_ok and type(choices) == "table" then
-  for key, apps in pairs(type(choices.overrides) == "table" and choices.overrides or {}) do
-    if config.layouts[key] and type(apps) == "table" then
-      for id, region in pairs(apps) do
-        if config.regions[region] then
-          state.overrides[key] = state.overrides[key] or {}
-          state.overrides[key][id] = region
+  for screen, layouts in pairs(type(choices.overrides) == "table" and choices.overrides or {}) do
+    if type(screen) == "string" and type(layouts) == "table" then
+      for key, apps in pairs(layouts) do
+        if config.layouts[key] and type(apps) == "table" then
+          for id, region in pairs(apps) do
+            if type(id) == "string" and type(region) == "string" and config.regions[region] then
+              state.overrides[screen] = state.overrides[screen] or {}
+              state.overrides[screen][key] = state.overrides[screen][key] or {}
+              state.overrides[screen][key][id] = region
+            end
+          end
         end
       end
     end
@@ -710,6 +749,11 @@ hl.on("monitor.layout_changed", guarded(function()
   replace_floated(addresses)
 end))
 hl.on("config.props_refreshed", guarded(align_monocle))
+-- A window that changed screens while fullscreen keeps its fullscreen geometry; when it leaves fullscreen it
+-- goes to its cell (or tiles on a monocle screen).
+hl.on("window.fullscreen", guarded(function(win)
+  if win and win.address and win.fullscreen == 0 then place_later(win.address) end
+end))
 
 hl.unbind("SUPER + L")
 o.bind("SUPER + L", "Toggle workspace between cells and full screen", guarded(M.cycle_layout))
@@ -729,6 +773,12 @@ o.bind("SUPER + CTRL + ALT + SHIFT + code:47", "Next layout for this screen", gu
 o.bind("SUPER + CTRL + ALT + SHIFT + code:48", "Reset this screen's layout", guarded(M.reset_layout))
 o.bind("SUPER + CTRL + ALT + O", "Move window to the next screen", guarded(function() M.move_to_screen(1) end))
 o.bind("SUPER + CTRL + ALT + SHIFT + O", "Move window to the previous screen", guarded(function() M.move_to_screen(-1) end))
+-- Command+O / Command+Shift+O on macOS, Meta+O on Plasma. Omarchy binds Super+O (pop window out) and
+-- Super+Shift+O (Obsidian; CapsLock n summons it here), and Hyprland fires every bind on a key: unbind them first.
+hl.unbind("SUPER + O")
+o.bind("SUPER + O", "Move window to the next screen", guarded(function() M.move_to_screen(1) end))
+hl.unbind("SUPER + SHIFT + O")
+o.bind("SUPER + SHIFT + O", "Move window to the previous screen", guarded(function() M.move_to_screen(-1) end))
 
 _G.dotfiles_cells = M
 return M

@@ -92,12 +92,15 @@ return {
   -- Hyper+P lists and Hyper+; cycles layouts in this order.
   order = { "standard", "fourk", "hd", "fullscreen" },
 
-  -- First match wins. name: output connector (hyprctl monitors). builtin: the laptop panel.
+  -- First match wins. name: output connector (hyprctl monitors). desc: start of the monitor description
+  -- (hyprctl monitors, like Hyprland's `desc:`). builtin: the laptop panel.
   -- Mirrors screen_layouts.lua: the built-in display is Fullscreen, every other screen Standard Dev.
   -- Hyper+P and Hyper+; override a screen's layout (kept across logouts); Hyper+' returns it to this default.
   screens = {
     -- { name = "DP-1", layout = "fourk" },
     { builtin = true, layout = "fullscreen" },
+    -- This desk's 1080p side screen (see monitors.lua): one window at a time, as picked with Hyper+P here.
+    { desc = "HP Inc. HP P224", layout = "fullscreen" },
     { layout = "standard" },
   },
 }

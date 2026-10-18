@@ -129,12 +129,18 @@ hl = {
     table.insert(fx.events[event], fn)
   end,
   bind = function() end,
-  unbind = function(keys) fx.unbinds[#fx.unbinds + 1] = keys end,
+  unbind = function(keys)
+    fx.unbinds[#fx.unbinds + 1] = keys
+    fx.key_ops[#fx.key_ops + 1] = { kind = "unbind", keys = keys }
+  end,
   exec_cmd = function(cmd) fx.exec[#fx.exec + 1] = cmd end,
 }
 
 o = {
-  bind = function(keys, description, handler) fx.binds[keys] = { description = description, handler = handler } end,
+  bind = function(keys, description, handler)
+    fx.binds[keys] = { description = description, handler = handler }
+    fx.key_ops[#fx.key_ops + 1] = { kind = "bind", keys = keys }
+  end,
   notify = function(msg) return "notify: " .. msg end,
   shell_quote = sh_quote,
 }
@@ -168,7 +174,7 @@ local function load_cells(opts)
     active_monitor = opts.active_monitor,
     active_window = opts.active_window,
     special_workspace = opts.special_workspace,
-    log = {}, exec = {}, timers = {}, events = {}, binds = {}, unbinds = {}, prop_refreshes = 0,
+    log = {}, exec = {}, timers = {}, events = {}, binds = {}, unbinds = {}, key_ops = {}, prop_refreshes = 0,
     options = opts.options or {},
     window_rules = {}, workspace_rules = {},
     state_home = state_home,
@@ -519,7 +525,7 @@ case("a config reload keeps user-tiled windows tiled and Super+U overrides, and 
   for _, d in ipairs(fx.log) do
     if d.args.window == "address:0xs" then fail("user-tiled window touched after the reload") end
   end
-  eq(M.cell_for(term, "standard", M.config.layouts.standard), "standard_utility_overlay", "override survives the reload")
+  eq(M.cell_for(term, term.monitor, "standard", M.config.layouts.standard), "standard_utility_overlay", "override survives the reload")
 
   -- A window that no longer exists is forgotten: a new window reusing its address floats normally.
   emit("window.open", window("0xgone", "spotify"))
@@ -535,7 +541,7 @@ case("Super+U choices survive a logout", function()
   eq(file_exists(state_home .. "/dotfiles/cells.lua"), true, "choices file written")
 
   M = load_cells({ windows = { term }, state_home = state_home, runtime_dir = mktemp() })
-  eq(M.cell_for(term, "standard", M.config.layouts.standard), "standard_utility_overlay", "override survives the logout")
+  eq(M.cell_for(term, term.monitor, "standard", M.config.layouts.standard), "standard_utility_overlay", "override survives the logout")
   eq(next(M._state.user_tiled), nil, "no window state from the old session")
 end)
 
@@ -600,7 +606,7 @@ case("grouped windows are left to Hyprland: not floated, not assigned, tiled acr
   eq(#fx.timers, 0, "no deferred placement")
   M.assign("0xg", "standard", 1)
   eq(#fx.log, 0, "assign dispatches")
-  eq(M.cell_for(grouped, "standard", M.config.layouts.standard), "standard_utility_overlay", "no override stored")
+  eq(M.cell_for(grouped, grouped.monitor, "standard", M.config.layouts.standard), "standard_utility_overlay", "no override stored")
   M.pick()
   eq(#fx.exec, 1, "picker notifies instead of opening")
   if not contains(fx.exec[1], "group") then fail("pick on a grouped window: " .. fx.exec[1]) end
@@ -1038,8 +1044,7 @@ case("screen layout choices survive a logout, keyed by monitor description", fun
   eq(M.layout_for(other), "fullscreen", "another panel keeps the default")
 end)
 
-case("lilHyper+O / Hyper+O move the focused window to the next / previous screen into its cell", function()
-  local NEXT, PREV = "SUPER + CTRL + ALT + O", "SUPER + CTRL + ALT + SHIFT + O"
+case("lilHyper+O / Hyper+O / Cmd+O / Cmd+Shift+O move the focused window to the next / previous screen into its cell", function()
   local function setup(monitors)
     local term = window("0xt", "ghostty", {
       monitor = builtin_monitor(), workspace = { id = 1, name = "1", tiled_layout = "monocle" },
@@ -1049,39 +1054,200 @@ case("lilHyper+O / Hyper+O move the focused window to the next / previous screen
   end
   local all = function() return { builtin_monitor(), dp1(), dp2_rotated() } end
 
-  local term = setup(all())
+  for _, pair in ipairs({
+    { "SUPER + CTRL + ALT + O", "SUPER + CTRL + ALT + SHIFT + O" },
+    { "SUPER + O", "SUPER + SHIFT + O" },
+  }) do
+    local NEXT, PREV = pair[1], pair[2]
+    local term = setup(all())
+    -- Omarchy binds both Super keys too and Hyprland fires every bind on a key: they must be unbound first.
+    if NEXT == "SUPER + O" then
+      for _, keys in ipairs(pair) do
+        local unbound, bound
+        for i, op in ipairs(fx.key_ops) do
+          if op.keys == keys and op.kind == "unbind" then unbound = unbound or i end
+          if op.keys == keys and op.kind == "bind" then bound = bound or i end
+        end
+        if not unbound or not bound or unbound > bound then fail(keys .. " must be unbound before it is bound") end
+      end
+    end
+    fx.binds[NEXT].handler()
+    eq(#fx.log, 1, NEXT .. " dispatch count")
+    eq(fx.log[1].kind, "move", NEXT .. " dispatch kind")
+    eq(fx.log[1].args.window, "address:0xt", NEXT .. " move target")
+    eq(fx.log[1].args.workspace, "2", NEXT .. " next screen's workspace")
+    eq(fx.log[1].args.follow, true, NEXT .. " focus follows")
+    eq(#fx.timers, 1, NEXT .. " placement queued once")
+    term.monitor = dp1()
+    term.workspace = { id = 2, name = "2", tiled_layout = CELLS }
+    fx.log = {}
+    run_timers()
+    eq(#fx.log, 4, NEXT .. " placement dispatch count")
+    eq(fx.log[1].kind, "float", NEXT .. " float first")
+    eq(fx.log[1].args.action, "enable", NEXT .. " float action")
+    eq(fx.log[2].kind, "resize", NEXT .. " resize")
+    eq(fx.log[2].args.x, 3072, NEXT .. " resize w")
+    eq(fx.log[2].args.y, 1410, NEXT .. " resize h")
+    eq(fx.log[3].kind, "move", NEXT .. " move")
+    eq(fx.log[3].args.x, 3968, NEXT .. " move x")
+    eq(fx.log[3].args.y, 30, NEXT .. " move y")
+    eq(fx.log[4].kind, "alter_zorder", NEXT .. " raised")
+
+    setup(all())
+    fx.binds[PREV].handler()
+    eq(fx.log[1].args.workspace, "3", PREV .. " previous screen wraps to the last")
+    eq(#fx.timers, 1, PREV .. " placement queued")
+
+    setup({ builtin_monitor() })
+    fx.binds[NEXT].handler()
+    fx.binds[PREV].handler()
+    eq(#fx.log, 0, "one screen: no dispatch")
+    eq(#fx.timers, 0, "one screen: no placement")
+  end
+end)
+
+case("moving a window to another screen: a native float keeps its relative box, cells windows snap to their cell, fullscreen only moves", function()
+  local NEXT = "SUPER + O"
+  local function screens() return { builtin_monitor(), dp1(), dp2_rotated() } end
+  local function ws2() return { id = 2, name = "2", tiled_layout = CELLS } end
+  -- dp1 usable area: 1920,30 5120x1410; dp2 (rotated, scaled) usable area: 7040,130 2560x1410.
+  local dialog = window("0xd", "some-dialog", { floating = true, workspace = ws2(),
+    at = { x = 1920 + 512, y = 30 + 705 }, size = { x = 2560, y = 705 } })
+  local M = load_cells({ monitors = screens(), windows = { dialog }, active_window = dialog, active_monitor = dp1() })
+  emit("window.open", dialog)
+  fx.log = {}
   fx.binds[NEXT].handler()
-  eq(#fx.log, 1, "dispatch count")
-  eq(fx.log[1].kind, "move", "dispatch kind")
-  eq(fx.log[1].args.window, "address:0xt", "move target")
-  eq(fx.log[1].args.workspace, "2", "next screen's workspace")
-  eq(fx.log[1].args.follow, true, "focus follows")
-  eq(#fx.timers, 1, "placement queued once")
-  term.monitor = dp1()
-  term.workspace = { id = 2, name = "2", tiled_layout = CELLS }
+  eq(#fx.log, 1, "dispatch count before the tick")
+  eq(fx.log[1].kind, "move", "workspace move")
+  eq(fx.log[1].args.workspace, "3", "next screen's workspace")
+  dialog.monitor, dialog.workspace = dp2_rotated(), { id = 3, name = "3", tiled_layout = CELLS }
   fx.log = {}
   run_timers()
-  eq(#fx.log, 4, "placement dispatch count")
-  eq(fx.log[1].kind, "float", "float first")
-  eq(fx.log[1].args.action, "enable", "float action")
-  eq(fx.log[2].kind, "resize", "resize")
-  eq(fx.log[2].args.x, 3072, "resize w")
-  eq(fx.log[2].args.y, 1410, "resize h")
-  eq(fx.log[3].kind, "move", "move")
-  eq(fx.log[3].args.x, 3968, "move x")
-  eq(fx.log[3].args.y, 30, "move y")
-  eq(fx.log[4].kind, "alter_zorder", "raised")
+  eq(#fx.log, 2, "relative placement dispatch count")
+  eq(fx.log[1].kind, "resize", "resize first")
+  eq(fx.log[1].args.window, "address:0xd", "resize target")
+  eq(fx.log[1].args.x, 1280, "width keeps half the screen")
+  eq(fx.log[1].args.y, 705, "height keeps half the screen")
+  eq(fx.log[2].kind, "move", "then move")
+  eq(fx.log[2].args.x, 7040 + 256, "x keeps its relative offset")
+  eq(fx.log[2].args.y, 130 + 705, "y keeps its relative offset")
+  eq(#dispatches("float"), 0, "a native float stays a native float")
 
-  setup(all())
-  fx.binds[PREV].handler()
-  eq(fx.log[1].args.workspace, "3", "previous screen wraps to the last")
-  eq(#fx.timers, 1, "placement queued")
-
-  setup({ builtin_monitor() })
+  local term = window("0xt", "ghostty", { workspace = ws2(), floating = false,
+    at = { x = 0, y = 0 }, size = { x = 100, y = 100 } })
+  M = load_cells({ monitors = screens(), windows = { term }, active_window = term, active_monitor = dp1() })
+  emit("window.open", term)
+  term.floating = true -- cells floated it
+  fx.log = {}
+  fx.timers = {}
   fx.binds[NEXT].handler()
-  fx.binds[PREV].handler()
-  eq(#fx.log, 0, "one screen: no dispatch")
-  eq(#fx.timers, 0, "one screen: no placement")
+  term.monitor, term.workspace = dp2_rotated(), { id = 3, name = "3", tiled_layout = CELLS }
+  fx.log = {}
+  run_timers()
+  eq(fx.log[1].kind, "resize", "cells window resize")
+  eq(fx.log[1].args.x, 1536, "cells window takes its cell on the new screen: w")
+  eq(fx.log[1].args.y, 1410, "cells window cell h")
+  eq(fx.log[2].kind, "move", "cells window move")
+  eq(fx.log[2].args.x, 7040 + 1024, "cells window cell x")
+  eq(fx.log[2].args.y, 130, "cells window cell y")
+
+  local full = window("0xf", "ghostty", { workspace = ws2(), fullscreen = 2 })
+  M = load_cells({ monitors = screens(), windows = { full }, active_window = full, active_monitor = dp1() })
+  fx.binds[NEXT].handler()
+  eq(#fx.log, 1, "fullscreen window: only the workspace move")
+  eq(#fx.timers, 0, "fullscreen window: no placement")
+end)
+
+case("Super+U choices are per screen: two screens on one layout keep separate cells and each survives a reload", function()
+  local function screens()
+    local a, b = dp1(), dp2_rotated()
+    a.description, b.description = "Vendor A 0x1", "Vendor B 0x2"
+    return { a, b }
+  end
+  local on_a = window("0xa", "ghostty", { monitor = screens()[1] })
+  local on_b = window("0xb", "ghostty", { monitor = screens()[2], workspace = { id = 3, name = "3", tiled_layout = CELLS } })
+  local standard = function(M) return M.config.layouts.standard end
+  local M = load_cells({ monitors = screens(), windows = { on_a, on_b } })
+
+  M.assign("0xa", "standard", 3) -- overlay on A only
+  eq(M.cell_for(on_a, on_a.monitor, "standard", standard(M)), "standard_utility_overlay", "A override")
+  eq(M.cell_for(on_b, on_b.monitor, "standard", standard(M)), "standard_terminal_right", "B keeps the configured cell")
+
+  fx.log = {}
+  M.assign("0xb", "standard", 1) -- browser cell on B
+  eq(fx.log[2].args.x, 1024, "B snaps into its own cell: w")
+  eq(fx.log[3].args.x, 7040, "B cell x")
+  eq(fx.log[3].args.y, 130, "B cell y")
+  eq(M.cell_for(on_a, on_a.monitor, "standard", standard(M)), "standard_utility_overlay", "A untouched by B's choice")
+
+  M = load_cells({ monitors = screens(), windows = { on_a, on_b }, state_home = fx.state_home, runtime_dir = mktemp() })
+  eq(M.cell_for(on_a, on_a.monitor, "standard", standard(M)), "standard_utility_overlay", "A survives the reload")
+  eq(M.cell_for(on_b, on_b.monitor, "standard", standard(M)), "standard_browser_left", "B survives the reload")
+
+  M.assign("0xa", "standard", 0) -- A back to its configured cell
+  eq(M.cell_for(on_a, on_a.monitor, "standard", standard(M)), "standard_terminal_right", "A reset")
+  eq(M.cell_for(on_b, on_b.monitor, "standard", standard(M)), "standard_browser_left", "B keeps its choice")
+  M = load_cells({ monitors = screens(), windows = { on_a, on_b }, state_home = fx.state_home, runtime_dir = mktemp() })
+  eq(M.cell_for(on_a, on_a.monitor, "standard", standard(M)), "standard_terminal_right", "A reset survives the reload")
+end)
+
+case("a choices file from before per-screen overrides loads without error and its overrides are ignored", function()
+  local M = load_cells()
+  local dir = fx.state_home .. "/dotfiles"
+  os.execute("mkdir -p " .. sh_quote(dir))
+  local f = io.open(dir .. "/cells.lua", "w")
+  f:write('return { overrides = { standard = { terminal = "standard_utility_overlay" } },'
+    .. ' screen_layouts = { ["DP-1"] = "hd" } }')
+  f:close()
+
+  local term = window("0xt", "ghostty")
+  M = load_cells({ windows = { term }, state_home = fx.state_home, runtime_dir = mktemp() })
+  eq(M.cell_for(term, term.monitor, "standard", M.config.layouts.standard), "standard_terminal_right",
+    "the old layout -> app override is not applied to any screen")
+  eq(M.layout_for(dp1()), "hd", "screen layouts still restore")
+  eq(next(M._state.overrides), nil, "nothing kept from the old shape")
+end)
+
+case("screens match by description prefix: the HP side screen is full screen, other screens standard", function()
+  local hp, acer, lookalike = dp1(), dp2_rotated(), dp2_rotated()
+  hp.description = "HP Inc. HP P224 CNK0000001"
+  acer.description = "Acer Technologies VG281K 0x00000001"
+  lookalike.description = "HP IncX HP P224 CNK0000001" -- would match "HP Inc. HP P224" as a pattern
+  local M = load_cells({ monitors = { hp, acer } })
+  eq(M.layout_for(hp), "fullscreen", "HP layout")
+  eq(M.layout_for(acer), "standard", "Acer layout")
+  eq(M.layout_for(lookalike), "standard", "the prefix is plain text, not a pattern")
+  local rule = last_rule("m[DP-1] s[0]")
+  eq(rule and rule.spec.layout, "monocle", "HP workspace rule")
+  eq(last_rule("m[DP-2] s[0]"), nil, "Acer keeps the default cells rule")
+
+  local other = dp1()
+  other.description = "Rebrand HP Inc. HP P224 CNK0000001"
+  eq(M.layout_for(other), "standard", "the description must start with the prefix")
+
+  local sibling = dp1() -- another unit of the same model
+  sibling.description = "HP Inc. HP P224 CNK0000000"
+  eq(M.layout_for(sibling), "fullscreen", "any unit of the model")
+end)
+
+case("a fullscreen window is left alone by placement and lands in its cell when it leaves fullscreen", function()
+  local term = window("0xt", "ghostty", { fullscreen = 2 })
+  local M = load_cells({ windows = { term } })
+  M.place(term)
+  eq(#fx.log, 0, "fullscreen window dispatches")
+
+  term.fullscreen = 1
+  emit("window.fullscreen", term)
+  eq(#fx.timers, 0, "no placement while it is still maximized")
+  term.fullscreen = 2
+  emit("window.fullscreen", term)
+  eq(#fx.timers, 0, "no placement while it is fullscreen")
+
+  term.fullscreen = 0
+  emit("window.fullscreen", term)
+  eq(#fx.timers, 1, "placement queued on leaving fullscreen")
+  run_timers()
+  expect_snap("0xt", 3968, 30, 3072, 1410, "cell after leaving fullscreen")
 end)
 
 case("Super+U assign snaps a floated window into the chosen cell and raises it when focused", function()
@@ -1115,12 +1281,12 @@ case("Super+U assign: tiled window into a cell snaps it; index 0 restores the co
 
   M.assign("0xt", "standard", 3)
   expect_snap("0xt", 2560, 171, 3840, 1128, "snap into the overlay cell")
-  eq(M.cell_for(term, "standard", layout), "standard_utility_overlay", "override cell")
+  eq(M.cell_for(term, term.monitor, "standard", layout), "standard_utility_overlay", "override cell")
 
   term.floating = true
   fx.log = {}
   M.assign("0xt", "standard", 0)
-  eq(M.cell_for(term, "standard", layout), "standard_terminal_right", "configured cell restored")
+  eq(M.cell_for(term, term.monitor, "standard", layout), "standard_terminal_right", "configured cell restored")
   eq(#fx.log, 2, "dispatch count")
   eq(fx.log[1].kind, "resize", "first dispatch")
   eq(fx.log[1].args.x, 3072, "resize w")
@@ -1242,16 +1408,16 @@ case("a persisted Super+U override naming a removed region is dropped on reload"
   local term = window("0xt", "ghostty")
   local M = load_cells({ windows = { term }, layouts = standard(true) })
   M.assign("0xt", "std", 4) -- Super+U: terminal into "extra"
-  eq(M.cell_for(term, "std", M.config.layouts.std), "extra", "override applied")
+  eq(M.cell_for(term, term.monitor, "std", M.config.layouts.std), "extra", "override applied")
   local dirs = home_rule_dirs()
 
   -- Same layouts: the override survives.
   M = load_cells({ windows = { term }, layouts = standard(true), state_home = dirs.state_home, runtime_dir = dirs.runtime_dir })
-  eq(M.cell_for(term, "std", M.config.layouts.std), "extra", "override survives a reload")
+  eq(M.cell_for(term, term.monitor, "std", M.config.layouts.std), "extra", "override survives a reload")
 
   -- "extra" removed from the config: the stale override is dropped.
   M = load_cells({ windows = { term }, layouts = standard(false), state_home = dirs.state_home, runtime_dir = dirs.runtime_dir })
-  eq(M.cell_for(term, "std", M.config.layouts.std), "right", "falls back to the configured cell")
+  eq(M.cell_for(term, term.monitor, "std", M.config.layouts.std), "right", "falls back to the configured cell")
   fx.log = {}
   term.floating = true
   M.place(term)

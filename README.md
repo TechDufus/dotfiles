@@ -183,6 +183,22 @@ Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs
 
 The launch keys intentionally differ: **CapsLock → Shift+T** opens Tern on macOS; **CapsLock → t** opens it on Omarchy, where Shift+T opens Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
 
+## Omarchy screens
+
+Super stands in for Command. As on the Mac, each screen has a layout of cells, and each app has a cell in every layout.
+
+| Shortcut | Window action |
+| --- | --- |
+| `Super+O` or `Super+Control+Alt+O` | Move the window to the next screen, into its cell there |
+| `Super+Shift+O` or `Super+Control+Alt+Shift+O` | Move the window to the previous screen |
+| `Super+U` | Pick the app's cell on this screen; each screen remembers its own choice |
+| `Super+Control+Alt+Shift+P` / `;` / `'` | Pick, cycle, or reset this screen's layout |
+| `Super+L` | Toggle the workspace between cells and full screen |
+
+Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Fullscreen windows stay fullscreen; they return to their cell when they leave fullscreen. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
+
+`modules/omarchy/hypr/monitors.lua` sets up the desk with the Acer VG281K 4K and the HP P224 1080p. The HP is on the left, the 4K is main, and the cursor starts there at login. Workspaces 1–3 (terminal, browser, Obsidian) live on the 4K, and workspaces 4–5 (chat, music) on the HP. The HP defaults to the Fullscreen layout. These rules match the panels by description, and the workspace bindings apply only while both panels are connected, so other machines are unaffected.
+
 ## Migration ownership and rollback
 
 - Ansible is retained as a development-tool dependency for the Ansible language server, not as the provisioning engine. macOS owns standalone Ansible through Homebrew; Linux owns `ansible-core` and `ansible-lint` through pacman. The existing macOS Neovim profile also owns `ansible-lint`.

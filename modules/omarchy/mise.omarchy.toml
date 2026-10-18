@@ -26,5 +26,5 @@ env = { OMARCHY_DEFAULT_THEME = "ayaka" }
 run = "./theme.sh"
 
 [tasks."test:omarchy"]
-description = "Run the summon, cells and default-theme tests"
-run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "bash tests/test_theme.sh"]
+description = "Run the summon, cells, monitors and default-theme tests"
+run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "lua tests/test_monitors.lua", "bash tests/test_theme.sh"]

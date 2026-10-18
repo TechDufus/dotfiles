@@ -25,6 +25,22 @@ description = "Switch to the default Omarchy theme once per default"
 env = { OMARCHY_DEFAULT_THEME = "ayaka" }
 run = "./theme.sh"
 
+# Shell plugins from git repos, cloned where `omarchy plugin add` puts them:
+# ~/.config/omarchy/plugins/<manifest id>. Like the themes, `dotfiles --update` fast-forwards them;
+# `omarchy plugin update <id>` shows the diff first and validates.
+[bootstrap.repos."~/.config/omarchy/plugins/iamanro.omp-usage"]
+url = "https://github.com/iamanro/omarchy-omp-usage.git"
+
+[bootstrap.repos."~/.config/omarchy/plugins/robzolkos.github"]
+url = "https://github.com/robzolkos/omarchy-github.git"
+
+# Puts the plugins above in the bar and takes the stock Agents widget out (omp-usage replaces it),
+# once per value of the two lists: a later change in the bar stays until a list changes.
+[tasks."bootstrap:omarchy-plugins"]
+description = "Put the shell plugins in the Omarchy bar once per plugin list"
+env = { OMARCHY_BAR_PLUGINS = "iamanro.omp-usage robzolkos.github", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
+run = "./plugins.sh"
+
 [tasks."test:omarchy"]
-description = "Run the summon, cells, monitors and default-theme tests"
-run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "lua tests/test_monitors.lua", "bash tests/test_theme.sh"]
+description = "Run the summon, cells, monitors, default-theme and bar-plugin tests"
+run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "lua tests/test_monitors.lua", "bash tests/test_theme.sh", "bash tests/test_plugins.sh"]

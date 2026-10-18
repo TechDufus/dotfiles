@@ -201,6 +201,12 @@ The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock i
 
 `modules/omarchy/hypr/monitors.lua` sets up the desk with the Acer VG281K 4K and the HP P224 1080p. The HP is on the left, the 4K is main, and the cursor starts there at login. Workspaces 1–3 (terminal, browser, Obsidian) live on the 4K, and workspaces 4–5 (chat, music) on the HP. The HP defaults to the Fullscreen layout. These rules match the panels by description, and the workspace bindings apply only while both panels are connected, so other machines are unaffected.
 
+## Omarchy bar
+
+`mise.omarchy.toml` clones two shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to) and [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions). `bootstrap:omarchy-plugins` puts both in the bar and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes in the bar stay until a list changes. Outside a session it waits for the next run.
+
+The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `dotfiles --update` fast-forwards both plugins; `omarchy plugin update <id>` shows the diff first.
+
 ## Migration ownership and rollback
 
 - Ansible is retained as a development-tool dependency for the Ansible language server, not as the provisioning engine. macOS owns standalone Ansible through Homebrew; Linux owns `ansible-core` and `ansible-lint` through pacman. The existing macOS Neovim profile also owns `ansible-lint`.

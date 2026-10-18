@@ -6,3 +6,8 @@ hl.config({
     gaps_out = 4, -- screen edges
   },
 })
+
+-- Every window fully opaque, focused or not, replacing Omarchy's 0.985 / 0.96 default and the
+-- browsers' unfocused 0.985 (video showed the wallpaper through). Loaded after Omarchy's window rules,
+-- so this rule wins; apps that want translucency set it themselves (Ghostty: background-opacity).
+o.window(".*", { opacity = "1 1" })

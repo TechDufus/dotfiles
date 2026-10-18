@@ -199,6 +199,8 @@ Floating windows that cells does not place, such as dialogs, keep their position
 
 The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock into F13) and on CachyOS (keyd accepted both). A keyboard that sends F13 from its Caps Lock key needs no remap.
 
+Every window is fully opaque, focused or not; Omarchy's default translucency is turned off so video never shows the wallpaper through. Apps that should be see-through set it themselves, such as Ghostty's `background-opacity`.
+
 `modules/omarchy/hypr/monitors.lua` sets up the desk with the Acer VG281K 4K and the HP P224 1080p. The HP is on the left, the 4K is main, and the cursor starts there at login. Workspaces 1–3 (terminal, browser, Obsidian) live on the 4K, and workspaces 4–5 (chat, music) on the HP. The HP defaults to the Fullscreen layout. These rules match the panels by description, and the workspace bindings apply only while both panels are connected, so other machines are unaffected.
 
 ## Omarchy bar

@@ -34,6 +34,7 @@ local state = {
   pinned = {},        -- workspace id -> layout of the per-workspace rule Super+L or a screen change declared
   screen_layouts = {}, -- screen key -> layout key (Hyper+P, Hyper+;), kept across logouts
   screen_rules = {},  -- output -> layout its m[output] s[0] workspace rule declares
+  fullscreen = {},    -- address -> fullscreen mode (1 maximized, 2 fullscreen) from the last window.fullscreen event
 }
 M._state = state
 
@@ -61,7 +62,7 @@ end
 local function save()
   local file = io.open(STATE_FILE, "w")
   if not file then return end
-  file:write("return " .. serialize({ floated = state.floated, user_tiled = state.user_tiled }))
+  file:write("return " .. serialize({ floated = state.floated, user_tiled = state.user_tiled, fullscreen = state.fullscreen }))
   file:close()
 end
 
@@ -688,10 +689,14 @@ if ok and type(saved) == "table" then
       if live[address] then state[set][address] = true end
     end
   end
+  for address, mode in pairs(type(saved.fullscreen) == "table" and saved.fullscreen or {}) do
+    if live[address] then state.fullscreen[address] = mode end
+  end
 end
 for address, win in pairs(live) do
   state.opened[address] = true
   if win.floating and not state.floated[address] then state.native_float[address] = true end
+  if (win.fullscreen or 0) ~= 0 then state.fullscreen[address] = win.fullscreen end
 end
 save()
 -- The reload may have changed gaps (looknfeel.lua, Omarchy's no-gaps toggle) or layouts.lua: re-snap them.
@@ -730,8 +735,8 @@ end))
 hl.on("window.close", function(win)
   if not win or not win.address then return end
   local address = win.address
-  local persisted = state.floated[address] or state.user_tiled[address]
-  for _, set in ipairs({ "opened", "floated", "native_float", "user_tiled", "unmatched" }) do state[set][address] = nil end
+  local persisted = state.floated[address] or state.user_tiled[address] or state.fullscreen[address]
+  for _, set in ipairs({ "opened", "floated", "native_float", "user_tiled", "unmatched", "fullscreen" }) do state[set][address] = nil end
   if persisted then save() end
 end)
 hl.on("monitor.added", guarded(function(mon)
@@ -754,11 +759,31 @@ hl.on("monitor.layout_changed", guarded(function()
   for address in pairs(state.floated) do addresses[#addresses + 1] = address end
   replace_floated(addresses)
 end))
-hl.on("config.props_refreshed", guarded(align_monocle))
+-- Hyprland 0.56 drops a window's fullscreen state without telling the app when its workspace changes tiled layout
+-- (config reloads, Super+L, Hyper+P). The app stays fullscreen, so Chromium hides its tabs again on every focus
+-- change. Put the window back in the mode it last reported to keep both sides in sync.
+local function restore_fullscreen()
+  for address, mode in pairs(state.fullscreen) do
+    local win = hl.get_window("address:" .. address)
+    if not win then
+      state.fullscreen[address] = nil
+    elseif (win.fullscreen or 0) == 0 then
+      hl.dispatch(hl.dsp.window.fullscreen({ window = "address:" .. address, action = "set",
+        mode = mode == 1 and "maximized" or "fullscreen" }))
+    end
+  end
+end
+hl.on("config.props_refreshed", guarded(function()
+  restore_fullscreen()
+  align_monocle()
+end))
 -- A window that changed screens while fullscreen keeps its fullscreen geometry; when it leaves fullscreen it
 -- goes to its cell (or tiles on a monocle screen).
 hl.on("window.fullscreen", guarded(function(win)
-  if win and win.address and win.fullscreen == 0 then place_later(win.address) end
+  if not win or not win.address then return end
+  state.fullscreen[win.address] = win.fullscreen ~= 0 and win.fullscreen or nil
+  save()
+  if win.fullscreen == 0 then place_later(win.address) end
 end))
 
 hl.unbind("SUPER + L")

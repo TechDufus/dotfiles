@@ -195,7 +195,7 @@ Super stands in for Command. As on the Mac, each screen has a layout of cells, a
 | `Super+Control+Alt+Shift+P` / `;` / `'` | Pick, cycle, or reset this screen's layout |
 | `Super+L` | Toggle the workspace between cells and full screen |
 
-Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Moving a window you tiled with `Super+T` puts it back in its cell. Fullscreen windows stay fullscreen. When they leave it, a window cells places goes back to its cell; one you tiled or popped out yourself stays where Hyprland restores it. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
+Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Moving a window you tiled with `Super+T` puts it back in its cell. Fullscreen windows stay fullscreen, also across config reloads and layout switches (Hyprland 0.56 drops their fullscreen state there without telling the app, which left Brave hiding its tabs whenever it lost focus). When they leave it, a window cells places goes back to its cell; one you tiled or popped out yourself stays where Hyprland restores it. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
 
 The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock into F13) and on CachyOS (keyd accepted both). A keyboard that sends F13 from its Caps Lock key needs no remap.
 

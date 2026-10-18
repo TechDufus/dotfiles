@@ -20,6 +20,10 @@ return {
     fourk_center_left_large  = { x = 0.075, y = 0.125, w = 0.55,  h = 0.75 },
     fourk_center_large       = { x = 0.125, y = 0.125, w = 0.75,  h = 0.75 },
     fourk_right_small        = { x = 0.6,   y = 0.2,   w = 0.375, h = 0.6 },
+
+    -- Last cell of every cell layout (Hammerspoon's empty full-screen slot): Super+U makes one app fill the
+    -- screen without changing the layout.
+    full_screen              = { x = 0,     y = 0,     w = 1,     h = 1 },
   },
 
   -- cells: Super+U picker order. apps: summon registry name (summon_apps.lua) -> region.
@@ -28,7 +32,7 @@ return {
   layouts = {
     standard = {
       name = "Standard Dev",
-      cells = { "standard_browser_left", "standard_terminal_right", "standard_utility_overlay" },
+      cells = { "standard_browser_left", "standard_terminal_right", "standard_utility_overlay", "full_screen" },
       default = "standard_utility_overlay",
       apps = {
         browser = "standard_browser_left",
@@ -49,7 +53,7 @@ return {
       name = "4K Workspace",
       cells = {
         "fourk_left_large", "fourk_right_side", "fourk_top_right",
-        "fourk_center_left_large", "fourk_center_large", "fourk_right_small",
+        "fourk_center_left_large", "fourk_center_large", "fourk_right_small", "full_screen",
       },
       default = "fourk_center_large",
       apps = {
@@ -69,7 +73,7 @@ return {
     },
     hd = {
       name = "HD Workspace",
-      cells = { "hd_left_main", "hd_right_side", "hd_float_center" },
+      cells = { "hd_left_main", "hd_right_side", "hd_float_center", "full_screen" },
       default = "hd_float_center",
       apps = {
         terminal = "hd_left_main",

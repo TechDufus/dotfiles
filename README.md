@@ -191,7 +191,7 @@ Super stands in for Command. As on the Mac, each screen has a layout of cells, a
 | --- | --- |
 | `Super+O` or `Super+Control+Alt+O` | Move the window to the next screen, into its cell there |
 | `Super+Shift+O` or `Super+Control+Alt+Shift+O` | Move the window to the previous screen |
-| `Super+U` | Pick the app's cell on this screen; each screen remembers its own choice |
+| `Super+U` | Pick the app's cell on this screen; each screen remembers its own choice. The last cell of every cell layout is full screen |
 | `Super+Control+Alt+Shift+P` / `;` / `'` | Pick, cycle, or reset this screen's layout |
 | `Super+L` | Toggle the workspace between cells and full screen |
 

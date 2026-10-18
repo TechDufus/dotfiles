@@ -3,7 +3,9 @@ local registry = require("hypr.dotfiles.registry")
 local apps = registry.apps
 local app_matches, find_app, app_for_window = registry.matches, registry.find, registry.for_window
 
-local LEADER = "code:66" -- CapsLock keycode; kb_options caps:none makes it a VoidSymbol key.
+-- Leader keys. CapsLock: kb_options caps:none makes it a VoidSymbol key. F13: what a keyboard with Caps Lock remapped
+-- in firmware sends (the key Karabiner produced on macOS); Plasma's keyd took both as the leader too.
+local LEADERS = { { key = "code:66", name = "CapsLock" }, { key = "code:191", name = "F13" } }
 local SUMMON, MACRO = "summon", "summon_macro"
 local TIMEOUT_MS = 1000 -- Hammerspoon registerTransientLeader timeoutSeconds = 1
 
@@ -179,7 +181,9 @@ local function key_spec(key)
   return key
 end
 
-o.bind(LEADER, "Summon leader (CapsLock)", M.leader, { submap_universal = true })
+for _, leader in ipairs(LEADERS) do
+  o.bind(leader.key, "Summon leader (" .. leader.name .. ")", M.leader, { submap_universal = true })
+end
 o.bind("SUPER + H", "Hide window to scratchpad", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
 
 hl.define_submap(SUMMON, function()

@@ -198,18 +198,21 @@ case("summoning a floating window focuses then raises it", function()
   eq(d.args.mode, "top", "zorder mode")
 end)
 
-case("leader cycles idle -> summon -> macro -> summon (Hammerspoon parity)", function()
-  M = fresh_engine()
-  local leader = find_bind("code:66", nil)
-  if not leader then fail("code:66 leader not bound") end
-  eq(leader.opts.submap_universal, true, "submap_universal")
-  local seen = {}
-  for _ = 1, 3 do
-    leader.handler()
-    seen[#seen + 1] = fx.submap
+-- CapsLock, or F13 from a keyboard that remaps Caps Lock in firmware.
+case("leader cycles idle -> summon -> macro -> summon (Hammerspoon parity) on CapsLock and F13", function()
+  for _, keys in ipairs({ "code:66", "code:191" }) do
+    M = fresh_engine()
+    local leader = find_bind(keys, nil)
+    if not leader then fail(keys .. " leader not bound") end
+    eq(leader.opts.submap_universal, true, keys .. " submap_universal")
+    local seen = {}
+    for _ = 1, 3 do
+      leader.handler()
+      seen[#seen + 1] = fx.submap
+    end
+    eq(table.concat(seen, ","), "summon,summon_macro,summon", keys .. " submap sequence")
+    eq(fx.timers[#fx.timers].opts.timeout, 1000, keys .. " leader timeout ms")
   end
-  eq(table.concat(seen, ","), "summon,summon_macro,summon", "submap sequence")
-  eq(fx.timers[#fx.timers].opts.timeout, 1000, "leader timeout ms")
 end)
 
 case("uppercase key binds as SHIFT + letter", function()

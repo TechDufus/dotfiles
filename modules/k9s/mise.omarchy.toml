@@ -4,8 +4,9 @@
 "~/.config/omarchy/themed/k9s.yaml.tpl" = { source = "k9s.yaml.tpl" }
 "~/.config/omarchy/hooks/theme-set.d/dotfiles-k9s-skin.hook" = { source = "omarchy-skin.hook" }
 
+# Runs every bootstrap (cheap when nothing changed), after a first-run theme switch: headless
+# theme switches skip theme-set hooks, so this is what copies the skin then.
 [tasks."bootstrap:k9s"]
-description = "Render the Omarchy k9s skin after its template changes"
-sources = ["k9s.yaml.tpl", "omarchy-skin.hook"]
-outputs = { auto = true }
+description = "Render and install the Omarchy k9s skin"
+wait_for = ["bootstrap:omarchy-theme"]
 run = "./bootstrap.sh"

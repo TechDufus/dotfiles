@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Omarchy renders ~/.config/omarchy/themed/k9s.yaml.tpl only while it sets a theme, so after the
-# template changes, refresh the current theme once, then copy the rendered skin into place: the
-# theme-set hook does not run in headless mode. Fail-soft.
+# Omarchy renders ~/.config/omarchy/themed/k9s.yaml.tpl only while it sets a theme, so when the
+# rendered skin is missing or older than the template, refresh the current theme once. Then copy
+# the skin into place: theme-set hooks do not run in headless mode. Fail-soft.
 set -uo pipefail
 here=$(dirname "$0")
+rendered=$HOME/.local/state/omarchy/current/theme/k9s.yaml
 
-if [ -f "$HOME/.local/state/omarchy/current/theme.name" ]; then
+if [ -f "$HOME/.local/state/omarchy/current/theme.name" ] &&
+  { [ ! -f "$rendered" ] || [ "$here/k9s.yaml.tpl" -nt "$rendered" ]; }; then
   if command -v omarchy-theme-refresh >/dev/null 2>&1; then
     # shellcheck source=../omarchy/hypr-instance.sh
     . "$here/../omarchy/hypr-instance.sh"

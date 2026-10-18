@@ -8,6 +8,8 @@ set -euo pipefail
 src=$HOME/.local/state/omarchy/current/theme/k9s.yaml
 dir=${XDG_CONFIG_HOME:-$HOME/.config}/k9s/skins
 [ -f "$src" ] || exit 0
+# Unchanged: skip, so a no-op bootstrap does not make open k9s sessions reload.
+! cmp -s "$src" "$dir/current.yaml" || exit 0
 
 mkdir -p "$dir"
 tmp=$(mktemp "$dir/.current.yaml.XXXXXX")

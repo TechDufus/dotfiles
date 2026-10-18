@@ -205,7 +205,7 @@ The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock i
 
 `mise.omarchy.toml` clones two shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to) and [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions). `bootstrap:omarchy-plugins` puts both in the bar and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes in the bar stay until a list changes. Outside a session it waits for the next run.
 
-The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `dotfiles --update` fast-forwards both plugins; `omarchy plugin update <id>` shows the diff first.
+The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `omarchy update` never updates third-party plugins, so both track their `main` branch and every `dotfiles` run moves them to the latest commit.
 
 ## Migration ownership and rollback
 

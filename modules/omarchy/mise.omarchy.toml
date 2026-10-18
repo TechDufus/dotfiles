@@ -26,13 +26,15 @@ env = { OMARCHY_DEFAULT_THEME = "ayaka" }
 run = "./theme.sh"
 
 # Shell plugins from git repos, cloned where `omarchy plugin add` puts them:
-# ~/.config/omarchy/plugins/<manifest id>. Like the themes, `dotfiles --update` fast-forwards them;
-# `omarchy plugin update <id>` shows the diff first and validates.
+# ~/.config/omarchy/plugins/<manifest id>. `omarchy update` never updates them, so each tracks its
+# main branch: every `dotfiles` run fast-forwards it to the latest commit.
 [bootstrap.repos."~/.config/omarchy/plugins/iamanro.omp-usage"]
 url = "https://github.com/iamanro/omarchy-omp-usage.git"
+ref = "main"
 
 [bootstrap.repos."~/.config/omarchy/plugins/robzolkos.github"]
 url = "https://github.com/robzolkos/omarchy-github.git"
+ref = "main"
 
 # Puts the plugins above in the bar and takes the stock Agents widget out (omp-usage replaces it),
 # once per value of the two lists: a later change in the bar stays until a list changes.

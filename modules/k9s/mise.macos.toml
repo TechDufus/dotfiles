@@ -6,4 +6,4 @@
 "~/Library/Application Support/k9s/config.yaml" = { source = "config.yaml" }
 "~/Library/Application Support/k9s/plugins.yaml" = { source = "plugins.yaml" }
 "~/Library/Application Support/k9s/aliases.yaml" = { source = "aliases.yaml" }
-"~/Library/Application Support/k9s/skins/catppuccin_mocha.yaml" = { source = "catppuccin_mocha.yaml" }
+"~/Library/Application Support/k9s/skins/current.yaml" = { source = "catppuccin_mocha.yaml" }

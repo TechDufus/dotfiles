@@ -1,0 +1,11 @@
+# The skin follows the Omarchy theme: Omarchy renders k9s.yaml.tpl with every theme change, and
+# the theme-set hook copies it to ~/.config/k9s/skins/current.yaml.
+[dotfiles]
+"~/.config/omarchy/themed/k9s.yaml.tpl" = { source = "k9s.yaml.tpl" }
+"~/.config/omarchy/hooks/theme-set.d/dotfiles-k9s-skin.hook" = { source = "omarchy-skin.hook" }
+
+[tasks."bootstrap:k9s"]
+description = "Render the Omarchy k9s skin after its template changes"
+sources = ["k9s.yaml.tpl", "omarchy-skin.hook"]
+outputs = { auto = true }
+run = "./bootstrap.sh"

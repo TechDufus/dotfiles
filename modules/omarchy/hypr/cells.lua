@@ -584,6 +584,33 @@ local function cycle_windows(forward)
   end
 end
 
+-- Alt+Tab opens OmaSwitch (piyush.omaswitch, cloned and enabled by mise.omarchy.toml) while it is installed
+-- and in shell.json's plugins[], else cycle_windows. Checked per press, so removing or disabling the plugin
+-- hands Alt+Tab back without a config reload.
+local OMASWITCH = "piyush.omaswitch"
+
+local function omaswitch_enabled()
+  local dir = paths.config_home .. "/omarchy"
+  local manifest = io.open(dir .. "/plugins/" .. OMASWITCH .. "/manifest.json")
+  if not manifest then return false end
+  manifest:close()
+  local file = io.open(dir .. "/shell.json")
+  if not file then return false end
+  local text = file:read("a")
+  file:close()
+  local list = text:match('"plugins"%s*:%s*(%b[])')
+  return list ~= nil and list:find('"' .. OMASWITCH .. '"', 1, true) ~= nil
+end
+
+local function switch_windows(forward)
+  local cycle = cycle_windows(forward)
+  local summon = "omarchy-shell shell summon " .. OMASWITCH .. " "
+    .. o.shell_quote(string.format('{"mode":"cycle","direction":%d}', forward and 1 or -1))
+  return function()
+    if omaswitch_enabled() then hl.exec_cmd(summon) else cycle() end
+  end
+end
+
 local function validate()
   local problems = {}
   local function problem(msg) problems[#problems + 1] = msg end
@@ -790,9 +817,9 @@ hl.unbind("SUPER + L")
 o.bind("SUPER + L", "Toggle workspace between cells and full screen", guarded(M.cycle_layout))
 o.bind("SUPER + U", "Move window to a cell", guarded(M.pick))
 hl.unbind("ALT + TAB")
-o.bind("ALT + TAB", "Focus on next window", guarded(cycle_windows(true)))
+o.bind("ALT + TAB", "Window switcher (next window)", guarded(switch_windows(true)))
 hl.unbind("ALT + SHIFT + TAB")
-o.bind("ALT + SHIFT + TAB", "Focus on previous window", guarded(cycle_windows(false)))
+o.bind("ALT + SHIFT + TAB", "Window switcher (previous window)", guarded(switch_windows(false)))
 -- Only dwindle understands togglesplit; anywhere else Hyprland raises a config error bar.
 hl.unbind("SUPER + J")
 o.bind("SUPER + J", "Toggle window split", guarded(function()

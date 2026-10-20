@@ -198,7 +198,7 @@ local function load_cells(opts)
     package.loaded["hypr.dotfiles." .. name] = nil
   end
   package.loaded["default.hypr.paths"] = nil
-  package.preload["default.hypr.paths"] = function() return { state_home = state_home } end
+  package.preload["default.hypr.paths"] = function() return { state_home = state_home, config_home = state_home } end
   package.preload["hypr.dotfiles.summon_apps"] = function() return dofile(ROLE .. "summon_apps.lua") end
   package.preload["hypr.dotfiles.registry"] = function() return dofile(ROLE .. "registry.lua") end
   package.preload["hypr.dotfiles.layouts"] = function()
@@ -1409,6 +1409,41 @@ case("Alt+Tab walks every window of a monocle workspace, otherwise cycles and ra
 
   press("ALT + TAB", nil)
   eq(fx.log[1].kind, "cycle_next", "no active window still cycles")
+end)
+
+case("Alt+Tab opens OmaSwitch only while it is installed and enabled", function()
+  local plain = window("0xc", "ghostty")
+  load_cells({ windows = { plain }, active_window = plain })
+  local omarchy = fx.state_home .. "/omarchy"
+  local function write(path, text)
+    os.execute("mkdir -p " .. sh_quote(path:match("^(.*)/")))
+    local f = io.open(path, "w")
+    f:write(text)
+    f:close()
+  end
+  local function press(keys)
+    fx.log, fx.exec = {}, {}
+    fx.binds[keys].handler()
+  end
+  local function expect_cycle(what)
+    eq(#fx.exec, 0, what .. ": no summon")
+    eq(fx.log[1] and fx.log[1].kind, "cycle_next", what .. ": cycles")
+  end
+
+  press("ALT + TAB"); expect_cycle("not installed")
+  write(omarchy .. "/plugins/piyush.omaswitch/manifest.json", "{}")
+  write(omarchy .. "/shell.json", '{"bar":{"layout":{"right":[{"id":"piyush.omaswitch"}]}},"plugins":[]}')
+  press("ALT + TAB"); expect_cycle("installed, not enabled (an id elsewhere in shell.json does not count)")
+
+  write(omarchy .. "/shell.json", '{"plugins":[{"id":"acme.x"},{"id":"piyush.omaswitch"}]}')
+  press("ALT + TAB")
+  eq(#fx.log, 0, "enabled: no cycling")
+  eq(fx.exec[1], [[omarchy-shell shell summon piyush.omaswitch '{"mode":"cycle","direction":1}']], "forward summon")
+  press("ALT + SHIFT + TAB")
+  eq(fx.exec[1], [[omarchy-shell shell summon piyush.omaswitch '{"mode":"cycle","direction":-1}']], "reverse summon")
+
+  os.remove(omarchy .. "/plugins/piyush.omaswitch/manifest.json")
+  press("ALT + TAB"); expect_cycle("removed")
 end)
 
 case("Alt+Tab on monocle skips inactive group tabs and floats that cannot take focus", function()

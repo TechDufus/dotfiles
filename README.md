@@ -194,6 +194,7 @@ Super stands in for Command. As on the Mac, each screen has a layout of cells, a
 | `Super+U` | Pick the app's cell on this screen; each screen remembers its own choice. The last cell of every cell layout is full screen |
 | `Super+Control+Alt+Shift+P` / `;` / `'` | Pick, cycle, or reset this screen's layout |
 | `Super+L` | Toggle the workspace between cells and full screen |
+| `Alt+Tab` / `Alt+Shift+Tab` | OmaSwitch window switcher (most recent windows first, type to search); without the plugin, cycle windows on the workspace |
 
 Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Moving a window you tiled with `Super+T` puts it back in its cell. Fullscreen windows stay fullscreen, also across config reloads: Hyprland 0.56 forgets their fullscreen state there without telling the app, and Brave then hides its tabs again on every focus change. When they leave it, a window cells places goes back to its cell; one you tiled or popped out yourself stays where Hyprland restores it. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
 
@@ -203,11 +204,13 @@ Every window is fully opaque, focused or not; Omarchy's default translucency is 
 
 `modules/omarchy/hypr/monitors.lua` sets up the desk with the Acer VG281K 4K and the HP P224 1080p. The HP is on the left, the 4K is main, and the cursor starts there at login. Workspaces 1–3 (terminal, browser, Obsidian) live on the 4K, and workspaces 4–5 (chat, music) on the HP. The HP defaults to the Fullscreen layout. These rules match the panels by description, and the workspace bindings apply only while both panels are connected, so other machines are unaffected.
 
-## Omarchy bar
+## Omarchy shell plugins
 
-`mise.omarchy.toml` clones two shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to) and [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions). `bootstrap:omarchy-plugins` puts both in the bar and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes in the bar stay until a list changes. Outside a session it waits for the next run.
+`mise.omarchy.toml` clones three shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to), [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions) and [OmaSwitch](https://github.com/piyush97/omaswitch) (Alt+Tab switcher with live previews). `bootstrap:omarchy-plugins` enables them, putting the two widgets in the bar, and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes stay until a list changes. Outside a session it waits for the next run.
 
-The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `omarchy update` does not update third-party plugins by itself, so a linked post-update hook runs `omarchy plugin update --yes`: every update brings all git-managed plugins to their latest commit, validated and rolled back on failure. `dotfiles --update` also fast-forwards both; a plain `dotfiles` run never fetches them.
+Alt+Tab opens OmaSwitch only while it is installed and enabled; on each press `cells.lua` checks the plugin folder and `shell.json`, so `omarchy plugin disable piyush.omaswitch` or `remove` hands Alt+Tab back to plain window cycling without a keybinding change or reload. To drop it for good, delete its `[bootstrap.repos]` entry and its id from `OMARCHY_PLUGINS`, then run `omarchy plugin remove piyush.omaswitch --yes`: mise never deletes a clone.
+
+The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `omarchy update` does not update third-party plugins by itself, so a linked post-update hook runs `omarchy plugin update --yes`: every update brings all git-managed plugins to their latest commit, validated and rolled back on failure. `dotfiles --update` also fast-forwards them; a plain `dotfiles` run never fetches them.
 
 ## Migration ownership and rollback
 

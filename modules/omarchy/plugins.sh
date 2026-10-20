@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Puts $OMARCHY_BAR_PLUGINS (cloned by [bootstrap.repos]) in the Omarchy bar and takes
-# $OMARCHY_HIDDEN_PLUGINS out of it, once per value of the two lists: a later change in the bar
-# stays until a list in mise.omarchy.toml changes. Fail-soft.
+# Enables $OMARCHY_PLUGINS (cloned by [bootstrap.repos]; a bar widget goes in the bar) and disables
+# $OMARCHY_HIDDEN_PLUGINS, once per value of the two lists: a later change in the shell stays until
+# a list in mise.omarchy.toml changes. Fail-soft.
 set -uo pipefail
 
-read -ra bar <<<"${OMARCHY_BAR_PLUGINS:-}"
+read -ra plugins <<<"${OMARCHY_PLUGINS:-}"
 read -ra hidden <<<"${OMARCHY_HIDDEN_PLUGINS:-}"
-(( ${#bar[@]} + ${#hidden[@]} > 0 )) || exit 0
-want="bar=${bar[*]} hidden=${hidden[*]}"
+(( ${#plugins[@]} + ${#hidden[@]} > 0 )) || exit 0
+want="enabled=${plugins[*]} hidden=${hidden[*]}"
 marker=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/omarchy-plugins
 [ "$(cat "$marker" 2>/dev/null)" != "$want" ] || exit 0
 
@@ -18,8 +18,8 @@ if [ "$(omarchy-shell shell ping 2>/dev/null)" != ok ]; then
 fi
 
 plugins_dir=$HOME/.config/omarchy/plugins
-# A bar widget reports enabled only while it sits in the bar.
-in_bar() {
+# A bar widget reports enabled only while it sits in the bar; another kind while shell.json lists it.
+enabled() {
   omarchy-plugin-list --json 2>/dev/null | jq -e --arg id "$1" 'any(.[]; .id == $id and .enabled)' >/dev/null
 }
 # A rescan loads plugins asynchronously; wait briefly for the shell to know the id.
@@ -34,26 +34,26 @@ known() {
 
 ok=1
 for id in "${hidden[@]}"; do
-  in_bar "$id" || continue
+  enabled "$id" || continue
   if omarchy-plugin-disable "$id" >/dev/null; then
-    echo "omarchy-plugins: took $id out of the bar"
+    echo "omarchy-plugins: disabled $id"
   else
     echo "omarchy-plugins: disabling $id failed, skipped"
     ok=0
   fi
 done
 
-(( ${#bar[@]} == 0 )) || omarchy-shell shell rescanPlugins >/dev/null 2>&1
-for id in "${bar[@]}"; do
+(( ${#plugins[@]} == 0 )) || omarchy-shell shell rescanPlugins >/dev/null 2>&1
+for id in "${plugins[@]}"; do
   # [bootstrap.repos] clones without the validation `omarchy plugin add` runs.
   if ! omarchy-plugin-validate "$plugins_dir/$id"; then
     echo "omarchy-plugins: $id is missing or invalid in $plugins_dir, skipped"
     ok=0
     continue
   fi
-  in_bar "$id" && continue
+  enabled "$id" && continue
   if known "$id" && omarchy-plugin-enable "$id" >/dev/null; then
-    echo "omarchy-plugins: put $id in the bar"
+    echo "omarchy-plugins: enabled $id"
   else
     echo "omarchy-plugins: enabling $id failed, skipped"
     ok=0

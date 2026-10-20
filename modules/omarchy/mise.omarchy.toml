@@ -35,13 +35,18 @@ url = "https://github.com/iamanro/omarchy-omp-usage.git"
 [bootstrap.repos."~/.config/omarchy/plugins/robzolkos.github"]
 url = "https://github.com/robzolkos/omarchy-github.git"
 
-# Puts the plugins above in the bar and takes the stock Agents widget out (omp-usage replaces it),
-# once per value of the two lists: a later change in the bar stays until a list changes.
+# Alt+Tab switcher overlay. cells.lua hands Alt+Tab to it while it is installed and enabled, so
+# removing or disabling it needs no keybinding change.
+[bootstrap.repos."~/.config/omarchy/plugins/piyush.omaswitch"]
+url = "https://github.com/piyush97/omaswitch.git"
+
+# Enables the plugins above (bar widgets go in the bar) and takes the stock Agents widget out
+# (omp-usage replaces it), once per value of the two lists: a later change stays until a list changes.
 [tasks."bootstrap:omarchy-plugins"]
-description = "Put the shell plugins in the Omarchy bar once per plugin list"
-env = { OMARCHY_BAR_PLUGINS = "iamanro.omp-usage robzolkos.github", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
+description = "Enable the Omarchy shell plugins once per plugin list"
+env = { OMARCHY_PLUGINS = "iamanro.omp-usage robzolkos.github piyush.omaswitch", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
 run = "./plugins.sh"
 
 [tasks."test:omarchy"]
-description = "Run the summon, cells, monitors, default-theme and bar-plugin tests"
+description = "Run the summon, cells, monitors, default-theme and shell-plugin tests"
 run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "lua tests/test_monitors.lua", "bash tests/test_theme.sh", "bash tests/test_plugins.sh"]

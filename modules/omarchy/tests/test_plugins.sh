@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# plugins.sh puts the listed shell plugins in the bar and takes the hidden ones out, once per
-# value of the two lists; later bar changes stay. Runs the real script against a stub shell.
+# plugins.sh enables the listed shell plugins and disables the hidden ones, once per value of the
+# two lists; later shell changes stay. Runs the real script against a stub shell.
 set -uo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -9,7 +9,7 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/stub"
 
-# The stub shell knows the ids in $STUB/known; the bar holds the ids in $STUB/bar.
+# The stub shell knows the ids in $STUB/known; the ids in $STUB/bar are the enabled ones.
 cat >"$T/stub/omarchy-shell" <<'EOF'
 #!/bin/sh
 case "$2" in
@@ -57,7 +57,7 @@ clone() { mkdir -p "$T/home/.config/omarchy/plugins/$1" && echo '{}' >"$T/home/.
 run() { # run [NAME=value ...]: plugins.sh with the sandbox HOME and the default lists
   rm -f "$T/state/calls"
   OUT=$(env -i HOME="$T/home" PATH="$T/stub:/usr/bin:/bin" STUB="$T/state" \
-    OMARCHY_BAR_PLUGINS="acme.usage acme.github" OMARCHY_HIDDEN_PLUGINS=omarchy.agents "$@" bash "$SCRIPT" 2>&1)
+    OMARCHY_PLUGINS="acme.usage acme.github" OMARCHY_HIDDEN_PLUGINS=omarchy.agents "$@" bash "$SCRIPT" 2>&1)
   RC=$?
 }
 calls() { tr '\n' ',' 2>/dev/null <"$T/state/calls"; }
@@ -68,8 +68,8 @@ reset fresh-machine
 run
 [ "$(calls)" = "disable omarchy.agents,rescan,enable acme.usage,enable acme.github," ] || fail "calls: $(calls)"
 [ "$(bar)" = "omarchy.tray acme.usage acme.github " ] || fail "bar: $(bar)"
-[ "$(marker)" = "bar=acme.usage acme.github hidden=omarchy.agents" ] || fail "marker: $(marker)"
-case $OUT in *"took omarchy.agents out"*"put acme.github in the bar"*) ;; *) fail "message: $OUT" ;; esac
+[ "$(marker)" = "enabled=acme.usage acme.github hidden=omarchy.agents" ] || fail "marker: $(marker)"
+case $OUT in *"disabled omarchy.agents"*"enabled acme.github"*) ;; *) fail "message: $OUT" ;; esac
 
 CASE=same-lists-again
 run
@@ -83,9 +83,9 @@ run
 CASE=new-list-applies
 echo acme.extra >>"$T/state/known"
 clone acme.extra
-run OMARCHY_BAR_PLUGINS="acme.usage acme.github acme.extra"
+run OMARCHY_PLUGINS="acme.usage acme.github acme.extra"
 [ "$(calls)" = "disable omarchy.agents,rescan,enable acme.extra," ] || fail "only the missing changes: $(calls)"
-[ "$(marker)" = "bar=acme.usage acme.github acme.extra hidden=omarchy.agents" ] || fail "marker: $(marker)"
+[ "$(marker)" = "enabled=acme.usage acme.github acme.extra hidden=omarchy.agents" ] || fail "marker: $(marker)"
 
 reset already-in-place
 printf '%s\n' omarchy.tray acme.usage acme.github >"$T/state/bar"
@@ -120,7 +120,7 @@ run
 [ -n "$(marker)" ] || fail "marker not recorded after the retry"
 
 reset no-lists
-run OMARCHY_BAR_PLUGINS= OMARCHY_HIDDEN_PLUGINS=
+run OMARCHY_PLUGINS= OMARCHY_HIDDEN_PLUGINS=
 [ -z "$(calls)" ] || fail "acted without lists: $(calls)"
 
 if [ "$FAILS" -ne 0 ]; then

@@ -55,11 +55,11 @@ return {
   },
   Terminal    = {
     id = 'com.mitchellh.ghostty',
-    summon = 't', -- [T]erminal
+    summon = 'T', -- [T]erminal
   },
   Tern        = {
     id = 'so.stencil.tern',
-    summon = 'T', -- [T]ern
+    summon = 't', -- [T]ern
   },
   WorkSpaces  = {
     id = 'com.amazon.workspaces',

@@ -130,7 +130,7 @@ The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packa
 - Existing sudo policy is left untouched. Privileged changes can still require authentication.
 - The 1Password SSH agent selects only `Personal` on macOS; other profiles retain their shared selections.
 - Claude uses a Mac-specific, symlinked settings source containing only theme and TUI. It does not enable the shared permission/plugin/hook profile. The Herdr-generated session hook is neither carried forward nor registered.
-- Hammerspoon retains Tern on uppercase `T`. Spoon updates validate both releases before replacement, restore prior installations on failure/interruption, and leave unchanged installs untouched. If restoration fails, the reported transaction directory retains the originals.
+- Hammerspoon uses lowercase `t` for Tern and uppercase `T` for Ghostty. Spoon updates validate both releases before replacement, restore prior installations on failure/interruption, and leave unchanged installs untouched. If restoration fails, the reported transaction directory retains the originals.
 - Tern's macOS profile disables the press-and-hold accent menu for `so.stencil.tern` so held letters and numbers can repeat. Global repeat timing and other apps are unchanged. Fully quit and reopen Tern after applying this preference; reloading its settings alone is insufficient.
 - On macOS, mise shims take precedence over local CLI installations, including app-owned launchers such as Tern's `omp`. Login Zsh restores this order after Apple's `path_helper`. Linux keeps its intentional local-wrapper-first order; optional CLI paths remain available on both platforms. pnpm uses native upstream releases rather than npm lifecycle scripts.
 - Vimscript language-server installation is no longer managed. An existing Bun-global `vim-language-server` must be removed during an approved cutover if OMP's built-in discovery should stop finding it; Vim syntax parsers remain available.
@@ -158,8 +158,8 @@ Karabiner maps CapsLock to the Hammerspoon app leader: **tap CapsLock, then the 
 | `n` | Obsidian |
 | `o` | 1Password |
 | `m` | Teams (launch only) |
-| `t` | Ghostty |
-| **`Shift+T`** | **Tern** |
+| `t` | Tern |
+| **`Shift+T`** | **Ghostty** |
 | **`w`** | **AWS WorkSpaces** (`com.amazon.workspaces`) |
 
 `Hyper` means Command+Option+Control+Shift; `lilHyper` omits Shift.
@@ -181,7 +181,7 @@ Native mise merges and the bootstrap reset both use the standard Tern roots: `~/
 
 Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs, BerkeleyMono Nerd Font, copy-on-select, and the Console chat style (`surface_chat`). Bootstrap removes the legacy explicit opacity override so Tern's default applies. Use **Reload settings (`Control+Shift+F5`)** after settings cleanup; the macOS held-key-repeat preference above instead requires a full quit and reopen.
 
-The launch keys intentionally differ: **CapsLock → Shift+T** opens Tern on macOS; **CapsLock → t** opens it on Omarchy, where Shift+T opens Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
+macOS and Omarchy now share **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
 
 ## Omarchy screens
 

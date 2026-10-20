@@ -74,9 +74,6 @@ export DOTFILES="$HOME/.dotfiles"
 export GOBIN="$HOME/.local/bin"
 export BIN="$HOME/.local/bin"
 
-export OTEL_EXPORTER_OTLP_PROTOCOL="http/json"
-export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/json"
-
 # Corporate policies may restrict /tmp; only needed when tmux is actually present.
 if command -v tmux >/dev/null 2>&1; then
   mkdir -p "$HOME/tmp/tmux"

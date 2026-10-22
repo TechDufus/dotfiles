@@ -36,7 +36,7 @@
 "~/.omp/agent/mcp.json" = { permissions = "0600" }
 
 [tasks."bootstrap:omp"]
-description = "Link upstream herdr/worktrunk skills and install herdr's omp integration"
+description = "Link upstream herdr/worktrunk skills, install omp marketplace plugins and herdr's omp integration"
 run = "./bootstrap.sh"
 
 [tasks."test:omp"]

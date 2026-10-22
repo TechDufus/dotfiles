@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upstream herdr/worktrunk skills and herdr's omp lifecycle integration. Fail-soft.
+# Upstream herdr/worktrunk skills, marketplace plugins and herdr's omp lifecycle integration. Fail-soft.
 set -uo pipefail
 
 export GIT_TERMINAL_PROMPT=0
@@ -31,6 +31,25 @@ link_skill() {
 
 link_skill herdr https://github.com/herdrdev/herdr.git master
 link_skill worktrunk https://github.com/max-sixty/worktrunk.git main
+
+# install_plugin <name@marketplace> <marketplace-source>
+# Installs once; upgrades stay manual (`omp plugin upgrade`). A linked checkout of the same
+# package (`omp plugin link`) shares its node_modules entry, so it counts as installed.
+install_plugin() {
+  local id=$1 source=$2 name=${1%@*} market=${1#*@} plugins
+  command -v omp >/dev/null 2>&1 || { warn "$id: omp not found"; return 0; }
+  command -v jq >/dev/null 2>&1 || { warn "$id: jq not found"; return 0; }
+  plugins=$(omp plugin list --json 2>/dev/null) || { warn "$id: omp plugin list failed"; return 0; }
+  jq -e --arg id "$id" --arg name "$name" \
+    'any(.marketplace[]; .id == $id) or any(.npm[]; .name == $name)' <<<"$plugins" >/dev/null && return 0
+  # With its marketplace unconfigured, `omp plugin install name@marketplace` is an npm spec.
+  if ! omp plugin marketplace list 2>/dev/null | awk -v m="$market" '$1 == m { found = 1 } END { exit !found }'; then
+    omp plugin marketplace add "$source" || { warn "$market marketplace add failed"; return 0; }
+  fi
+  omp plugin install "$id" || warn "$id install failed"
+}
+
+install_plugin omp-cloud@omp-cloud TechDufus/omp-cloud
 
 # Herdr resolves Pi and OMP from PI_CODING_AGENT_DIR alike and refuses to install
 # OMP when they collide; select OMP via PI_CONFIG_DIR instead.

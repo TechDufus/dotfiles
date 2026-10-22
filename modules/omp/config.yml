@@ -123,7 +123,7 @@ composer:
   shape: box
   tokenRate: true
 cloud:
-  url: http://127.0.0.1:8080
+  url: http://omp-cloud.home.techdufus.com:8080
   token: "!op read --account my.1password.com op://HomeLab/omp-cloud/password"
   excludeExtensions:
     - herd.ts

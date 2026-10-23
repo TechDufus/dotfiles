@@ -261,7 +261,7 @@ cd ~ &&
 
 It requires a non-root Linux account, installed `visudo`, bubblewrap, permitted unprivileged user/PID namespaces, and an existing `/etc/sudoers.d`. It maps a disposable policy directory and does not invoke real sudo or write a live grant. Run it on a suitable Linux executor; namespace restrictions are a reported failure, not proof that the policy passed.
 
-The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packaged sudo/bubblewrap and runs the same test script directly as the non-root runner account, outside the wildcard suites. It does not weaken host namespace restrictions. This route covers isolated sudoers safety, not full Omarchy/CachyOS provisioning or desktop runtime; consult the workflow results for execution evidence.
+The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packaged sudo/bubblewrap, loads an AppArmor profile that grants user namespaces to `/usr/bin/bwrap` only (Ubuntu 24.04 otherwise blocks them for unprivileged programs; the host-wide restriction stays on), and runs the same test script directly as the non-root runner account, outside the wildcard suites. This route covers isolated sudoers safety, not full Omarchy/CachyOS provisioning or desktop runtime; consult the workflow results for execution evidence.
 
 </details>
 

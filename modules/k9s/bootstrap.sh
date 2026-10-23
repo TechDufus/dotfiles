@@ -9,7 +9,7 @@ rendered=$HOME/.local/state/omarchy/current/theme/k9s.yaml
 if [ -f "$HOME/.local/state/omarchy/current/theme.name" ] &&
   { [ ! -f "$rendered" ] || [ "$here/k9s.yaml.tpl" -nt "$rendered" ]; }; then
   if command -v omarchy-theme-refresh >/dev/null 2>&1; then
-    # shellcheck source=../omarchy/hypr-instance.sh
+    # shellcheck source=../omarchy/hypr-instance.sh source-path=SCRIPTDIR
     . "$here/../omarchy/hypr-instance.sh"
     hypr_live_sig
     if [ -n "$HYPR_SIG" ]; then

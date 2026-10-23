@@ -9,7 +9,7 @@ tmp=$(mktemp -d) || { echo "hammerspoon: could not create temp dir, skipped"; ex
 transaction=""
 committed=0
 # Invoked indirectly by the EXIT trap below.
-# shellcheck disable=SC2317
+# shellcheck disable=SC2317,SC2329
 cleanup() {
   trap '' HUP INT TERM
   local name failed=0

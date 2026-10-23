@@ -117,10 +117,12 @@ detect_profile() {
 }
 
 validate_purpose_target() {
-  [ ! -L "$PURPOSE_DIR" ] && { [ ! -e "$PURPOSE_DIR" ] || [ -d "$PURPOSE_DIR" ]; } ||
+  if ! { [ ! -L "$PURPOSE_DIR" ] && { [ ! -e "$PURPOSE_DIR" ] || [ -d "$PURPOSE_DIR" ]; }; }; then
     die "unsafe purpose directory $PURPOSE_DIR; use a real directory"
-  [ ! -L "$PURPOSE_FILE" ] && { [ ! -e "$PURPOSE_FILE" ] || [ -f "$PURPOSE_FILE" ]; } ||
+  fi
+  if ! { [ ! -L "$PURPOSE_FILE" ] && { [ ! -e "$PURPOSE_FILE" ] || [ -f "$PURPOSE_FILE" ]; }; }; then
     die "unsafe purpose target $PURPOSE_FILE; use a regular, non-symlink file"
+  fi
 }
 
 read_purpose() {
@@ -318,8 +320,9 @@ validate_miserc_target() {
   local rc="$MISE_DIR/miserc.local.toml"
   { [ ! -e "$MISE_DIR" ] || [ -d "$MISE_DIR" ]; } ||
     die "unsafe mise configuration directory $MISE_DIR"
-  [ ! -L "$rc" ] && { [ ! -e "$rc" ] || [ -f "$rc" ]; } ||
+  if ! { [ ! -L "$rc" ] && { [ ! -e "$rc" ] || [ -f "$rc" ]; }; }; then
     die "unsafe mise discovery target $rc; use a regular, non-symlink file"
+  fi
 }
 
 write_miserc() {

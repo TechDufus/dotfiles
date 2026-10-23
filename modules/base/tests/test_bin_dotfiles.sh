@@ -279,7 +279,8 @@ expect_no_provisioning
 new_case purpose-set-without-mise-or-checkout
 mkdir -p "$C/path" "$MISE_DIR/conf.d"
 for cmd in bash cmp cat mkdir mktemp mv rm; do
-  ln -s "$(command -v "$cmd")" "$C/path/$cmd"
+  tool=$(command -v "$cmd") || fail "test needs $cmd on PATH"
+  [ -z "$tool" ] || ln -s "$tool" "$C/path/$cmd"
 done
 echo retained >"$MISE_DIR/conf.d/user.toml"
 echo '[settings]' >"$MISE_DIR/config.toml"

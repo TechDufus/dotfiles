@@ -1,698 +1,1256 @@
-#!/bin/bash
-# shellcheck shell=bash
-# shellcheck disable=SC2034  # Unused variables are exported for child scripts
+#!/usr/bin/env bash
+# Converge this machine with mise bootstrap.
+# Fresh machine: bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
+set -euo pipefail
 
-# Catppuccin Mocha color codes
-NC='\033[0m'
-BOLD='\033[1m'
+DOTFILES_DIR=${DOTFILES_DIR:-$HOME/.dotfiles}
+DOTFILES_SYSROOT=${DOTFILES_SYSROOT:-} # prefix for /etc and /usr lookups; exists for tests
+REPO_URL=https://github.com/TechDufus/dotfiles.git
+MISE_DIR=${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}
+PURPOSE_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles
+PURPOSE_FILE=$PURPOSE_DIR/purpose
+PURPOSE=personal
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles
+LOG=$STATE_DIR/last-run.log
 
-# Catppuccin Mocha colors
-CAT_ROSEWATER='\033[38;2;245;224;220m'
-CAT_FLAMINGO='\033[38;2;242;205;205m'
-CAT_PINK='\033[38;2;245;194;231m'
-CAT_MAUVE='\033[38;2;203;166;247m'
-CAT_RED='\033[38;2;243;139;168m'
-CAT_MAROON='\033[38;2;235;160;172m'
-CAT_PEACH='\033[38;2;250;179;135m'
-CAT_YELLOW='\033[38;2;249;226;175m'
-CAT_GREEN='\033[38;2;166;227;161m'
-CAT_TEAL='\033[38;2;148;226;213m'
-CAT_SKY='\033[38;2;137;220;235m'
-CAT_SAPPHIRE='\033[38;2;116;199;236m'
-CAT_BLUE='\033[38;2;137;180;250m'
-CAT_LAVENDER='\033[38;2;180;190;254m'
-CAT_TEXT='\033[38;2;205;214;244m'
-CAT_SUBTEXT1='\033[38;2;186;194;222m'
-CAT_SUBTEXT0='\033[38;2;166;173;200m'
-CAT_OVERLAY2='\033[38;2;147;153;178m'
-CAT_OVERLAY1='\033[38;2;127;132;156m'
-CAT_OVERLAY0='\033[38;2;108;112;134m'
-CAT_SURFACE2='\033[38;2;88;91;112m'
-CAT_SURFACE1='\033[38;2;69;71;90m'
-CAT_SURFACE0='\033[38;2;49;50;68m'
-CAT_BASE='\033[38;2;30;30;46m'
-CAT_MANTLE='\033[38;2;24;24;37m'
-CAT_CRUST='\033[38;2;17;17;27m'
+# Machine configuration is home-scoped, not the invoking project's mise config.
+# Explicit -C/--cd keeps mise's own caller-relative directory selection semantics.
+MISE_CWD=$HOME
+mise_in_context() (
+  cd "$MISE_CWD" || exit
+  exec mise "$@"
+)
 
-# Legacy mappings for easier use
-RED="$CAT_RED"
-GREEN="$CAT_GREEN"
-YELLOW="$CAT_YELLOW"
-BLUE="$CAT_BLUE"
-PURPLE="$CAT_MAUVE"
-CYAN="$CAT_TEAL"
-WHITE="$CAT_TEXT"
-ORANGE="$CAT_PEACH"
-LBLACK="$CAT_SURFACE0"
-LRED="$CAT_RED"
-LGREEN="$CAT_GREEN"
-LYELLOW="$CAT_YELLOW"
-LBLUE="$CAT_BLUE"
-LPURPLE="$CAT_MAUVE"
-LCYAN="$CAT_TEAL"
+# Bootstrap stages, in mise's own order (mise bootstrap --help). 'files' with
+# phase = "pre-packages" would have to run before packages; no module uses it.
+STAGES="packages system dotfiles shell tools modules"
+KNOWN_PARTS=" accounts plugins packages files services firewall compose repos dotfiles mise-shell-activate macos-defaults macos-launchd-agents linux-systemd-units user tools task final-hook "
+SUDO_PARTS=" accounts plugins packages files services firewall linux-systemd-units user "
 
-# Special
-SEA="$CAT_SAPPHIRE"
-OVERWRITE='\e[1A\e[K'
+UI=0 PLAIN=0 ANIM=0 COLOR=0 DRY=0 ONLY="" SKIP="" PASS=() CONFIG_ARGS=() FORCE_PREVIEW=0
+CHILD="" SUDO_PID="" INFO="" PREVIEW_DIR="" LOG_OFF=0 RIGHT=78 NOW=0 T0=0 RUN_T0=0 HAVE_FRAC=0
+FIT="" ROW="" FMT="" DETAIL="" RESULT="" EXTRA=() WARNS=() TASK_TOTAL=0 COLS=80 HOST="" SELECTED=""
+RST="" BOLD="" C_TEXT="" C_SUB="" C_OVR="" C_SURF="" C_MAUVE="" C_BLUE="" C_GREEN="" C_YELLOW="" C_RED="" C_PEACH=""
+FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
-#emoji codes
-CHECK_MARK="${GREEN}\xE2\x9C\x94${NC}"
-X_MARK="${RED}\xE2\x9C\x96${NC}"
-PIN="${RED}\xF0\x9F\x93\x8C${NC}"
-CLOCK="${GREEN}\xE2\x8C\x9B${NC}"
-ARROW="${SEA}\xE2\x96\xB6${NC}"
-BOOK="${RED}\xF0\x9F\x93\x8B${NC}"
-HOT="${ORANGE}\xF0\x9F\x94\xA5${NC}"
-WARNING="${RED}\xF0\x9F\x9A\xA8${NC}"
-RIGHT_ANGLE="${GREEN}\xE2\x88\x9F${NC}"
+usage() {
+  cat <<EOF
+Usage: dotfiles [--profile | --purpose | --set-purpose work|personal] [--plain] [mise bootstrap flags...]
 
+Installs git and mise, clones or updates $DOTFILES_DIR, links
+$MISE_DIR/conf.d -> $DOTFILES_DIR/modules, then runs 'mise bootstrap --yes'.
+A real file or folder where a module wants a link (a fresh Omarchy's own
+configs) is kept in a unique <path>.pre-dotfiles.<epoch>.<random>/original backup.
 
+Flags passed through to mise bootstrap:
+  --dry-run          preview this checkout without installing or changing setup
+  --only <parts>     run only these parts, e.g. --only dotfiles,tools
+  --skip <parts>     run everything except these parts
+  --force-dotfiles   overwrite conflicting files instead of moving them aside
+  -C, --cd <dir>     explicitly select a context (relative to the caller's cwd)
 
-set -e
+Other:
+  --plain            print mise's own log instead of the progress screen
+  --profile          print the detected machine profile and exit
+  --purpose          print the saved machine purpose (default: personal) and exit
+  --set-purpose <p>  save work or personal and update mise selection only; standalone
+  -h, --help         show this help
 
-# Check for tput (required for cursor control)
-if ! command -v tput &> /dev/null; then
-  echo -e "${CAT_RED}Error: 'tput' is required but not found.${NC}"
-  echo -e "${CAT_SUBTEXT1}Please install ncurses (Ubuntu: apt install ncurses-bin, Arch: pacman -S ncurses)${NC}"
+On a terminal, dotfiles runs bootstrap in six stages (packages, system, dotfiles,
+shell, tools, modules) and draws a progress screen. mise's output goes to
+$LOG
+The screen is replaced by mise's own log with --plain, DOTFILES_UI=0, NO_COLOR,
+a non-terminal stdout/stderr, or any other flag (-v, --raw, -q, --from, ...).
+Configuration discovery, conflict checks and bootstrap default to HOME, even when
+called inside another project. Explicit -C/--cd selects that project's context
+for both the safety probe and bootstrap; its tools, links and tasks may run.
+
+Dry runs require an existing compatible mise and a local modules checkout. They
+do not pull, install prerequisites, replace live mise config, or move conflicts.
+They still evaluate trusted mise config templates and may update mise metadata,
+state and caches; deployment, hook and bootstrap-task commands are only previewed.
+Configured candidates preview in their original config context. First-run scratch
+preview replaces conf.d as apply would; retained global files/tasks require an
+isolated rehearsal or already-configured candidate. Custom MISE_GLOBAL_CONFIG_FILE
+and MISE_CONFIG_FILE selections are unsupported for both setup and preflight.
+Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
+Purpose is independent of the OS profile and stored at $PURPOSE_FILE.
+Purpose queries/setters do not install, sync, or provision. Setters reject all other
+flags, including --dry-run. Explicit mise -E/MISE_ENV remains an intentional override.
+State: mise dot status, mise bootstrap status. Checks: cd ~ && mise run check
+EOF
+}
+
+die() {
+  echo "dotfiles: $*" >&2
   exit 1
-fi
-
-# Early check for help/version/debug flags (before setup)
-for arg in "$@"; do
-  case $arg in
-    -h|--help)
-      SHOW_HELP=true
-      ;;
-    --version)
-      SHOW_VERSION=true
-      ;;
-    --detect-os)
-      SHOW_DETECTED_OS=true
-      ;;
-  esac
-done
-
-# Cleanup function for exit
-cleanup() {
-  # Kill spinner if running
-  if [[ $SPINNER_PID != "" ]]; then
-    kill $SPINNER_PID 2>/dev/null || true
-    wait $SPINNER_PID 2>/dev/null || true
-  fi
-  # Show cursor
-  tput cnorm 2>/dev/null || true
 }
 
-# Set trap to cleanup on exit
-trap cleanup EXIT INT TERM
+# ---- detection, repo and mise setup (shared by both modes) ----
 
-# Paths
-VAULT_SECRET_FILE="$HOME/.ansible-vault/vault.secret"
-OP_INSTALLED=false
-OP_AUTHENTICATED=false
-DOTFILES_LOG="$HOME/.dotfiles.log"
-DOTFILES_DIR="$HOME/.dotfiles"
-IS_FIRST_RUN="$HOME/.dotfiles_run"
-DOTFILES_VERSION="1.0.0"
-# Spinner PID tracking
-SPINNER_PID=""
-
-# Show usage/help information
-show_help() {
-  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} - Ansible-based dotfiles management"
-  echo ""
-  echo -e "${CAT_BLUE}USAGE:${NC}"
-  echo "    dotfiles [OPTIONS] [-- ANSIBLE_ARGS]"
-  echo ""
-  echo -e "${CAT_BLUE}OPTIONS:${NC}"
-  echo -e "    ${CAT_GREEN}-h, --help${NC}              Show this help message"
-  echo -e "    ${CAT_GREEN}--version${NC}               Show version information"
-  echo -e "    ${CAT_GREEN}--detect-os${NC}             Print normalized OS identifier and exit"
-  echo -e "    ${CAT_GREEN}--uninstall <role>${NC}      Uninstall a role (cleanup only)"
-  echo -e "    ${CAT_GREEN}--delete <role>${NC}         Uninstall and delete a role from dotfiles"
-  echo -e "    ${CAT_GREEN}-v, -vv, -vvv${NC}           Verbose mode (passed to ansible-playbook)"
-  echo ""
-  echo -e "${CAT_BLUE}EXAMPLES:${NC}"
-  echo -e "    ${CAT_SUBTEXT1}# Run full dotfiles installation${NC}"
-  echo "    dotfiles"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Install specific roles only${NC}"
-  echo "    dotfiles -t neovim,git,tmux"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Dry run (test without applying)${NC}"
-  echo "    dotfiles --check"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Uninstall a role${NC}"
-  echo "    dotfiles --uninstall neovim"
-  echo ""
-  echo -e "    ${CAT_SUBTEXT1}# Delete a role completely${NC}"
-  echo "    dotfiles --delete old_role"
-  echo ""
-  echo -e "${CAT_BLUE}ANSIBLE ARGUMENTS:${NC}"
-  echo "    All arguments not recognized by dotfiles are passed to ansible-playbook."
-  echo "    Common options: -t <tags>, --check, -vvv, --list-tags"
-  echo ""
-  echo -e "${CAT_SUBTEXT0}For more information: https://github.com/TechDufus/dotfiles${NC}"
-}
-
-# Show version information
-show_version() {
-  local git_hash=""
-  if [[ -d "$DOTFILES_DIR/.git" ]]; then
-    git_hash=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+detect_profile() {
+  if [ -n "${DOTFILES_PROFILE:-}" ]; then
+    case $DOTFILES_PROFILE in
+      omarchy | cachyos | macos) echo "$DOTFILES_PROFILE" ;;
+      *) die "unsupported machine ($DOTFILES_PROFILE)" ;;
+    esac
+    return
   fi
-  echo -e "${CAT_SAPPHIRE}TechDufus Dotfiles${NC} version ${CAT_GREEN}${DOTFILES_VERSION}${NC} (${CAT_SUBTEXT1}${git_hash}${NC})"
-}
-
-# Spinner function that runs in background
-_spinner() {
-  local task_text="$1"
-  local chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-  local delay=0.08
-
-  # Hide cursor
-  tput civis 2>/dev/null || true
-
-  # Save cursor position
-  tput sc 2>/dev/null || true
-
-  while true; do
-    for char in "${chars[@]}"; do
-      # Restore cursor position and clear line
-      tput rc 2>/dev/null || true
-      tput el 2>/dev/null || true
-      printf "${CAT_OVERLAY1} [${CAT_SAPPHIRE}${char}${CAT_OVERLAY1}]  ${CAT_TEXT}${task_text}" >&2
-      sleep $delay
-    done
-  done
-}
-
-# Start a new task with spinner
-__task() {
-  # if a task is running, complete it first
-  if [[ $TASK != "" ]] && [[ $SPINNER_PID != "" ]]; then
-    _task_done
+  if [ "$(uname -s)" = Darwin ]; then
+    # mise's brew manager and Homebrew's installer support only Apple Silicon.
+    [ "$(uname -m)" = arm64 ] || die "unsupported machine (Intel Mac)"
+    echo macos
+    return
   fi
-
-  # set new task
-  TASK=$1
-
-  # Start spinner in background
-  _spinner "$TASK" &
-  SPINNER_PID=$!
-
-  # Disable job control messages
-  disown $SPINNER_PID 2>/dev/null || true
-}
-
-# _cmd performs commands with error checking
-_cmd() {
-  #create log if it doesn't exist
-  if ! [[ -f $DOTFILES_LOG ]]; then
-    touch $DOTFILES_LOG
-  fi
-  # empty conduro.log
-  > $DOTFILES_LOG
-
-  # hide stdout, on error we print and exit
-  if eval "$1" 1> /dev/null 2> $DOTFILES_LOG; then
-    return 0 # success
-  else
-    # Kill spinner if running
-    if [[ $SPINNER_PID != "" ]]; then
-      kill $SPINNER_PID 2>/dev/null || true
-      wait $SPINNER_PID 2>/dev/null || true
-      SPINNER_PID=""
-    fi
-
-    # Show cursor again
-    tput cnorm 2>/dev/null || true
-
-    # Clear the line and show error
-    printf "\r\033[K${CAT_RED} [✗]  ${CAT_TEXT}${TASK}${NC}\n"
-
-    # Show error details
-    local line
-    while read -r line; do
-      printf "      ${CAT_MAROON}%s${NC}\n" "$line"
-    done < "$DOTFILES_LOG"
-    printf "\n"
-
-    # remove log file
-    rm $DOTFILES_LOG
-    # exit installation
-    exit 1
-  fi
-}
-
-_clear_task() {
-  TASK=""
-}
-
-_task_done() {
-  # Kill spinner if running
-  if [[ $SPINNER_PID != "" ]]; then
-    kill $SPINNER_PID 2>/dev/null || true
-    wait $SPINNER_PID 2>/dev/null || true
-    SPINNER_PID=""
-  fi
-
-  # Show cursor again
-  tput cnorm 2>/dev/null || true
-
-  # Clear line and show success
-  printf "\r\033[K${CAT_GREEN} [✓]  ${CAT_TEXT}${TASK}\n"
-  _clear_task
-}
-
-ubuntu_setup() {
-  # Source os-release to get VERSION_ID
-  if [ -f /etc/os-release ]; then
-    source /etc/os-release
-  fi
-
-  if ! dpkg -s ansible >/dev/null 2>&1; then
-    __task "Installing Ansible (This may take a few minutes)"
-    _cmd "sudo apt-get update"
-    _cmd "sudo apt-get install -y software-properties-common"
-    _cmd "sudo apt-add-repository -y ppa:ansible/ansible"
-    _cmd "sudo apt-get update"
-    _cmd "sudo apt-get install -y ansible"
-    _cmd "sudo apt-get install -y python3-argcomplete"
-  fi
-  if ! dpkg -s python3 >/dev/null 2>&1; then
-    __task "Installing Python3"
-    _cmd "sudo apt-get install -y python3"
-  fi
-
-  local UBUNTU_MAJOR_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
-  if [ "$UBUNTU_MAJOR_VERSION" -le 22 ] 2>/dev/null; then
-    if ! dpkg -s python3-pip >/dev/null 2>&1; then
-      __task "Installing Python3 Pip"
-      _cmd "sudo apt-get install -y python3-pip"
-    fi
-    if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-      __task "Installing Python3 Watchdog"
-      _cmd "sudo apt-get install -y python3-watchdog"
-    fi
-  fi
-}
-
-arch_setup() {
-  local packages=()
-
-  if ! command -v ansible >/dev/null 2>&1; then
-    packages+=(ansible python-argcomplete)
-  fi
-
-  if ! command -v python3 >/dev/null 2>&1; then
-    packages+=(python)
-  fi
-
-  if ! command -v pip3 >/dev/null 2>&1; then
-    packages+=(python-pip)
-  fi
-
-  if ! python3 -c "import watchdog" >/dev/null 2>&1; then
-    packages+=(python-watchdog)
-  fi
-
-  if ! command -v ssh >/dev/null 2>&1; then
-    packages+=(openssh)
-  fi
-
-  if ! command -v git >/dev/null 2>&1; then
-    packages+=(git)
-  fi
-
-  if (( ${#packages[@]} > 0 )); then
-    __task "Installing Arch bootstrap packages"
-    _cmd "sudo pacman -Syu --needed --noconfirm --disable-download-timeout ${packages[*]}"
-  fi
-
-  if command -v localectl >/dev/null 2>&1; then
-    __task "Setting Locale"
-    _cmd "sudo localectl set-locale LANG=en_US.UTF-8"
-  fi
-}
-
-fedora_setup() {
-  if ! [ -x "$(command -v ansible)" ]; then
-    __task "Installing Ansible (This may take a few minutes)"
-    _cmd "sudo dnf install -y ansible"
-  fi
-  if ! [ -x "$(command -v python3)" ]; then
-    __task "Installing Python3"
-    _cmd "sudo dnf install -y python3"
-  fi
-  if ! [ -x "$(command -v pip3)" ]; then
-    __task "Installing Python3 Pip"
-    _cmd "sudo dnf install -y python3-pip"
-  fi
-  if ! rpm -q python3-argcomplete >/dev/null 2>&1; then
-    __task "Installing Python3 Argcomplete"
-    _cmd "sudo dnf install -y python3-argcomplete"
-    _cmd "sudo activate-global-python-argcomplete3 || true"
-  fi
-  if ! pip3 list | grep watchdog >/dev/null 2>&1; then
-    __task "Installing Python3 Watchdog"
-    _cmd "pip3 install --user watchdog"
-  fi
-}
-
-macos_setup() {
-  if ! [ -x "$(command -v brew)" ]; then
-    __task "Installing Homebrew (This may take 5-10 minutes)"
-    _cmd "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-  fi
-  if ! [ -x "$(command -v git)" ]; then
-    __task "Installing Git"
-    _cmd "brew install git"
-  fi
-  if ! [ -x "$(command -v ansible)" ]; then
-    __task "Installing Ansible"
-    _cmd "brew install ansible"
-  fi
-}
-
-update_ansible_galaxy() {
-  local os=$1
-  local requirements_file
-  local requirement_files=("$DOTFILES_DIR/requirements/common.yml")
-
-  if [ -f "$DOTFILES_DIR/requirements/$os.yml" ]; then
-    requirement_files+=("$DOTFILES_DIR/requirements/$os.yml")
-  fi
-
-  for requirements_file in "${requirement_files[@]}"; do
-    __task "Installing Ansible dependencies from ${requirements_file#$DOTFILES_DIR/}"
-    _cmd "ansible-galaxy collection install -r \"$requirements_file\""
-  done
-}
-
-confirmVaultAccess() {
-  __task "Checking for 1Password CLI"
-  if ! command -v op >/dev/null 2>&1; then
-    printf "${OVERWRITE}${CAT_RED} [X]  ${CAT_TEXT}Checking for 1Password CLI\n"
-    printf " ${WARNING}${CAT_MAROON}   1Password CLI is not installed.${NC}\n"
-    exit 1
-  fi
-  local op_version
-  op_version=$(op --version)
-  __task "1Password CLI found: [$op_version] -- Authenticating..."
-  if ! _cmd "op --account my.1password.com vault list"; then exit 1; fi
-  _task_done && printf "${CAT_GREEN} [✓] ${CAT_TEXT}Successfully authenticated with 1Password CLI! ☕\n"
-  return
-}
-
-detect_os() {
-  local os_release_file="${DOTFILES_OS_RELEASE:-/etc/os-release}"
-
-  if [ -f "$os_release_file" ]; then
-    local ID=""
-    local ID_LIKE=""
-    local id_lower=""
-    local id_like_lower=""
+  local id=unknown
+  if [ -r "$DOTFILES_SYSROOT/etc/os-release" ]; then
     # shellcheck source=/dev/null
-    source "$os_release_file"
-
-    id_lower=$(printf '%s' "$ID" | tr '[:upper:]' '[:lower:]')
-    id_like_lower=$(printf '%s' "$ID_LIKE" | tr '[:upper:]' '[:lower:]')
-
-    case "$id_lower" in
-      ubuntu|fedora)
-        echo "$id_lower"
-        return
-        ;;
-      arch|archlinux|cachyos)
-        echo "arch"
-        return
-        ;;
-    esac
-
-    case " $id_like_lower " in
-      *" arch "*)
-        echo "arch"
-        return
-        ;;
-    esac
-
-    echo "$id_lower"
+    id=$(. "$DOTFILES_SYSROOT/etc/os-release" && echo "${ID:-unknown}")
+  fi
+  if [ "$id" = omarchy ] || [ -d "$DOTFILES_SYSROOT/usr/share/omarchy" ] || [ -d "$HOME/.local/share/omarchy" ]; then
+    echo omarchy
+  elif [ "$id" = cachyos ]; then
+    echo cachyos
   else
-    case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
-      darwin)
-        echo "darwin"
+    die "unsupported machine ($id)"
+  fi
+}
+
+validate_purpose_target() {
+  [ ! -L "$PURPOSE_DIR" ] && { [ ! -e "$PURPOSE_DIR" ] || [ -d "$PURPOSE_DIR" ]; } ||
+    die "unsafe purpose directory $PURPOSE_DIR; use a real directory"
+  [ ! -L "$PURPOSE_FILE" ] && { [ ! -e "$PURPOSE_FILE" ] || [ -f "$PURPOSE_FILE" ]; } ||
+    die "unsafe purpose target $PURPOSE_FILE; use a regular, non-symlink file"
+}
+
+read_purpose() {
+  local value
+  validate_purpose_target
+  PURPOSE=personal
+  [ -e "$PURPOSE_FILE" ] || return 0
+  for value in work personal; do
+    if printf '%s\n' "$value" | cmp -s - "$PURPOSE_FILE" ||
+      printf '%s' "$value" | cmp -s - "$PURPOSE_FILE"; then
+      PURPOSE=$value
+      return 0
+    fi
+  done
+  die "invalid purpose at $PURPOSE_FILE; expected exactly work or personal (optionally followed by one newline); correct the file before retrying"
+}
+
+write_purpose() {
+  local tmp
+  validate_purpose_target
+  if [ -f "$PURPOSE_FILE" ] &&
+    { printf '%s\n' "$PURPOSE" | cmp -s - "$PURPOSE_FILE" ||
+      printf '%s' "$PURPOSE" | cmp -s - "$PURPOSE_FILE"; }; then
+    return 0
+  fi
+  mkdir -p "$PURPOSE_DIR" || die "cannot create purpose directory $PURPOSE_DIR"
+  tmp=$(mktemp "$PURPOSE_DIR/.purpose.XXXXXX") || die "cannot prepare purpose at $PURPOSE_FILE"
+  if ! printf '%s\n' "$PURPOSE" >"$tmp" || ! mv -f "$tmp" "$PURPOSE_FILE"; then
+    rm -f "$tmp"
+    die "cannot save purpose at $PURPOSE_FILE"
+  fi
+}
+
+install_prerequisites() {
+  local pkg missing=""
+  if [ "$1" = macos ]; then
+    if ! command -v brew >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/brew ]; then
+      step run prereqs "installing Homebrew"
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      step ok prereqs "Homebrew installed"
+    fi
+    if [ -x /opt/homebrew/bin/brew ]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+    for pkg in git mise; do
+      if ! command -v "$pkg" >/dev/null 2>&1; then
+        step run prereqs "installing $pkg"
+        brew install "$pkg"
+        step ok prereqs "$pkg installed"
+      fi
+    done
+    return 0
+  fi
+  for pkg in git mise; do
+    command -v "$pkg" >/dev/null 2>&1 || missing="$missing${missing:+ }$pkg"
+  done
+  if [ -n "$missing" ]; then
+    step run prereqs "installing $missing"
+    # Never -Syu here: Omarchy blocks unmanaged system upgrades.
+    sudo pacman -S --needed --noconfirm git mise
+    step ok prereqs "installed $missing"
+  fi
+}
+
+# warn_step <label> <ui text> <plain text>: a '!' row in the UI, a "dotfiles:" line otherwise.
+warn_step() {
+  if [ "$UI" = 1 ]; then step warn "$1" "$2"; else echo "dotfiles: $3"; fi
+}
+
+pull_repo() {
+  local before after count
+  before=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD)
+  git -C "$DOTFILES_DIR" pull --ff-only --quiet
+  [ "$UI" = 1 ] || return 0
+  after=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD)
+  if [ "$before" = "$after" ]; then
+    step ok repo "up to date"
+    return 0
+  fi
+  count=$(git -C "$DOTFILES_DIR" rev-list --count "$before..$after")
+  step ok repo "pulled $count commit$([ "$count" -eq 1 ] || echo s) ($before → $after)"
+}
+
+sync_repo() {
+  local branch
+  if [ ! -e "$DOTFILES_DIR/.git" ]; then
+    if [ "$UI" = 1 ]; then
+      git clone --quiet "$REPO_URL" "$DOTFILES_DIR"
+      step ok repo cloned
+    else
+      git clone "$REPO_URL" "$DOTFILES_DIR"
+    fi
+  elif [ -n "$(git -C "$DOTFILES_DIR" status --porcelain --untracked-files=no)" ]; then
+    warn_step repo "local changes; not pulled" "local changes in $DOTFILES_DIR, skipping pull"
+  elif ! git -C "$DOTFILES_DIR" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+    branch=$(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD)
+    warn_step repo "no upstream for $branch" "no upstream for $branch, skipping pull"
+  else
+    pull_repo
+  fi
+}
+
+# version_older <have> <want>: 0 when have < want, 1 when not, 2 when either side is
+# not dotted decimal. Compares field by field (2026.10.10 > 2026.10.6); bash 3.2 safe.
+version_older() {
+  local numeric='^[0-9]+(\.[0-9]+)*$' a b i x y
+  [[ $1 =~ $numeric && $2 =~ $numeric ]] || return 2
+  IFS=. read -r -a a <<<"$1"
+  IFS=. read -r -a b <<<"$2"
+  for ((i = 0; i < ${#a[@]} || i < ${#b[@]}; i++)); do
+    x=$((10#${a[i]:-0}))
+    y=$((10#${b[i]:-0}))
+    [ "$x" -eq "$y" ] && continue
+    [ "$x" -lt "$y" ] && return 0
+    return 1
+  done
+  return 1
+}
+
+installed_mise_version() { # first field of 'mise --version', e.g. 2026.10.6
+  local out first
+  out=$(mise_in_context --version 2>/dev/null || true)
+  read -r first _ <<<"$out" || true
+  echo "${first:-}"
+}
+
+# The modules need the mise named by min_version in modules/base/mise.toml; an older
+# mise ignores the module folders and bootstrap exits 0 having done nothing.
+check_mise_version() {
+  local file="$DOTFILES_DIR/modules/base/mise.toml" want have rc
+  if [ ! -r "$file" ]; then
+    [ "$DRY" = 0 ] || die "cannot preview without $file; provide a local checkout with DOTFILES_DIR"
+    return 0
+  fi
+  want=$(sed -n '/^min_version[[:space:]]*=/{s/^min_version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p;q;}' "$file")
+  if [ -z "$want" ]; then
+    [ "$DRY" = 0 ] || die "cannot determine the checkout's minimum mise version from $file"
+    return 0
+  fi
+  have=$(installed_mise_version)
+  rc=0
+  version_older "$have" "$want" || rc=$?
+  if [ "$DRY" = 1 ]; then
+    [ "$rc" -ne 2 ] || die "cannot verify mise version '$have'; install a released mise >= $want, then retry --dry-run"
+    [ "$rc" -eq 0 ] || return 0
+    if [ "$1" = macos ]; then
+      die "mise $have is older than $want; run brew upgrade mise separately, then retry --dry-run"
+    fi
+    die "mise $have is older than $want; upgrade the system (update, or sudo pacman -Syu) separately, then retry --dry-run"
+  fi
+  [ "$rc" -eq 0 ] || return 0 # preserve normal apply's handling of development versions
+  if [ "$1" = macos ]; then
+    echo "dotfiles: mise $have is older than $want; running brew upgrade mise"
+    brew upgrade mise || echo "dotfiles: brew upgrade mise failed" >&2
+    have=$(installed_mise_version)
+    rc=0
+    version_older "$have" "$want" || rc=$?
+    [ "$rc" -eq 0 ] || return 0
+    die "mise $have is older than $want, which the modules need; run brew upgrade mise, then run dotfiles again"
+  fi
+  # Never sync/install here: pacman -Sy without -u is a partial upgrade, and Omarchy blocks it.
+  die "mise $have is older than $want, which the modules need; upgrade the system (update, or sudo pacman -Syu), then run dotfiles again"
+}
+
+# Reserve a new sibling directory before moving, so even simultaneous runs cannot
+# overwrite an earlier backup or move a target inside an existing backup directory.
+backup_target() { # backup_target <target> -> BACKUP
+  local container
+  container=$(mktemp -d "$1.pre-dotfiles.$(date +%s).XXXXXX") || die "cannot reserve a backup for $1"
+  BACKUP=$container/original
+  if ! mv "$1" "$BACKUP"; then
+    rmdir "$container" 2>/dev/null || true
+    die "cannot preserve $1 at $BACKUP"
+  fi
+}
+
+link_conf_d() {
+  local link="$MISE_DIR/conf.d" backup
+  mkdir -p "$MISE_DIR"
+  if { [ -e "$link" ] || [ -L "$link" ]; } && [ "$(readlink "$link" || true)" != "$DOTFILES_DIR/modules" ]; then
+    backup_target "$link"
+    backup=$BACKUP
+    warn_step conf.d "moved existing conf.d to $backup" "moved existing $link to $backup"
+  fi
+  ln -sfn "$DOTFILES_DIR/modules" "$link"
+}
+
+miserc_content() {
+  local envs
+  if [ "$1" = macos ]; then envs="[\"$PURPOSE\"]"; else envs="[\"$1\", \"$PURPOSE\"]"; fi
+  printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = %s' "$envs"
+}
+
+validate_miserc_target() {
+  local rc="$MISE_DIR/miserc.local.toml"
+  { [ ! -e "$MISE_DIR" ] || [ -d "$MISE_DIR" ]; } ||
+    die "unsafe mise configuration directory $MISE_DIR"
+  [ ! -L "$rc" ] && { [ ! -e "$rc" ] || [ -f "$rc" ]; } ||
+    die "unsafe mise discovery target $rc; use a regular, non-symlink file"
+}
+
+write_miserc() {
+  local rc="$MISE_DIR/miserc.local.toml" want tmp
+  validate_miserc_target
+  want=$(miserc_content "$1")
+  if [ ! -f "$rc" ] || [ "$(cat "$rc")" != "$want" ]; then
+    mkdir -p "$MISE_DIR" || die "cannot create mise configuration directory $MISE_DIR"
+    tmp=$(mktemp "$MISE_DIR/.miserc.XXXXXX") || die "cannot prepare mise discovery settings"
+    if ! printf '%s\n' "$want" >"$tmp" || ! mv -f "$tmp" "$rc"; then
+      rm -f "$tmp"
+      die "cannot update mise discovery settings; purpose activation failed; retry dotfiles --set-purpose $PURPOSE after correcting the target"
+    fi
+  fi
+}
+# Preview in the original context when setup already matches. Only first-run
+# configuration without retained global files can be faithfully represented in
+# scratch; moving a user file changes lexical config_source and adjacent resources.
+prepare_preview() { # prepare_preview <profile>
+  local live=$MISE_DIR file name configured=0 want
+  command -v mise >/dev/null 2>&1 || die "--dry-run needs an existing mise; install mise separately, then retry"
+  check_mise_version "$1"
+  DOTFILES_DIR=$(cd "$DOTFILES_DIR" && pwd -P)
+  case $live in /*) ;; *) live=$PWD/$live ;; esac
+  want=$(miserc_content "$1")
+  if [ "$(readlink "$live/conf.d" 2>/dev/null || true)" = "$DOTFILES_DIR/modules" ] &&
+    [ -f "$live/miserc.local.toml" ] && [ "$(cat "$live/miserc.local.toml")" = "$want" ]; then
+    configured=1
+  fi
+  if [ "$configured" = 0 ]; then
+    for file in "$live"/* "$live"/.[!.]* "$live"/..?*; do
+      { [ -e "$file" ] || [ -L "$file" ]; } || continue
+      name=${file##*/}
+      case $name in conf.d | miserc.local.toml) continue ;; esac
+      if [ "$(readlink "$live/conf.d" 2>/dev/null || true)" = "$DOTFILES_DIR/modules" ]; then
+        die "cannot faithfully preview mismatched discovery settings with retained global configuration $file; run dotfiles --set-purpose $PURPOSE with the same DOTFILES_PROFILE (config-only; no provisioning), then retry --dry-run"
+      fi
+      die "cannot faithfully preview unconfigured candidate with retained global configuration $file; use an isolated HOME/MISE_CONFIG_DIR for first-run rehearsal; original-context preview requires conf.d/profile already configured to this candidate"
+    done
+  fi
+  PREVIEW_DIR=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-preview.XXXXXX") || die "cannot create scratch preview configuration"
+  trap ui_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  if [ "$configured" = 0 ]; then
+    MISE_DIR=$PREVIEW_DIR/mise
+    mkdir -p "$MISE_DIR"
+    # Actual apply replaces the whole live conf.d. Do not retain entries that
+    # would disappear during that cutover, even if they look like overrides.
+    ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
+    write_miserc "$1"
+    export MISE_CONFIG_DIR=$MISE_DIR
+  fi
+  STATE_DIR=$PREVIEW_DIR/state
+  LOG=$STATE_DIR/last-run.log
+  echo "dotfiles: previewing local modules; no setup, pull, or conflict moves (mise may evaluate config templates and update metadata, state and caches)"
+}
+
+
+# wants_dotfiles <args>: false when --only leaves the dotfiles part out or --skip names it.
+wants_dotfiles() {
+  local only="" skip=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --only | --skip)
+        [ $# -gt 1 ] || break
+        if [ "$1" = --only ]; then only="$only,$2"; else skip="$skip,$2"; fi
+        shift 2
+        continue
         ;;
-      *)
-        uname -s | tr '[:upper:]' '[:lower:]'
-        ;;
+      --only=*) only="$only,${1#*=}" ;;
+      --skip=*) skip="$skip,${1#*=}" ;;
     esac
+    shift
+  done
+  if [ -n "$only" ] && ! in_list "$only" dotfiles; then return 1; fi
+  ! in_list "$skip" dotfiles
+}
+
+# Global config-selection flags must affect the safety probe as well as bootstrap.
+collect_config_args() {
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -E | --env | -P | -C | --cd)
+        [ $# -gt 1 ] || die "$1 needs a value"
+        CONFIG_ARGS+=("$1" "$2")
+        case $1 in -C | --cd) MISE_CWD=$PWD ;; esac
+        shift
+        ;;
+      --cd=* | -C?*) MISE_CWD=$PWD; CONFIG_ARGS+=("$1") ;;
+      --env=* | --profile=* | -E?* | -P?* | --no-config) CONFIG_ARGS+=("$1") ;;
+    esac
+    shift
+  done
+}
+
+# mise's refusal diagnostic is the only failure we can safely recover from without
+# a JSON parser on a first-run machine. Validate the entire diagnostic and every
+# target before moving anything; unknown errors remain errors, not a partial plan.
+set_aside_conflicts() { # set_aside_conflicts <args>
+  local out rc=0 line target other state=before paths=() path
+  wants_dotfiles "$@" || return 0
+  out=$(MISE_FRIENDLY_ERROR=1 MISE_LOG_LEVEL=error MISE_COLOR=0 CLICOLOR_FORCE=0 mise_in_context dot apply --dry-run ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} </dev/null 2>&1) || rc=$?
+  [ "$rc" -ne 0 ] || return 0
+  while IFS= read -r line; do
+    case $state:$line in
+      "before:mise ERROR files: refusing to overwrite existing files (use --force):") state=paths ;;
+      paths:"  "\~/* | paths:"  "/*)
+        path=${line#  }
+        case $path in \~/*) target=$HOME/${path#"~/"} ;; *) target=$path ;; esac
+        # Reject ambiguous paths (including traversal) rather than backing up a
+        # different location from the one mise checked. No shell evaluation.
+        case $target in
+          / | */ | *//* | */./* | */../* | */. | */.. | *[[:cntrl:]]*)
+            state=invalid; break ;;
+        esac
+        { [ -e "$target" ] || [ -L "$target" ]; } || { state=invalid; break; }
+        for other in ${paths[@]+"${paths[@]}"}; do
+          case "$target/" in "$other/"*) state=invalid ;; esac
+          case "$other/" in "$target/"*) state=invalid ;; esac
+        done
+        [ "$state" != invalid ] || break
+        paths+=("$target")
+        ;;
+      paths:"mise ERROR Version: "?*) state=version ;;
+      "version:mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information") state='done' ;;
+      *) state=invalid; break ;;
+    esac
+  done <<<"$out"
+  if [ "$state" != 'done' ] || [ "${#paths[@]}" -eq 0 ] || [ "$rc" -ne 1 ]; then
+    printf '%s\n' "$out" >&2
+    echo "dotfiles: dotfile preview failed; no conflict targets were moved" >&2
+    return "$rc"
+  fi
+  for target in "${paths[@]}"; do
+    if [ "$DRY" = 1 ]; then
+      warn_step backup "would move $target aside" "would preserve $target in a unique $target.pre-dotfiles.<epoch>.<random>/original backup"
+    else
+      backup_target "$target"
+      warn_step backup "moved $target aside" "moved $target to $BACKUP"
+    fi
+  done
+  if [ "$DRY" = 1 ]; then FORCE_PREVIEW=1; fi
+}
+
+# ---- mode selection: UI only for a terminal and arguments the stages can replay ----
+
+in_list() { # in_list <a,b,c> <item>
+  case ",$1," in *",$2,"*) return 0 ;; esac
+  return 1
+}
+
+add_filter() { # add_filter <--only|--skip> <a,b>: fails on a name mise would reject
+  local part
+  local IFS=,
+  for part in $2; do
+    case $KNOWN_PARTS in *" $part "*) ;; *) return 1 ;; esac
+  done
+  if [ "$1" = --only ]; then ONLY="$ONLY${ONLY:+,}$2"; else SKIP="$SKIP${SKIP:+,}$2"; fi
+}
+
+# parse_ui_args <args>: fills PASS/DRY/ONLY/SKIP; fails for anything the stages cannot
+# replay, so mise sees those arguments untouched in plain mode.
+parse_ui_args() {
+  local a
+  PASS=() DRY=0 ONLY="" SKIP=""
+  while [ $# -gt 0 ]; do
+    a=$1
+    shift
+    case $a in
+      -n | --dry-run) DRY=1 PASS+=(--dry-run) ;;
+      -y | --yes) ;; # every stage already passes --yes
+      --force-dotfiles | --update | --skip-dirty | --locked) PASS+=("$a") ;;
+      -j | --jobs)
+        [ $# -gt 0 ] && [[ $1 =~ ^[0-9]+$ ]] || return 1
+        PASS+=("$a" "$1")
+        shift
+        ;;
+      --jobs=*)
+        [[ ${a#*=} =~ ^[0-9]+$ ]] || return 1
+        PASS+=("$a")
+        ;;
+      --only | --skip)
+        [ $# -gt 0 ] || return 1
+        add_filter "$a" "$1" || return 1
+        shift
+        ;;
+      --only=* | --skip=*) add_filter "${a%%=*}" "${a#*=}" || return 1 ;;
+      *) return 1 ;;
+    esac
+  done
+  [ -z "$ONLY" ] || [ -z "$SKIP" ] # mise rejects --only together with --skip
+}
+
+use_ui() {
+  [ "$PLAIN" = 0 ] || return 1
+  [ "${DOTFILES_UI:-}" != 0 ] || return 1
+  parse_ui_args "$@" || return 1
+  [ "${DOTFILES_UI:-}" = 1 ] && return 0 # forced: no terminal needed, no animation
+  [ -t 1 ] && [ -t 2 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${NO_COLOR:-}" ]
+}
+
+# ---- terminal helpers ----
+
+# ensure_utf8: the layout counts characters, so ${#x} must see UTF-8.
+ensure_utf8() {
+  local probe='✓' loc
+  [ "${#probe}" -eq 1 ] && return 0
+  for loc in C.UTF-8 en_US.UTF-8; do
+    export LC_ALL=$loc
+    [ "${#probe}" -eq 1 ] && return 0
+  done
+  unset LC_ALL
+}
+
+term_cols() { # -> COLS
+  COLS=""
+  if [ -n "${COLUMNS:-}" ]; then
+    COLS=$COLUMNS
+  elif [ "$ANIM" = 1 ]; then
+    read -r _ COLS < <({ stty size </dev/tty; } 2>/dev/null) || true
+  fi
+  case $COLS in '' | *[!0-9]*) COLS=80 ;; esac
+}
+
+setup_colors() {
+  [ "$COLOR" = 1 ] || return 0
+  RST=$'\033[0m' BOLD=$'\033[1m'
+  C_TEXT=$'\033[38;2;205;214;244m' C_SUB=$'\033[38;2;166;173;200m' C_OVR=$'\033[38;2;127;132;156m'
+  C_SURF=$'\033[38;2;88;91;112m' C_MAUVE=$'\033[38;2;203;166;247m' C_BLUE=$'\033[38;2;137;180;250m'
+  C_GREEN=$'\033[38;2;166;227;161m' C_YELLOW=$'\033[38;2;249;226;175m' C_RED=$'\033[38;2;243;139;168m'
+  C_PEACH=$'\033[38;2;250;179;135m'
+}
+
+now_ms() { # NOW in ms; $EPOCHREALTIME needs bash 5, /bin/bash 3.2 falls back to whole seconds
+  if [ -n "${EPOCHREALTIME:-}" ]; then
+    local t=${EPOCHREALTIME/[.,]/}
+    NOW=$((10#$t / 1000))
+  else
+    NOW=$((SECONDS * 1000))
   fi
 }
 
-print_banner() {
-  echo ""
-  echo -e "${CAT_SAPPHIRE}  ████████╗███████╗ ██████╗██╗  ██╗██████╗ ██╗   ██╗███████╗██╗   ██╗███████╗${NC}"
-  echo -e "${CAT_SAPPHIRE}  ╚══██╔══╝██╔════╝██╔════╝██║  ██║██╔══██╗██║   ██║██╔════╝██║   ██║██╔════╝${NC}"
-  echo -e "${CAT_SAPPHIRE}     ██║   █████╗  ██║     ███████║██║  ██║██║   ██║█████╗  ██║   ██║███████╗${NC}"
-  echo -e "${CAT_SAPPHIRE}     ██║   ██╔══╝  ██║     ██╔══██║██║  ██║██║   ██║██╔══╝  ██║   ██║╚════██║${NC}"
-  echo -e "${CAT_SAPPHIRE}     ██║   ███████╗╚██████╗██║  ██║██████╔╝╚██████╔╝██║     ╚██████╔╝███████║${NC}"
-  echo -e "${CAT_SAPPHIRE}     ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═╝      ╚═════╝ ╚══════╝${NC}"
-  echo ""
-  echo -e "${CAT_BLUE}      ██████╗  ██████╗ ████████╗███████╗██╗██╗     ███████╗███████╗${NC}"
-  echo -e "${CAT_BLUE}      ██╔══██╗██╔═══██╗╚══██╔══╝██╔════╝██║██║     ██╔════╝██╔════╝${NC}"
-  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   █████╗  ██║██║     █████╗  ███████╗${NC}"
-  echo -e "${CAT_BLUE}      ██║  ██║██║   ██║   ██║   ██╔══╝  ██║██║     ██╔══╝  ╚════██║${NC}"
-  echo -e "${CAT_BLUE}      ██████╔╝╚██████╔╝   ██║   ██║     ██║███████╗███████╗███████║${NC}"
-  echo -e "${CAT_BLUE}      ╚═════╝  ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝${NC}"
-  echo ""
+fmt_time() { # fmt_time <ms> -> FMT: 18.2s, 4s, 1m 12s
+  local ms=$1 s
+  s=$((ms / 1000))
+  if [ "$s" -ge 60 ]; then
+    FMT="$((s / 60))m $((s % 60))s"
+  elif [ "$HAVE_FRAC" = 1 ]; then
+    FMT="$s.$(((ms % 1000) / 100))s"
+  else
+    FMT="${s}s"
+  fi
 }
 
-# Handle early exit for help/version/debug flags (before banner and setup)
-if [[ "${SHOW_HELP:-}" == "true" ]]; then
-  show_help
-  exit 0
-fi
+fit() { # fit <text> <width> -> FIT, truncated with an ellipsis
+  if [ "${#1}" -gt "$2" ]; then FIT="${1:0:$(($2 - 1))}…"; else FIT=$1; fi
+}
 
-if [[ "${SHOW_VERSION:-}" == "true" ]]; then
-  show_version
-  exit 0
-fi
+rule() { # rule <width> -> REP of that many ─
+  printf -v REP '%*s' "$1" ''
+  REP=${REP// /─}
+}
 
-if [[ "${SHOW_DETECTED_OS:-}" == "true" ]]; then
-  detect_os
-  exit 0
-fi
-
-print_banner
-
-dotfiles_os=$(detect_os)
-__task "Loading Setup for detected OS: $dotfiles_os"
-case $dotfiles_os in
-  ubuntu)
-    ubuntu_setup
-    ;;
-  arch)
-    arch_setup
-    ;;
-  fedora)
-    fedora_setup
-    ;;
-  darwin)
-    macos_setup
-    ;;
-  *)
-    printf "${CAT_RED} [✗]  ${CAT_TEXT}Unsupported OS: %s${NC}\n" "$dotfiles_os"
-    exit 1
-    ;;
-esac
-
-if ! [[ -d "$DOTFILES_DIR" ]]; then
-  __task "Downloading dotfiles repository (This may take a minute)"
-  _cmd "git clone --quiet https://github.com/TechDufus/dotfiles.git $DOTFILES_DIR"
-  _task_done
-else
-  __task "Updating dotfiles repository"
-  _cmd "git -C $DOTFILES_DIR pull --quiet"
-  _task_done
-fi
-
-pushd "$DOTFILES_DIR" 2>&1 > /dev/null
-
-# Parse arguments for uninstall/delete
-UNINSTALL_ROLE=""
-DELETE_ROLE=""
-REMAINING_ARGS=()
-
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      show_help
-      exit 0
-      ;;
-    --version)
-      show_version
-      exit 0
-      ;;
-    --uninstall)
-      if [[ -z "$2" || "$2" == -* ]]; then
-        echo -e "${RED} [✗]  ${CAT_TEXT}Error: --uninstall requires a role name${NC}"
-        exit 1
-      fi
-      UNINSTALL_ROLE="$2"
-      shift 2
-      ;;
-    --delete)
-      if [[ -z "$2" || "$2" == -* ]]; then
-        echo -e "${RED} [✗]  ${CAT_TEXT}Error: --delete requires a role name${NC}"
-        exit 1
-      fi
-      DELETE_ROLE="$2"
-      shift 2
-      ;;
-    *)
-      REMAINING_ARGS+=("$1")
-      shift
-      ;;
-  esac
-done
-
-# Common function to run uninstall script
-run_uninstall_script() {
-  local role="$1"
-  local role_dir="$DOTFILES_DIR/roles/$role"
-  local uninstall_script="$role_dir/uninstall.sh"
-
-  if [[ ! -d "$role_dir" ]]; then
-    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${role}' not found${NC}"
-    return 1
-  fi
-
-  if [[ ! -f "$uninstall_script" ]]; then
-    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${role}' does not have an uninstall script${NC}"
-    return 1
-  fi
-
-  # Export functions and colors for use in uninstall script
-  export -f __task _task_done _clear_task _cmd _spinner
-  export SPINNER_PID TASK DOTFILES_LOG
-  export NC BOLD
-  export CAT_ROSEWATER CAT_FLAMINGO CAT_PINK CAT_MAUVE CAT_RED CAT_MAROON
-  export CAT_PEACH CAT_YELLOW CAT_GREEN CAT_TEAL CAT_SKY CAT_SAPPHIRE
-  export CAT_BLUE CAT_LAVENDER CAT_TEXT CAT_SUBTEXT1 CAT_SUBTEXT0
-  export CAT_OVERLAY2 CAT_OVERLAY1 CAT_OVERLAY0 CAT_SURFACE2 CAT_SURFACE1
-  export CAT_SURFACE0 CAT_BASE CAT_MANTLE CAT_CRUST
-  export RED GREEN YELLOW BLUE PURPLE CYAN WHITE LBLACK
-  export LRED LGREEN LYELLOW LBLUE LPURPLE LCYAN SEA OVERWRITE
-  export CHECK_MARK X_MARK PIN CLOCK ARROW BOOK HOT WARNING RIGHT_ANGLE
-
-  # Run uninstall script with exported environment
-  bash "$uninstall_script"
+osc() { # osc <state;percent>: terminal tab progress (OSC 9;4)
+  [ "$ANIM" = 0 ] || printf '\033]9;4;%s\a' "$1"
   return 0
 }
 
-# Handle uninstall (cleanup only)
-if [[ -n "$UNINSTALL_ROLE" ]]; then
-  # Confirm uninstall
-  echo -e "${YELLOW} [?]  ${CAT_TEXT}This will uninstall ${BOLD}${CAT_MAUVE}${UNINSTALL_ROLE}${NC}."
-  read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if run_uninstall_script "$UNINSTALL_ROLE"; then
-      echo -e "${GREEN} [✓]  ${CAT_TEXT}${UNINSTALL_ROLE} has been uninstalled${NC}"
-    else
-      popd 2>&1 > /dev/null
-      exit 1
+# stage_row <color> <glyph> <label> <detail> <elapsed> -> ROW (4-space indent, label padded to 10)
+stage_row() {
+  local room=$((RIGHT - 2 - 17 - 8)) pad
+  fit "$4" "$room"
+  if [ -n "$5" ]; then
+    printf -v pad '%*s' $((room - ${#FIT})) ''
+    printf -v ROW '    %s%s%s %s%-10s%s %s%s%s%s %s%7s%s' "$1" "$2" "$RST" "$BOLD$C_TEXT" "$3" "$RST" "$C_SUB" "$FIT" "$RST" "$pad" "$C_OVR" "$5" "$RST"
+  else
+    printf -v ROW '    %s%s%s %s%-10s%s %s%s%s' "$1" "$2" "$RST" "$BOLD$C_TEXT" "$3" "$RST" "$C_SUB" "$FIT" "$RST"
+  fi
+}
+
+row_out() { # print ROW, replacing a spinner frame when animated
+  if [ "$ANIM" = 1 ]; then printf '\r\033[K'; fi
+  printf '%s\n' "$ROW"
+}
+
+# step <ok|run|warn|fail> <label> <text>: one finished line before or between stages (UI only)
+step() {
+  [ "$UI" = 1 ] || return 0
+  case $1 in
+    ok) stage_row "$C_GREEN" ✓ "$2" "$3" "" ;;
+    run) stage_row "$C_BLUE" → "$2" "$3" "" ;;
+    warn) stage_row "$C_YELLOW" '!' "$2" "$3" "" ;;
+    fail) stage_row "$C_RED" ✗ "$2" "$3" "" ;;
+  esac
+  row_out
+}
+
+draw_header() { # draw_header <profile>
+  local branch="" sha="" meta badge="" width=$((RIGHT - 2)) inner gap top
+  inner=$((width - 2))
+  if [ -e "$DOTFILES_DIR/.git" ]; then
+    branch=$(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    sha=$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || true)
+  fi
+  short_host
+  meta="$1 · ${USER:-$(id -un)}@$HOST${branch:+ · $branch}${sha:+ $sha}"
+  [ "$DRY" = 0 ] || badge="  dry run"
+  # Too long: drop "user@" before cutting into the branch and commit.
+  [ "${#meta}" -le $((inner - 14 - ${#badge})) ] || meta="$1 · $HOST${branch:+ · $branch}${sha:+ $sha}"
+  fit "$meta" $((inner - 14 - ${#badge}))
+  meta=$FIT
+  printf -v gap '%*s' $((inner - 14 - ${#meta} - ${#badge})) ''
+  rule $((width - 2))
+  top=$REP
+  printf '\n  %s╭%s╮%s\n' "$C_SURF" "$top" "$RST"
+  printf '  %s│%s %s◆%s %sdotfiles%s  %s%s%s%s%s%s%s %s│%s\n' "$C_SURF" "$RST" "$C_MAUVE" "$RST" "$BOLD$C_TEXT" "$RST" \
+    "$C_SUB" "$meta" "$RST" "$gap" "$C_PEACH" "$badge" "$RST" "$C_SURF" "$RST"
+  printf '  %s╰%s╯%s\n\n' "$C_SURF" "$top" "$RST"
+}
+
+short_host() { # -> HOST
+  HOST=${HOSTNAME:-}
+  [ -n "$HOST" ] || HOST=$(uname -n)
+  HOST=${HOST%%.*}
+}
+
+# draw_box <title> <lines on stdin>: rounded box of the last lines of a failed stage
+draw_box() {
+  local width=$((RIGHT - 4)) inner line pad
+  inner=$((width - 4))
+  rule $((width - 5 - ${#1}))
+  printf '    %s╭─ %s%s%s %s╮%s\n' "$C_SURF" "$C_SUB" "$1" "$C_SURF" "$REP" "$RST"
+  while IFS= read -r line; do
+    fit "${line//$'\t'/ }" "$inner"
+    printf -v pad '%*s' $((inner - ${#FIT})) ''
+    printf '    %s│%s %s%s%s%s %s│%s\n' "$C_SURF" "$RST" "$C_SUB" "$FIT" "$RST" "$pad" "$C_SURF" "$RST"
+  done
+  rule $((width - 2))
+  printf '    %s╰%s╯%s\n' "$C_SURF" "$REP" "$RST"
+}
+
+# ---- log, live detail and results of one stage ----
+
+strip_ansi() { sed $'s/\033\\[[0-9;?]*[A-Za-z]//g; s/\r$//'; }
+stage_out() { tail -c +"$((LOG_OFF + 1))" "$LOG"; }
+stage_lines() { stage_out | sed $'s/\033\\[[0-9;?]*[A-Za-z]//g; s/\r$//; /^[[:space:]]*$/d'; }
+
+# live_detail <stage> -> DETAIL: the latest log line, or "<module> (k of N)" while modules run
+live_detail() {
+  local line k="" name=""
+  DETAIL=""
+  if [ "$1" = modules ]; then
+    # mise prints "[bootstrap:<name>] $ <cmd>" when a task starts, "... skipping" when up to date
+    read -r k name < <(stage_lines | awk '/^\[bootstrap:[^]]+\] (\$ |.*skipping)/ { n++; s = $0; sub(/^\[bootstrap:/, "", s); sub(/\].*/, "", s); name = s } END { if (n) print n, name }') || true
+    [ -n "$k" ] || return 0
+    if [ "$TASK_TOTAL" -gt 0 ]; then DETAIL="$name ($k of $TASK_TOTAL)"; else DETAIL="$name ($k)"; fi
+    return 0
+  fi
+  while IFS= read -r line; do
+    [ -z "${line//[[:space:]]/}" ] || DETAIL=${line#mise }
+  done < <(stage_out | tail -n 5 | strip_ansi)
+  return 0
+}
+
+spin() { # spin <label>: animate until CHILD exits; no-op without a terminal
+  [ "$ANIM" = 1 ] || return 0
+  local i=0 detail=""
+  printf '\033[?25l'
+  while kill -0 "$CHILD" 2>/dev/null; do
+    if [ $((i % 3)) -eq 0 ]; then
+      if [ -n "${2:-}" ]; then DETAIL=$2; else live_detail "$1"; fi
+      detail=$DETAIL
     fi
-  else
-    echo -e "${YELLOW} [!]  ${CAT_TEXT}Uninstall cancelled${NC}"
-  fi
-  popd 2>&1 > /dev/null
-  exit 0
-fi
+    now_ms
+    fmt_time $((NOW - T0))
+    stage_row "$C_MAUVE" "${FRAMES[$((i % 10))]}" "$1" "$detail" "$FMT"
+    printf '\r\033[K%s' "$ROW"
+    sleep 0.1
+    i=$((i + 1))
+  done
+  printf '\033[?25h'
+}
 
-# Handle delete (uninstall + remove role)
-if [[ -n "$DELETE_ROLE" ]]; then
-  ROLE_DIR="$DOTFILES_DIR/roles/$DELETE_ROLE"
-  UNINSTALL_SCRIPT="$ROLE_DIR/uninstall.sh"
+# mise_stage <label> <parts>: one 'mise bootstrap --only <parts>' with all output in the log
+mise_stage() {
+  local rc=0 a
+  {
+    printf '\n$ mise bootstrap --yes --only %s' "$2"
+    for a in ${PASS[@]+"${PASS[@]}"}; do printf ' %s' "$a"; done
+    printf '\n'
+  } >>"$LOG"
+  LOG_OFF=$(($(wc -c <"$LOG")))
+  mise_in_context bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} </dev/null >>"$LOG" 2>&1 &
+  CHILD=$!
+  spin "$1"
+  wait "$CHILD" || rc=$?
+  CHILD=""
+  return "$rc"
+}
 
-  # Check if role exists
-  if [[ ! -d "$ROLE_DIR" ]]; then
-    echo -e "${RED} [✗]  ${CAT_TEXT}Error: Role '${DELETE_ROLE}' not found${NC}"
-    popd 2>&1 > /dev/null
-    exit 1
-  fi
+# The user part runs `chsh -s`, which may ask for a password. When the login shell has to
+# change, run that stage on the terminal, without the spinner, so the prompt is seen.
+shell_needs_chsh() {
+  local state
+  state=$(mise_in_context bootstrap user status ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} 2>/dev/null | awk 'NR == 1 { print $NF }')
+  [ -n "$state" ] && [ "$state" != set ] && [ "$state" != skipped ]
+}
 
-  # Confirm delete
-  if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-    echo -e "${YELLOW} [?]  ${CAT_TEXT}This will uninstall ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} and ${BOLD}${CAT_RED}DELETE${NC} the role from your dotfiles."
-  else
-    echo -e "${YELLOW} [?]  ${CAT_TEXT}This will ${BOLD}${CAT_RED}DELETE${NC} the role ${BOLD}${CAT_MAUVE}${DELETE_ROLE}${NC} from your dotfiles."
-    echo -e "${YELLOW}      ${CAT_TEXT}Note: No uninstall script exists, so only the role directory will be removed.${NC}"
-  fi
+mise_stage_attended() { # mise_stage_attended <label> <parts>
+  local rc=0
+  printf '\n$ mise bootstrap --yes --only %s (on the terminal, not logged)\n' "$2" >>"$LOG"
+  LOG_OFF=$(($(wc -c <"$LOG")))
+  step run "$1" "chsh may ask for your password"
+  mise_in_context bootstrap --yes --only "$2" ${PASS[@]+"${PASS[@]}"} || rc=$?
+  return "$rc"
+}
 
-  read -p "$(echo -e "${YELLOW}Are you sure? (y/N) ${NC}")" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Run uninstall script if it exists
-    if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-      if ! run_uninstall_script "$DELETE_ROLE"; then
-        echo -e "${YELLOW} [!]  ${CAT_TEXT}Uninstall script failed, but continuing with deletion...${NC}"
+# Permission entries on files that merges create in the first pass apply only on a second one.
+dotfiles_converged() {
+  mise_in_context dot status --missing ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >/dev/null 2>&1
+}
+
+add_extra() { EXTRA+=("$1"); }
+add_warn() { WARNS+=("$1"$'\t'"$2"); }
+
+# gather_info: a few read-only mise queries, in parallel, for the result texts (cosmetic; may fail)
+gather_info() {
+  INFO=$STATE_DIR/info
+  rm -rf "$INFO"
+  mkdir -p "$INFO"
+  (
+    mise_in_context tasks ls --name-only ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/tasks" 2>/dev/null &
+    if [ "$DRY" = 0 ]; then
+      mise_in_context ls --missing ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/missing" 2>/dev/null &
+      if command -v jq >/dev/null 2>&1; then
+        mise_in_context bootstrap plan --json ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/plan.json" 2>/dev/null &
+        mise_in_context dot status --json ${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"} >"$INFO/dot.json" 2>/dev/null &
       fi
     fi
-
-    # Remove from group_vars/all.yml (with backup)
-    if grep -q "^  - $DELETE_ROLE$" "$DOTFILES_DIR/group_vars/all.yml"; then
-      __task "Removing $DELETE_ROLE from configuration"
-      cp "$DOTFILES_DIR/group_vars/all.yml" "$DOTFILES_DIR/group_vars/all.yml.bak"
-      # Use portable sed -i syntax (macOS requires '', Linux doesn't)
-      if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
-      else
-        sed -i "/^  - $DELETE_ROLE$/d" "$DOTFILES_DIR/group_vars/all.yml"
-      fi
-      _task_done
-    fi
-
-    # Remove role directory
-    __task "Removing $DELETE_ROLE role directory"
-    rm -rf "$ROLE_DIR"
-    _task_done
-
-    if [[ -f "$UNINSTALL_SCRIPT" ]]; then
-      echo -e "${GREEN} [✓]  ${CAT_TEXT}${DELETE_ROLE} has been uninstalled and deleted${NC}"
-    else
-      echo -e "${GREEN} [✓]  ${CAT_TEXT}${DELETE_ROLE} has been deleted${NC}"
-    fi
-  else
-    echo -e "${YELLOW} [!]  ${CAT_TEXT}Delete cancelled${NC}"
+    wait
+  ) </dev/null &
+  CHILD=$!
+  if [ "$ANIM" = 1 ]; then
+    now_ms
+    T0=$NOW
+    spin checking "reading machine state"
+    printf '\r\033[K'
   fi
-  popd 2>&1 > /dev/null
+  wait "$CHILD" || true
+  CHILD=""
+  TASK_TOTAL=$(grep -c '^bootstrap:' "$INFO/tasks" 2>/dev/null || true)
+  TASK_TOTAL=${TASK_TOTAL:-0}
+}
+
+jq_tsv() { # jq_tsv <file> <filter> -> one tab-separated line; fails quietly without jq or data
+  [ -s "$1" ] && command -v jq >/dev/null 2>&1 || return 1
+  jq -r "$2 | @tsv" "$1" 2>/dev/null
+}
+
+plural() { # plural <n> <word>
+  if [ "$1" -eq 1 ]; then echo "$1 $2"; else echo "$1 ${2}s"; fi
+}
+
+result_packages() {
+  local line present changed names more=""
+  # shellcheck disable=SC2016 # jq variables, not shell
+  line=$(jq_tsv "$INFO/plan.json" '[.resources[] | select(.id.kind == "package")] as $p
+    | [$p[] | select(.action != "noop")] as $c
+    | [($p | length) - ($c | length), ($c | length), ($c | map(.id.name | sub("^[^:]*:"; "")) | .[:3] | join(", "))]') || return 0
+  IFS=$'\t' read -r present changed names <<<"$line" || true
+  [ "${present:-x}" -ge 0 ] 2>/dev/null || return 0
+  [ "$changed" -le 3 ] || more=", …"
+  RESULT=""
+  [ "$present" -eq 0 ] || RESULT="$present present"
+  [ "$changed" -eq 0 ] || RESULT="${RESULT:+$RESULT · }$changed installed: $names$more"
+  RESULT=${RESULT:-done}
+}
+
+result_system() {
+  local line same changed
+  # shellcheck disable=SC2016
+  line=$(jq_tsv "$INFO/plan.json" '[.resources[] | select(.id.kind == "file")] as $f
+    | [$f[] | select(.action != "noop")] as $c
+    | [($f | length) - ($c | length), ($c | length)]') || return 0
+  IFS=$'\t' read -r same changed <<<"$line" || true
+  [ "${same:-x}" -ge 0 ] 2>/dev/null || return 0
+  RESULT=""
+  [ "$same" -eq 0 ] || RESULT="$(plural "$same" file) unchanged"
+  [ "$changed" -eq 0 ] || RESULT="${RESULT:+$RESULT · }$changed updated"
+  RESULT=${RESULT:-done}
+}
+
+result_dotfiles() {
+  local line same changed
+  # shellcheck disable=SC2016
+  line=$(jq_tsv "$INFO/dot.json" '[(.files // [])[], (.edits // [])[]] as $e
+    | [$e[] | select((.state == "applied" or .state == "absent" or .state == "tracked") | not)] as $p
+    | [($e | length) - ($p | length), ($p | length)]') || return 0
+  IFS=$'\t' read -r same changed <<<"$line" || true
+  [ "${same:-x}" -ge 0 ] 2>/dev/null || return 0
+  RESULT=""
+  [ "$same" -eq 0 ] || RESULT="$same in place"
+  [ "$changed" -eq 0 ] || RESULT="${RESULT:+$RESULT · }$changed updated"
+  RESULT=${RESULT:-done}
+}
+
+result_shell() {
+  local line word shell=""
+  while IFS= read -r line; do
+    case $line in *login_shell*)
+      for word in $line; do
+        case $word in /*) shell=${word##*/} ;; esac
+      done
+      ;;
+    esac
+  done < <(stage_lines)
+  RESULT="done"
+  if [ -n "$shell" ]; then RESULT="login shell $shell"; fi
+}
+
+result_tools() { # tools mise reported as missing before the stage were installed by it
+  local name n=0 names="" more=""
+  while read -r name _; do
+    [ -n "$name" ] || continue
+    n=$((n + 1))
+    if [ "$n" -le 3 ]; then names="$names${names:+, }$name"; fi
+  done <"$INFO/missing" 2>/dev/null || true
+  [ "$n" -le 3 ] || more=", …"
+  if [ "$n" -eq 0 ]; then RESULT="all current"; else RESULT="$n installed: $names$more"; fi
+}
+
+# Task headers and bodies from 'mise run': ran/skipped counts plus the first fail-soft
+# message ("... skipped"/"... skipping") per task.
+result_modules() {
+  local kind a b ran=0 skipped=0
+  while IFS=$'\t' read -r kind a b; do
+    case $kind in
+      W) add_warn "$a" "${b#"$a": }" ;;
+      S)
+        ran=$a
+        skipped=$b
+        ;;
+    esac
+  done < <(stage_lines | awk '
+    /^\[bootstrap:[^]]+\] / {
+      name = $0; sub(/^\[bootstrap:/, "", name); sub(/\].*/, "", name)
+      rest = $0; sub(/^\[bootstrap:[^]]+\] /, "", rest)
+      if (rest ~ /^\$ /) { ran++; next }
+      if (rest ~ /skipping/) { skipped++; next }
+      $0 = rest
+    }
+    /^mise / { next }
+    name != "" && !(name in seen) && /skipped|skipping/ { seen[name] = 1; print "W\t" name "\t" $0 }
+    END { print "S\t" ran + 0 "\t" skipped + 0 }')
+  RESULT="done"
+  if [ $((ran + skipped)) -gt 0 ]; then RESULT="$ran ran"; fi
+  if [ "$skipped" -gt 0 ]; then RESULT="$RESULT · $skipped up to date"; fi
+}
+
+# Dry run: mise prints "mise bootstrap: <part>" headers, "mise <part>: ..." status lines and the
+# commands it would run bare. A change is any bare line or a "<tool> ⇢ would install" line.
+# "(if changed)" edits (templated merges) cannot be predicted, so they are not counted.
+dry_changes() {
+  local line
+  while IFS= read -r line; do
+    case $line in
+      "mise bootstrap:"* | "[bootstrap]"* | "mise WARN"*) ;;
+      *"⇢ "*) printf '%s\n' "${line#mise }" ;;
+      "mise "* | *"(if changed)") ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done < <(stage_lines)
+}
+
+wrap_words() { # wrap_words <width> <words...>: one add_extra per wrapped line
+  local width=$1 line="" word
+  shift
+  for word in "$@"; do
+    if [ -n "$line" ] && [ $((${#line} + ${#word} + 1)) -gt "$width" ]; then
+      add_extra "$line"
+      line=""
+    fi
+    line="$line${line:+ }$word"
+  done
+  if [ -n "$line" ]; then add_extra "$line"; fi
+}
+
+result_dry() {
+  local line n=0 task tasks=()
+  if [ "$1" = modules ]; then
+    while IFS= read -r task; do
+      case $task in bootstrap:*) tasks+=("${task#bootstrap:}") ;; esac
+    done <"$INFO/tasks" 2>/dev/null || true
+    if [ "${#tasks[@]}" -eq 0 ]; then
+      RESULT="would run the bootstrap task"
+    else
+      RESULT="would run $(plural "${#tasks[@]}" task)"
+      wrap_words $((RIGHT - 10)) "${tasks[@]}"
+    fi
+    return 0
+  fi
+  while IFS= read -r line; do
+    n=$((n + 1))
+    if [ "$n" -le 8 ]; then add_extra "$line"; fi
+  done < <(dry_changes)
+  if [ "$n" -gt 8 ]; then add_extra "… $((n - 8)) more"; fi
+  case $n in
+    0) RESULT="no changes" ;;
+    1) RESULT="1 change" ;;
+    *) RESULT="$n changes" ;;
+  esac
+}
+
+stage_result() { # stage_result <stage> -> RESULT, EXTRA, WARNS
+  RESULT="done" EXTRA=() WARNS=()
+  if [ "$DRY" = 1 ]; then
+    result_dry "$1"
+    return 0
+  fi
+  case $1 in
+    packages) result_packages ;;
+    system) result_system ;;
+    dotfiles) result_dotfiles ;;
+    shell) result_shell ;;
+    tools) result_tools ;;
+    modules) result_modules ;;
+  esac
+  return 0
+}
+
+stage_ok() { # stage_ok <stage> <elapsed>
+  local line name msg
+  stage_result "$1"
+  stage_row "$C_GREEN" ✓ "$1" "$RESULT" "$2"
+  row_out
+  for line in ${EXTRA[@]+"${EXTRA[@]}"}; do
+    fit "$line" $((RIGHT - 10))
+    printf '        %s%s%s\n' "$C_OVR" "$FIT" "$RST"
+  done
+  for line in ${WARNS[@]+"${WARNS[@]}"}; do
+    name=${line%%$'\t'*}
+    msg=${line#*$'\t'}
+    stage_row "$C_YELLOW" '!' "$name" "$msg" ""
+    row_out
+  done
+}
+
+stage_failed() { # stage_failed <stage> <status> <elapsed>
+  stage_row "$C_RED" ✗ "$1" "failed (exit $2)" "$3"
+  row_out
+  osc "2;100"
+  stage_lines | tail -n 15 | draw_box "$1 · last lines"
+}
+
+# ---- sudo ----
+
+# prime_sudo <parts>: ask for the password up front, visibly, so no spinner hides a prompt.
+prime_sudo() {
+  local part need=0
+  local IFS=,
+  for part in $1; do
+    case $SUDO_PARTS in *" $part "*) need=1 ;; esac
+  done
+  [ "$need" = 1 ] && [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 || return 0
+  sudo -n true 2>/dev/null && return 0
+  step run sudo "password needed for system changes"
+  if sudo -v; then
+    # Keep the ticket alive for the whole run; output is closed so no pipe waits on the sleep.
+    (while kill -0 $$ 2>/dev/null; do
+      sudo -n -v 2>/dev/null
+      sleep 50
+    done) >/dev/null 2>&1 &
+    SUDO_PID=$!
+  else
+    step warn sudo "not authenticated; mise will ask again"
+  fi
+}
+
+# ---- run ----
+
+# shellcheck disable=SC2329,SC2317 # called indirectly by the EXIT/INT/TERM trap handlers
+kill_tree() { # kill_tree <pid>: the process and everything below it, children first
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null || true); do
+    kill_tree "$child"
+  done
+  kill "$1" 2>/dev/null || true
+}
+
+# shellcheck disable=SC2329,SC2317 # invoked indirectly by the EXIT trap
+ui_cleanup() {
+  [ -z "$CHILD" ] || kill_tree "$CHILD"
+  [ -z "$SUDO_PID" ] || kill "$SUDO_PID" 2>/dev/null || true
+  if [ "$ANIM" = 1 ]; then
+    printf '\033[?25h'
+    osc "0"
+  fi
+  [ -z "$INFO" ] || rm -rf "$INFO"
+  [ -z "$PREVIEW_DIR" ] || rm -rf "$PREVIEW_DIR"
+}
+
+# shellcheck disable=SC2329,SC2317 # invoked indirectly by the INT/TERM traps
+on_signal() { # on_signal <exit status>
+  trap - INT TERM
+  [ -z "$CHILD" ] || kill_tree "$CHILD"
+  CHILD=""
+  if [ "$ANIM" = 1 ]; then printf '\r\033[K\033[?25h'; fi
+  step warn stopped "interrupted"
+  exit "$1"
+}
+
+ui_init() {
+  UI=1
+  [ -z "${EPOCHREALTIME:-}" ] || HAVE_FRAC=1
+  if [ -t 1 ] && [ -t 2 ] && [ "${TERM:-dumb}" != dumb ]; then ANIM=1; fi
+  COLOR=$ANIM
+  [ -z "${NO_COLOR:-}" ] || COLOR=0
+  setup_colors
+  ensure_utf8
+  term_cols
+  RIGHT=$COLS
+  [ "$RIGHT" -le 80 ] || RIGHT=80
+  RIGHT=$((RIGHT - 2))
+  [ "$RIGHT" -ge 50 ] || RIGHT=50
+  now_ms
+  RUN_T0=$NOW
+  mkdir -p "$STATE_DIR"
+  printf 'dotfiles run: %s\nprofile: %s\nargs: %s\n' "$(date)" "$1" "${*:2}" >"$LOG"
+  trap ui_cleanup EXIT
+  trap 'on_signal 130' INT
+  trap 'on_signal 143' TERM
+  draw_header "$1"
+}
+
+ui_footer() { # ui_footer <status>
+  local label color glyph short=$LOG
+  now_ms
+  fmt_time $((NOW - RUN_T0))
+  if [ "$1" -ne 0 ]; then
+    glyph=✗ color=$C_RED label="failed in $FMT"
+  elif [ "$DRY" = 1 ]; then
+    glyph=✓ color=$C_GREEN label="dry run in $FMT"
+  else
+    glyph=✓ color=$C_GREEN label="converged in $FMT"
+  fi
+  case $LOG in "$HOME"/*) short=\~"${LOG#"$HOME"}" ;; esac
+  rule $((RIGHT - 2))
+  printf '\n  %s%s%s\n' "$C_SURF" "$REP" "$RST"
+  printf '    %s%s%s %s%s%s\n' "$color" "$glyph" "$RST" "$BOLD$C_TEXT" "$label" "$RST"
+  if [ "$DRY" = 1 ]; then
+    printf '    %spreview log is temporary; use --plain to retain output%s\n\n' "$C_OVR" "$RST"
+  else
+    printf '    %slog %s%s\n\n' "$C_OVR" "$short" "$RST"
+  fi
+}
+
+run_stages() {
+  local stage parts stages=() all="" i=0 n rc=0
+  for stage in $STAGES; do
+    select_parts "$stage"
+    parts=$SELECTED
+    [ -z "$parts" ] || stages+=("$stage:$parts")
+  done
+  n=${#stages[@]}
+  if [ "$n" -eq 0 ]; then
+    step warn stages "nothing selected"
+    return 0
+  fi
+  for stage in ${stages[@]+"${stages[@]}"}; do all="$all,${stage#*:}"; done
+  [ "$DRY" = 1 ] || prime_sudo "$all"
+  gather_info
+  for stage in ${stages[@]+"${stages[@]}"}; do
+    ui_run_stage "${stage%%:*}" "${stage#*:}" "$i" "$n" || rc=$?
+    [ "$rc" -eq 0 ] || return "$rc"
+    i=$((i + 1))
+  done
+}
+
+# select_parts <stage> -> SELECTED: the stage's parts (mise's own order) after --only/--skip
+select_parts() {
+  local part all
+  local IFS=,
+  case $1 in
+    packages) all=accounts,plugins,packages ;;
+    system) all=files,services,firewall,compose ;;
+    dotfiles) all=repos,dotfiles ;;
+    shell) all=mise-shell-activate,macos-defaults,macos-launchd-agents,linux-systemd-units,user ;;
+    tools) all=tools ;;
+    modules) all=task,final-hook ;;
+  esac
+  SELECTED=""
+  for part in $all; do
+    if [ -n "$ONLY" ] && ! in_list "$ONLY" "$part"; then continue; fi
+    if in_list "$SKIP" "$part"; then continue; fi
+    SELECTED="$SELECTED${SELECTED:+,}$part"
+  done
+}
+
+ui_run_stage() { # ui_run_stage <stage> <parts> <index> <total>
+  local rc=0
+  osc "1;$(($3 * 100 / $4))"
+  now_ms
+  T0=$NOW
+  if [ "$1" = shell ] && [ "$DRY" = 0 ] && shell_needs_chsh; then
+    mise_stage_attended "$1" "$2" || rc=$?
+  else
+    mise_stage "$1" "$2" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ "$1" = dotfiles ] && [ "$DRY" = 0 ] && ! dotfiles_converged; then
+    mise_stage "$1" "$2" || rc=$?
+  fi
+  now_ms
+  fmt_time $((NOW - T0))
+  if [ "$rc" -ne 0 ]; then
+    stage_failed "$1" "$rc" "$FMT"
+    return "$rc"
+  fi
+  stage_ok "$1" "$FMT"
+  osc "1;$((($3 + 1) * 100 / $4))"
+}
+
+# ---- main ----
+
+# Purpose operations are standalone: validate the original arguments before
+# stripping presentation flags or honoring help/profile shortcuts.
+purpose_operation=0
+for arg in "$@"; do
+  case $arg in --purpose | --purpose=* | --set-purpose | --set-purpose=*) purpose_operation=1 ;; esac
+done
+if [ "$purpose_operation" = 1 ]; then
+  case ${1:-} in
+    --purpose)
+      [ "$#" -eq 1 ] || die "--purpose is a standalone operation"
+      read_purpose
+      printf '%s\n' "$PURPOSE"
+      exit 0
+      ;;
+    --set-purpose)
+      [ "$#" -eq 2 ] || die "--set-purpose requires exactly one value and no other flags"
+      selected_purpose=$2
+      ;;
+    --set-purpose=*)
+      [ "$#" -eq 1 ] || die "--set-purpose is a standalone operation; omit bootstrap flags, including --dry-run"
+      selected_purpose=${1#*=}
+      ;;
+    *) die "--purpose and --set-purpose must be standalone operations" ;;
+  esac
+  case $selected_purpose in work | personal) ;; *) die "--set-purpose expects work or personal" ;; esac
+fi
+
+args=()
+for arg in "$@"; do
+  case $arg in
+    --plain) PLAIN=1 ;;
+    *) args+=("$arg") ;;
+  esac
+done
+set -- ${args[@]+"${args[@]}"}
+
+for arg in "$@"; do
+  case $arg in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --profile)
+      detect_profile
+      exit 0
+      ;;
+  esac
+done
+
+# A custom selected global file suppresses conf.d in mise. Supporting it here
+# would make setup and preview disagree about whether candidate modules load.
+if [ "${MISE_GLOBAL_CONFIG_FILE+x}" = x ] || [ "${MISE_CONFIG_FILE+x}" = x ]; then
+  die "MISE_GLOBAL_CONFIG_FILE/MISE_CONFIG_FILE is unsupported by dotfiles setup and preflight; unset it and use config.toml in MISE_CONFIG_DIR for retained user overrides"
+fi
+
+profile=$(detect_profile)
+read_purpose
+if [ "$purpose_operation" = 1 ]; then
+  validate_miserc_target
+  PURPOSE=$selected_purpose
+  write_purpose
+  write_miserc "$profile"
+  printf 'dotfiles: purpose set to %s (configuration only; no provisioning)\n' "$PURPOSE"
   exit 0
 fi
-
-update_ansible_galaxy "$dotfiles_os"
-
-# confirmVaultAccess
-
-rm -f $VAULT_SECRET_FILE
-_task_done
-ansible-playbook "$DOTFILES_DIR/main.yml" "${REMAINING_ARGS[@]}"
-
-popd 2>&1 > /dev/null
-
-if ! [[ -f "$IS_FIRST_RUN" ]]; then
-  echo ""
-  echo -e "${CHECK_MARK} ${CAT_GREEN}🎉 Dotfiles installation complete!${NC}"
-  echo ""
-  echo -e "${ARROW} ${CAT_TEAL}Next steps:${NC}"
-  echo -e "   1. Customize your setup: ${CAT_LAVENDER}nvim ~/.dotfiles/group_vars/all.yml${NC}"
-  echo -e "   2. Apply changes anytime: ${CAT_LAVENDER}dotfiles${NC}"
-  echo -e "   3. Get help: ${CAT_LAVENDER}https://discord.gg/5M4hjfyRBj${NC}"
-  echo ""
-  echo -e "${ARROW} ${CAT_TEAL}Please reboot your computer to complete the setup.${NC}"
-  echo ""
-  touch "$IS_FIRST_RUN"
+requested_dry=0
+for arg in "$@"; do
+  case $arg in -n | --dry-run) requested_dry=1 ;; esac
+done
+if use_ui "$@"; then UI=1; fi
+DRY=$requested_dry
+collect_config_args "$@"
+if [ "$DRY" = 1 ]; then
+  for arg in "$@"; do
+    case $arg in
+      --prompt-vars)
+        die "--prompt-vars saves answers even during mise dry runs; omit it for read-only preflight"
+        ;;
+      --adopt | --adopt=*)
+        die "--adopt is not supported by read-only preflight; set DOTFILES_DIR to a local checkout instead"
+        ;;
+    esac
+  done
 fi
+if [ "$DRY" = 1 ]; then prepare_preview "$profile"; fi
+if [ "$UI" = 1 ]; then ui_init "$profile" "$@"; fi
+if [ "$DRY" = 0 ]; then
+  install_prerequisites "$profile"
+  sync_repo
+  check_mise_version "$profile"
+  link_conf_d
+  write_miserc "$profile"
+fi
+set_aside_conflicts "$@"
+if [ "$UI" = 0 ]; then
+  if [ "$FORCE_PREVIEW" = 1 ]; then set -- --force-dotfiles "$@"; fi
+  if [ "$DRY" = 0 ]; then
+    cd "$MISE_CWD"
+    exec mise bootstrap --yes "$@"
+  fi
+  status=0
+  mise_in_context bootstrap --yes "$@" || status=$?
+  exit "$status"
+fi
+if [ "$FORCE_PREVIEW" = 1 ]; then PASS+=(--force-dotfiles); fi
 
-# vi:ft=sh:
+status=0
+run_stages || status=$?
+ui_footer "$status"
+exit "$status"

@@ -1,0 +1,2 @@
+mise bootstrap: login shell
+mise login_shell: already set to /usr/bin/zsh

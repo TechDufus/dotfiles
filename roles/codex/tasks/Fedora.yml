@@ -1,3 +1,0 @@
----
-- name: "{{ role_name }} | Fedora | Install | Codex CLI"
-  ansible.builtin.include_tasks: Linux.yml

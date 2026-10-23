@@ -1,5 +1,0 @@
----
-- name: "WireGuard | MacOSX | Install WireGuard"
-  community.general.homebrew:
-    name: wireguard-tools
-    state: present

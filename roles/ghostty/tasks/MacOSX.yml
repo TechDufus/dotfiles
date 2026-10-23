@@ -1,6 +1,0 @@
----
-- name: "{{ role_name }} | macOS | Install Ghostty nightly"
-  community.general.homebrew_cask:
-    name: ghostty@tip
-    state: present
-    update_homebrew: true

@@ -1,0 +1,5 @@
+[bootstrap.packages]
+"pacman:bun" = "latest"
+"pacman:helm" = "latest"
+# Public ansible/ansible-doc/ansible-playbook executables for the retained language server.
+"pacman:ansible-core" = "latest"

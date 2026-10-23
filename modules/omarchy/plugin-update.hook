@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Omarchy post-update hook, linked by mise.omarchy.toml. `omarchy update` never updates third-party
+# shell plugins, so fast-forward every git-managed one to its latest commit. Each update is
+# validated and rolled back on failure; --yes skips the diff review because they track latest.
+exec omarchy-plugin-update --yes

@@ -1,5 +1,0 @@
----
-- name: "TMATE | MacOSX | Install tmate"
-  community.general.homebrew:
-    name: tmate
-    state: present

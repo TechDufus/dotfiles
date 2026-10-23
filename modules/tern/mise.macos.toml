@@ -1,0 +1,7 @@
+[dotfiles]
+# Native mise destinations expand ~/ only; alternate TERN_CONFIG_DIR roots are unsupported.
+"~/Library/Application Support/Tern/settings.json/shared" = { source = "settings.json", merge = true }
+
+[bootstrap.macos.defaults."so.stencil.tern"]
+# Repeat held letters/numbers in terminal apps instead of offering accents.
+ApplePressAndHoldEnabled = false

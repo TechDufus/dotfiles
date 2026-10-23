@@ -1,0 +1,9 @@
+[bootstrap.packages]
+"pacman:ansible-lint" = "latest"
+"pacman:base-devel" = "latest"
+"pacman:cmake" = "latest"
+"pacman:libtool" = "latest"
+"pacman:pkgconf" = "latest"
+"pacman:ripgrep" = "latest"
+"pacman:tree-sitter-cli" = "latest"
+"pacman:unzip" = "latest"

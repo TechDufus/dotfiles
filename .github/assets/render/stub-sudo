@@ -1,0 +1,3 @@
+#!/bin/sh
+# Stand-in for sudo, used only by render.py: reports a valid ticket and never runs anything.
+exit 0

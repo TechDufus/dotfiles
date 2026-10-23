@@ -1,0 +1,19 @@
+mise bootstrap: running `bootstrap` task
+[bootstrap] $ mise run --jobs 1 'bootstrap:*'
+[bootstrap:1password] sources up-to-date, skipping
+[bootstrap:btop] $ bash settings.sh
+btop: set owned keys in ~/.config/btop/btop.conf
+[bootstrap:cursor] $ bash bootstrap.sh
+[bootstrap:devtools] $ bash bootstrap.sh
+[bootstrap:gh] $ bash bootstrap.sh
+[bootstrap:git] $ python3 bootstrap.py
+[bootstrap:k9s] $ bash bootstrap.sh
+[bootstrap:obsidian] sources up-to-date, skipping
+[bootstrap:omarchy] $ bash bootstrap.sh
+[bootstrap:omarchy-plugins] $ bash bootstrap.sh
+[bootstrap:omarchy-theme] sources up-to-date, skipping
+[bootstrap:omp] $ bash bootstrap.sh
+[bootstrap:secrets] sources up-to-date, skipping
+[bootstrap:system] sources up-to-date, skipping
+[bootstrap:taskfile] sources up-to-date, skipping
+[bootstrap:tern] $ bash bootstrap.sh

@@ -1,0 +1,6 @@
+[dotfiles]
+"~/.config/gh-dash/config.yaml" = { source = "gh-dash/config.yaml" }
+
+[tasks."bootstrap:gh"]
+description = "Install gh-dash (macOS) and upgrade gh extensions"
+run = "./bootstrap.sh"

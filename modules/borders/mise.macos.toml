@@ -1,0 +1,15 @@
+[bootstrap.packages]
+"brew:FelixKratz/formulae/borders" = "latest"
+
+[dotfiles]
+"~/.config/borders/bordersrc" = { source = "bordersrc" }
+
+[tasks."bootstrap:borders"]
+description = "Trust the formula if required, then start the borders service"
+run = "./bootstrap.sh"
+
+[tasks."bootstrap:borders-reload"]
+description = "Restart borders when bordersrc changes"
+sources = ["bordersrc"]
+outputs = { auto = true }
+run = "brew services restart borders || echo 'borders: restart failed, skipped'"

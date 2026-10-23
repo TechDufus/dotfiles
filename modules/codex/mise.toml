@@ -1,0 +1,17 @@
+[dotfiles]
+"~/.codex/AGENTS.md" = { source = "AGENTS.md" }
+"~/.codex/skills/work" = { source = "skills/work" }
+"~/.codex/skills/github-issue-hierarchy" = { source = "skills/github-issue-hierarchy" }
+"~/.codex/skills/intent" = { source = "skills/intent" }
+"~/.codex/skills/commit" = { source = "skills/commit" }
+
+# Merged, not copied: keys codex adds itself (e.g. [projects.*]) survive.
+"~/.codex/config.toml/shared" = { source = "config.toml", merge = true }
+
+# Copied: Codex does not load symlinked agent files (openai/codex#15345). Additive, so delete
+# retired agents from ~/.codex/agents by hand.
+"~/.codex/agents" = { source = "agents", mode = "copy" }
+
+[tasks."test:codex"]
+description = "Validate the codex skills"
+run = "python3 scripts/validate_skills.py skills"

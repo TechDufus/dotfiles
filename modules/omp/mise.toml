@@ -1,0 +1,44 @@
+[dotfiles]
+"~/.omp" = { permissions = "0700" }
+"~/.omp/agent" = { permissions = "0700" }
+"~/.omp/agent/overlays" = { permissions = "0700" }
+
+"~/.omp/agent/config.yml" = { source = "config.yml" }
+"~/.omp/agent/lsp.json" = { source = "lsp.json" }
+"~/.omp/agent/RULES.md" = { source = "RULES.md" }
+"~/.omp/agent/WATCHDOG.md" = { source = "WATCHDOG.md" }
+
+"~/.omp/agent/overlays/herd.yml" = { source = "overlays/herd.yml" }
+"~/.omp/agent/overlays/cursor.yml" = { source = "overlays/cursor.yml" }
+"~/.omp/agent/overlays/claude.yml" = { source = "overlays/claude.yml" }
+"~/.omp/agent/overlays/claude-sol.yml" = { source = "overlays/claude-sol.yml" }
+"~/.omp/agent/overlays/codex.yml" = { source = "overlays/codex.yml" }
+
+"~/.omp/agent/agents" = { source = "agents", mode = "symlink-each" }
+"~/.omp/agent/extensions" = { source = "extensions", mode = "symlink-each" }
+
+# herdr and worktrunk skills are linked by bootstrap:omp from upstream checkouts.
+"~/.omp/agent/skills/test-audit" = { source = "skills/test-audit" }
+"~/.omp/agent/skills/herdr-workflow" = { source = "skills/herdr-workflow" }
+"~/.omp/agent/skills/semantic-compression" = { source = "skills/semantic-compression" }
+"~/.omp/agent/skills/verification" = { source = "skills/verification" }
+"~/.omp/agent/skills/commit" = { source = "skills/commit" }
+
+"~/.local/bin/omp-cursor" = { source = "bin/omp-cursor" }
+"~/.local/bin/omp-claude" = { source = "bin/omp-claude" }
+"~/.local/bin/omp-claude-sol" = { source = "bin/omp-claude-sol" }
+"~/.local/bin/omp-codex" = { source = "bin/omp-codex" }
+
+"~/.omp/agent/AGENTS.md" = { source = "AGENTS.md" }
+
+# mcp.json is a regular file (OAuth may store credentials in it), so it is merged, never linked.
+"~/.omp/agent/mcp.json/managed" = { source = "mcp-managed.json", merge = true }
+"~/.omp/agent/mcp.json" = { permissions = "0600" }
+
+[tasks."bootstrap:omp"]
+description = "Link upstream herdr/worktrunk skills, install omp marketplace plugins and herdr's omp integration"
+run = "./bootstrap.sh"
+
+[tasks."test:omp"]
+description = "Run the omp extension tests"
+run = ["bash tests/test_herd_extension.sh", "bash tests/test_commit_ui_extension.sh"]

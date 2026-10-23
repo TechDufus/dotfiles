@@ -1,0 +1,93 @@
+mise bootstrap: repos
+git clone https://github.com/abhijeet-swami/omarchy-ayaka-theme.git /home/techdufus/.config/omarchy/themes/ayaka
+git clone https://github.com/iamanro/omarchy-omp-usage.git /home/techdufus/.config/omarchy/plugins/iamanro.omp-usage
+git clone https://github.com/robzolkos/omarchy-github.git /home/techdufus/.config/omarchy/plugins/robzolkos.github
+git clone https://github.com/piyush97/omaswitch.git /home/techdufus/.config/omarchy/plugins/piyush.omaswitch
+mise bootstrap: dotfiles
+mise WARN  [dotfiles]."~/.cursor/cli-config.json": ~/.cursor/cli-config.json does not exist; permissions not set
+mise WARN  [dotfiles]."~/.omp/agent/mcp.json": ~/.omp/agent/mcp.json does not exist; permissions not set
+mise WARN  [dotfiles]."~/.ssh": ~/.ssh does not exist; permissions not set
+cp /home/techdufus/.config/mise/conf.d/1password/agent.toml ~/.config/1Password/ssh/agent.toml
+ln -sf /home/techdufus/.config/mise/conf.d/claude/settings.json ~/.claude/settings.json
+ln -sf /home/techdufus/.config/mise/conf.d/claude/scripts ~/.claude/scripts
+ln -sf /home/techdufus/.config/mise/conf.d/claude/commands ~/.claude/commands
+ln -sf /home/techdufus/.config/mise/conf.d/claude/hooks ~/.claude/hooks
+ln -sf /home/techdufus/.config/mise/conf.d/claude/agents ~/.claude/agents
+ln -sf /home/techdufus/.config/mise/conf.d/claude/lsp.json ~/.claude/.lsp.json
+cp -r /home/techdufus/.config/mise/conf.d/claude/skills/skill-creator ~/.claude/skills/skill-creator
+ln -sf /home/techdufus/.config/mise/conf.d/codex/AGENTS.md ~/.codex/AGENTS.md
+ln -sf /home/techdufus/.config/mise/conf.d/codex/skills/work ~/.codex/skills/work
+ln -sf /home/techdufus/.config/mise/conf.d/codex/skills/github-issue-hierarchy ~/.codex/skills/github-issue-hierarchy
+ln -sf /home/techdufus/.config/mise/conf.d/codex/skills/intent ~/.codex/skills/intent
+ln -sf /home/techdufus/.config/mise/conf.d/codex/skills/commit ~/.codex/skills/commit
+cp -r /home/techdufus/.config/mise/conf.d/codex/agents ~/.codex/agents
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/statusline.sh ~/.cursor/statusline.sh
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/agents/* into ~/.cursor/agents/ (5 files)
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/rules/* into ~/.cursor/rules/ (3 files)
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/skills/commit ~/.cursor/skills/commit
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/skills/orchestrate ~/.cursor/skills/orchestrate
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/skills/ultraresearch ~/.cursor/skills/ultraresearch
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/skills/ultrathink ~/.cursor/skills/ultrathink
+ln -sf /home/techdufus/.config/mise/conf.d/cursor/skills/verification ~/.cursor/skills/verification
+ln -sf /home/techdufus/.config/mise/conf.d/gh/gh-dash/config.yaml ~/.config/gh-dash/config.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/ghostty/config ~/.config/ghostty/config
+ln -sf /home/techdufus/.config/mise/conf.d/ghostty/shaders/* into ~/.config/ghostty/shaders/ (1 files)
+ln -sf /home/techdufus/.config/mise/conf.d/ghostty/themes/* into ~/.config/ghostty/themes/ (1 files)
+ln -sf /home/techdufus/.config/mise/conf.d/git/dotfiles.gitconfig ~/.config/git/dotfiles.gitconfig
+ln -sf /home/techdufus/.config/mise/conf.d/git/commit_template ~/.config/git/commit_template
+ln -sf /home/techdufus/.config/mise/conf.d/lfk/config.yaml ~/.config/lfk/config.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/lsd/config.yaml ~/.config/lsd/config.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/lsd/colors.yaml ~/.config/lsd/colors.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/neovim/nvim ~/.config/nvim
+ln -sf /home/techdufus/.config/mise/conf.d/omp/config.yml ~/.omp/agent/config.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/lsp.json ~/.omp/agent/lsp.json
+ln -sf /home/techdufus/.config/mise/conf.d/omp/RULES.md ~/.omp/agent/RULES.md
+ln -sf /home/techdufus/.config/mise/conf.d/omp/WATCHDOG.md ~/.omp/agent/WATCHDOG.md
+ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/herd.yml ~/.omp/agent/overlays/herd.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/cursor.yml ~/.omp/agent/overlays/cursor.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude.yml ~/.omp/agent/overlays/claude.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude-sol.yml ~/.omp/agent/overlays/claude-sol.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/codex.yml ~/.omp/agent/overlays/codex.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/agents/* into ~/.omp/agent/agents/ (5 files)
+ln -sf /home/techdufus/.config/mise/conf.d/omp/extensions/* into ~/.omp/agent/extensions/ (2 files)
+ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/test-audit ~/.omp/agent/skills/test-audit
+ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/herdr-workflow ~/.omp/agent/skills/herdr-workflow
+ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/semantic-compression ~/.omp/agent/skills/semantic-compression
+ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/verification ~/.omp/agent/skills/verification
+ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/commit ~/.omp/agent/skills/commit
+ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-cursor ~/.local/bin/omp-cursor
+ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-claude ~/.local/bin/omp-claude
+ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-claude-sol ~/.local/bin/omp-claude-sol
+ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-codex ~/.local/bin/omp-codex
+ln -sf /home/techdufus/.config/mise/conf.d/omp/AGENTS.md ~/.omp/agent/AGENTS.md
+ln -sf /home/techdufus/.config/mise/conf.d/worktrunk/config.toml ~/.config/worktrunk/config.toml
+ln -sf /home/techdufus/.config/mise/conf.d/zsh/zshenv ~/.zshenv
+ln -sf /home/techdufus/.config/mise/conf.d/zsh/zshrc ~/.zshrc
+ln -sf /home/techdufus/.config/mise/conf.d/zsh/p10k.zsh ~/.p10k.zsh
+ln -sf /home/techdufus/.config/mise/conf.d/zsh/zsh/* into ~/.config/zsh/ (39 files)
+ln -sf /home/techdufus/.config/mise/conf.d/k9s/config.yaml ~/.config/k9s/config.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/k9s/plugins.yaml ~/.config/k9s/plugins.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/k9s/aliases.yaml ~/.config/k9s/aliases.yaml
+ln -sf /home/techdufus/.config/mise/conf.d/kitty/kitty.conf ~/.config/kitty/kitty.conf
+ln -sf /home/techdufus/.config/mise/conf.d/taskfile/Taskfile.yml ~/Taskfile.yml
+ln -sf /home/techdufus/.config/mise/conf.d/zsh/os/linux/os_functions.zsh ~/.config/zsh/os_functions.zsh
+ln -sf /home/techdufus/.config/mise/conf.d/k9s/k9s.yaml.tpl ~/.config/omarchy/themed/k9s.yaml.tpl
+ln -sf /home/techdufus/.config/mise/conf.d/k9s/omarchy-skin.hook ~/.config/omarchy/hooks/theme-set.d/dotfiles-k9s-skin.hook
+ln -sf /home/techdufus/.config/mise/conf.d/omarchy/hypr/* into ~/.config/hypr/dotfiles/ (9 files)
+cp /home/techdufus/.config/mise/conf.d/omarchy/fcitx5/keyboard.conf ~/.config/fcitx5/conf/keyboard.conf
+ln -sf /home/techdufus/.config/mise/conf.d/omarchy/plugin-update.hook ~/.config/omarchy/hooks/post-update.d/dotfiles-plugin-update.hook
+chmod 0700 ~/.omp
+chmod 0700 ~/.omp/agent
+chmod 0700 ~/.omp/agent/overlays
+mise bootstrap: dotfile edits
+edit ~/.codex/config.toml (merge:shared)
+edit ~/.cursor/cli-config.json (merge:managed)
+edit ~/.npmrc (line:author)
+edit ~/.npmrc (line:license)
+edit ~/.npmrc (line:save-exact)
+edit ~/.config/herdr/config.toml (merge:shared)
+edit ~/.config/jj/config.toml (merge:shared) (if changed)
+edit ~/.omp/agent/mcp.json (merge:managed)
+edit ~/.config/tern/settings.json (merge:shared)
+edit ~/.config/tern/settings.json (merge:keybinds)
+edit ~/.config/hypr/autostart.lua (block:dotfiles)

@@ -1,3 +1,0 @@
----
-- name: "{{ role_name }} | Archlinux | Install lfk from GitHub Release"
-  ansible.builtin.include_tasks: install_github_release.yml

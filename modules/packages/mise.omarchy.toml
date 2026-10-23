@@ -1,0 +1,3 @@
+# Omarchy ships brave-bin from its own pacman repo.
+[bootstrap.packages]
+"pacman:brave-bin" = "latest"

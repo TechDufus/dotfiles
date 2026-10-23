@@ -1,0 +1,8 @@
+[bootstrap.packages]
+"brew:zsh" = "latest"
+
+[bootstrap.user]
+login_shell = "/opt/homebrew/bin/zsh"
+
+[dotfiles]
+"~/.config/zsh/os_functions.zsh" = { source = "os/macos/os_functions.zsh" }

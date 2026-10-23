@@ -1,0 +1,7 @@
+[tasks."bootstrap:tern"]
+description = "Reset tern settings that must stay at Tern's defaults"
+run = "./bootstrap.sh"
+
+[tasks."test:tern"]
+description = "Test Tern's standard-root settings reset without launching the app"
+run = "bash tests/test_bootstrap.sh"

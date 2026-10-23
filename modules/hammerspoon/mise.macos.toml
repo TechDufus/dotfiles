@@ -1,0 +1,24 @@
+[bootstrap.packages]
+"brew-cask:hammerspoon" = "latest"
+"brew-cask:karabiner-elements" = "latest"
+
+[dotfiles]
+# Copied: Karabiner does not notice changes made through a symlinked karabiner.json.
+"~/.config/karabiner/karabiner.json" = { source = "karabiner/karabiner.json", mode = "copy" }
+# Copied: init.lua's pathwatcher reloads on changes inside ~/.hammerspoon, which edits to a
+# link's target elsewhere would not trigger.
+"~/.hammerspoon" = { source = "config", mode = "copy" }
+# Legacy top-level modules, now under config/
+"~/.hammerspoon/grid.lua" = { mode = "absent" }
+"~/.hammerspoon/karabiner.lua" = { mode = "absent" }
+"~/.hammerspoon/screens.lua" = { mode = "absent" }
+"~/.hammerspoon/summon.lua" = { mode = "absent" }
+"~/.hammerspoon/workspaces.lua" = { mode = "absent" }
+
+[tasks."bootstrap:hammerspoon"]
+description = "Install the GridLayout and WorkspaceManager spoons"
+run = "./bootstrap.sh"
+
+[tasks."test:hammerspoon"]
+description = "Run the Hammerspoon Lua and isolated Spoon installer tests"
+run = ["lua tests/test_ax_enhanced_ui.lua", "lua tests/test_window_cycle.lua", "python3 tests/test_bootstrap.py"]

@@ -1,0 +1,52 @@
+[dotfiles]
+"~/.config/hypr/dotfiles" = { source = "hypr", mode = "symlink-each" }
+# Copied: fcitx5's config tool saves by temp-file rename, which would replace a link.
+"~/.config/fcitx5/conf/keyboard.conf" = { source = "fcitx5/keyboard.conf", mode = "copy" }
+# Required from autostart.lua (not hyprland.lua) so Omarchy's refresh of hyprland.lua cannot drop it;
+# hyprland.lua loads hypr.autostart before default.hypr.toggles.
+"~/.config/hypr/autostart.lua/dotfiles" = { block = 'require("hypr.dotfiles.main")' }
+"~/.config/omarchy/hooks/post-update.d/dotfiles-plugin-update.hook" = { source = "plugin-update.hook" }
+
+[tasks."bootstrap:omarchy"]
+description = "Reload Hyprland, validate its config, restart fcitx5"
+sources = ["hypr/*.lua", "fcitx5/keyboard.conf"]
+outputs = { auto = true }
+run = "./bootstrap.sh"
+
+# Omarchy themes from git repos: each is cloned into ~/.config/omarchy/themes/<name>, where
+# Omarchy's theme menu finds it (<name> drops "omarchy-" and "-theme"). The url must match an
+# existing clone's origin exactly, or mise stops the run. `dotfiles --update` fast-forwards them.
+[bootstrap.repos."~/.config/omarchy/themes/ayaka"]
+url = "https://github.com/abhijeet-swami/omarchy-ayaka-theme.git"
+
+# Switches to this theme once per value; a later pick in Omarchy's theme menu stays until it
+# changes. Built-in themes (catppuccin, tokyo-night, ...) need no repo entry above.
+[tasks."bootstrap:omarchy-theme"]
+description = "Switch to the default Omarchy theme once per default"
+env = { OMARCHY_DEFAULT_THEME = "ayaka" }
+run = "./theme.sh"
+
+# Shell plugins from git repos, cloned where `omarchy plugin add` puts them:
+# ~/.config/omarchy/plugins/<manifest id>. Unpinned, so an offline `dotfiles` run never fetches
+# them; `omarchy update` brings them to latest through plugin-update.hook, as does `dotfiles --update`.
+[bootstrap.repos."~/.config/omarchy/plugins/iamanro.omp-usage"]
+url = "https://github.com/iamanro/omarchy-omp-usage.git"
+
+[bootstrap.repos."~/.config/omarchy/plugins/robzolkos.github"]
+url = "https://github.com/robzolkos/omarchy-github.git"
+
+# Alt+Tab switcher overlay. cells.lua hands Alt+Tab to it while it is installed and enabled, so
+# removing or disabling it needs no keybinding change.
+[bootstrap.repos."~/.config/omarchy/plugins/piyush.omaswitch"]
+url = "https://github.com/piyush97/omaswitch.git"
+
+# Enables the plugins above (bar widgets go in the bar) and takes the stock Agents widget out
+# (omp-usage replaces it), once per value of the two lists: a later change stays until a list changes.
+[tasks."bootstrap:omarchy-plugins"]
+description = "Enable the Omarchy shell plugins once per plugin list"
+env = { OMARCHY_PLUGINS = "iamanro.omp-usage robzolkos.github piyush.omaswitch", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
+run = "./plugins.sh"
+
+[tasks."test:omarchy"]
+description = "Run the summon, cells, monitors, default-theme and shell-plugin tests"
+run = ["lua tests/test_summon.lua", "lua tests/test_cells.lua", "lua tests/test_monitors.lua", "bash tests/test_theme.sh", "bash tests/test_plugins.sh"]

@@ -1,0 +1,17 @@
+if [ -n "${BASH_VERSION:-}" ] && [ -n "${PS1:-}" ]; then
+    # include .bashrc if it exists
+    if [ -f "$HOME/.bashrc" ]; then
+    . "$HOME/.bashrc"
+    fi
+fi
+
+# Login/noninteractive consumers need these independently of interactive Bash.
+for _dotfiles_optional_bin in "$HOME/.docker/bin" "$HOME/.lmstudio/bin"; do
+    [ -d "$_dotfiles_optional_bin" ] || continue
+    case ":$PATH:" in
+        *":$_dotfiles_optional_bin:"*) ;;
+        *) PATH="${PATH:+$PATH:}$_dotfiles_optional_bin" ;;
+    esac
+done
+export PATH
+unset _dotfiles_optional_bin

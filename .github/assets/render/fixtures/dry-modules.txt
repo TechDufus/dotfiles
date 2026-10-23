@@ -1,0 +1,2 @@
+mise bootstrap: running `bootstrap` task
+[bootstrap] $ mise run --jobs 1 'bootstrap:*'

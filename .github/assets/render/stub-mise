@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Stand-in for mise, used only by render.py so that the real bin/dotfiles UI can run
+# unattended and deterministically. It answers exactly the calls bin/dotfiles makes and
+# replays recorded output from $STUB_FIXTURES (see capture-fixtures.sh). Nothing is installed.
+#
+#   STUB_FAIL_STAGE=<stage>  that stage prints fixtures/fail-<stage>.txt and exits 1
+#   STUB_SPEED=<float>       scales the per-stage sleeps (default 1)
+#
+# Stage sleeps mimic a real run so the elapsed times in the screen look natural.
+set -u
+fx=${STUB_FIXTURES:?STUB_FIXTURES not set}
+speed=${STUB_SPEED:-1}
+
+nap() { sleep "$(awk -v s="$1" -v k="$speed" 'BEGIN { printf "%.2f", s * k }')"; }
+
+case ${1:-} in
+  --version)
+    echo "2026.10.12 linux-x64 (2026-10-16)"
+    exit 0
+    ;;
+esac
+
+case "${1:-} ${2:-}" in
+  "tasks ls") cat "$fx/tasks"; exit 0 ;;
+  "ls --missing") nap 0.3; cat "$fx/missing"; exit 0 ;;
+  "bootstrap plan") nap 0.4; cat "$fx/plan.json"; exit 0 ;;
+  "bootstrap user") echo "/usr/bin/zsh  /usr/bin/zsh  set"; exit 0 ;;
+  "dot status")
+    case " $* " in *" --json "*) nap 0.5; cat "$fx/dot.json" ;; esac
+    exit 0
+    ;;
+  "dot apply") exit 0 ;;
+esac
+
+# mise bootstrap --yes --only <parts> [--dry-run ...]
+only="" prev="" dry=0
+for a in "$@"; do
+  [ "$prev" != --only ] || only=$a
+  [ "$a" != --dry-run ] || dry=1
+  prev=$a
+done
+[ -n "$only" ] || exit 0
+
+case $only in
+  accounts,plugins,packages) stage=packages secs=2.6 dry_secs=0.7 ;;
+  files,services,firewall,compose) stage=system secs=0.9 dry_secs=0.5 ;;
+  repos,dotfiles) stage=dotfiles secs=2.1 dry_secs=1.3 ;;
+  mise-shell-activate,*) stage=shell secs=0.6 dry_secs=0.4 ;;
+  tools) stage=tools secs=7.8 dry_secs=1.6 ;;
+  task,final-hook) stage=modules secs=9.4 dry_secs=0.6 ;;
+  *) echo "stub mise: unknown parts $only" >&2; exit 2 ;;
+esac
+
+if [ "$dry" = 1 ]; then
+  nap "$dry_secs"
+  cat "$fx/dry-$stage.txt"
+  exit 0
+fi
+
+if [ "${STUB_FAIL_STAGE:-}" = "$stage" ]; then
+  nap 5.2
+  cat "$fx/fail-$stage.txt"
+  exit 1
+fi
+cat "$fx/apply-$stage.txt"
+nap "$secs"
+exit 0

@@ -7,6 +7,7 @@ Personal dotfiles applied with mise: `mise bootstrap`, `[dotfiles]`, `[tools]`, 
 - Wrapper configuration/task context defaults to HOME, not the caller's project; `DOTFILES_DIR` selects only the source checkout. Explicit `-C` / `--cd` keeps caller-relative resolution and deliberately selects one consistent context for preview, bootstrap, and status, with plain-mode output. Do not silently discard an explicit context or mix it with HOME-only probes.
 - `modules/<name>/`: one mise conf.d folder per module: env files, config sources, `bootstrap.sh`, `tests/`.
 - `modules/base`: `min_version`, package managers, and the `bootstrap` and `check` tasks.
+- `.github/assets/`: README images. `python3 .github/assets/render/render.py` regenerates them on an Omarchy machine with these dotfiles applied: the real `bin/dotfiles` UI against a stub mise (`stub-mise` + `fixtures/`) in a private tmux server, never the real HOME. Re-render after changing the wrapper's UI.
 
 ## Profiles, purpose, and env files
 `bin/dotfiles` detects the profile from `/etc/os-release` (`DOTFILES_PROFILE` overrides it): `omarchy` (Hyprland), `cachyos` (KDE Plasma), or `macos`. Profiles describe OS/session, not chassis: Omarchy supports laptops and desktops.

@@ -1,0 +1,2 @@
+mise bootstrap: system files
+mise system files: already converged

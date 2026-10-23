@@ -1,0 +1,2 @@
+mise bootstrap: system packages
+mise pacman: 51 package(s) already installed

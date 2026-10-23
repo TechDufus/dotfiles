@@ -1,8 +1,34 @@
 <div align="center">
 
-![dotfiles-logo](https://github.com/TechDufus/dotfiles/assets/46715299/6c1d626d-28d2-41e3-bde5-981d9bf93462)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/header-dark.png">
+  <img src=".github/assets/header-light.png" alt="dotfiles" width="720">
+</picture>
 
-[![CI status](https://github.com/TechDufus/dotfiles/actions/workflows/mise.yml/badge.svg)](https://github.com/TechDufus/dotfiles/actions/workflows/mise.yml)
+**One command to converge a whole machine: Omarchy, macOS, or CachyOS.**
+
+<a href="https://github.com/TechDufus/dotfiles/actions/workflows/mise.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/TechDufus/dotfiles/mise.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=cdd6f4&label=CI&labelColor=1e1e2e&color=a6e3a1"></a>
+<a href="https://github.com/TechDufus/dotfiles/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/TechDufus/dotfiles?style=for-the-badge&logo=github&logoColor=cdd6f4&labelColor=1e1e2e&color=cba6f7"></a>
+<a href="https://github.com/TechDufus/dotfiles/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/TechDufus/dotfiles?style=for-the-badge&logo=git&logoColor=cdd6f4&labelColor=1e1e2e&color=89b4fa"></a>
+<a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/TechDufus/dotfiles?style=for-the-badge&logo=apache&logoColor=cdd6f4&labelColor=1e1e2e&color=fab387"></a>
+
+<img alt="Omarchy" src="https://img.shields.io/badge/Omarchy-Hyprland-b4befe?style=for-the-badge&logo=archlinux&logoColor=cdd6f4&labelColor=1e1e2e">
+<img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20Silicon-cdd6f4?style=for-the-badge&logo=apple&logoColor=cdd6f4&labelColor=1e1e2e">
+<img alt="CachyOS" src="https://img.shields.io/badge/CachyOS-KDE%20Plasma-94e2d5?style=for-the-badge&logo=cachyos&logoColor=cdd6f4&labelColor=1e1e2e">
+<a href="https://mise.jdx.dev"><img alt="Applied with mise" src="https://img.shields.io/badge/applied%20with-mise-fab387?style=for-the-badge&labelColor=1e1e2e"></a>
+
+<a href="#bootstrap"><kbd> <br> Bootstrap <br> </kbd></a>&ensp;
+<a href="#daily-use"><kbd> <br> Daily use <br> </kbd></a>&ensp;
+<a href="#keybindings"><kbd> <br> Keybindings <br> </kbd></a>&ensp;
+<a href="#gallery"><kbd> <br> Gallery <br> </kbd></a>&ensp;
+<a href="#validation"><kbd> <br> Validation <br> </kbd></a>&ensp;
+<a href="#layout"><kbd> <br> Layout <br> </kbd></a>&ensp;
+
+<br>
+
+<img src=".github/assets/hero.png" width="100%" alt="Omarchy desktop with four tiled terminals: the dotfiles CLI converging the machine, lsd listing modules/, Neovim on cells.lua, and fastfetch">
+
+<em>The real <code>bin/dotfiles</code> UI converging Omarchy against a stubbed mise, next to this repo's Neovim and prompt, rendered by <a href=".github/assets/render/render.py"><code>render.py</code></a>.</em>
 
 </div>
 
@@ -22,6 +48,16 @@ Other systems stop with `unsupported machine`. The earlier Ansible provisioning 
 
 > [!NOTE]
 > Public for reference, not as a framework. Read before you borrow.
+
+## Highlights
+
+- One command bootstraps a machine: `bin/dotfiles` installs git and mise, clones or pulls `~/.dotfiles`, links `conf.d` to `modules/`, records the profile and purpose, then runs mise bootstrap.
+- In a terminal, the run goes one stage at a time (packages, system, dotfiles, shell, tools, modules) with a live summary, and mise's full output is kept in `~/.local/state/dotfiles/last-run.log`.
+- Nothing in the way of a link gets overwritten: a conflicting target is preserved in a unique `<target>.pre-dotfiles.<epoch>.<random>/original` directory.
+- Three profiles, `omarchy`, `macos` and `cachyos`, describe the OS and session; the work or personal purpose is independent of them.
+- 43 modules, each one mise `conf.d` folder under `modules/`.
+- macOS and Omarchy share the same CapsLock summon leader: **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty.
+- Module test suites (`test:*`) run in CI on Arch (Omarchy and CachyOS environments) and on macOS.
 
 ## Bootstrap
 
@@ -63,13 +99,21 @@ In a terminal, `dotfiles` runs those steps one stage at a time with a live summa
 | `MISE_TASK_RUN_AUTO_INSTALL=false mise run check` | Dry run plus module tests; use the full validation command below from `~` |
 | `update` | Profile-specific system upgrade: native `omarchy-update`, CachyOS package tasks, or Homebrew |
 
+<details>
+<summary>Context, dry-run, and maintenance notes</summary>
+
 The wrapper evaluates mise configuration and tasks from **HOME by default**, even when invoked inside another project. `DOTFILES_DIR` selects the source checkout, not the task context. An explicit `-C` / `--cd` deliberately selects another context for preview, bootstrap, and status, preserves paths relative to the caller's original directory, and selects plain mode. That project's tools, dotfiles, and tasks can then participate; use this override only intentionally.
 
 Dry-run retains the configured global context when this checkout, profile, and purpose are already configured. First-run previews use scratch configuration; retained global configuration that cannot be represented faithfully causes an explicit refusal. If an older generated mise selection lacks purpose, run the config-only `dotfiles --set-purpose work` (or `personal`) first, then retry the preview. Preview never updates the live purpose or discovery settings. Custom `MISE_GLOBAL_CONFIG_FILE`/`MISE_CONFIG_FILE` selections are unsupported by the wrapper. Mise can still evaluate trusted templates and update metadata/state/caches: use isolated HOME/XDG/mise directories and filesystem confinement for experiments.
 
 Taskfile maintenance follows the OS profile: Omarchy uses its native updater. CachyOS retains its package/AUR maintenance, cache cleanup, and Plasma/Steam desktop-health checks; those CachyOS-only consumers are not installed or run on Omarchy.
 
+</details>
+
 ### Machine purpose
+
+<details>
+<summary>Purpose marker, generated mise settings, and package restrictions</summary>
 
 Purpose is independent of the OS profile: any supported profile can be `work` or `personal`. An unmarked machine defaults to `personal`, preserving the usual setup on other machines. The local, untracked marker is `${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/purpose`; invalid or empty stored values stop the wrapper before provisioning rather than silently selecting personal.
 
@@ -97,47 +141,9 @@ MISE_AUTO_ENV=true mise -E omarchy,personal bootstrap packages status --json
 
 [`status`](https://mise.jdx.dev/cli/bootstrap/packages/status.html) does not install packages or use sudo. Discord should be absent from the work request and present in the personal control; shared package requests should remain unchanged. A work status does not prove Discord is absent from the machine, and cross-platform selection on macOS is not native Linux runtime verification.
 
-## Validation
+</details>
 
-Run the gate from HOME so an unrelated project's config or `check` task cannot shadow the dotfiles:
-
-```bash
-cd ~ &&
-  MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true \
-  DOTFILES_TEST_REAL_MISE="$(command -v mise)" mise run check
-```
-
-Set `MISE_TASK_RUN_AUTO_INSTALL=false` **before** the outer `mise run` starts; setting it inside a task is too late to prevent tool installation. This invocation does not disable normal auto-install globally. `DOTFILES_TEST_REAL_MISE` must name a trusted, compatible installed mise executable; it enables the native source-relative preview fixture without installing or applying dotfiles.
-
-Install the gate's prerequisites separately before running it: Git, Bash, Zsh, Lua, Bun, jq, Python 3, and the platform's standard utilities. macOS CI runs every loaded `test:*` module suite from HOME with the same native fixture enabled, not just the Hammerspoon suite.
-
-A dry run or a macOS-hosted Linux profile-selection check is not native Linux runtime verification. Check the relevant Omarchy or CachyOS services, desktop/session behavior, and optional task outcomes on that OS; do not treat macOS CI as proof that all Linux paths ran.
-
-The separate Linux sudoers regression gate is not part of the wildcard module suites:
-
-```bash
-cd ~ &&
-  MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true mise run check:system-sudoers
-```
-
-It requires a non-root Linux account, installed `visudo`, bubblewrap, permitted unprivileged user/PID namespaces, and an existing `/etc/sudoers.d`. It maps a disposable policy directory and does not invoke real sudo or write a live grant. Run it on a suitable Linux executor; namespace restrictions are a reported failure, not proof that the policy passed.
-
-The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packaged sudo/bubblewrap and runs the same test script directly as the non-root runner account, outside the wildcard suites. It does not weaken host namespace restrictions. This route covers isolated sudoers safety, not full Omarchy/CachyOS provisioning or desktop runtime; consult the workflow results for execution evidence.
-
-## macOS migration
-
-- Existing stable Raycast is preserved, including hand-installed copies; the stable Homebrew cask is installed only when the app is absent. The migration neither installs Beta nor deletes stable.
-- Existing sudo policy is left untouched. Privileged changes can still require authentication.
-- The 1Password SSH agent selects only `Personal` on macOS; other profiles retain their shared selections.
-- Claude uses a Mac-specific, symlinked settings source containing only theme and TUI. It does not enable the shared permission/plugin/hook profile. The Herdr-generated session hook is neither carried forward nor registered.
-- Hammerspoon uses lowercase `t` for Tern and uppercase `T` for Ghostty. Spoon updates validate both releases before replacement, restore prior installations on failure/interruption, and leave unchanged installs untouched. If restoration fails, the reported transaction directory retains the originals.
-- Tern's macOS profile disables the press-and-hold accent menu for `so.stencil.tern` so held letters and numbers can repeat. Global repeat timing and other apps are unchanged. Fully quit and reopen Tern after applying this preference; reloading its settings alone is insufficient.
-- On macOS, mise shims take precedence over local CLI installations, including app-owned launchers such as Tern's `omp`. Login Zsh restores this order after Apple's `path_helper`. Linux keeps its intentional local-wrapper-first order; optional CLI paths remain available on both platforms. pnpm uses native upstream releases rather than npm lifecycle scripts.
-- Vimscript language-server installation is no longer managed. An existing Bun-global `vim-language-server` must be removed during an approved cutover if OMP's built-in discovery should stop finding it; Vim syntax parsers remain available.
-- Yazi's Mac profile owns its config and theme; its current built-in keymap replaces the empty legacy keymap. Obsolete Plasma, rofimoji, and OpenCode companion links are retired only on macOS.
-- Neovim generates a new ignored `lazy-lock.json` from its configured plugins instead of carrying forward the old role's lock. macOS declares Ruby for Mason's Solargraph and selects it inside Neovim without changing the shell's Ruby. Go-tool builds report installation failures rather than completing before their installers.
-- Neovim's shared theme explicitly selects Catppuccin Mocha, with transparent editing areas and ordinary floating windows rather than near-black overrides. It inherits the terminal background; window opacity remains a terminal setting, and selections/statuslines retain their own contrast.
-- The global TypeScript compiler remains on `latest`. TypeScript language-server 6 carries a private compatible SDK 6 through its mise postinstall hook, without adding competing compiler executables.
+## Keybindings
 
 ### Mac bindings
 
@@ -175,15 +181,7 @@ Karabiner maps CapsLock to the Hammerspoon app leader: **tap CapsLock, then the 
 
 Tap CapsLock twice, or F16 once, for the macro leader: `s` takes a screenshot to the clipboard, `e` opens the emoji picker, and `a` selects the next window of the current app. `b`, `t`, and `g` send the configured Raycast bookmark, tab, and GIF-search chords; those integrations require matching Raycast actions.
 
-### Tern
-
-Native mise merges and the bootstrap reset both use the standard Tern roots: `~/Library/Application Support/Tern` on macOS and `~/.config/tern` on Linux. `TERN_CONFIG_DIR` and a custom `XDG_CONFIG_HOME` are not supported by this module; the old role's alternate-root behavior is not carried forward.
-
-Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs, BerkeleyMono Nerd Font, copy-on-select, and the Console chat style (`surface_chat`). Bootstrap removes the legacy explicit opacity override so Tern's default applies. Use **Reload settings (`Control+Shift+F5`)** after settings cleanup; the macOS held-key-repeat preference above instead requires a full quit and reopen.
-
-macOS and Omarchy now share **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
-
-## Omarchy screens
+### Omarchy screens
 
 Super stands in for Command. As on the Mac, each screen has a layout of cells, and each app has a cell in every layout.
 
@@ -204,7 +202,17 @@ Every window is fully opaque, focused or not; Omarchy's default translucency is 
 
 `modules/omarchy/hypr/monitors.lua` sets up the desk with the Acer VG281K 4K and the HP P224 1080p. The HP is on the left, the 4K is main, and the cursor starts there at login. Workspaces 1–3 (terminal, browser, Obsidian) live on the 4K, and workspaces 4–5 (chat, music) on the HP. The HP defaults to the Fullscreen layout. These rules match the panels by description, and the workspace bindings apply only while both panels are connected, so other machines are unaffected.
 
-## Omarchy shell plugins
+## Apps
+
+### Tern
+
+Native mise merges and the bootstrap reset both use the standard Tern roots: `~/Library/Application Support/Tern` on macOS and `~/.config/tern` on Linux. `TERN_CONFIG_DIR` and a custom `XDG_CONFIG_HOME` are not supported by this module; the old role's alternate-root behavior is not carried forward.
+
+Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs, BerkeleyMono Nerd Font, copy-on-select, and the Console chat style (`surface_chat`). Bootstrap removes the legacy explicit opacity override so Tern's default applies. Use **Reload settings (`Control+Shift+F5`)** after settings cleanup; the macOS held-key-repeat preference in [macOS migration](#macos-migration) instead requires a full quit and reopen.
+
+macOS and Omarchy now share **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
+
+### Omarchy shell plugins
 
 `mise.omarchy.toml` clones three shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to), [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions) and [OmaSwitch](https://github.com/piyush97/omaswitch) (Alt+Tab switcher with live previews). `bootstrap:omarchy-plugins` enables them, putting the two widgets in the bar, and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes stay until a list changes. Outside a session it waits for the next run.
 
@@ -212,7 +220,77 @@ Alt+Tab opens OmaSwitch only while it is installed and enabled; on each press `c
 
 The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `omarchy update` does not update third-party plugins by itself, so a linked post-update hook runs `omarchy plugin update --yes`: every update brings all git-managed plugins to their latest commit, validated and rolled back on failure. `dotfiles --update` also fast-forwards them; a plain `dotfiles` run never fetches them.
 
-## Migration ownership and rollback
+## Gallery
+
+<table>
+  <tr>
+    <td width="50%"><img src=".github/assets/dry-run.png" alt="Ghostty window running dotfiles --dry-run, with every stage previewed"></td>
+    <td width="50%"><img src=".github/assets/failure.png" alt="Ghostty window showing a failed stage and the last lines of its log"></td>
+  </tr>
+  <tr>
+    <td align="center"><em><code>dotfiles --dry-run</code> previews local modules without setup, pulling, or conflict moves.</em></td>
+    <td align="center"><em>A failed stage stops the run and shows the last lines of its log.</em></td>
+  </tr>
+</table>
+
+## Validation
+
+Run the gate from HOME so an unrelated project's config or `check` task cannot shadow the dotfiles:
+
+```bash
+cd ~ &&
+  MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true \
+  DOTFILES_TEST_REAL_MISE="$(command -v mise)" mise run check
+```
+
+Set `MISE_TASK_RUN_AUTO_INSTALL=false` **before** the outer `mise run` starts; setting it inside a task is too late to prevent tool installation. This invocation does not disable normal auto-install globally. `DOTFILES_TEST_REAL_MISE` must name a trusted, compatible installed mise executable; it enables the native source-relative preview fixture without installing or applying dotfiles.
+
+Install the gate's prerequisites separately before running it: Git, Bash, Zsh, Lua, Bun, jq, Python 3, and the platform's standard utilities. macOS CI runs every loaded `test:*` module suite from HOME with the same native fixture enabled, not just the Hammerspoon suite.
+
+A dry run or a macOS-hosted Linux profile-selection check is not native Linux runtime verification. Check the relevant Omarchy or CachyOS services, desktop/session behavior, and optional task outcomes on that OS; do not treat macOS CI as proof that all Linux paths ran.
+
+<details>
+<summary>Linux sudoers regression gate</summary>
+
+The separate Linux sudoers regression gate is not part of the wildcard module suites:
+
+```bash
+cd ~ &&
+  MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true mise run check:system-sudoers
+```
+
+It requires a non-root Linux account, installed `visudo`, bubblewrap, permitted unprivileged user/PID namespaces, and an existing `/etc/sudoers.d`. It maps a disposable policy directory and does not invoke real sudo or write a live grant. Run it on a suitable Linux executor; namespace restrictions are a reported failure, not proof that the policy passed.
+
+The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packaged sudo/bubblewrap and runs the same test script directly as the non-root runner account, outside the wildcard suites. It does not weaken host namespace restrictions. This route covers isolated sudoers safety, not full Omarchy/CachyOS provisioning or desktop runtime; consult the workflow results for execution evidence.
+
+</details>
+
+## Migration
+
+### macOS migration
+
+<details>
+<summary>macOS migration notes</summary>
+
+- Existing stable Raycast is preserved, including hand-installed copies; the stable Homebrew cask is installed only when the app is absent. The migration neither installs Beta nor deletes stable.
+- Existing sudo policy is left untouched. Privileged changes can still require authentication.
+- The 1Password SSH agent selects only `Personal` on macOS; other profiles retain their shared selections.
+- Claude uses a Mac-specific, symlinked settings source containing only theme and TUI. It does not enable the shared permission/plugin/hook profile. The Herdr-generated session hook is neither carried forward nor registered.
+- Hammerspoon uses lowercase `t` for Tern and uppercase `T` for Ghostty. Spoon updates validate both releases before replacement, restore prior installations on failure/interruption, and leave unchanged installs untouched. If restoration fails, the reported transaction directory retains the originals.
+- Tern's macOS profile disables the press-and-hold accent menu for `so.stencil.tern` so held letters and numbers can repeat. Global repeat timing and other apps are unchanged. Fully quit and reopen Tern after applying this preference; reloading its settings alone is insufficient.
+- On macOS, mise shims take precedence over local CLI installations, including app-owned launchers such as Tern's `omp`. Login Zsh restores this order after Apple's `path_helper`. Linux keeps its intentional local-wrapper-first order; optional CLI paths remain available on both platforms. pnpm uses native upstream releases rather than npm lifecycle scripts.
+- Vimscript language-server installation is no longer managed. An existing Bun-global `vim-language-server` must be removed during an approved cutover if OMP's built-in discovery should stop finding it; Vim syntax parsers remain available.
+- Yazi's Mac profile owns its config and theme; its current built-in keymap replaces the empty legacy keymap. Obsolete Plasma, rofimoji, and OpenCode companion links are retired only on macOS.
+- Neovim generates a new ignored `lazy-lock.json` from its configured plugins instead of carrying forward the old role's lock. macOS declares Ruby for Mason's Solargraph and selects it inside Neovim without changing the shell's Ruby. Go-tool builds report installation failures rather than completing before their installers.
+- Neovim's shared theme explicitly selects Catppuccin Mocha, with transparent editing areas and ordinary floating windows rather than near-black overrides. It inherits the terminal background; window opacity remains a terminal setting, and selections/statuslines retain their own contrast.
+- The global TypeScript compiler remains on `latest`. TypeScript language-server 6 carries a private compatible SDK 6 through its mise postinstall hook, without adding competing compiler executables.
+
+</details>
+
+### Migration ownership and rollback
+
+<details>
+<summary>Ownership changes, sudoers validation, and Ansible cutover</summary>
 
 - Ansible is retained as a development-tool dependency for the Ansible language server, not as the provisioning engine. macOS owns standalone Ansible through Homebrew; Linux owns `ansible-core` and `ansible-lint` through pacman. The existing macOS Neovim profile also owns `ansible-lint`.
 - `bootstrap:git` places one owned include block at the end of `~/.gitconfig`, after historical globals. After successful migration, defaults and the generated `~/.config/git/identity.gitconfig` are loaded once; macOS also includes its platform defaults. Explicit repository-local settings still win. Cleanup removes only exact obsolete `dotfiles` / `dotfiles-macos` blocks from `~/.config/git/config` (or an active XDG config root within HOME), preserving unrelated contents and both global files. This transfers ownership without requiring a change to an already-correct identity.
@@ -245,6 +323,8 @@ For an Ansible cutover, use a plain terminal and a fixed reviewed revision. Pres
 
 Relink configurations before broader provisioning, run again to settle permissions on merge-created files, then require clean `mise dot status --missing` and a no-change repeat. Verify signing, service health, actual application behavior, and any fail-soft task outcomes separately. A Git checkout reversal does not undo installed tools, services, shell registration, copies, merges, or removals; preserve a verified private rollback snapshot of the affected live configuration and ownership rather than treating a branch switch as a transaction.
 
+</details>
+
 ## Layout
 
 ```text
@@ -256,6 +336,20 @@ modules/<name>/       one mise conf.d folder per module
   mise.omarchy.toml   Omarchy / Hyprland
   mise.cachyos.toml   CachyOS / KDE Plasma
   <config files>, bootstrap.sh, tests/
+.github/assets/       README images; render/render.py regenerates them
 ```
 
 [AGENTS.md](AGENTS.md) has the rules for changing modules.
+
+## Star history
+
+<a href="https://www.star-history.com/#techdufus/dotfiles&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=techdufus/dotfiles&type=Date&theme=dark">
+    <img alt="Star history" src="https://api.star-history.com/svg?repos=techdufus/dotfiles&type=Date" width="600">
+  </picture>
+</a>
+
+## License
+
+Apache-2.0, see [LICENSE](LICENSE).

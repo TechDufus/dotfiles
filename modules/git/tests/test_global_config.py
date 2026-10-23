@@ -37,7 +37,8 @@ class GitGlobalConsumption(unittest.TestCase):
             self.fail("real Git is required by the Git module test gate")
         self.temp = tempfile.TemporaryDirectory(prefix="dotfiles-git-")
         self.addCleanup(self.temp.cleanup)
-        self.home = Path(self.temp.name) / "home"
+        # macOS TMPDIR is a /var -> /private/var alias; a real HOME is canonical.
+        self.home = Path(self.temp.name).resolve(strict=True) / "home"
         self.home.mkdir(mode=0o700)
         self.config = self.home / ".gitconfig"
         self.git_dir = self.home / ".config/git"

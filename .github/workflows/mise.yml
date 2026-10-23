@@ -18,7 +18,7 @@ jobs:
     container: archlinux:latest
     steps:
       - name: Install prerequisites
-        run: pacman -Syu --noconfirm mise git zsh lua bun jq python python-yaml
+        run: pacman -Syu --noconfirm mise git zsh lua bun jq python python-yaml diffutils
 
       - name: Checkout code
         uses: actions/checkout@v7
@@ -123,8 +123,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes sudo bubblewrap
 
-      # Use the packaged bubblewrap/AppArmor policy; never weaken host namespace
-      # restrictions or run this suite as root. Missing support must fail loudly.
+      # Ubuntu 24.04 blocks unprivileged user namespaces via AppArmor
+      # (kernel.apparmor_restrict_unprivileged_userns=1). Grant them to bwrap only,
+      # through a profile for /usr/bin/bwrap; the sysctl stays on for everything else.
+      # The suite still runs as the non-root runner. Missing support must fail loudly.
+      - name: Allow user namespaces for bubblewrap only
+        run: |
+          sudo tee /etc/apparmor.d/bwrap >/dev/null <<'EOF'
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          EOF
+          sudo apparmor_parser -r /etc/apparmor.d/bwrap
+          bwrap --unshare-user --uid 0 --ro-bind / / true
+
       - name: Test isolated sudoers policy as the runner account
         run: bash modules/system/tests/test_sudoers.sh
 
@@ -152,7 +167,8 @@ jobs:
       - name: Dry-run macos
         run: |
           cd ~
-          MISE_AUTO_ENV=true mise bootstrap --dry-run --yes
+          # The runner image ships ~/.bashrc; bin/dotfiles sets such conflicts aside, raw mise refuses.
+          MISE_AUTO_ENV=true mise bootstrap --dry-run --yes --force-dotfiles
 
       - name: Tests (all loaded macos modules)
         run: |

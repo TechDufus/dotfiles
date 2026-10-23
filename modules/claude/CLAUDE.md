@@ -28,11 +28,7 @@
 - Delete obsolete code - trust git history
 
 ## GitHub Workflows
-oh-my-claude plugin provides workflow skills:
-- `git-commit-validator` - commit message formatting and validation
-- `pr-creation` - PR creation with conventional format
-
-Legacy scripts exist at `~/.claude/scripts/gh-*.sh` if needed.
+- Prefer the installed commit and PR workflow skills over ad-hoc scripts.
 
 ## PR Rules
 - 2-3 short paragraphs max, human-style writing

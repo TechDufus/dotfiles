@@ -1,0 +1,5 @@
+# Installed by a task, not [bootstrap.packages]: a failed package install would stop the whole
+# run, and dotfiles must finish without Tailscale.
+[tasks."bootstrap:tailscale"]
+description = "Install the Tailscale client and enable tailscaled when missing (warns instead of failing)"
+run = "./bootstrap.sh"

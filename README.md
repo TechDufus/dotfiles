@@ -220,6 +220,12 @@ Alt+Tab opens OmaSwitch only while it is installed and enabled; on each press `c
 
 The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `omarchy update` does not update third-party plugins by itself, so a linked post-update hook runs `omarchy plugin update --yes`: every update brings all git-managed plugins to their latest commit, validated and rolled back on failure. `dotfiles --update` also fast-forwards them; a plain `dotfiles` run never fetches them.
 
+### Tailscale
+
+`bootstrap:tailscale` installs the client and nothing else, and warns instead of failing. On Omarchy and CachyOS it installs the `tailscale` package from the `extra` repo and runs `sudo systemctl enable --now tailscaled`; once the daemon is enabled and running, repeat runs change nothing and do not prompt for sudo. On macOS it installs the standalone app with the `tailscale-app` Homebrew cask, and leaves a hand-installed or App Store `/Applications/Tailscale.app` alone.
+
+The module never joins a tailnet, holds no auth key and sets no routes. Joining is a one-time interactive step per device: `sudo tailscale up --accept-routes` on Linux (the browser sign-in URL is printed), or open the app and sign in on macOS. `--accept-routes` is what makes the home subnets reachable when away. At home, leave Tailscale down (`sudo tailscale down` on Linux, turn it off in the menu bar on macOS) so traffic stays on the LAN. Omarchy's own menu installer (`omarchy-install-service-tailscale`) installs the same package and daemon but also joins, sets the operator and adds a bar widget, so use either that or this module's step, not both.
+
 ## Gallery
 
 <table>

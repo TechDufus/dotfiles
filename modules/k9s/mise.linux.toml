@@ -2,7 +2,7 @@
 "pacman:k9s" = "latest"
 
 # k9s writes config.yaml only when it is missing, so links are safe. The skin (skins/current.yaml)
-# comes from mise.omarchy.toml or mise.cachyos.toml.
+# comes from mise.omarchy.toml.
 [dotfiles]
 "~/.config/k9s/config.yaml" = { source = "config.yaml" }
 "~/.config/k9s/plugins.yaml" = { source = "plugins.yaml" }

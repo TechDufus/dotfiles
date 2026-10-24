@@ -1,6 +1,6 @@
 [dotfiles."~/.config/btop/themes/catppuccin_mocha.theme"]
 source = "catppuccin_mocha.theme"
-variants = [{ os = "macos" }, { profile = "cachyos" }]
+variants = [{ os = "macos" }]
 
 # btop.conf is task-owned, key by key: btop rewrites the whole file when a menu setting changes,
 # and mise merges only JSON/TOML/YAML. mise.omarchy.toml swaps the theme file for Omarchy's.

@@ -27,7 +27,7 @@ k9s:
     # Toggles reactive UI. This option provide for watching on disk artifacts changes and update the UI live Defaults to false.
     reactive: true
     # skins/current.yaml under $XDG_CONFIG_HOME/k9s: Omarchy's theme-set hook writes it from the
-    # current theme; macOS and CachyOS link catppuccin_mocha.yaml there.
+    # current theme; macOS links catppuccin_mocha.yaml there.
     skin: current
     # Allows to set certain views default fullscreen mode. (yaml, helm history, describe, value_extender, details, logs) Default false
     defaultsToFullScreen: false

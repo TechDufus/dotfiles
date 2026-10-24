@@ -1,4 +1,0 @@
-# Omarchy pins node in ~/.config/mise/config.toml; declaring it in mise.toml would shadow that pin
-# whenever mise runs inside this folder (cwd config), e.g. for bootstrap:devtools.
-[tools]
-node = "lts"

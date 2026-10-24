@@ -4,7 +4,7 @@ local apps = registry.apps
 local app_matches, find_app, app_for_window = registry.matches, registry.find, registry.for_window
 
 -- Leader keys. CapsLock: kb_options caps:none makes it a VoidSymbol key. F13: what a keyboard with Caps Lock remapped
--- in firmware sends (the key Karabiner produced on macOS); Plasma's keyd took both as the leader too.
+-- in firmware sends (the key Karabiner produced on macOS).
 local LEADERS = { { key = "code:66", name = "CapsLock" }, { key = "code:191", name = "F13" } }
 local SUMMON, MACRO = "summon", "summon_macro"
 local TIMEOUT_MS = 1000 -- Hammerspoon registerTransientLeader timeoutSeconds = 1
@@ -41,7 +41,7 @@ local function app_windows(app)
   return out
 end
 
--- Plasma bestWindow: remembered window, else active output +1000, active workspace +100, not hidden +10, then most recently focused.
+-- bestWindow: remembered window, else active output +1000, active workspace +100, not hidden +10, then most recently focused.
 local function best_window(app, wins)
   for _, w in ipairs(wins) do
     if w.address == state.last[app.name] then return w end

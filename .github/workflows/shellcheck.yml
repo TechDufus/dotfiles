@@ -15,4 +15,4 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Run ShellCheck
-        run: shellcheck -x bin/dotfiles modules/*/bootstrap.sh modules/plasma/settings.sh modules/omarchy/theme.sh modules/omarchy/hypr-instance.sh
+        run: shellcheck -x bin/dotfiles modules/*/bootstrap.sh modules/omarchy/theme.sh modules/omarchy/hypr-instance.sh

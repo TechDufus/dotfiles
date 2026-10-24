@@ -1,3 +1,0 @@
-[bootstrap.packages]
-"aur:brave-bin" = "latest"
-"pacman:tealdeer" = "latest"

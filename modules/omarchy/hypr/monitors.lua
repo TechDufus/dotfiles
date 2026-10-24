@@ -12,7 +12,7 @@ hl.monitor({ output = MAIN.desc, mode = "preferred", position = "1920x0", scale 
 -- Login puts the cursor, and so focus, on the main screen.
 hl.config({ cursor = { default_monitor = MAIN.desc } })
 
--- Home workspaces of summon_apps.lua, as Plasma's per-app `monitor` does on this desk. Bound only while both desk
+-- Home workspaces of summon_apps.lua, each pinned to a desk monitor. Bound only while both desk
 -- monitors are connected: Hyprland skips workspaces bound to another monitor when it picks a screen's first
 -- workspace, so unconditional bindings would start a laptop on workspace 6.
 local BINDINGS = {

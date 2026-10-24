@@ -1,5 +1,5 @@
 -- Cells: deterministic window placement on top of Omarchy's Hyprland. Managed by ~/.dotfiles modules/omarchy.
--- Ports the Hammerspoon/Plasma model: every app has a home workspace (summon_apps.lua) and, in each screen
+-- Ports the Hammerspoon model: every app has a home workspace (summon_apps.lua) and, in each screen
 -- layout (layouts.lua), a floating cell. Windows sharing a cell overlap, the focused one on top, and nothing
 -- resizes when windows open or close. Monocle screens (the laptop panel) use Hyprland's monocle layout.
 local registry = require("hypr.dotfiles.registry")
@@ -500,7 +500,7 @@ local function pretty(region, key)
   return (name:gsub("_", " "))
 end
 
--- Super+U (Hammerspoon cmd+u, Plasma window mover): pick a cell for the focused window's app on this screen
+-- Super+U (Hammerspoon cmd+u): pick a cell for the focused window's app on this screen
 -- layout. "0" returns the app to its configured cell. Choices are kept across logouts.
 function M.pick()
   local win = hl.get_active_window()
@@ -831,7 +831,7 @@ o.bind("SUPER + CTRL + ALT + SHIFT + code:47", "Next layout for this screen", gu
 o.bind("SUPER + CTRL + ALT + SHIFT + code:48", "Reset this screen's layout", guarded(M.reset_layout))
 o.bind("SUPER + CTRL + ALT + O", "Move window to the next screen", guarded(function() M.move_to_screen(1) end))
 o.bind("SUPER + CTRL + ALT + SHIFT + O", "Move window to the previous screen", guarded(function() M.move_to_screen(-1) end))
--- Command+O / Command+Shift+O on macOS, Meta+O on Plasma. Omarchy binds Super+O (pop window out) and
+-- Command+O / Command+Shift+O on macOS. Omarchy binds Super+O (pop window out) and
 -- Super+Shift+O (Obsidian; CapsLock n summons it here), and Hyprland fires every bind on a key: unbind them first.
 hl.unbind("SUPER + O")
 o.bind("SUPER + O", "Move window to the next screen", guarded(function() M.move_to_screen(1) end))

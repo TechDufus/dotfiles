@@ -85,7 +85,7 @@ if ! is_agent_shell; then
   zinit snippet OMZP::sudo
   zinit snippet OMZP::ssh
   zinit snippet OMZP::aliases
-  if grep -qE '^ID(_LIKE)?=.*(arch|cachyos)' /etc/os-release 2>/dev/null; then
+  if grep -qE '^ID(_LIKE)?=.*arch' /etc/os-release 2>/dev/null; then
     zinit snippet OMZP::archlinux
   fi
   # Powerlevel10k already renders AWS. Keep Oh My Zsh's AWS plugin from

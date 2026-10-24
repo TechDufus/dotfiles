@@ -228,9 +228,9 @@ detect() { # detect <name> <os-release-ID|-> <expected-profile|FAIL:msg> [extra 
 }
 
 detect omarchy-id omarchy omarchy
-detect cachyos-id cachyos cachyos
-new_case cachyos-plus-omarchy-dir
-printf 'ID=cachyos\n' >"$SYSROOT/etc/os-release"
+detect other-arch-derivative-rejected endeavouros "FAIL:unsupported machine (endeavouros)"
+new_case unsupported-arch-derivative-plus-omarchy-dir
+printf 'ID=endeavouros\n' >"$SYSROOT/etc/os-release"
 mkdir -p "$SYSROOT/usr/share/omarchy"
 run_df --profile
 expect_rc 0
@@ -241,8 +241,8 @@ mkdir -p "$C/home/.local/share/omarchy"
 run_df HOME="$C/home" --profile
 expect_rc 0
 expect_eq "$OUT" omarchy profile
-new_case cachyos-plus-home-omarchy-dir
-printf 'ID=cachyos\n' >"$SYSROOT/etc/os-release"
+new_case unsupported-arch-derivative-plus-home-omarchy-dir
+printf 'ID=endeavouros\n' >"$SYSROOT/etc/os-release"
 mkdir -p "$C/home/.local/share/omarchy"
 run_df HOME="$C/home" --profile
 expect_rc 0
@@ -250,13 +250,13 @@ expect_eq "$OUT" omarchy profile
 new_case override-home-omarchy-dir
 printf 'ID=arch\n' >"$SYSROOT/etc/os-release"
 mkdir -p "$C/home/.local/share/omarchy"
-run_df HOME="$C/home" DOTFILES_PROFILE=cachyos --profile
+run_df HOME="$C/home" DOTFILES_PROFILE=macos --profile
 expect_rc 0
-expect_eq "$OUT" cachyos profile
+expect_eq "$OUT" macos profile
 detect ubuntu-rejected ubuntu "FAIL:unsupported machine (ubuntu)"
 detect no-os-release - "FAIL:unsupported machine (unknown)"
 detect override-macos ubuntu macos DOTFILES_PROFILE=macos
-detect override-bogus cachyos "FAIL:unsupported machine (bogus)" DOTFILES_PROFILE=bogus
+detect override-bogus omarchy "FAIL:unsupported machine (bogus)" DOTFILES_PROFILE=bogus
 detect darwin-arm64 - macos STUB_UNAME_S=Darwin STUB_UNAME_M=arm64
 detect darwin-intel - "FAIL:unsupported machine (Intel Mac)" STUB_UNAME_S=Darwin STUB_UNAME_M=x86_64
 
@@ -309,9 +309,9 @@ expect_rc 0
 expect_eq "$OUT" work "query retains work across invocations"
 expect_no_provisioning
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "work"]' "ordinary apply persists purpose and distro selection"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "work"]' "ordinary apply persists purpose and distro selection"
 run_df DOTFILES_PROFILE=omarchy --set-purpose personal
 expect_rc 0
 expect_no_provisioning
@@ -336,14 +336,14 @@ for bad_args in \
   "--set-purpose work --set-purpose personal" "--purpose --set-purpose work"; do
   new_case "purpose-invalid-arguments-$bad_args"
   # shellcheck disable=SC2086
-  run_df DOTFILES_PROFILE=cachyos $bad_args
+  run_df DOTFILES_PROFILE=omarchy $bad_args
   expect_rc 1
   expect_no_provisioning
   [ ! -e "$C/xdg/config" ] || fail "invalid arguments wrote configuration"
 done
 
 new_case purpose-discovery-write-fails
-run_df DOTFILES_PROFILE=cachyos --set-purpose work
+run_df DOTFILES_PROFILE=omarchy --set-purpose work
 expect_rc 0
 MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
 mkdir "$C/path"
@@ -353,7 +353,7 @@ case "$1" in */.miserc.*) exit 73 ;; esac
 exec "$REAL_MKTEMP" "$@"
 EOF
 chmod +x "$C/path/mktemp"
-run_df DOTFILES_PROFILE=cachyos PATH="$C/path:$T/stub:$ORIG_PATH" REAL_MKTEMP="$(command -v mktemp)" --set-purpose personal
+run_df DOTFILES_PROFILE=omarchy PATH="$C/path:$T/stub:$ORIG_PATH" REAL_MKTEMP="$(command -v mktemp)" --set-purpose personal
 expect_rc 1
 expect_no_provisioning
 expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "failed discovery write preserves prior settings"
@@ -377,7 +377,7 @@ for stored_kind in empty unknown multiline extra-newline nul; do
       apply) purpose_args=() ;;
       preview) purpose_args=(--dry-run) ;;
     esac
-    run_df DOTFILES_PROFILE=cachyos ${purpose_args[@]+"${purpose_args[@]}"}
+    run_df DOTFILES_PROFILE=omarchy ${purpose_args[@]+"${purpose_args[@]}"}
     expect_rc 1
     expect_contains "$ERR" "invalid purpose" "malformed state rejected before setup"
     case $OUT$ERR in *private-invalid-value*) fail "diagnostic disclosed invalid stored contents" ;; esac
@@ -411,7 +411,7 @@ for target_kind in symlink dangling-symlink directory fifo parent-symlink parent
       ;;
     miserc-directory) mkdir -p "$MISE_DIR/miserc.local.toml" ;;
   esac
-  run_df DOTFILES_PROFILE=cachyos --set-purpose work
+  run_df DOTFILES_PROFILE=omarchy --set-purpose work
   expect_rc 1
   expect_contains "$ERR" "unsafe" "unsafe target rejected"
   expect_no_provisioning
@@ -426,28 +426,24 @@ done
 
 new_case fresh-link
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
 [ -L "$MISE_DIR/conf.d" ] || fail "conf.d is not a symlink"
 expect_eq "$(readlink "$MISE_DIR/conf.d")" "$DOTFILES_DIR/modules" "conf.d target"
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "personal"]' "distro and default purpose selection"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal"]' "distro and default purpose selection"
 
 # Rerun must not rewrite an unchanged miserc.
 touch -t 200001010000 "$MISE_DIR/miserc.local.toml"
 touch -t 200101010000 "$C/ref"
-run_df DOTFILES_PROFILE=cachyos
-expect_rc 0
-if [ "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ]; then fail "miserc rewritten though unchanged"; fi
-# A changed profile must rewrite it.
 run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal"]' "miserc after profile change"
+if [ "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ]; then fail "miserc rewritten though unchanged"; fi
 
 new_case existing-real-conf-d
 init_repo "$DOTFILES_DIR"
 mkdir -p "$MISE_DIR/conf.d"
 echo keep >"$MISE_DIR/conf.d/mine.toml"
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
 [ -L "$MISE_DIR/conf.d" ] || fail "conf.d not relinked"
 expect_eq "$(readlink "$MISE_DIR/conf.d")" "$DOTFILES_DIR/modules" "conf.d target"
@@ -459,7 +455,7 @@ new_case correct-link-no-backup
 init_repo "$DOTFILES_DIR"
 mkdir -p "$MISE_DIR"
 ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
 expect_eq "$(find "$MISE_DIR" -maxdepth 1 -name 'conf.d.pre-dotfiles.*' | wc -l | tr -d ' ')" 0 "backup count"
 expect_eq "$(readlink "$MISE_DIR/conf.d")" "$DOTFILES_DIR/modules" "conf.d target"
@@ -471,6 +467,9 @@ if [ -x /opt/homebrew/bin/brew ]; then
 else
   new_case macos-miserc
   init_repo "$DOTFILES_DIR"
+  run_df DOTFILES_PROFILE=omarchy
+  expect_rc 0
+  # A changed profile must rewrite it.
   run_df DOTFILES_PROFILE=macos
   expect_rc 0
   expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["personal"]' "macos purpose selection"
@@ -495,7 +494,7 @@ setup_remote() { # clone of a bare remote becomes DOTFILES_DIR; seed pushes late
 
 new_case pull-fast-forward
 setup_remote
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
 expect_eq "$(git -C "$DOTFILES_DIR" rev-parse HEAD)" "$(git -C "$C/seed" rev-parse HEAD)" "HEAD after pull"
 
@@ -503,7 +502,7 @@ new_case pull-skipped-local-changes
 setup_remote
 echo dirty >"$DOTFILES_DIR/f"
 OLD=$(git -C "$DOTFILES_DIR" rev-parse HEAD)
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
 expect_contains "$OUT" "local changes" "message"
 expect_eq "$(git -C "$DOTFILES_DIR" rev-parse HEAD)" "$OLD" "HEAD unchanged"
@@ -511,7 +510,7 @@ expect_eq "$(cat "$DOTFILES_DIR/f")" dirty "local edit preserved"
 
 new_case pull-skipped-no-upstream
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos
+run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
 expect_contains "$OUT" "no upstream for main" "message"
 
@@ -546,7 +545,7 @@ printf '[tools]\ngo = "1.24"\n' >"$MISE_DIR/conf.d/private/mise.toml"
 printf '# existing profile override\n' >"$MISE_DIR/miserc.local.toml"
 touch -t 200001010000 "$MISE_DIR/miserc.local.toml"
 touch -t 200101010000 "$C/ref"
-run_df DOTFILES_PROFILE=cachyos "STUB_FORBID_MODULE=personal.toml private" --dry-run
+run_df DOTFILES_PROFILE=omarchy "STUB_FORBID_MODULE=personal.toml private" --dry-run
 expect_rc 0
 [ -d "$MISE_DIR/conf.d" ] && [ ! -L "$MISE_DIR/conf.d" ] || fail "preflight replaced live conf.d"
 expect_eq "$(cat "$MISE_DIR/conf.d/personal.toml")" '[tools]
@@ -554,7 +553,7 @@ node = "22"' "discarded configuration remains untouched on disk"
 expect_eq "$(cat "$MISE_DIR/miserc.local.toml")" '# existing profile override' "live profile untouched"
 [ ! "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ] || fail "live profile was rewritten"
 expect_eq "$(find "$MISE_DIR" -name '*.pre-dotfiles.*' | wc -l | tr -d ' ')" 0 "preflight creates no backups"
-expect_contains "$(cat "$C/mise.profile")" 'env = ["cachyos", "work"]' "scratch preview selects the saved purpose"
+expect_contains "$(cat "$C/mise.profile")" 'env = ["omarchy", "work"]' "scratch preview selects the saved purpose"
 expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "scratch preview preserves saved purpose"
 
 # Config-relative adjacent resources require their original configuration context.
@@ -563,40 +562,40 @@ init_repo "$DOTFILES_DIR"
 mkdir -p "$MISE_DIR"
 printf '[dotfiles]\n"~/.config/context-link" = { source = "adjacent.txt" }\n' >"$MISE_DIR/config.toml"
 echo adjacent-resource >"$MISE_DIR/adjacent.txt"
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 1
 expect_contains "$ERR" "cannot faithfully preview" "unsupported relocation fails explicitly"
 expect_contains "$ERR" "isolated HOME/MISE_CONFIG_DIR" "actionable isolated-rehearsal guidance"
 expect_eq "$(cat "$C/mise.calls")" "" "ambiguous configuration never reaches bootstrap"
 [ ! -e "$MISE_DIR/conf.d" ] || fail "rejected preflight configured live mise"
 ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
-run_df DOTFILES_PROFILE=cachyos --set-purpose personal
+run_df DOTFILES_PROFILE=omarchy --set-purpose personal
 expect_rc 0
-run_df DOTFILES_PROFILE=cachyos STUB_EXPECT_CONTEXT="$MISE_DIR" STUB_EXPECT_OVERRIDE="$MISE_DIR/config.toml" --dry-run
+run_df DOTFILES_PROFILE=omarchy STUB_EXPECT_CONTEXT="$MISE_DIR" STUB_EXPECT_OVERRIDE="$MISE_DIR/config.toml" --dry-run
 expect_rc 0
 expect_contains "$(cat "$C/mise.env")" "config=$MISE_DIR" "configured preview keeps original configuration context"
 expect_eq "$(cat "$MISE_DIR/adjacent.txt")" adjacent-resource "adjacent resource remains available"
 [ ! -L "$MISE_DIR/config.toml" ] || fail "configured preview replaced the original file with a scratch reference"
 
 # A legacy owned profile cannot be relocated around retained global resources.
-printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = ["cachyos"]\n' >"$MISE_DIR/miserc.local.toml"
+printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = ["omarchy"]\n' >"$MISE_DIR/miserc.local.toml"
 MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
 CONFIG_BEFORE=$(cksum "$MISE_DIR/config.toml")
 PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 1
 expect_contains "$ERR" "cannot faithfully preview" "legacy selection does not silently relocate retained globals"
 expect_contains "$ERR" "dotfiles --set-purpose personal" "legacy settings have config-only upgrade guidance"
 expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "rejected preview preserves legacy discovery"
 expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "rejected preview preserves saved purpose"
-run_df DOTFILES_PROFILE=cachyos --set-purpose work
+run_df DOTFILES_PROFILE=omarchy --set-purpose work
 expect_rc 0
 expect_no_provisioning
 PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
 MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
 touch -t 200001010000 "$C/xdg/config/dotfiles/purpose" "$MISE_DIR/miserc.local.toml"
 touch -t 200101010000 "$C/ref"
-run_df DOTFILES_PROFILE=cachyos STUB_EXPECT_CONTEXT="$MISE_DIR" STUB_EXPECT_OVERRIDE="$MISE_DIR/config.toml" --dry-run
+run_df DOTFILES_PROFILE=omarchy STUB_EXPECT_CONTEXT="$MISE_DIR" STUB_EXPECT_OVERRIDE="$MISE_DIR/config.toml" --dry-run
 expect_rc 0
 expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "configured preview preserves purpose"
 expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "configured preview preserves discovery"
@@ -611,7 +610,7 @@ for selected_var in MISE_GLOBAL_CONFIG_FILE MISE_CONFIG_FILE; do
     echo '[settings]' >"$C/user-global.toml"
     args=()
     [ "$mode" != dry-run ] || args+=(--dry-run)
-    run_df DOTFILES_PROFILE=cachyos "$selected_var=$C/user-global.toml" ${args[@]+"${args[@]}"}
+    run_df DOTFILES_PROFILE=omarchy "$selected_var=$C/user-global.toml" ${args[@]+"${args[@]}"}
     expect_rc 1
     expect_contains "$ERR" "unset it" "custom selected global file has actionable guidance"
     expect_eq "$(cat "$C/git.argv")" "" "unsupported global file is rejected before repo sync"
@@ -632,29 +631,28 @@ if [ -n "${DOTFILES_TEST_REAL_MISE:-}" ]; then
 "~/PURPOSE_SHARED_PROOF" = { source = "shared.txt" }
 EOF
   echo shared >"$DOTFILES_DIR/modules/base/shared.txt"
-  for layer in work personal cachyos omarchy; do
+  for layer in work personal omarchy; do
     printf '[dotfiles]\n"~/PURPOSE_%s_PROOF" = { source = "%s.txt" }\n' "$layer" "$layer" >"$DOTFILES_DIR/modules/base/mise.$layer.toml"
     echo "$layer" >"$DOTFILES_DIR/modules/base/$layer.txt"
   done
-  for distro in cachyos omarchy; do
-    for purpose in work personal; do
-      run_df DOTFILES_PROFILE="$distro" --set-purpose "$purpose"
-      expect_rc 0
-      PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
-      MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
-      # First preview uses scratch because the config-only setter never links conf.d.
-      run_df DOTFILES_PROFILE="$distro" PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
-      expect_rc 0
-      expect_contains "$OUT$ERR" "PURPOSE_SHARED_PROOF" "native preview retains shared target"
-      expect_contains "$OUT$ERR" "PURPOSE_${distro}_PROOF" "native preview retains Linux distro target"
-      expect_contains "$OUT$ERR" "PURPOSE_${purpose}_PROOF" "native preview selects saved-purpose target"
-      if [ "$purpose" = work ]; then other=personal; else other=work; fi
-      case $OUT$ERR in *"PURPOSE_${other}_PROOF"*) fail "native preview selected the other purpose's target" ;; esac
-      expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "native preview preserves classification"
-      expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "native preview preserves live discovery"
-      [ ! -e "$HOME/PURPOSE_SHARED_PROOF" ] || fail "native preview deployed shared dotfile"
-      [ ! -e "$HOME/PURPOSE_${purpose}_PROOF" ] || fail "native preview deployed purpose dotfile"
-    done
+  distro=omarchy
+  for purpose in work personal; do
+    run_df DOTFILES_PROFILE="$distro" --set-purpose "$purpose"
+    expect_rc 0
+    PURPOSE_BEFORE=$(cksum "$C/xdg/config/dotfiles/purpose")
+    MISERC_BEFORE=$(cksum "$MISE_DIR/miserc.local.toml")
+    # First preview uses scratch because the config-only setter never links conf.d.
+    run_df DOTFILES_PROFILE="$distro" PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
+    expect_rc 0
+    expect_contains "$OUT$ERR" "PURPOSE_SHARED_PROOF" "native preview retains shared target"
+    expect_contains "$OUT$ERR" "PURPOSE_${distro}_PROOF" "native preview retains Linux distro target"
+    expect_contains "$OUT$ERR" "PURPOSE_${purpose}_PROOF" "native preview selects saved-purpose target"
+    if [ "$purpose" = work ]; then other=personal; else other=work; fi
+    case $OUT$ERR in *"PURPOSE_${other}_PROOF"*) fail "native preview selected the other purpose's target" ;; esac
+    expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "native preview preserves classification"
+    expect_eq "$(cksum "$MISE_DIR/miserc.local.toml")" "$MISERC_BEFORE" "native preview preserves live discovery"
+    [ ! -e "$HOME/PURPOSE_SHARED_PROOF" ] || fail "native preview deployed shared dotfile"
+    [ ! -e "$HOME/PURPOSE_${purpose}_PROOF" ] || fail "native preview deployed purpose dotfile"
   done
 
   new_case native-source-relative-preview
@@ -665,7 +663,7 @@ EOF
   echo adjacent-resource >"$MISE_DIR/adjacent.txt"
   CONFIG_BEFORE=$(cksum "$MISE_DIR/config.toml")
   RESOURCE_BEFORE=$(cksum "$MISE_DIR/adjacent.txt")
-  run_df DOTFILES_PROFILE=cachyos PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
+  run_df DOTFILES_PROFILE=omarchy PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
   expect_rc 1
   expect_contains "$ERR" "cannot faithfully preview" "native unconfigured context is rejected"
   expect_eq "$(cksum "$MISE_DIR/config.toml")" "$CONFIG_BEFORE" "rejected native preview leaves retained config unchanged"
@@ -673,9 +671,9 @@ EOF
   [ ! -e "$MISE_DIR/conf.d" ] || fail "rejected native preview configured live mise"
   [ ! -e "$HOME/.config/context-link" ] || fail "rejected native preview deployed a target"
   ln -s "$DOTFILES_DIR/modules" "$MISE_DIR/conf.d"
-  run_df DOTFILES_PROFILE=cachyos --set-purpose personal
+  run_df DOTFILES_PROFILE=omarchy --set-purpose personal
   expect_rc 0
-  run_df DOTFILES_PROFILE=cachyos PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
+  run_df DOTFILES_PROFILE=omarchy PATH="$C/native:$T/stub:$ORIG_PATH" MISE_OFFLINE=1 MISE_TRUSTED_CONFIG_PATHS="$C" --plain --dry-run --only dotfiles
   expect_rc 0
   expect_contains "$OUT$ERR" "$MISE_DIR/adjacent.txt" "native consumer resolves the adjacent source in its original context"
   [ ! -e "$HOME/.config/context-link" ] || fail "native preview deployed a target"
@@ -703,7 +701,7 @@ EOF
   echo project-resource >"$C/work/adjacent.txt"
   echo existing-project-target >"$HOME/PROJECT_DOTFILE_CWD_PROOF"
   native_preview() {
-    run_df DOTFILES_PROFILE=cachyos PATH="$C/native:$T/stub:$ORIG_PATH" \
+    run_df DOTFILES_PROFILE=omarchy PATH="$C/native:$T/stub:$ORIG_PATH" \
       MISE_OFFLINE=1 MISE_TASK_RUN_AUTO_INSTALL=0 MISE_TRUSTED_CONFIG_PATHS="$C" "$@" --dry-run
   }
   expect_home_context() {
@@ -754,13 +752,13 @@ fi
 new_case dry-run-does-not-pull
 setup_remote
 OLD=$(git -C "$DOTFILES_DIR" rev-parse HEAD)
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 0
 expect_eq "$(git -C "$DOTFILES_DIR" rev-parse HEAD)" "$OLD" "preflight does not fast-forward"
 expect_eq "$(cat "$C/git.argv")" "" "preflight does not invoke git sync"
 new_case dry-run-preserves-config-selection
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos --dry-run --env work --only dotfiles
+run_df DOTFILES_PROFILE=omarchy --dry-run --env work --only dotfiles
 expect_rc 0
 expect_contains "$(tr '\n' ' ' <"$C/mise.dot.argv")" "--env work" "safety probe uses requested environment"
 expect_contains "$(tr '\n' ' ' <"$C/mise.argv")" "--env work --only dotfiles" "bootstrap retains the same selection"
@@ -818,28 +816,28 @@ set_mise_version() { echo "$1 linux-x64 (2026-01-01)" >"$C/mise.version"; }
 new_case mise-version-equal
 init_repo "$DOTFILES_DIR"
 set_mise_version 2026.10.6
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 0
 expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
 
 new_case mise-version-numeric-compare
 init_repo "$DOTFILES_DIR"
 set_mise_version 2026.10.10
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 0
 expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
 
 new_case mise-version-longer-field-count
 init_repo "$DOTFILES_DIR"
 set_mise_version 2027.1
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 0
 expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run " "mise argv"
 
 new_case mise-version-too-old-linux
 init_repo "$DOTFILES_DIR"
 set_mise_version 2026.9.1
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 1
 expect_contains "$ERR" "mise 2026.9.1 is older than 2026.10.6" stderr
 expect_contains "$ERR" "pacman -Syu" "upgrade hint"
@@ -849,7 +847,7 @@ expect_eq "$(cat "$C/brew.argv")" "" "brew must not run on Linux"
 new_case mise-version-non-numeric
 init_repo "$DOTFILES_DIR"
 set_mise_version dev
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 1
 expect_eq "$(cat "$C/mise.argv")" "" "unverifiable mise cannot preview"
 
@@ -857,7 +855,7 @@ new_case mise-version-no-min-line
 init_repo "$DOTFILES_DIR"
 printf '[tasks.bootstrap]\nrun = "true"\n' >"$DOTFILES_DIR/modules/base/mise.toml"
 set_mise_version 2020.1.1
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 1
 expect_eq "$(cat "$C/mise.argv")" "" "unknown minimum cannot preview"
 
@@ -865,7 +863,7 @@ new_case mise-version-no-base-file
 init_repo "$DOTFILES_DIR"
 rm "$DOTFILES_DIR/modules/base/mise.toml"
 set_mise_version 2020.1.1
-run_df DOTFILES_PROFILE=cachyos --dry-run
+run_df DOTFILES_PROFILE=omarchy --dry-run
 expect_rc 1
 expect_eq "$(cat "$C/mise.argv")" "" "missing candidate config cannot preview"
 
@@ -908,26 +906,26 @@ bootstrap --yes --only mise-shell-activate,macos-defaults,macos-launchd-agents,l
 bootstrap --yes --only tools
 bootstrap --yes --only task,final-hook'
 calls() { cat "$C/mise.calls"; }
-ui_case() { # ui_case <name> [run_df words]: fresh repo, cachyos, UI forced
+ui_case() { # ui_case <name> [run_df words]: fresh repo, omarchy, UI forced
   local name=$1
   shift
   new_case "$name"
   init_repo "$DOTFILES_DIR"
-  run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 "$@"
+  run_df DOTFILES_PROFILE=omarchy DOTFILES_UI=1 "$@"
 }
 
 ui_case ui-stage-order
 expect_rc 0
 expect_eq "$(calls)" "$STAGE_CALLS" "stage invocations"
 expect_contains "$OUT" "◆ dotfiles" "header"
-expect_contains "$OUT" "cachyos ·" "header profile"
+expect_contains "$OUT" "omarchy ·" "header profile"
 expect_contains "$OUT" "no upstream for main" "repo warning line"
 expect_contains "$OUT" "✓ converged in" "footer"
 expect_contains "$OUT" "$C/xdg/state/dotfiles/last-run.log" "log path in footer"
 for s in packages system dotfiles shell tools modules; do expect_contains "$OUT" "✓ $s" "stage line $s"; done
 case $OUT in *$'\033'*) fail "escape sequences without a terminal" ;; esac
 LOGF="$C/xdg/state/dotfiles/last-run.log"
-expect_contains "$(cat "$LOGF")" "profile: cachyos" "log header"
+expect_contains "$(cat "$LOGF")" "profile: omarchy" "log header"
 expect_contains "$(cat "$LOGF")" '$ mise bootstrap --yes --only files,services,firewall,compose' "stage command in log"
 expect_contains "$(cat "$LOGF")" "mise bootstrap: stub tools" "stage output in log"
 expect_contains "$OUT" "✓ packages   done" "result without plan details"
@@ -991,7 +989,7 @@ fi
 new_case ui-second-pass
 init_repo "$DOTFILES_DIR"
 echo 1 >"$C/dot.count"
-run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 -j 2 --force-dotfiles --yes
+run_df DOTFILES_PROFILE=omarchy DOTFILES_UI=1 -j 2 --force-dotfiles --yes
 expect_rc 0
 DOTFILES_CALL='bootstrap --yes --only repos,dotfiles -j 2 --force-dotfiles'
 expect_eq "$(calls | sed -n 3,4p)" "$DOTFILES_CALL
@@ -1002,7 +1000,7 @@ for plain_args in "--plain" "-v" "--prompt-secrets" "--only bogus" "--only dotfi
   new_case "plain-trigger $plain_args"
   init_repo "$DOTFILES_DIR"
   # shellcheck disable=SC2086
-  run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 $plain_args
+  run_df DOTFILES_PROFILE=omarchy DOTFILES_UI=1 $plain_args
   expect_rc 0
   want="bootstrap --yes ${plain_args#--plain}"
   expect_eq "$(calls)" "${want% }" "single plain exec for '$plain_args'"
@@ -1010,16 +1008,16 @@ for plain_args in "--plain" "-v" "--prompt-secrets" "--only bogus" "--only dotfi
 done
 new_case plain-ui-disabled
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=0
+run_df DOTFILES_PROFILE=omarchy DOTFILES_UI=0
 expect_eq "$(calls)" "bootstrap --yes" "DOTFILES_UI=0 stays plain"
 
 new_case home-context-plain
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos STUB_EXPECT_CWD="$HOME" --only dotfiles
+run_df DOTFILES_PROFILE=omarchy STUB_EXPECT_CWD="$HOME" --only dotfiles
 expect_rc 0
 new_case home-context-ui
 init_repo "$DOTFILES_DIR"
-run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 STUB_EXPECT_CWD="$HOME"
+run_df DOTFILES_PROFILE=omarchy DOTFILES_UI=1 STUB_EXPECT_CWD="$HOME"
 expect_rc 0
 
 ui_case ui-dry-run --dry-run
@@ -1068,7 +1066,7 @@ MOVED='.config/ghostty/config.pre-dotfiles.N .config/nvim.pre-dotfiles.N '
 new_case conflicts-plain
 init_repo "$DOTFILES_DIR"
 seed_conflicts
-run_df DOTFILES_PROFILE=cachyos "$REFUSE"
+run_df DOTFILES_PROFILE=omarchy "$REFUSE"
 expect_rc 0
 expect_eq "$(backups)" "$MOVED" "refused targets moved aside"
 expect_eq "$(cat "$SB_CONFIG"/ghostty/config.pre-dotfiles.*/original)" omarchy "moved file keeps its content"
@@ -1079,7 +1077,7 @@ expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes " "no --force-dotfil
 new_case conflicts-dry-run
 init_repo "$DOTFILES_DIR"
 seed_conflicts
-run_df DOTFILES_PROFILE=cachyos "$REFUSE" --dry-run
+run_df DOTFILES_PROFILE=omarchy "$REFUSE" --dry-run
 expect_rc 0
 expect_eq "$(backups)" "" "a dry run moves nothing"
 expect_eq "$(cat "$SB_CONFIG/ghostty/config")" omarchy "dry-run preserves the original file"
@@ -1089,13 +1087,13 @@ expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --force-dotfiles --d
 new_case conflicts-without-dotfiles
 init_repo "$DOTFILES_DIR"
 seed_conflicts
-run_df DOTFILES_PROFILE=cachyos "$REFUSE" --only tools
+run_df DOTFILES_PROFILE=omarchy "$REFUSE" --only tools
 expect_eq "$(backups)" "" "--only tools leaves them in place"
 
 new_case conflicts-ui
 init_repo "$DOTFILES_DIR"
 seed_conflicts
-run_df DOTFILES_PROFILE=cachyos DOTFILES_UI=1 "$REFUSE"
+run_df DOTFILES_PROFILE=omarchy DOTFILES_UI=1 "$REFUSE"
 expect_rc 0
 expect_eq "$(backups)" "$MOVED" "UI moves them too"
 [ ! -e "$SB_CONFIG/nvim" ] || fail "UI apply did not clear the conflict"
@@ -1119,7 +1117,7 @@ for preview_kind in unrelated combined trailing duplicate nested missing travers
     traversal) preview="$header\n  ~/.config/ghostty/config\n  ~/.config/nvim/../nvim\n$trailer" ;;
     wrong-status) preview="$header\n  ~/.config/ghostty/config\n$trailer"; preview_rc=9 ;;
   esac
-  run_df DOTFILES_PROFILE=cachyos "STUB_PREVIEW_ERROR=$preview" "STUB_PREVIEW_RC=$preview_rc"
+  run_df DOTFILES_PROFILE=omarchy "STUB_PREVIEW_ERROR=$preview" "STUB_PREVIEW_RC=$preview_rc"
   expect_rc "$preview_rc"
   expect_contains "$(cat "$C/mise.dot.argv")" "--dry-run" "negative control reaches dotfile preview"
   expect_eq "$(cat "$SB_CONFIG/ghostty/config")" omarchy "preview failure preserves original file"
@@ -1135,7 +1133,7 @@ seed_conflicts
 # destination. The date stub deliberately gives every run the same timestamp.
 mkdir "$SB_CONFIG/ghostty/config.pre-dotfiles.1234567890"
 echo oldest >"$SB_CONFIG/ghostty/config.pre-dotfiles.1234567890/keep"
-run_df DOTFILES_PROFILE=cachyos "$REFUSE" STUB_BOOTSTRAP_RC=5
+run_df DOTFILES_PROFILE=omarchy "$REFUSE" STUB_BOOTSTRAP_RC=5
 expect_rc 5
 expect_eq "$(cat "$SB_CONFIG/ghostty/config.pre-dotfiles.1234567890/keep")" oldest "prior backup survives failed apply"
 [ ! -e "$SB_CONFIG/ghostty/config.pre-dotfiles.1234567890/config" ] || fail "new original nested in an old backup"
@@ -1144,7 +1142,7 @@ expect_eq "$(cat "$SB_CONFIG"/nvim.pre-dotfiles.*/original/init.lua)" starter "f
 mkdir -p "$SB_CONFIG/nvim"
 echo second >"$SB_CONFIG/ghostty/config"
 echo second-tree >"$SB_CONFIG/nvim/init.lua"
-run_df DOTFILES_PROFILE=cachyos "$REFUSE"
+run_df DOTFILES_PROFILE=omarchy "$REFUSE"
 expect_rc 0
 expect_eq "$(find "$SB_CONFIG/ghostty" -name original -type f | wc -l | tr -d ' ')" 2 "same-second runs reserve separate file backups"
 expect_eq "$(cat "$SB_CONFIG"/ghostty/config.pre-dotfiles.1234567890.*/original | sort)" 'omarchy
@@ -1158,12 +1156,12 @@ init_repo "$DOTFILES_DIR"
 mkdir -p "$MISE_DIR/conf.d" "$MISE_DIR/conf.d.pre-dotfiles.1234567890"
 echo oldest >"$MISE_DIR/conf.d.pre-dotfiles.1234567890/keep"
 echo first >"$MISE_DIR/conf.d/personal.toml"
-run_df DOTFILES_PROFILE=cachyos --only tools
+run_df DOTFILES_PROFILE=omarchy --only tools
 expect_rc 0
 rm "$MISE_DIR/conf.d"
 mkdir "$MISE_DIR/conf.d"
 echo second >"$MISE_DIR/conf.d/personal.toml"
-run_df DOTFILES_PROFILE=cachyos --only tools
+run_df DOTFILES_PROFILE=omarchy --only tools
 expect_rc 0
 expect_eq "$(cat "$MISE_DIR"/conf.d.pre-dotfiles.1234567890.*/original/personal.toml | sort)" 'first
 second' "every prior conf.d survives same-second runs"

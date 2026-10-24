@@ -5,7 +5,7 @@
   <img src=".github/assets/header-light.png" alt="dotfiles" width="720">
 </picture>
 
-**One command to converge a whole machine: Omarchy, macOS, or CachyOS.**
+**One command to converge a whole machine: Omarchy or macOS.**
 
 <a href="https://github.com/TechDufus/dotfiles/actions/workflows/mise.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/TechDufus/dotfiles/mise.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=cdd6f4&label=CI&labelColor=1e1e2e&color=a6e3a1"></a>
 <a href="https://github.com/TechDufus/dotfiles/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/TechDufus/dotfiles?style=for-the-badge&logo=github&logoColor=cdd6f4&labelColor=1e1e2e&color=cba6f7"></a>
@@ -14,7 +14,6 @@
 
 <img alt="Omarchy" src="https://img.shields.io/badge/Omarchy-Hyprland-b4befe?style=for-the-badge&logo=archlinux&logoColor=cdd6f4&labelColor=1e1e2e">
 <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20Silicon-cdd6f4?style=for-the-badge&logo=apple&logoColor=cdd6f4&labelColor=1e1e2e">
-<img alt="CachyOS" src="https://img.shields.io/badge/CachyOS-KDE%20Plasma-94e2d5?style=for-the-badge&logo=cachyos&logoColor=cdd6f4&labelColor=1e1e2e">
 <a href="https://mise.jdx.dev"><img alt="Applied with mise" src="https://img.shields.io/badge/applied%20with-mise-fab387?style=for-the-badge&labelColor=1e1e2e"></a>
 
 <a href="#bootstrap"><kbd> <br> Bootstrap <br> </kbd></a>&ensp;
@@ -34,15 +33,14 @@
 
 # dotfiles
 
-My personal dotfiles, applied with [mise](https://mise.jdx.dev/bootstrap.html). **Omarchy and macOS are the primary profiles; CachyOS remains supported.**
+My personal dotfiles, applied with [mise](https://mise.jdx.dev/bootstrap.html). **Omarchy and macOS are the supported profiles.**
 
 | Profile | OS / session |
 | --- | --- |
 | `omarchy` | Omarchy (Hyprland), on laptops or desktops |
 | `macos` | macOS (Apple Silicon) |
-| `cachyos` | CachyOS (KDE Plasma) |
 
-Profiles describe the operating system and session, not the chassis. The wrapper and Taskfile recognize Omarchy by OS ID or an installation at `~/.local/share/omarchy` or `/usr/share/omarchy`; an explicit `DOTFILES_PROFILE` takes precedence. On Omarchy, its native tooling owns the desktop and gaming stack; CachyOS-specific gaming, KDE, and GPU policy is not automatically migrated.
+Profiles describe the operating system and session, not the chassis. The wrapper and Taskfile recognize Omarchy by OS ID or an installation at `~/.local/share/omarchy` or `/usr/share/omarchy`; an explicit `DOTFILES_PROFILE` takes precedence. On Omarchy, its native tooling owns the desktop and gaming stack.
 
 Other systems stop with `unsupported machine`. The earlier Ansible provisioning version, which also covered Ubuntu, Fedora and WSL, is tagged [`ansible-final`](https://github.com/TechDufus/dotfiles/tree/ansible-final).
 
@@ -54,10 +52,10 @@ Other systems stop with `unsupported machine`. The earlier Ansible provisioning 
 - One command bootstraps a machine: `bin/dotfiles` installs git and mise, clones or pulls `~/.dotfiles`, links `conf.d` to `modules/`, records the profile and purpose, then runs mise bootstrap.
 - In a terminal, the run goes one stage at a time (packages, system, dotfiles, shell, tools, modules) with a live summary, and mise's full output is kept in `~/.local/state/dotfiles/last-run.log`.
 - Nothing in the way of a link gets overwritten: a conflicting target is preserved in a unique `<target>.pre-dotfiles.<epoch>.<random>/original` directory.
-- Three profiles, `omarchy`, `macos` and `cachyos`, describe the OS and session; the work or personal purpose is independent of them.
+- Two profiles, `omarchy` and `macos`, describe the OS and session; the work or personal purpose is independent of them.
 - 43 modules, each one mise `conf.d` folder under `modules/`.
 - macOS and Omarchy share the same CapsLock summon leader: **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty.
-- Module test suites (`test:*`) run in CI on Arch (Omarchy and CachyOS environments) and on macOS.
+- Module test suites (`test:*`) run in CI on Arch (Omarchy environment) and on macOS.
 
 ## Bootstrap
 
@@ -97,7 +95,7 @@ In a terminal, `dotfiles` runs those steps one stage at a time with a live summa
 | `dotfiles --set-purpose personal` | Switch back to personal without provisioning |
 | `mise dot status` | Show the state of every managed file |
 | `MISE_TASK_RUN_AUTO_INSTALL=false mise run check` | Dry run plus module tests; use the full validation command below from `~` |
-| `update` | Profile-specific system upgrade: native `omarchy-update`, CachyOS package tasks, or Homebrew |
+| `update` | Profile-specific system upgrade: native `omarchy-update` or Homebrew |
 
 <details>
 <summary>Context, dry-run, and maintenance notes</summary>
@@ -106,7 +104,7 @@ The wrapper evaluates mise configuration and tasks from **HOME by default**, eve
 
 Dry-run retains the configured global context when this checkout, profile, and purpose are already configured. First-run previews use scratch configuration; retained global configuration that cannot be represented faithfully causes an explicit refusal. If an older generated mise selection lacks purpose, run the config-only `dotfiles --set-purpose work` (or `personal`) first, then retry the preview. Preview never updates the live purpose or discovery settings. Custom `MISE_GLOBAL_CONFIG_FILE`/`MISE_CONFIG_FILE` selections are unsupported by the wrapper. Mise can still evaluate trusted templates and update metadata/state/caches: use isolated HOME/XDG/mise directories and filesystem confinement for experiments.
 
-Taskfile maintenance follows the OS profile: Omarchy uses its native updater. CachyOS retains its package/AUR maintenance, cache cleanup, and Plasma/Steam desktop-health checks; those CachyOS-only consumers are not installed or run on Omarchy.
+Taskfile maintenance follows the OS profile: Omarchy uses its native updater.
 
 </details>
 
@@ -119,7 +117,7 @@ Purpose is independent of the OS profile: any supported profile can be `work` or
 
 `dotfiles --set-purpose work` and `dotfiles --set-purpose personal` only save that marker and regenerate mise discovery settings. They do not install prerequisites, sync the repo, replace `conf.d`, move conflicts, run tasks, or apply packages/dotfiles. Run the setter on its own, not with bootstrap flags such as `--dry-run`. `dotfiles --purpose` is a read-only query of the effective purpose.
 
-The wrapper owns generated `${XDG_CONFIG_HOME:-$HOME/.config}/mise/miserc.local.toml`; do not hand-edit purpose there. The setter and normal setup keep `auto_env = true` and persist `env = ["work"]` (or `["personal"]`) on macOS, and `env = ["omarchy", "work"]` / `["cachyos", "work"]` on Linux (substitute `personal` when selected). Subsequent raw mise commands use this persisted selection; a marker alone does not configure raw mise before the setter or normal setup has generated it.
+The wrapper owns generated `${XDG_CONFIG_HOME:-$HOME/.config}/mise/miserc.local.toml`; do not hand-edit purpose there. The setter and normal setup keep `auto_env = true` and persist `env = ["work"]` (or `["personal"]`) on macOS, and `env = ["omarchy", "work"]` on Linux (substitute `personal` when selected). Subsequent raw mise commands use this persisted selection; a marker alone does not configure raw mise before the setter or normal setup has generated it.
 
 Package restrictions use mise's native [`[bootstrap.packages]` `env` option](https://mise.jdx.dev/bootstrap/packages/#by-config-environment): `env = "work"` is work-only, `env = "personal"` is personal-only, and omitting `env` is shared, still subject to the existing platform/profile declarations. Discord is personal-only on macOS and Linux; all other app declarations and shared shortcuts are unchanged. Selecting work does **not uninstall** an existing Discord installation or disable its shortcuts.
 
@@ -134,7 +132,7 @@ mise bootstrap packages status --json
 # macOS: compare requested packages without changing the saved purpose.
 MISE_AUTO_ENV=true mise -E work bootstrap packages status --json
 MISE_AUTO_ENV=true mise -E personal bootstrap packages status --json
-# Linux: retain the actual distro environment (use cachyos instead if applicable).
+# Linux: retain the actual distro environment.
 MISE_AUTO_ENV=true mise -E omarchy,work bootstrap packages status --json
 MISE_AUTO_ENV=true mise -E omarchy,personal bootstrap packages status --json
 ```
@@ -196,7 +194,7 @@ Super stands in for Command. As on the Mac, each screen has a layout of cells, a
 
 Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Moving a window you tiled with `Super+T` puts it back in its cell. Fullscreen windows stay fullscreen, also across config reloads: Hyprland 0.56 forgets their fullscreen state there without telling the app, and Brave then hides its tabs again on every focus change. When they leave it, a window cells places goes back to its cell; one you tiled or popped out yourself stays where Hyprland restores it. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
 
-The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock into F13) and on CachyOS (keyd accepted both). A keyboard that sends F13 from its Caps Lock key needs no remap.
+The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock into F13). A keyboard that sends F13 from its Caps Lock key needs no remap.
 
 Every window is fully opaque, focused or not; Omarchy's default translucency is turned off so video never shows the wallpaper through. Apps that should be see-through set it themselves, such as Ghostty's `background-opacity`.
 
@@ -222,7 +220,7 @@ The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh
 
 ### Tailscale
 
-`bootstrap:tailscale` installs the client and nothing else, and warns instead of failing. On Omarchy and CachyOS it installs the `tailscale` package from the `extra` repo and runs `sudo systemctl enable --now tailscaled`; once the daemon is enabled and running, repeat runs change nothing and do not prompt for sudo. On macOS it installs the standalone app with the `tailscale-app` Homebrew cask, and leaves a hand-installed or App Store `/Applications/Tailscale.app` alone.
+`bootstrap:tailscale` installs the client and nothing else, and warns instead of failing. On Omarchy it installs the `tailscale` package from the `extra` repo and runs `sudo systemctl enable --now tailscaled`; once the daemon is enabled and running, repeat runs change nothing and do not prompt for sudo. On macOS it installs the standalone app with the `tailscale-app` Homebrew cask, and leaves a hand-installed or App Store `/Applications/Tailscale.app` alone.
 
 The module never joins a tailnet, holds no auth key and sets no routes. Joining is a one-time interactive step per device: `sudo tailscale up --accept-routes` on Linux (the browser sign-in URL is printed), or open the app and sign in on macOS. `--accept-routes` is what makes the home subnets reachable when away. At home, leave Tailscale down (`sudo tailscale down` on Linux, turn it off in the menu bar on macOS) so traffic stays on the LAN. Omarchy's own menu installer (`omarchy-install-service-tailscale`) installs the same package and daemon but also joins, sets the operator and adds a bar widget, so use either that or this module's step, not both.
 
@@ -253,7 +251,7 @@ Set `MISE_TASK_RUN_AUTO_INSTALL=false` **before** the outer `mise run` starts; s
 
 Install the gate's prerequisites separately before running it: Git, Bash, Zsh, Lua, Bun, jq, Python 3, and the platform's standard utilities. macOS CI runs every loaded `test:*` module suite from HOME with the same native fixture enabled, not just the Hammerspoon suite.
 
-A dry run or a macOS-hosted Linux profile-selection check is not native Linux runtime verification. Check the relevant Omarchy or CachyOS services, desktop/session behavior, and optional task outcomes on that OS; do not treat macOS CI as proof that all Linux paths ran.
+A dry run or a macOS-hosted Linux profile-selection check is not native Linux runtime verification. Check the relevant Omarchy services, desktop/session behavior, and optional task outcomes on that OS; do not treat macOS CI as proof that all Linux paths ran.
 
 <details>
 <summary>Linux sudoers regression gate</summary>
@@ -267,7 +265,7 @@ cd ~ &&
 
 It requires a non-root Linux account, installed `visudo`, bubblewrap, permitted unprivileged user/PID namespaces, and an existing `/etc/sudoers.d`. It maps a disposable policy directory and does not invoke real sudo or write a live grant. Run it on a suitable Linux executor; namespace restrictions are a reported failure, not proof that the policy passed.
 
-The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packaged sudo/bubblewrap, loads an AppArmor profile that grants user namespaces to `/usr/bin/bwrap` only (Ubuntu 24.04 otherwise blocks them for unprivileged programs; the host-wide restriction stays on), and runs the same test script directly as the non-root runner account, outside the wildcard suites. This route covers isolated sudoers safety, not full Omarchy/CachyOS provisioning or desktop runtime; consult the workflow results for execution evidence.
+The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packaged sudo/bubblewrap, loads an AppArmor profile that grants user namespaces to `/usr/bin/bwrap` only (Ubuntu 24.04 otherwise blocks them for unprivileged programs; the host-wide restriction stays on), and runs the same test script directly as the non-root runner account, outside the wildcard suites. This route covers isolated sudoers safety, not full Omarchy provisioning or desktop runtime; consult the workflow results for execution evidence.
 
 </details>
 
@@ -337,10 +335,9 @@ Relink configurations before broader provisioning, run again to settle permissio
 bin/dotfiles          bootstrap + wrapper (curl entrypoint)
 modules/<name>/       one mise conf.d folder per module
   mise.toml           every supported profile
-  mise.linux.toml     Omarchy + CachyOS
+  mise.linux.toml     Linux (Omarchy)
   mise.macos.toml     macOS
   mise.omarchy.toml   Omarchy / Hyprland
-  mise.cachyos.toml   CachyOS / KDE Plasma
   <config files>, bootstrap.sh, tests/
 .github/assets/       README images; render/render.py regenerates them
 ```

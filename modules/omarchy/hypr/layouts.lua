@@ -1,6 +1,6 @@
 -- Screen layouts for the cells engine (cells.lua). Managed by ~/.dotfiles modules/omarchy.
--- Same model as modules/hammerspoon/config/{positions,layouts,screen_layouts}.lua and
--- modules/plasma/summon/{regions,layouts}.toml: named regions, a layout per screen, app -> cell.
+-- Same model as modules/hammerspoon/config/{positions,layouts,screen_layouts}.lua:
+-- named regions, a layout per screen, app -> cell.
 return {
   -- Fractions of a screen's usable area (Waybar excluded). Every region is a floating cell: a window fills
   -- its cell, windows sharing a cell overlap (the focused one on top), and nothing resizes when windows

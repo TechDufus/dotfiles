@@ -47,7 +47,7 @@ PALETTES = {
     },
 }
 
-PROFILES = ("omarchy", "macos", "cachyos")
+PROFILES = ("omarchy", "macos")
 TAGLINE = "one command, every machine \u2014 applied with mise"
 
 

@@ -73,7 +73,7 @@ Configured candidates preview in their original config context. First-run scratc
 preview replaces conf.d as apply would; retained global files/tasks require an
 isolated rehearsal or already-configured candidate. Custom MISE_GLOBAL_CONFIG_FILE
 and MISE_CONFIG_FILE selections are unsupported for both setup and preflight.
-Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
+Profiles: omarchy, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
 Purpose is independent of the OS profile and stored at $PURPOSE_FILE.
 Purpose queries/setters do not install, sync, or provision. Setters reject all other
 flags, including --dry-run. Explicit mise -E/MISE_ENV remains an intentional override.
@@ -91,7 +91,7 @@ die() {
 detect_profile() {
   if [ -n "${DOTFILES_PROFILE:-}" ]; then
     case $DOTFILES_PROFILE in
-      omarchy | cachyos | macos) echo "$DOTFILES_PROFILE" ;;
+      omarchy | macos) echo "$DOTFILES_PROFILE" ;;
       *) die "unsupported machine ($DOTFILES_PROFILE)" ;;
     esac
     return
@@ -109,8 +109,6 @@ detect_profile() {
   fi
   if [ "$id" = omarchy ] || [ -d "$DOTFILES_SYSROOT/usr/share/omarchy" ] || [ -d "$HOME/.local/share/omarchy" ]; then
     echo omarchy
-  elif [ "$id" = cachyos ]; then
-    echo cachyos
   else
     die "unsupported machine ($id)"
   fi

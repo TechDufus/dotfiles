@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Personal dotfiles applied with mise: `mise bootstrap`, `[dotfiles]`, `[tools]`, and tasks. Omarchy and macOS are primary; CachyOS remains supported.
+Personal dotfiles applied with mise: `mise bootstrap`, `[dotfiles]`, `[tools]`, and tasks. Omarchy and macOS are the only supported profiles.
 
 This file holds the rules, not an inventory. The config is the source of truth for what is managed, and README.md for commands and user-facing behavior; read them instead of copying details here.
 
@@ -30,7 +30,6 @@ This file holds the rules, not an inventory. The config is the source of truth f
 
 ## Platform boundaries
 - Omarchy owns its system tree, its Hyprland entry point, its desktop and gaming stack, and the configs and tools its installers manage. Hook in through its extension points, set only the keys we own in configs it ships, and don't redeclare tools it already installs.
-- Keep CachyOS support profile-scoped; never port it to Omarchy automatically.
 
 ## Verify before reporting done
 - Use the README's preview and validation commands, run from HOME. Experiment in isolated HOME/XDG/mise directories; a preview must not change live state.

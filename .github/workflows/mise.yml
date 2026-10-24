@@ -36,14 +36,8 @@ jobs:
       - name: Dry-run omarchy
         run: MISE_AUTO_ENV=true MISE_ENV=omarchy mise bootstrap --dry-run --yes
 
-      - name: Dry-run cachyos
-        run: MISE_AUTO_ENV=true MISE_ENV=cachyos mise bootstrap --dry-run --yes
-
       - name: Tests (omarchy)
         run: MISE_AUTO_ENV=true MISE_ENV=omarchy mise run --jobs 1 'test:*'
-
-      - name: Tests (cachyos)
-        run: MISE_AUTO_ENV=true MISE_ENV=cachyos mise run --jobs 1 'test:*'
 
   # Scoped real apply: only the dotfiles and tools steps. Packages, services,
   # system files and the bootstrap task need systemd, an AUR helper, multilib
@@ -58,10 +52,10 @@ jobs:
       run:
         shell: bash
     env:
-      # cachyos declares node = "lts", which the npm: tools need; omarchy relies
-      # on Omarchy pinning node globally.
+      # Omarchy pins node globally in ~/.config/mise/config.toml, which the npm: tools
+      # need; the "Pin node globally" step reproduces that in this stock container.
       MISE_AUTO_ENV: "true"
-      MISE_ENV: cachyos
+      MISE_ENV: omarchy
       # Registry lookups (proxy.golang.org, npm) time out at the 20s default.
       MISE_FETCH_REMOTE_VERSIONS_TIMEOUT: 120s
       MISE_HTTP_TIMEOUT: 120s
@@ -75,6 +69,12 @@ jobs:
 
       - name: Link modules as mise conf.d
         run: mkdir -p ~/.config/mise && ln -s "$GITHUB_WORKSPACE/modules" ~/.config/mise/conf.d
+
+      # Omarchy ships node pinned in the global mise config; no module declares it.
+      - name: Pin node globally (as Omarchy does)
+        run: |
+          cd ~
+          mise use -g node@lts
 
       - name: Verify modules loaded
         run: |

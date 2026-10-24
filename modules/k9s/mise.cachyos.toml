@@ -1,2 +1,0 @@
-[dotfiles]
-"~/.config/k9s/skins/current.yaml" = { source = "catppuccin_mocha.yaml" }

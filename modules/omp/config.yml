@@ -1,6 +1,7 @@
 modelRoles:
   smol: openai-codex/gpt-6-luna:low
   tiny: openai-codex/gpt-6-luna:low
+  memory: openai-codex/gpt-6.1-terra:medium
   task: openai-codex/gpt-6.1-sol
   slow: openai-codex/gpt-6-astra
   plan: openai-codex/gpt-6-astra

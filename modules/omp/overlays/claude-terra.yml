@@ -9,7 +9,7 @@ modelRoles:
   designer: anthropic/claude-sonnet-5-5:high
   vision: anthropic/claude-sonnet-5-5:high
   commit: anthropic/claude-sonnet-5-5:low
-  advisor: openai-codex/gpt-6.1-sol:low
+  advisor: openai-codex/gpt-6.1-terra:low
 enabledModels:
   - anthropic/*
-  - openai-codex/gpt-6.1-sol
+  - openai-codex/gpt-6.1-terra

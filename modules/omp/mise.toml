@@ -11,7 +11,7 @@
 "~/.omp/agent/overlays/herd.yml" = { source = "overlays/herd.yml" }
 "~/.omp/agent/overlays/cursor.yml" = { source = "overlays/cursor.yml" }
 "~/.omp/agent/overlays/claude.yml" = { source = "overlays/claude.yml" }
-"~/.omp/agent/overlays/claude-sol.yml" = { source = "overlays/claude-sol.yml" }
+"~/.omp/agent/overlays/claude-terra.yml" = { source = "overlays/claude-terra.yml" }
 "~/.omp/agent/overlays/codex.yml" = { source = "overlays/codex.yml" }
 
 "~/.omp/agent/agents" = { source = "agents", mode = "symlink-each" }
@@ -26,7 +26,7 @@
 
 "~/.local/bin/omp-cursor" = { source = "bin/omp-cursor" }
 "~/.local/bin/omp-claude" = { source = "bin/omp-claude" }
-"~/.local/bin/omp-claude-sol" = { source = "bin/omp-claude-sol" }
+"~/.local/bin/omp-claude-terra" = { source = "bin/omp-claude-terra" }
 "~/.local/bin/omp-codex" = { source = "bin/omp-codex" }
 
 "~/.omp/agent/AGENTS.md" = { source = "AGENTS.md" }

@@ -202,6 +202,12 @@ Every window is fully opaque, focused or not; Omarchy's default translucency is 
 
 ## Apps
 
+### OMP
+
+The main `omp` configuration (including its default) and `omp-codex` now select GPT-6.1 Terra for roles previously assigned GPT-6.1 Sol, preserving their providers and thinking levels. Their Astra roles remain unchanged. `omp-claude-terra` uses Claude for its main roles and GPT-6.1 Terra for its advisor.
+
+`omp-claude-sol` was renamed to `omp-claude-terra`. On older installs, `~/.local/bin/omp-claude-sol` and `~/.omp/agent/overlays/claude-sol.yml` may remain as dangling symlinks because targeted mise apply creates the new names without pruning the old paths. Inspect these paths before removing them; remove only obsolete managed symlinks, not custom files.
+
 ### Tern
 
 Native mise merges and the bootstrap reset both use the standard Tern roots: `~/Library/Application Support/Tern` on macOS and `~/.config/tern` on Linux. `TERN_CONFIG_DIR` and a custom `XDG_CONFIG_HOME` are not supported by this module; the old role's alternate-root behavior is not carried forward.

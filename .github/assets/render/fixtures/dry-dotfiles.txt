@@ -46,7 +46,7 @@ ln -sf /home/techdufus/.config/mise/conf.d/omp/WATCHDOG.md ~/.omp/agent/WATCHDOG
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/herd.yml ~/.omp/agent/overlays/herd.yml
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/cursor.yml ~/.omp/agent/overlays/cursor.yml
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude.yml ~/.omp/agent/overlays/claude.yml
-ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude-sol.yml ~/.omp/agent/overlays/claude-sol.yml
+ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude-terra.yml ~/.omp/agent/overlays/claude-terra.yml
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/codex.yml ~/.omp/agent/overlays/codex.yml
 ln -sf /home/techdufus/.config/mise/conf.d/omp/agents/* into ~/.omp/agent/agents/ (5 files)
 ln -sf /home/techdufus/.config/mise/conf.d/omp/extensions/* into ~/.omp/agent/extensions/ (2 files)
@@ -57,7 +57,7 @@ ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/verification ~/.omp/agent/
 ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/commit ~/.omp/agent/skills/commit
 ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-cursor ~/.local/bin/omp-cursor
 ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-claude ~/.local/bin/omp-claude
-ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-claude-sol ~/.local/bin/omp-claude-sol
+ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-claude-terra ~/.local/bin/omp-claude-terra
 ln -sf /home/techdufus/.config/mise/conf.d/omp/bin/omp-codex ~/.local/bin/omp-codex
 ln -sf /home/techdufus/.config/mise/conf.d/omp/AGENTS.md ~/.omp/agent/AGENTS.md
 ln -sf /home/techdufus/.config/mise/conf.d/worktrunk/config.toml ~/.config/worktrunk/config.toml

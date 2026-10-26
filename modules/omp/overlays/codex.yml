@@ -1,15 +1,15 @@
 ---
 modelRoles:
-  default: openai-codex/gpt-6.1-sol:max
-  smol: openai-codex/gpt-6.1-sol:low
-  tiny: openai-codex/gpt-6.1-sol:low
-  task: openai-codex/gpt-6.1-sol
+  default: openai-codex/gpt-6.1-terra:max
+  smol: openai-codex/gpt-6.1-terra:low
+  tiny: openai-codex/gpt-6.1-terra:low
+  task: openai-codex/gpt-6.1-terra
   slow: openai-codex/gpt-6-astra
   plan: openai-codex/gpt-6-astra
   designer: openai-codex/gpt-6-astra
-  vision: openai-codex/gpt-6.1-sol:high
-  commit: openai-codex/gpt-6.1-sol:low
-  reviewer: openai-codex/gpt-6.1-sol
-  advisor: openai-codex/gpt-6.1-sol:medium
+  vision: openai-codex/gpt-6.1-terra:high
+  commit: openai-codex/gpt-6.1-terra:low
+  reviewer: openai-codex/gpt-6.1-terra
+  advisor: openai-codex/gpt-6.1-terra:medium
 enabledModels:
   - openai-codex/*

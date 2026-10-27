@@ -74,6 +74,8 @@ preview replaces conf.d as apply would; retained global files/tasks require an
 isolated rehearsal or already-configured candidate. Custom MISE_GLOBAL_CONFIG_FILE
 and MISE_CONFIG_FILE selections are unsupported for both setup and preflight.
 Profiles: omarchy, cachyos, macos (Apple Silicon only); override with DOTFILES_PROFILE=<profile>.
+Host: mise env host-<short hostname, lowercased> selects modules/*/mise.host-<name>.toml;
+override the name with DOTFILES_HOST=<name>.
 Purpose is independent of the OS profile and stored at $PURPOSE_FILE.
 Purpose queries/setters do not install, sync, or provision. Setters reject all other
 flags, including --dry-run. Explicit mise -E/MISE_ENV remains an intentional override.
@@ -308,10 +310,26 @@ link_conf_d() {
   ln -sfn "$DOTFILES_DIR/modules" "$link"
 }
 
+# host-<short hostname>: lowercased, anything but a-z 0-9 - as "-". Pure bash (3.2): setters run
+# before prerequisites exist.
 miserc_content() {
-  local envs
-  if [ "$1" = macos ]; then envs="[\"$PURPOSE\"]"; else envs="[\"$1\", \"$PURPOSE\"]"; fi
-  printf '# written by bin/dotfiles; set DOTFILES_PROFILE to override\nauto_env = true\nenv = %s' "$envs"
+  local envs host="" c i upper=ABCDEFGHIJKLMNOPQRSTUVWXYZ lower=abcdefghijklmnopqrstuvwxyz
+  short_host
+  for ((i = 0; i < ${#HOST}; i++)); do
+    c=${HOST:i:1}
+    # Spelled out: a bracket range can match other letters under a non-C locale.
+    case $upper in
+      *"$c"*) c=${upper%%"$c"*} c=${lower:${#c}:1} ;;
+    esac
+    case $c in
+      [abcdefghijklmnopqrstuvwxyz0123456789-]) ;;
+      *) c=- ;;
+    esac
+    host+=$c
+  done
+  if [ "$1" = macos ]; then envs="\"$PURPOSE\""; else envs="\"$1\", \"$PURPOSE\""; fi
+  [ -z "$host" ] || envs="$envs, \"host-$host\""
+  printf '# written by bin/dotfiles; set DOTFILES_PROFILE or DOTFILES_HOST to override\nauto_env = true\nenv = [%s]' "$envs"
 }
 
 validate_miserc_target() {
@@ -642,7 +660,7 @@ draw_header() { # draw_header <profile>
 }
 
 short_host() { # -> HOST
-  HOST=${HOSTNAME:-}
+  HOST=${DOTFILES_HOST:-${HOSTNAME:-}}
   [ -n "$HOST" ] || HOST=$(uname -n)
   HOST=${HOST%%.*}
 }

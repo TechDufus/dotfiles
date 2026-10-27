@@ -1,0 +1,9 @@
+# Sherlock only: bin/dotfiles adds host-<short hostname> to mise's env list, so mise loads this file
+# on that machine alone, after mise.omarchy.toml.
+
+# Local AI bar widget: runs a GPU/CPU-validated model in Docker on 127.0.0.1 and opens a coding agent on it.
+[bootstrap.repos."~/.config/omarchy/plugins/sero.local-ai"]
+url = "https://github.com/sybil-solutions/omarchy-local-ai.git"
+
+[vars]
+omarchy_host_plugins = "sero.local-ai"

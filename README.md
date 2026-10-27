@@ -119,7 +119,7 @@ Purpose is independent of the OS profile: any supported profile can be `work` or
 
 `dotfiles --set-purpose work` and `dotfiles --set-purpose personal` only save that marker and regenerate mise discovery settings. They do not install prerequisites, sync the repo, replace `conf.d`, move conflicts, run tasks, or apply packages/dotfiles. Run the setter on its own, not with bootstrap flags such as `--dry-run`. `dotfiles --purpose` is a read-only query of the effective purpose.
 
-The wrapper owns generated `${XDG_CONFIG_HOME:-$HOME/.config}/mise/miserc.local.toml`; do not hand-edit purpose there. The setter and normal setup keep `auto_env = true` and persist `env = ["work"]` (or `["personal"]`) on macOS, and `env = ["omarchy", "work"]` / `["cachyos", "work"]` on Linux (substitute `personal` when selected). Subsequent raw mise commands use this persisted selection; a marker alone does not configure raw mise before the setter or normal setup has generated it.
+The wrapper owns generated `${XDG_CONFIG_HOME:-$HOME/.config}/mise/miserc.local.toml`; do not hand-edit purpose there. The setter and normal setup keep `auto_env = true` and persist `env = ["work", "host-<name>"]` (or `["personal", …]`) on macOS, and `env = ["omarchy", "work", "host-<name>"]` / `["cachyos", "work", "host-<name>"]` on Linux (substitute `personal` when selected). `<name>` is the short hostname, lowercased, with anything but `a-z`, `0-9` and `-` turned into `-`; `DOTFILES_HOST=<name>` overrides it. mise then loads `modules/*/mise.host-<name>.toml` on that machine alone, which is how one host gets config the others don't. Subsequent raw mise commands use this persisted selection; a marker alone does not configure raw mise before the setter or normal setup has generated it.
 
 Package restrictions use mise's native [`[bootstrap.packages]` `env` option](https://mise.jdx.dev/bootstrap/packages/#by-config-environment): `env = "work"` is work-only, `env = "personal"` is personal-only, and omitting `env` is shared, still subject to the existing platform/profile declarations. Discord is personal-only on macOS and Linux; all other app declarations and shared shortcuts are unchanged. Selecting work does **not uninstall** an existing Discord installation or disable its shortcuts.
 
@@ -214,7 +214,7 @@ macOS and Omarchy now share **CapsLock → t** for Tern and **CapsLock → Shift
 
 ### Omarchy shell plugins
 
-`mise.omarchy.toml` clones four shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to), [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions), [OmaSwitch](https://github.com/piyush97/omaswitch) (Alt+Tab switcher with live previews) and [Local AI](https://github.com/sybil-solutions/omarchy-local-ai) (runs a model validated for your GPU or CPU in Docker on 127.0.0.1 and opens a coding agent on it). `bootstrap:omarchy-plugins` enables them, putting the three widgets in the bar, and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes stay until a list changes. Outside a session it waits for the next run.
+`mise.omarchy.toml` clones three shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to), [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions) and [OmaSwitch](https://github.com/piyush97/omaswitch) (Alt+Tab switcher with live previews). On Sherlock alone, `mise.host-sherlock.toml` adds [Local AI](https://github.com/sybil-solutions/omarchy-local-ai) (runs a model validated for the machine's GPU in Docker on 127.0.0.1 and opens a coding agent on it) through `vars.omarchy_host_plugins`. `bootstrap:omarchy-plugins` enables them, putting the widgets in the bar, and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes stay until a list changes. Outside a session it waits for the next run.
 
 Alt+Tab opens OmaSwitch only while it is installed and enabled; on each press `cells.lua` checks the plugin folder and `shell.json`, so `omarchy plugin disable piyush.omaswitch` or `remove` hands Alt+Tab back to plain window cycling without a keybinding change or reload. To drop it for good, delete its `[bootstrap.repos]` entry and its id from `OMARCHY_PLUGINS`, then run `omarchy plugin remove piyush.omaswitch --yes`: mise never deletes a clone.
 
@@ -335,6 +335,7 @@ modules/<name>/       one mise conf.d folder per module
   mise.macos.toml     macOS
   mise.omarchy.toml   Omarchy / Hyprland
   mise.cachyos.toml   CachyOS / KDE Plasma
+  mise.host-<name>.toml  one machine (short hostname, lowercased)
   <config files>, bootstrap.sh, tests/
 .github/assets/       README images; render/render.py regenerates them
 ```

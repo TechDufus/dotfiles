@@ -185,7 +185,7 @@ run_df() {
     MISE_ENV_FILE="$C/mise.env" MISE_PROFILE_FILE="$C/mise.profile" \
     MISE_DOT_ARGV_FILE="$C/mise.dot.argv" \
     SUDO_LOG="$C/sudo.log" STUB_DOT_COUNT_FILE="$C/dot.count" \
-    STUB_UNAME_S=Linux STUB_UNAME_M=x86_64 \
+    STUB_UNAME_S=Linux STUB_UNAME_M=x86_64 DOTFILES_HOST=Lab_1.example \
     ${envs[@]+"${envs[@]}"} \
     "$BIN" ${args[@]+"${args[@]}"} 2>"$C/stderr"); then
     RC=0
@@ -287,7 +287,7 @@ run_df DOTFILES_PROFILE=macos PATH="$C/path" --set-purpose work
 expect_rc 0
 expect_no_provisioning
 expect_eq "$(cat "$C/xdg/config/dotfiles/purpose")" work "saved work purpose"
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["work"]' "macOS native purpose selection"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["work", "host-lab-1"]' "macOS native purpose and host selection"
 [ ! -e "$DOTFILES_DIR" ] || fail "setter created a checkout"
 [ ! -L "$MISE_DIR/conf.d" ] || fail "setter replaced conf.d"
 expect_eq "$(cat "$MISE_DIR/conf.d/user.toml")" retained "setter preserves existing discovery ownership"
@@ -310,11 +310,11 @@ expect_no_provisioning
 init_repo "$DOTFILES_DIR"
 run_df DOTFILES_PROFILE=cachyos
 expect_rc 0
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "work"]' "ordinary apply persists purpose and distro selection"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "work", "host-lab-1"]' "ordinary apply persists purpose and distro selection"
 run_df DOTFILES_PROFILE=omarchy --set-purpose personal
 expect_rc 0
 expect_no_provisioning
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal"]' "switching purpose preserves Linux profile"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal", "host-lab-1"]' "switching purpose preserves Linux profile"
 run_df --purpose
 expect_rc 0
 expect_eq "$OUT" personal "personal switch persists"
@@ -429,7 +429,7 @@ run_df DOTFILES_PROFILE=cachyos
 expect_rc 0
 [ -L "$MISE_DIR/conf.d" ] || fail "conf.d is not a symlink"
 expect_eq "$(readlink "$MISE_DIR/conf.d")" "$DOTFILES_DIR/modules" "conf.d target"
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "personal"]' "distro and default purpose selection"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["cachyos", "personal", "host-lab-1"]' "distro, default purpose and short lowercased host selection"
 
 # Rerun must not rewrite an unchanged miserc.
 touch -t 200001010000 "$MISE_DIR/miserc.local.toml"
@@ -440,7 +440,7 @@ if [ "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ]; then fail "miserc rewritten t
 # A changed profile must rewrite it.
 run_df DOTFILES_PROFILE=omarchy
 expect_rc 0
-expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal"]' "miserc after profile change"
+expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["omarchy", "personal", "host-lab-1"]' "miserc after profile change"
 
 new_case existing-real-conf-d
 init_repo "$DOTFILES_DIR"
@@ -472,7 +472,7 @@ else
   init_repo "$DOTFILES_DIR"
   run_df DOTFILES_PROFILE=macos
   expect_rc 0
-  expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["personal"]' "macos purpose selection"
+  expect_contains "$(cat "$MISE_DIR/miserc.local.toml")" 'env = ["personal", "host-lab-1"]' "macos purpose selection"
 fi
 
 # ---- pull rules ----
@@ -528,7 +528,7 @@ expect_eq "$(git -C "$DOTFILES_DIR" rev-parse HEAD)" "$OLD" "checkout unchanged"
 [ ! -e "$MISE_DIR" ] || fail "first preflight created live mise configuration"
 [ ! -e "$C/xdg/config/dotfiles/purpose" ] || fail "first preflight persisted default purpose"
 expect_eq "$(tr '\n' ' ' <"$C/mise.argv")" "bootstrap --yes --dry-run --only tools,task --locked " "selection and lock flags reach preview"
-expect_contains "$(cat "$C/mise.profile")" 'env = ["personal"]' "macOS candidate purpose"
+expect_contains "$(cat "$C/mise.profile")" 'env = ["personal", "host-lab-1"]' "macOS candidate purpose"
 expect_contains "$(cat "$C/mise.env")" "data=$C/mise/data" "installed-tool data is preserved"
 expect_contains "$(cat "$C/mise.env")" "state=$C/mise/state" "installed-tool state is preserved"
 expect_contains "$(cat "$C/mise.env")" "cache=$C/mise/cache" "metadata cache location is preserved"
@@ -553,7 +553,7 @@ node = "22"' "discarded configuration remains untouched on disk"
 expect_eq "$(cat "$MISE_DIR/miserc.local.toml")" '# existing profile override' "live profile untouched"
 [ ! "$MISE_DIR/miserc.local.toml" -nt "$C/ref" ] || fail "live profile was rewritten"
 expect_eq "$(find "$MISE_DIR" -name '*.pre-dotfiles.*' | wc -l | tr -d ' ')" 0 "preflight creates no backups"
-expect_contains "$(cat "$C/mise.profile")" 'env = ["cachyos", "work"]' "scratch preview selects the saved purpose"
+expect_contains "$(cat "$C/mise.profile")" 'env = ["cachyos", "work", "host-lab-1"]' "scratch preview selects the saved purpose"
 expect_eq "$(cksum "$C/xdg/config/dotfiles/purpose")" "$PURPOSE_BEFORE" "scratch preview preserves saved purpose"
 
 # Config-relative adjacent resources require their original configuration context.

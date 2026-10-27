@@ -40,15 +40,15 @@ url = "https://github.com/robzolkos/omarchy-github.git"
 [bootstrap.repos."~/.config/omarchy/plugins/piyush.omaswitch"]
 url = "https://github.com/piyush97/omaswitch.git"
 
-# Local AI bar widget: runs a GPU/CPU-validated model in Docker on 127.0.0.1 and opens a coding agent on it.
-[bootstrap.repos."~/.config/omarchy/plugins/sero.local-ai"]
-url = "https://github.com/sybil-solutions/omarchy-local-ai.git"
+# Enables the plugins above, plus a host's own (mise.host-<name>.toml sets vars.omarchy_host_plugins),
+# bar widgets going in the bar, and takes the stock Agents widget out (omp-usage replaces it), once
+# per value of the two lists: a later change stays until a list changes.
+[vars]
+omarchy_host_plugins = ""
 
-# Enables the plugins above (bar widgets go in the bar) and takes the stock Agents widget out
-# (omp-usage replaces it), once per value of the two lists: a later change stays until a list changes.
 [tasks."bootstrap:omarchy-plugins"]
 description = "Enable the Omarchy shell plugins once per plugin list"
-env = { OMARCHY_PLUGINS = "iamanro.omp-usage robzolkos.github piyush.omaswitch sero.local-ai", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
+env = { OMARCHY_PLUGINS = "iamanro.omp-usage robzolkos.github piyush.omaswitch {{ vars.omarchy_host_plugins }}", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
 run = "./plugins.sh"
 
 [tasks."test:omarchy"]

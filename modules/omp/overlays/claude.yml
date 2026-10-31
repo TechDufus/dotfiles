@@ -10,5 +10,6 @@ modelRoles:
   vision: anthropic/claude-sonnet-5-5:high
   commit: anthropic/claude-sonnet-5-5:low
   advisor: anthropic/claude-sonnet-5-5:medium
+  reviewer: anthropic/claude-opus-5-5:high
 enabledModels:
   - anthropic/*

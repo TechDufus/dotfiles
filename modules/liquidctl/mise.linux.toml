@@ -1,0 +1,7 @@
+[tasks."bootstrap:liquidctl"]
+description = "On machines with a Lian Li UNI FAN SL hub: install liquidctl and keep the hub in motherboard PWM sync"
+run = "./bootstrap.sh"
+
+[tasks."test:liquidctl"]
+description = "Test the hub-gated liquidctl install against a stubbed system root"
+run = "bash tests/test_bootstrap.sh"

@@ -53,7 +53,7 @@ Other systems stop with `unsupported machine`. The earlier Ansible provisioning 
 - In a terminal, the run goes one stage at a time (packages, system, dotfiles, shell, tools, modules) with a live summary, and mise's full output is kept in `~/.local/state/dotfiles/last-run.log`.
 - Nothing in the way of a link gets overwritten: a conflicting target is preserved in a unique `<target>.pre-dotfiles.<epoch>.<random>/original` directory.
 - Two profiles, `omarchy` and `macos`, describe the OS and session; the work or personal purpose is independent of them.
-- 43 modules, each one mise `conf.d` folder under `modules/`.
+- 44 modules, each one mise `conf.d` folder under `modules/`.
 - macOS and Omarchy share the same CapsLock summon leader: **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty.
 - Module test suites (`test:*`) run in CI on Arch (Omarchy environment) and on macOS.
 
@@ -223,6 +223,10 @@ The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh
 `bootstrap:tailscale` installs the client and nothing else, and warns instead of failing. On Omarchy it installs the `tailscale` package from the `extra` repo and runs `sudo systemctl enable --now tailscaled`; once the daemon is enabled and running, repeat runs change nothing and do not prompt for sudo. On macOS it installs the standalone app with the `tailscale-app` Homebrew cask, and leaves a hand-installed or App Store `/Applications/Tailscale.app` alone.
 
 The module never joins a tailnet, holds no auth key and sets no routes. Joining is a one-time interactive step per device: `sudo tailscale up --accept-routes` on Linux (the browser sign-in URL is printed), or open the app and sign in on macOS. `--accept-routes` is what makes the home subnets reachable when away. At home, leave Tailscale down (`sudo tailscale down` on Linux, turn it off in the menu bar on macOS) so traffic stays on the LAN. Omarchy's own menu installer (`omarchy-install-service-tailscale`) installs the same package and daemon but also joins, sets the operator and adds a bar widget, so use either that or this module's step, not both.
+
+### liquidctl
+
+`bootstrap:liquidctl` (Omarchy) acts only on machines with a Lian Li UNI FAN SL hub (USB `0cf2:a100`); elsewhere it prints a skip line. On those machines it installs `liquidctl` from `extra`, plus a udev rule and a oneshot unit that runs `liquidctl --match "Uni SL" initialize` whenever the hub appears (boot or replug), so the fans follow the motherboard's PWM. It warns instead of failing, and repeat runs change nothing and do not prompt for sudo. Check with `liquidctl status` and `systemctl status liquidctl-lianli-uni-sl.service`.
 
 ## Gallery
 

@@ -1,0 +1,2 @@
+# Lian Li UNI FAN SL hub appears (boot or replug): hand it back to motherboard PWM sync.
+ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0cf2", ATTRS{idProduct}=="a100", TAG+="systemd", ENV{SYSTEMD_WANTS}+="liquidctl-lianli-uni-sl.service"

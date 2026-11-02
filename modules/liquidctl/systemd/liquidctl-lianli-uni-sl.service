@@ -1,0 +1,8 @@
+[Unit]
+Description=Put the Lian Li UNI FAN SL hub in motherboard PWM sync
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/liquidctl --match "Uni SL" initialize
+Restart=on-failure
+RestartSec=2

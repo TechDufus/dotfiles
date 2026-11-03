@@ -35,6 +35,9 @@ url = "https://github.com/iamanro/omarchy-omp-usage.git"
 [bootstrap.repos."~/.config/omarchy/plugins/robzolkos.github"]
 url = "https://github.com/robzolkos/omarchy-github.git"
 
+[bootstrap.repos."~/.config/omarchy/plugins/kdm.resources"]
+url = "https://github.com/Kyotroo/omarchy-bar-resources.git"
+
 # Alt+Tab switcher overlay. cells.lua hands Alt+Tab to it while it is installed and enabled, so
 # removing or disabling it needs no keybinding change.
 [bootstrap.repos."~/.config/omarchy/plugins/piyush.omaswitch"]
@@ -44,7 +47,7 @@ url = "https://github.com/piyush97/omaswitch.git"
 # (omp-usage replaces it), once per value of the two lists: a later change stays until a list changes.
 [tasks."bootstrap:omarchy-plugins"]
 description = "Enable the Omarchy shell plugins once per plugin list"
-env = { OMARCHY_PLUGINS = "iamanro.omp-usage robzolkos.github piyush.omaswitch", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
+env = { OMARCHY_PLUGINS = "iamanro.omp-usage robzolkos.github kdm.resources piyush.omaswitch", OMARCHY_HIDDEN_PLUGINS = "omarchy.agents" }
 run = "./plugins.sh"
 
 [tasks."test:omarchy"]

@@ -208,6 +208,14 @@ The main `omp` configuration defaults to `openai-codex/gpt-6-astra:xhigh`, uses 
 
 `omp-claude-sol` was renamed to `omp-claude-terra`. On older installs, `~/.local/bin/omp-claude-sol` and `~/.omp/agent/overlays/claude-sol.yml` may remain as dangling symlinks because targeted mise apply creates the new names without pruning the old paths. Inspect these paths before removing them; remove only obsolete managed symlinks, not custom files.
 
+`bootstrap:omp` installs and updates the user-wide Herdr, Worktrunk, and [Impeccable](https://impeccable.style/) skills from upstream Git checkouts in `~/.local/share/dotfiles/`, linked into `~/.omp/agent/skills/`. Existing non-symlink destinations are preserved. To refresh these skills without running the other module bootstraps, run from HOME:
+
+```bash
+MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true mise run bootstrap:omp
+```
+
+Start a new OMP session after installation, then invoke Impeccable with `/skill:impeccable critique the settings page` or another subcommand. Installation is user-wide; `init` and `document` create project-specific `PRODUCT.md` and `DESIGN.md` context only when requested. The bootstrap does not enable Impeccable hooks or live mode.
+
 ### Tern
 
 Native mise merges and the bootstrap reset both use the standard Tern roots: `~/Library/Application Support/Tern` on macOS and `~/.config/tern` on Linux. `TERN_CONFIG_DIR` and a custom `XDG_CONFIG_HOME` are not supported by this module; the old role's alternate-root behavior is not carried forward.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upstream herdr/worktrunk skills, marketplace plugins and herdr's omp lifecycle integration. Fail-soft.
+# Upstream herdr/worktrunk/Impeccable skills, marketplace plugins and herdr's omp lifecycle integration. Fail-soft.
 set -uo pipefail
 
 export GIT_TERMINAL_PROMPT=0
@@ -8,9 +8,10 @@ skills_dir="$HOME/.omp/agent/skills"
 
 warn() { echo "omp: $*, skipped"; }
 
-# link_skill <name> <repo-url> <branch>
+# link_skill <name> <repo-url> <branch> [repo-relative-skill-dir; default: skills/<name>]
 link_skill() {
   local name=$1 url=$2 branch=$3
+  local skill_dir=${4:-skills/$name}
   local dir="$share_dir/$name" dest="$skills_dir/$name"
 
   mkdir -p "$share_dir" || { warn "cannot create $share_dir"; return 0; }
@@ -20,17 +21,18 @@ link_skill() {
     git clone --quiet --depth 1 --single-branch --branch "$branch" "$url" "$dir" || warn "$name skill clone failed"
   fi
 
-  [ -f "$dir/skills/$name/SKILL.md" ] || return 0
+  [ -f "$dir/$skill_dir/SKILL.md" ] || return 0
   if [ -e "$dest" ] && [ ! -L "$dest" ]; then
     warn "$dest exists and is not a symlink"
     return 0
   fi
   mkdir -p "$skills_dir" || { warn "cannot create $skills_dir"; return 0; }
-  ln -sfn "$dir/skills/$name" "$dest" || warn "cannot link $dest"
+  ln -sfn "$dir/$skill_dir" "$dest" || warn "cannot link $dest"
 }
 
 link_skill herdr https://github.com/herdrdev/herdr.git master
 link_skill worktrunk https://github.com/max-sixty/worktrunk.git main
+link_skill impeccable https://github.com/pbakaus/impeccable.git main .agents/skills/impeccable
 
 # install_plugin <name@marketplace> <marketplace-source>
 # Installs once; upgrades stay manual (`omp plugin upgrade`). A linked checkout of the same

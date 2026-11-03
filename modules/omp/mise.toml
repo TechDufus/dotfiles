@@ -17,7 +17,7 @@
 "~/.omp/agent/agents" = { source = "agents", mode = "symlink-each" }
 "~/.omp/agent/extensions" = { source = "extensions", mode = "symlink-each" }
 
-# herdr and worktrunk skills are linked by bootstrap:omp from upstream checkouts.
+# herdr, worktrunk and Impeccable skills are linked by bootstrap:omp from upstream checkouts.
 "~/.omp/agent/skills/test-audit" = { source = "skills/test-audit" }
 "~/.omp/agent/skills/herdr-workflow" = { source = "skills/herdr-workflow" }
 "~/.omp/agent/skills/semantic-compression" = { source = "skills/semantic-compression" }
@@ -36,7 +36,7 @@
 "~/.omp/agent/mcp.json" = { permissions = "0600" }
 
 [tasks."bootstrap:omp"]
-description = "Link upstream herdr/worktrunk skills, install omp marketplace plugins and herdr's omp integration"
+description = "Link upstream herdr/worktrunk/Impeccable skills, install omp marketplace plugins and herdr's omp integration"
 run = "./bootstrap.sh"
 
 [tasks."test:omp"]

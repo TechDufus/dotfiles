@@ -1,14 +1,14 @@
 ---
 modelRoles:
-  default: cursor/grok-4.7-xhigh
+  default: cursor/cursor-grok-4.6:xhigh
   smol: cursor/composer-2.5-fast
   tiny: cursor/composer-2.5-fast
-  task: cursor/grok-4.7-high
-  slow: cursor/grok-4.7-xhigh
-  plan: cursor/grok-4.7-xhigh
-  designer: cursor/grok-4.7-high
+  task: cursor/cursor-grok-4.6:high
+  slow: cursor/cursor-grok-4.6:xhigh
+  plan: cursor/cursor-grok-4.6:xhigh
+  designer: cursor/cursor-grok-4.6:high
   vision: cursor/gemini-3.1-pro:high
   commit: cursor/composer-2.5-fast
-  advisor: cursor/grok-4.7-low
+  advisor: cursor/cursor-grok-4.6:low
 enabledModels:
   - cursor/*

@@ -204,6 +204,8 @@ Every window is fully opaque, focused or not; Omarchy's default translucency is 
 
 ### OMP
 
+Managed OMP configuration preserves deliberate routing, capability, trust-boundary, and visual choices while omitting redundant default tuning so future upstream defaults can apply.
+
 The main `omp` configuration defaults to `openai-codex/gpt-6-astra:xhigh`, uses GPT-6.1 Sol for task and reviewer roles, and GPT-6 Astra for slow, plan, and designer roles. `omp-codex` defaults to `openai-codex/gpt-6.1-sol:max` and uses GPT-6.1 Sol for those five roles. In both configurations, smol and tiny use GPT-6 Luna at low thinking, vision uses GPT-6.1 Terra at high thinking, commit uses Terra at low thinking, and memory and advisor use Terra at medium thinking. Memory is explicit so Mnemopi extraction and consolidation do not fall through to tiny's lightweight Luna model. Prewalk and plan-yolo may select smol for implementation, so Luna is not limited to background tasks. `omp-claude-terra` uses Claude for its main roles and GPT-6.1 Terra for its advisor.
 
 `omp-claude-sol` was renamed to `omp-claude-terra`. On older installs, `~/.local/bin/omp-claude-sol` and `~/.omp/agent/overlays/claude-sol.yml` may remain as dangling symlinks because targeted mise apply creates the new names without pruning the old paths. Inspect these paths before removing them; remove only obsolete managed symlinks, not custom files.

@@ -20,22 +20,10 @@ symbolPreset: nerd
 display:
   shimmer: kitt
 defaultThinkingLevel: xhigh
-providers:
-  autoThinkingMaxEffort: max
 advisor:
   enabled: true
-  syncBacklog: "3"
-  immuneTurns: 5
 error:
   notify: "on"
-compaction:
-  thresholdPercent: 85
-  asyncEnabled: true
-  methodOrder:
-    - remote
-    - handoff
-    - shake
-    - soft
 hideThinkingBlock: true
 disabledProviders:
   - claude
@@ -49,8 +37,6 @@ disabledProviders:
   - github
   - amazon-bedrock
   - ollama
-marketplace:
-  autoUpdate: auto
 bashInterceptor:
   enabled: true
 edit:
@@ -68,7 +54,6 @@ github:
 security:
   enabled: true
 task:
-  eager: always
   showResolvedModelBadge: true
   enableLsp: true
   maxEffort: xhigh
@@ -76,17 +61,13 @@ task:
     commits: ai
     enabled: true
 skills:
-  enableCodexUser: false
-  enableClaudeUser: false
   enableClaudeProject: false
 commands:
-  enableClaudeUser: false
   enableClaudeProject: false
-  enableOpencodeUser: false
   enableOpencodeProject: false
 mcp:
   enableProjectConfig: false
-setupVersion: 2
+setupVersion: 3
 vault:
   enabled: true
 dev:
@@ -96,16 +77,12 @@ tier:
   advisor: inherit
 statusLine:
   transparent: true
-startup:
-  changelogMode: hidden
 readLineNumbers: true
 eval:
   autoBackground:
     enabled: true
 computer:
   enabled: true
-todo:
-  eager: preferred
 secrets:
   enabled: true
 terminal:
@@ -113,9 +90,6 @@ terminal:
 tui:
   tight: true
   codexResetFireworks: true
-snapcompact:
-  systemPrompt: none
-  toolResults: false
 features:
   unexpectedStopDetection: smart
 codexResets:

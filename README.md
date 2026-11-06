@@ -194,6 +194,8 @@ Super stands in for Command. As on the Mac, each screen has a layout of cells, a
 
 Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Moving a window you tiled with `Super+T` puts it back in its cell. Fullscreen windows stay fullscreen, also across config reloads: Hyprland 0.56 forgets their fullscreen state there without telling the app, and Brave then hides its tabs again on every focus change. When they leave it, a window cells places goes back to its cell; one you tiled or popped out yourself stays where Hyprland restores it. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
 
+Windows whose class matches `keep_tiled` in `modules/omarchy/hypr/layouts.lua` (Proton and Wine games, `steam_app_*`) stay tiled across the screen instead of floating into a cell: Hyprland lets floating X11 windows move themselves, and on the mixed-scale desk that throws them between screens. `Super+F` still makes them fullscreen. `hypr/games.lua` also turns off focus-on-activate for those games (not for the Battle.net launcher's own windows): Wine asks to be activated again whenever a game loses focus, which otherwise pulls focus and the cursor back from any window floating over it.
+
 The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock into F13). A keyboard that sends F13 from its Caps Lock key needs no remap.
 
 Every window is fully opaque, focused or not; Omarchy's default translucency is turned off so video never shows the wallpaper through. Apps that should be see-through set it themselves, such as Ghostty's `background-opacity`.

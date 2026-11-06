@@ -96,6 +96,11 @@ return {
   -- Hyper+P lists and Hyper+; cycles layouts in this order.
   order = { "standard", "fourk", "hd", "fullscreen" },
 
+  -- Lua patterns, lowercase, matched against the lowercased window class. Apps that move and resize their own
+  -- X11 window (Proton/Wine games) must not be floated into cells; they tile across the screen like a window you
+  -- tiled with Super+T.
+  keep_tiled = { "^steam_app_" },
+
   -- First match wins. name: output connector (hyprctl monitors). desc: start of the monitor description
   -- (hyprctl monitors, like Hyprland's `desc:`). builtin: the laptop panel.
   -- Mirrors screen_layouts.lua: the built-in display is Fullscreen, every other screen Standard Dev.

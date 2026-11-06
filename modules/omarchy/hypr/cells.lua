@@ -212,10 +212,23 @@ local function unfloat(address)
   hl.dispatch(hl.dsp.window.float({ window = "address:" .. address, action = "disable" }))
 end
 
+-- Apps listed in layouts.lua `keep_tiled` (Proton/Wine games) move and resize their own X11 window, which
+-- Hyprland honours for floating windows only, so they tile across the area like a window you tiled with Super+T.
+-- Windows that opened floating (a launcher, a dialog) are not games' main window and keep floating.
+local function keeps_tiled(win)
+  if state.native_float[win.address] then return false end
+  local class = string.lower(win.class or "")
+  for _, pattern in ipairs(config.keep_tiled or {}) do
+    if class:find(pattern) then return true end
+  end
+  return false
+end
+
 -- Put a window into its cell: every cell floats, so on a cells workspace it gets float + exact geometry. Off a
 -- cells workspace (the laptop panel after undocking, a dwindle workspace), a window cells floated goes back to
 -- tiling. Grouped windows, windows that opened floating (dialogs, Omarchy's own floats) and windows you tiled
--- yourself (Super+T) are left alone.
+-- yourself (Super+T) are left alone, and so are `keep_tiled` windows (games): they stay tiled, and one cells
+-- floated earlier (before a reload, or before the app was listed) is tiled again.
 function M.place(win)
   if not win or not win.address or not win.workspace or win.group then return end
   -- A fullscreen window keeps its geometry; window.fullscreen re-places it when it leaves.
@@ -223,6 +236,10 @@ function M.place(win)
   local address = win.address
   local key, layout = M.layout_for(win.monitor)
   if win.workspace.tiled_layout ~= CELLS or not layout or layout.monocle then
+    if win.floating and state.floated[address] then unfloat(address) end
+    return
+  end
+  if keeps_tiled(win) then
     if win.floating and state.floated[address] then unfloat(address) end
     return
   end
@@ -263,7 +280,14 @@ local function recalculate(ctx)
   for _, target in ipairs(targets) do
     local win = target.window
     local region = cells and win and not win.group and config.regions[M.cell_for(win, mon, key, layout)]
-    if region then
+    if region and keeps_tiled(win) then
+      -- A game: no cell, it fills the area like a window you tiled yourself.
+      if state.floated[win.address] then
+        state.floated[win.address] = nil
+        save()
+      end
+      tiled[#tiled + 1] = target
+    elseif region then
       local address = win.address
       if state.floated[address] or state.native_float[address] then
         -- It floated (cells or the app itself) and you tiled it (Super+T): it stays tiled.

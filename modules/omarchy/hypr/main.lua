@@ -2,5 +2,6 @@
 require("hypr.dotfiles.monitors")
 require("hypr.dotfiles.keyboard")
 require("hypr.dotfiles.looknfeel")
+require("hypr.dotfiles.games")
 require("hypr.dotfiles.summon")
 require("hypr.dotfiles.cells")

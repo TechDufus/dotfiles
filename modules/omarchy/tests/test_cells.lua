@@ -480,6 +480,106 @@ case("floated then tiled again (Super+T) tiles across the area and is not re-flo
   eq(#fx.log, 0, "deferred placement after another layout pass")
 end)
 
+case("keep_tiled: a steam_app window opening tiled is not floated and tiles across the area", function()
+  local M = load_cells()
+  local area = usable(dp1())
+  local browser = window("0xb", "brave-browser")
+  local game = window("0xg", "steam_app_battlenet")
+  fx.windows = { browser, game }
+  emit("window.open", game)
+  emit("window.move_to_workspace", game)
+  run_timers()
+  eq(#fx.log, 0, "game dispatches on open, move and deferred placement")
+  eq(M._state.floated["0xg"], nil, "game is not in the floated state")
+
+  local out = layout_pass(area, { browser, game })
+  box_eq(out[1].box, 1920, 30, 2048, 1410, "other windows still get their cell")
+  box_eq(out[2].box, 1920, 30, 5120, 1410, "game tiles across the area")
+  run_timers()
+  eq(#fx.log, 0, "deferred placement after the layout pass")
+
+  local upper = window("0xu", "Steam_App_1234")
+  fx.windows = { upper }
+  emit("window.open", upper)
+  eq(#fx.log, 0, "class matching ignores case")
+
+  -- An explicit placement leaves a tiled game alone too.
+  M.place(game)
+  eq(#fx.log, 0, "explicit place of a game")
+end)
+
+case("keep_tiled: a steam_app window cells had floated is tiled again by place and after a reload", function()
+  local base = dofile(ROLE .. "layouts.lua")
+  base.keep_tiled = nil -- the config before steam_app_ windows were kept tiled
+  local game = window("0xg", "steam_app_battlenet")
+  local M = load_cells({ layouts = base })
+  fx.windows = { game }
+  emit("window.open", game)
+  eq(#dispatches("float"), 1, "floated into a cell before the app was listed")
+  eq(M._state.floated["0xg"], true, "cells floated it")
+  game.floating = true
+
+  -- A reload with steam_app_ now kept tiled: the restored floated state heals the window.
+  local M2 = load_cells({ windows = { game }, state_home = fx.state_home, runtime_dir = fx.runtime_dir })
+  eq(M2._state.floated["0xg"], true, "floated state restored")
+  run_timers()
+  eq(#fx.log, 1, "one dispatch after the reload")
+  eq(fx.log[1].kind, "float", "dispatch kind")
+  eq(fx.log[1].args.window, "address:0xg", "float target")
+  eq(fx.log[1].args.action, "disable", "float action")
+  eq(M2._state.floated["0xg"], nil, "no longer cells-floated")
+  eq(#dispatches("resize") + #dispatches("move"), 0, "no snap")
+
+  -- place() alone: only a window cells floated is touched.
+  fx.log = {}
+  M2._state.floated["0xg"] = true
+  M2.place(game)
+  eq(#fx.log, 1, "place dispatches once")
+  eq(fx.log[1].args.action, "disable", "place unfloats")
+  game.floating = false
+  M2.place(game)
+  eq(#fx.log, 1, "a tiled game is not touched again")
+end)
+
+case("keep_tiled: a steam_app window that opened floating (launcher) is left alone", function()
+  local M = load_cells()
+  local launcher = window("0xl", "steam_app_battlenet", { floating = true })
+  fx.windows = { launcher }
+  emit("window.open", launcher)
+  emit("window.move_to_workspace", launcher)
+  run_timers()
+  eq(#fx.log, 0, "launcher dispatches")
+  eq(M._state.floated["0xl"], nil, "launcher is not cells-floated")
+  eq(M._state.native_float["0xl"], true, "launcher is a native float")
+  M.place(launcher)
+  eq(#fx.log, 0, "explicit place of the launcher")
+end)
+
+case("keep_tiled: the Battle.net launcher (same class as WoW, excepted by title) is placed in its cell; the game stays tiled", function()
+  local M = load_cells()
+  local launcher = window("0xl", "steam_app_battlenet", { title = "Battle.net" })
+  local wow = window("0xw", "steam_app_battlenet", { title = "World of Warcraft" })
+  fx.windows = { launcher, wow }
+
+  emit("window.open", launcher)
+  eq(#dispatches("float"), 1, "launcher float dispatches")
+  eq(fx.log[1].args.window, "address:0xl", "launcher float target")
+  eq(fx.log[1].args.action, "enable", "launcher float action")
+  eq(#dispatches("resize"), 1, "launcher resize dispatches")
+  eq(#dispatches("move"), 1, "launcher move dispatches")
+  eq(M._state.floated["0xl"], true, "launcher is cells-floated into its cell")
+
+  fx.log = {}
+  emit("window.open", wow)
+  run_timers()
+  eq(#fx.log, 0, "WoW dispatches")
+  eq(M._state.floated["0xw"], nil, "WoW is not cells-floated")
+
+  fx.log = {}
+  M.place(wow)
+  eq(#fx.log, 0, "explicit place of WoW")
+end)
+
 case("a tiled overlay-app window moved onto a cells workspace is floated into its overlay box", function()
   local M = load_cells()
   local files = window("0xn", "org.gnome.Nautilus", { workspace = { id = 3, name = "3", tiled_layout = CELLS } })

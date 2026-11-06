@@ -86,7 +86,7 @@ commands:
   enableOpencodeProject: false
 mcp:
   enableProjectConfig: false
-setupVersion: 2
+setupVersion: 3
 vault:
   enabled: true
 dev:

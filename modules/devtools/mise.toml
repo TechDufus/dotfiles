@@ -2,6 +2,7 @@
 task = "latest"
 # The registry uses native aqua releases; npm:pnpm requires lifecycle scripts.
 pnpm = "latest"
+"github:stencil-hq/ovnfs" = "latest"
 "go:golang.org/x/tools/gopls" = "latest"
 "go:github.com/mrjosh/helm-ls" = "latest"
 

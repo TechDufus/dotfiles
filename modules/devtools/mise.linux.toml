@@ -1,5 +1,7 @@
 [bootstrap.packages]
 "pacman:bun" = "latest"
 "pacman:helm" = "latest"
+# ovnfs mounts require the FUSE 3 runtime on Linux.
+"pacman:fuse3" = "latest"
 # Public ansible/ansible-doc/ansible-playbook executables for the retained language server.
 "pacman:ansible-core" = "latest"

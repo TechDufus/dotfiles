@@ -555,6 +555,31 @@ case("keep_tiled: a steam_app window that opened floating (launcher) is left alo
   eq(#fx.log, 0, "explicit place of the launcher")
 end)
 
+case("keep_tiled: the Battle.net launcher (same class as WoW, excepted by title) is placed in its cell; the game stays tiled", function()
+  local M = load_cells()
+  local launcher = window("0xl", "steam_app_battlenet", { title = "Battle.net" })
+  local wow = window("0xw", "steam_app_battlenet", { title = "World of Warcraft" })
+  fx.windows = { launcher, wow }
+
+  emit("window.open", launcher)
+  eq(#dispatches("float"), 1, "launcher float dispatches")
+  eq(fx.log[1].args.window, "address:0xl", "launcher float target")
+  eq(fx.log[1].args.action, "enable", "launcher float action")
+  eq(#dispatches("resize"), 1, "launcher resize dispatches")
+  eq(#dispatches("move"), 1, "launcher move dispatches")
+  eq(M._state.floated["0xl"], true, "launcher is cells-floated into its cell")
+
+  fx.log = {}
+  emit("window.open", wow)
+  run_timers()
+  eq(#fx.log, 0, "WoW dispatches")
+  eq(M._state.floated["0xw"], nil, "WoW is not cells-floated")
+
+  fx.log = {}
+  M.place(wow)
+  eq(#fx.log, 0, "explicit place of WoW")
+end)
+
 case("a tiled overlay-app window moved onto a cells workspace is floated into its overlay box", function()
   local M = load_cells()
   local files = window("0xn", "org.gnome.Nautilus", { workspace = { id = 3, name = "3", tiled_layout = CELLS } })

@@ -214,12 +214,15 @@ end
 
 -- Apps listed in layouts.lua `keep_tiled` (Proton/Wine games) move and resize their own X11 window, which
 -- Hyprland honours for floating windows only, so they tile across the area like a window you tiled with Super+T.
--- Windows that opened floating (a launcher, a dialog) are not games' main window and keep floating.
+-- An entry matches the lowercased class (`class`) and, when it has `except_title`, only windows whose lowercased
+-- title does not match it (the Battle.net launcher shares its game's class). Windows that opened floating (a
+-- launcher, a dialog) are not games' main window and keep floating.
 local function keeps_tiled(win)
   if state.native_float[win.address] then return false end
   local class = string.lower(win.class or "")
-  for _, pattern in ipairs(config.keep_tiled or {}) do
-    if class:find(pattern) then return true end
+  local title = string.lower(win.title or "")
+  for _, entry in ipairs(config.keep_tiled or {}) do
+    if class:find(entry.class) and not (entry.except_title and title:find(entry.except_title)) then return true end
   end
   return false
 end

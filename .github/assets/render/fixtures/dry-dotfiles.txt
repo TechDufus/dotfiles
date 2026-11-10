@@ -49,7 +49,6 @@ ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude.yml ~/.omp/agent/
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude-terra.yml ~/.omp/agent/overlays/claude-terra.yml
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/claude-fable.yml ~/.omp/agent/overlays/claude-fable.yml
 ln -sf /home/techdufus/.config/mise/conf.d/omp/overlays/codex.yml ~/.omp/agent/overlays/codex.yml
-ln -sf /home/techdufus/.config/mise/conf.d/omp/agents/* into ~/.omp/agent/agents/ (5 files)
 ln -sf /home/techdufus/.config/mise/conf.d/omp/extensions/* into ~/.omp/agent/extensions/ (2 files)
 ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/test-audit ~/.omp/agent/skills/test-audit
 ln -sf /home/techdufus/.config/mise/conf.d/omp/skills/herdr-workflow ~/.omp/agent/skills/herdr-workflow

@@ -15,7 +15,6 @@
 "~/.omp/agent/overlays/claude-fable.yml" = { source = "overlays/claude-fable.yml" }
 "~/.omp/agent/overlays/codex.yml" = { source = "overlays/codex.yml" }
 
-"~/.omp/agent/agents" = { source = "agents", mode = "symlink-each" }
 "~/.omp/agent/extensions" = { source = "extensions", mode = "symlink-each" }
 
 # herdr, worktrunk and Impeccable skills are linked by bootstrap:omp from upstream checkouts.

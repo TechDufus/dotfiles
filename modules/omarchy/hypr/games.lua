@@ -14,5 +14,11 @@ o.window({ class = "^steam_app_battlenet$", title = "^Battle\\.net$" }, { float 
 -- it kept whatever size and screen the game asked for (GxMonitor), even off its own workspace's screen.
 -- Tiled, Hyprland ignores the game's own move/resize requests; fullscreen, it fills the screen it opened on. Another
 -- window focused on its workspace takes over the fullscreen (Omarchy's on_focus_under_fullscreen = 1) and hands
--- it back when WoW is focused again; a summon to another workspace leaves it fullscreen there.
-o.window({ class = "^steam_app_battlenet$", title = "^World of Warcraft$" }, { float = false, fullscreen = true })
+-- it back when WoW is focused again; a summon to another workspace leaves it fullscreen there. A config reload drops
+-- fullscreen and cells puts it back, then Wine asks to leave fullscreen (seen as _NET_WM_STATE remove FULLSCREEN), so
+-- WoW's own fullscreen requests are ignored; maximize stays suppressed as Omarchy's rule for every window has it.
+o.window({ class = "^steam_app_battlenet$", title = "^World of Warcraft$" }, {
+  float = false,
+  fullscreen = true,
+  suppress_event = "fullscreen maximize",
+})

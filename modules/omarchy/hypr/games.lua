@@ -9,3 +9,10 @@ o.window({ class = "^steam_app_.*$", title = "negative:^Battle\\.net.*" }, { foc
 -- the HP's monocle screen it covered each summoned app. As a normal window cells gives it a cell on the 4K and it
 -- joins the monocle stack on the HP. Our rules load after Omarchy's, so this float = false wins.
 o.window({ class = "^steam_app_battlenet$", title = "^Battle\\.net$" }, { float = false })
+
+-- WoW's game window maps as a borderless, non-resizable Wine window, which Hyprland floats, so cells leaves it alone:
+-- it kept whatever size and screen the game asked for (GxMonitor), even off its own workspace's screen.
+-- Tiled, Hyprland ignores the game's own move/resize requests; fullscreen, it fills the screen it opened on. Another
+-- window focused on its workspace takes over the fullscreen (Omarchy's on_focus_under_fullscreen = 1) and hands
+-- it back when WoW is focused again; a summon to another workspace leaves it fullscreen there.
+o.window({ class = "^steam_app_battlenet$", title = "^World of Warcraft$" }, { float = false, fullscreen = true })

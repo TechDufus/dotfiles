@@ -33,7 +33,9 @@ go = "latest"
 "npm:svelte-language-server" = { version = "latest", trust_policy_excludes = ["svelte@4.2.20"] }
 "npm:vscode-langservers-extracted" = "latest"
 "npm:@biomejs/biome" = "latest"
-"npm:@vue/language-server" = "latest"
+# volar-service-pug@0.0.71 (pinned by @vue/language-service) is code-identical to 0.0.70, same
+# trusted publisher and upstream v0.0.71 tag, but shipped without provenance unlike its siblings.
+"npm:@vue/language-server" = { version = "latest", trust_policy_excludes = ["volar-service-pug@0.0.71"] }
 "npm:@prisma/language-server" = "latest"
 "npm:@olrtg/emmet-language-server" = "latest"
 "npm:intelephense" = "latest"

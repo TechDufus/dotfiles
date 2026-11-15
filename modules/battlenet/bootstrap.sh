@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Battle.net (Omarchy's umu + GE-Proton prefix) exits instead of waiting in the tray: "On game
-# launch" and "When clicking X" are both "Exit Battle.net completely". Under Proton a tray-resident
-# client is the fragile part: the tray icon cannot bring it back, a relaunch only asks the running
-# copy to show itself (blank and unresponsive when its renderer has died), and after a day or more
-# it can hang outright, which blocks every new launch until the prefix is killed.
+# Battle.net (Omarchy's umu + GE-Proton prefix) exits when its window is closed instead of waiting
+# in the tray. Under Proton a tray-resident client is the fragile part: the tray icon cannot bring
+# it back, a relaunch only asks the running copy to show itself (blank and unresponsive when its
+# renderer has died), and after a day or more it can hang outright, which blocks every new launch
+# until the prefix is killed.
 #
-# Both settings live per account, under User.Client in Roaming/Battle.net/<account id>.config, not
-# in Battle.net.config. GameLaunchWindowBehavior follows Battle.net's own Behavior enum
-# (MinToSysTray 0, Exit 1, KeepItOpen 2, Minimize 3); HideOnClose "false" makes X exit.
+# HideOnClose "false" in each account's User.Client (Roaming/Battle.net/<account id>.config) makes
+# X exit; the same key in Battle.net.config alone did not (tested live with Battle.net 2.53).
+# "On game launch" (GameLaunchWindowBehavior) is left to Battle.net's Settings: its stored values
+# are unconfirmed, and "1" in the account file kept Battle.net open beside the game.
 #
 # A task rather than a mise merge entry: the account file's name is only known once Battle.net has
 # written it, and merge creates a missing target, while a stray drive_c tree makes
@@ -16,8 +17,6 @@ set -uo pipefail
 
 prefix="$HOME/Games/battlenet"
 dir="$prefix/drive_c/users/steamuser/AppData/Roaming/Battle.net"
-set_keys='.User.Client.GameLaunchWindowBehavior = "1" | .User.Client.HideOnClose = "false"'
-is_set='.User.Client.GameLaunchWindowBehavior == "1" and .User.Client.HideOnClose == "false"'
 
 # Account files appear at first login; until then there is nothing to set.
 [ -d "$dir" ] || exit 0
@@ -27,7 +26,7 @@ pending=()
 for config in "$dir"/*.config; do
   [ -f "$config" ] && [ "${config##*/}" != Battle.net.config ] || continue
   jq -e '.User | type == "object"' "$config" >/dev/null 2>&1 || continue
-  jq -e "$is_set" "$config" >/dev/null 2>&1 || pending+=("$config")
+  jq -e '.User.Client.HideOnClose == "false"' "$config" >/dev/null 2>&1 || pending+=("$config")
 done
 [ ${#pending[@]} -gt 0 ] || exit 0
 
@@ -36,16 +35,16 @@ done
 for pid in $(pgrep -x wineserver); do
   running=$(tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | sed -n 's/^WINEPREFIX=//p')
   if [ -n "$running" ] && [ "$(realpath "$running" 2>/dev/null)" = "$(realpath "$prefix")" ]; then
-    echo "battlenet: Battle.net is running, exit settings unchanged; quit it and rerun dotfiles"
+    echo "battlenet: Battle.net is running, close setting unchanged; quit it and rerun dotfiles"
     exit 0
   fi
 done
 
 for config in "${pending[@]}"; do
   tmp=$(mktemp "$config.XXXXXX") || { echo "battlenet: cannot create temp file, skipped"; continue; }
-  if jq --indent 4 "$set_keys" "$config" >"$tmp" \
+  if jq --indent 4 '.User.Client.HideOnClose = "false"' "$config" >"$tmp" \
     && chmod --reference="$config" "$tmp" && mv "$tmp" "$config"; then
-    echo "battlenet: ${config##*/} set to exit on game launch and on close"
+    echo "battlenet: ${config##*/} set to exit when its window is closed"
   else
     rm -f "$tmp"
     echo "battlenet: updating ${config##*/} failed, skipped"

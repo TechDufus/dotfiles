@@ -250,7 +250,7 @@ The module never joins a tailnet, holds no auth key and sets no routes. Joining 
 
 ### Battle.net
 
-`bootstrap:battlenet` (Omarchy) sets Battle.net's **On game launch** and **When clicking X** to **Exit Battle.net completely**, in each account's settings file in Omarchy's prefix (`~/Games/battlenet`). Under Proton, a Battle.net left waiting in the tray is the fragile part: the tray icon can't bring it back, opening it again only asks the hidden copy to show itself (which can come back blank and frozen), and after a day or so it can hang and block every new launch until the prefix is killed. A fresh start each time avoids all of that, and the game keeps running after Battle.net exits. The task does nothing until Battle.net is installed and logged in, and skips with a message while it is running, because Battle.net rewrites these files when it exits. It enforces both settings, so a change made in Battle.net's own Settings is reverted on the next `dotfiles` run.
+`bootstrap:battlenet` (Omarchy) sets Battle.net's **When clicking X** to **Exit Battle.net completely** (`HideOnClose` in each account's settings file in Omarchy's prefix, `~/Games/battlenet`). Under Proton, a Battle.net left waiting in the tray is the fragile part: the tray icon can't bring it back, opening it again only asks the hidden copy to show itself (which can come back blank and frozen), and after a day or so it can hang and block every new launch until the prefix is killed. **On game launch** is left to Battle.net's own Settings; pick **Exit Battle.net completely** there. The task does nothing until Battle.net is installed and logged in, and skips with a message while it is running, because Battle.net rewrites these files when it exits.
 
 ## Gallery
 

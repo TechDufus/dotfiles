@@ -1,0 +1,7 @@
+[tasks."bootstrap:battlenet"]
+description = "Make Battle.net exit on game launch and on close instead of waiting in the tray"
+run = "./bootstrap.sh"
+
+[tasks."test:battlenet"]
+description = "Test the Battle.net settings task in a disposable HOME"
+run = "bash tests/test_bootstrap.sh"

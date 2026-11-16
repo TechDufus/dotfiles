@@ -4,6 +4,39 @@
   "layout": "Float",
   "material": "Glass",
   "tabs": "Vertical",
+  "widgets": [
+    {
+      "id": "cwd"
+    },
+    {
+      "id": "git"
+    },
+    {
+      "id": "run"
+    },
+    {
+      "id": "agents"
+    },
+    {
+      "id": "cpu"
+    },
+    {
+      "id": "memory"
+    },
+    {
+      "id": "spacer"
+    },
+    {
+      "id": "lines"
+    },
+    {
+      "id": "size"
+    },
+    {
+      "id": "status"
+    }
+  ],
+  "widget_look": "pills",
   "copy_on_select": true,
   "surface_chat": "Console",
   "font_family": "BerkeleyMono Nerd Font",

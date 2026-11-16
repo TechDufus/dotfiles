@@ -37,6 +37,10 @@ disabledProviders:
   - github
   - amazon-bedrock
   - ollama
+# Use Stencil Spotlight for tool-output shaping and find ranking.
+spotlight:
+  experiment:
+    enabled: true
 bashInterceptor:
   enabled: true
 edit:

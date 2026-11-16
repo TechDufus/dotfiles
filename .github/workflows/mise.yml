@@ -61,8 +61,9 @@ jobs:
       MISE_HTTP_TIMEOUT: 120s
     steps:
       # gcc: go: tools with cgo (helm-ls). On a real machine base-devel comes from the packages step.
+      # No go: devtools declares it, so this apply proves mise installs it before the go: tools.
       - name: Install prerequisites
-        run: pacman -Syu --noconfirm mise git zsh go gcc
+        run: pacman -Syu --noconfirm mise git zsh gcc
 
       - name: Checkout code
         uses: actions/checkout@v7

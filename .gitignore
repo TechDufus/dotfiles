@@ -31,8 +31,9 @@ modules/claude/hooks/herdr-agent-state.sh
 # Claude session snapshots (personal work state)
 .claude/snapshots/
 
-# OMP runtime state is ignored; project skills are repository-managed.
+# OMP runtime state is ignored; project skills and the context file are repository-managed.
 .omp/*
+!.omp/AGENTS.md
 !.omp/skills/
 !.omp/skills/**
 

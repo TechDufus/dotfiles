@@ -1,6 +1,7 @@
 [dotfiles]
 "~/.config/git/dotfiles.gitconfig" = { source = "dotfiles.gitconfig" }
 "~/.config/git/commit_template" = { source = "commit_template" }
+"~/.config/git/ignore" = { source = "ignore" }
 # Git reads ~/.gitconfig after its XDG global file. bootstrap:git moves only our
 # exact include blocks to the end of that file, preserving other global content.
 

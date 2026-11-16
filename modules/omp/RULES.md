@@ -1,6 +1,6 @@
-# User-Specific Rules
+# User rules
 
-- Verify recalled context and project memory against current repository files before relying on them.
-- Never expose, print, store, or commit secrets; use approved secret references instead of plaintext.
-- Prefer autonomous local commits at coherent, verified atomic units or meaningful rollback or review checkpoints only when applicable repository guidance does not require explicit authorization.
-- Ask before pushing, deploying, rotating credentials, or otherwise mutating remote or shared state.
+- Ask before pushing, deploying, rotating credentials, or anything else that changes remote or shared state. I want to see what leaves this machine before it goes.
+- Never print, store, or commit a secret. Use an approved secret reference instead of the value.
+- Commit locally without asking when a unit of work is complete and verified, unless the repository's own instructions say to ask first.
+- Recalled memories can be stale. Check them against the current files before relying on them.

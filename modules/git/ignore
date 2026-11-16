@@ -1,0 +1,2 @@
+# Kernel core dumps (core_uses_pid=1 writes core.<pid> into the crashing process's cwd)
+core.[0-9]*

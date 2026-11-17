@@ -11,6 +11,13 @@ modelRoles:
   advisor: openai-codex/gpt-6.1-terra:medium
   reviewer: openai-codex/gpt-6.2-sol
   default: openai-codex/gpt-6.2-astra:xhigh
+compaction:
+  methodOrder:
+    - snapcompact
+    - remote
+    - handoff
+    - shake
+    - soft
 cycleOrder:
   - smol
   - default

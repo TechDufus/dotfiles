@@ -10,7 +10,7 @@ modelRoles:
   commit: openai-codex/gpt-6.1-terra:low
   advisor: openai-codex/gpt-6.1-terra:medium
   reviewer: openai-codex/gpt-6.2-sol
-  default: openai-codex/gpt-6.2-astra:xhigh
+  default: openai-codex/gpt-6.2-astra
 compaction:
   methodOrder:
     - snapcompact
@@ -44,7 +44,6 @@ disabledProviders:
   - github
   - amazon-bedrock
   - ollama
-# Use Stencil Spotlight for tool-output shaping and find ranking.
 spotlight:
   experiment:
     enabled: true
@@ -104,7 +103,8 @@ tui:
 features:
   unexpectedStopDetection: smart
 codexResets:
-  autoRedeem: "yes"
+  autoRedeem5h: "yes"
+  autoRedeemWeekly: "yes"
 composer:
   shape: box
   tokenRate: true

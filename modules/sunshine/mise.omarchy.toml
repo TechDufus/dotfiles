@@ -1,9 +1,0 @@
-# Omarchy's installer opens the Moonlight ports on tailscale0 only if it exists when it runs.
-[tasks."bootstrap:sunshine"]
-description = "On desktops: set up Sunshine for Moonlight streaming through Omarchy's installer, once"
-wait_for = ["bootstrap:tailscale"]
-run = "./bootstrap.sh"
-
-[tasks."test:sunshine"]
-description = "Test the desktop-gated Sunshine setup against a stubbed system root"
-run = "bash tests/test_bootstrap.sh"

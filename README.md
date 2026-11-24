@@ -252,6 +252,12 @@ The module never joins a tailnet, holds no auth key and sets no routes. Joining 
 
 `bootstrap:battlenet` (Omarchy) sets Battle.net's **When clicking X** to **Exit Battle.net completely** (`HideOnClose` in each account's settings file in Omarchy's prefix, `~/Games/battlenet`). Under Proton, a Battle.net left waiting in the tray is the fragile part: the tray icon can't bring it back, opening it again only asks the hidden copy to show itself (which can come back blank and frozen), and after a day or so it can hang and block every new launch until the prefix is killed. **On game launch** is left to Battle.net's own Settings; pick **Exit Battle.net completely** there. The task does nothing until Battle.net is installed and logged in, and skips with a message while it is running, because Battle.net rewrites these files when it exits.
 
+### Sunshine and Moonlight
+
+Stream and control the Omarchy desktop from the Mac: [Sunshine](https://app.lizardbyte.dev/Sunshine) hosts on the desktop, [Moonlight](https://moonlight-stream.org/) connects from the Mac (`brew-cask:moonlight`). `bootstrap:sunshine` (Omarchy) runs Omarchy's own `omarchy-install-service-sunshine` once, when the `sunshine` package is missing. That installs it from the `omarchy` repo, enables the `sunshine` user service, opens the Moonlight ports in UFW for private LANs and `tailscale0`, adds a **Sunshine Admin** web app and its Hyprland autostart line, and opens the admin page. The task skips machines with a system battery (laptops are the clients), waits for `bootstrap:tailscale` so the Tailscale rules are added too, and warns instead of failing.
+
+No `sunshine.conf` is managed: Sunshine writes it from its web UI, and by its documented defaults it picks `wlr` capture on Hyprland (NvFBC has no Wayland support) and the first working encoder, NVENC on NVIDIA. One-time steps per device: create the Sunshine Admin login at `https://localhost:47990`, then add the desktop in Moonlight (it appears on the LAN; away from home, add it by its Tailscale address) and enter the PIN Moonlight shows in Sunshine Admin's **PIN** tab. Stream settings (resolution, frame rate, bitrate) live in Moonlight on each Mac and are not managed. To remove Sunshine, drop the task and run `omarchy-remove-service-sunshine`.
+
 ## Gallery
 
 <table>

@@ -27,5 +27,5 @@
 "brew-cask:brave-browser" = "latest"
 "brew-cask:aldente" = "latest"
 "brew-cask:podman-desktop" = "latest"
-# Client for Sunshine on the Omarchy desktop (modules/sunshine).
+# Client for streaming the Omarchy desktop through Sunshine (installed there with Omarchy).
 "brew-cask:moonlight" = "latest"

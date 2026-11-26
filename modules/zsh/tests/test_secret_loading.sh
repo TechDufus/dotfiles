@@ -766,10 +766,11 @@ run_zsh <<'ZSH'
 source "$HOME/.config/zsh/vars.secret_functions.zsh"
 secret --quiet || exit 1
 ZSH
+# Mark readiness from the exec'd child: a SIGINT that lands between zsh's fork
+# and exec of the producer command is lost, leaving it to run to completion.
 write_recipe <<'ZSH'
 export TEST_INTERRUPT=fixture-new
-print ready > "$OP_CONFIG_DIR/ready"
-sleep 15
+sh -c ': > "$1"; exec sleep 15' sh "$OP_CONFIG_DIR/ready"
 ZSH
 env -i HOME="$home_dir" TMPDIR="$run_tmp_dir" TMPPREFIX="$run_tmp_dir/zsh" \
   XDG_STATE_HOME="$state_dir" PATH="$bin_dir:/usr/bin:/bin" OP_CONFIG_DIR="$op_config_dir" \

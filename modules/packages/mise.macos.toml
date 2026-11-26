@@ -7,7 +7,7 @@
 "brew:ncdu" = "latest"
 "brew:tmate" = "latest"
 "brew:zoxide" = "latest"
-"brew:tldr" = "latest"
+"brew:tlrc" = "latest"
 "brew:lua" = "latest"
 "brew:luarocks" = "latest"
 "brew:luajit" = "latest"

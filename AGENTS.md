@@ -2,7 +2,7 @@
 
 Personal dotfiles applied with mise: `mise bootstrap`, `[dotfiles]`, `[tools]`, and tasks. Omarchy and macOS are the only supported profiles.
 
-This file holds the rules, not an inventory. The config is the source of truth for what is managed, and README.md for commands and user-facing behavior; read them instead of copying details here.
+This file holds the rules, not an inventory. The config is the source of truth for what is managed, and README.md and `docs/` for commands and user-facing behavior; read them instead of copying details here.
 
 ## Shape
 - `bin/dotfiles` is the curl entrypoint and daily wrapper: it prepares git, mise and the checkout, links `modules/` as mise `conf.d`, records the machine's profile and purpose, then runs `mise bootstrap`.

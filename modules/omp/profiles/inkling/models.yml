@@ -1,0 +1,13 @@
+providers:
+  inkling:
+    baseUrl: http://llm-1.home.techdufus.com:8080/v1
+    api: openai-responses
+    auth: none
+    # Context window comes from llama-server's /v1/models max_model_len (its --ctx-size);
+    # the model id is its --alias. Cached up to 2h: `omp-inkling models refresh` after a switch.
+    discovery:
+      type: llama.cpp
+    modelOverrides:
+      inkling-2-mini:
+        name: Inkling 2 Mini (llm-1)
+        maxTokens: 8192

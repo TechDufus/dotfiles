@@ -32,6 +32,12 @@
 
 "~/.omp/agent/AGENTS.md" = { source = "AGENTS.md" }
 
+# Inkling profile (Inkling 2 Mini on llm-1's llama.cpp server). Machine-local state (sessions,
+# databases, logs) stays under the same agent directory and is never linked.
+"~/.omp/profiles/inkling/agent" = { permissions = "0700" }
+"~/.omp/profiles/inkling/agent/config.yml" = { source = "profiles/inkling/config.yml" }
+"~/.omp/profiles/inkling/agent/models.yml" = { source = "profiles/inkling/models.yml" }
+
 # mcp.json is a regular file (OAuth may store credentials in it), so it is merged, never linked.
 "~/.omp/agent/mcp.json/managed" = { source = "mcp-managed.json", merge = true }
 "~/.omp/agent/mcp.json" = { permissions = "0600" }

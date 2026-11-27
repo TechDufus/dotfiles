@@ -1,0 +1,15 @@
+modelRoles:
+  default: inkling/inkling-2-mini
+  smol: inkling/inkling-2-mini
+  slow: inkling/inkling-2-mini
+enabledModels:
+  - inkling/inkling-2-mini
+setupVersion: 3
+defaultThinkingLevel: medium
+hideThinkingBlock: true
+display:
+  showTokenUsage: true
+composer:
+  tokenRate: true
+compaction:
+  asyncEnabled: true

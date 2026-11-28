@@ -55,6 +55,44 @@ def mono_width(text: str, size: float) -> float:
     return len(text) * size * ADVANCE
 
 
+# Pieces shared with render.py's social card.
+
+
+def mark_gradient(p: dict) -> str:
+    g0, g1 = p["grad"]
+    return (
+        '<linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">'
+        f'<stop offset="0" stop-color="{g0}"/><stop offset="1" stop-color="{g1}"/>'
+        "</linearGradient>"
+    )
+
+
+def diamond(cx: float, cy: float, size: float) -> str:
+    """The gradient ◆ mark, `size` tall (needs mark_gradient in <defs>)."""
+    r = size / 2
+    d = (
+        f"M{cx:.1f},{cy - r:.1f} L{cx + r * 0.82:.1f},{cy:.1f} "
+        f"L{cx:.1f},{cy + r:.1f} L{cx - r * 0.82:.1f},{cy:.1f} Z"
+    )
+    return f'<path d="{d}" fill="url(#mark)" stroke="url(#mark)" stroke-width="{size * 10 / 66:g}" stroke-linejoin="round"/>'
+
+
+def card(p: dict, x: float, y: float, w: float, h: float, rx: float, stroke: float) -> str:
+    return (
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" '
+        f'fill="{p["card"]}" fill-opacity="{p["card_opacity"]}" stroke="{p["stroke"]}" stroke-width="{stroke}"/>'
+    )
+
+
+def accent_strip(p: dict, x: float, y: float, pill_w: float, pill_h: float, gap: float) -> str:
+    """The 14 Catppuccin accents as rounded pills, left to right from (x, y)."""
+    return "".join(
+        f'<rect x="{x + i * (pill_w + gap):.1f}" y="{y:.1f}" '
+        f'width="{pill_w:g}" height="{pill_h:g}" rx="{pill_h / 2:g}" fill="{p[name]}"/>'
+        for i, name in enumerate(ACCENTS)
+    )
+
+
 def build_svg(p: dict) -> str:
     # Card geometry (mirrors the CLI's `╭ ◆ dotfiles  meta ╮` box).
     card_w, card_h = 1120, 172
@@ -71,12 +109,6 @@ def build_svg(p: dict) -> str:
     total = mark + gap_mark + word_w + gap_meta + meta_w
     x0 = (W - total) / 2
 
-    cx = x0 + mark / 2
-    r = mark / 2
-    diamond = (
-        f"M{cx:.1f},{mid_y - r:.1f} L{cx + r * 0.82:.1f},{mid_y:.1f} "
-        f"L{cx:.1f},{mid_y + r:.1f} L{cx - r * 0.82:.1f},{mid_y:.1f} Z"
-    )
     word_x = x0 + mark + gap_mark
     meta_x = word_x + word_w + gap_meta
 
@@ -89,28 +121,14 @@ def build_svg(p: dict) -> str:
         f'<tspan>{name}</tspan>' for name in PROFILES
     )
 
-    # Accent strip: 14 rounded pills.
     pill_w, pill_h, pill_gap = 58, 24, 16
     strip_w = len(ACCENTS) * pill_w + (len(ACCENTS) - 1) * pill_gap
-    strip_x = (W - strip_w) / 2
-    strip_y = tag_y + 36
-    pills = "\n".join(
-        f'<rect x="{strip_x + i * (pill_w + pill_gap):.1f}" y="{strip_y:.1f}" '
-        f'width="{pill_w}" height="{pill_h}" rx="{pill_h / 2}" fill="{p[name]}"/>'
-        for i, name in enumerate(ACCENTS)
-    )
+    pills = accent_strip(p, (W - strip_w) / 2, tag_y + 36, pill_w, pill_h, pill_gap)
 
-    g0, g1 = p["grad"]
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">
-<defs>
-<linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="{g0}"/>
-<stop offset="1" stop-color="{g1}"/>
-</linearGradient>
-</defs>
-<rect x="{card_x}" y="{card_y}" width="{card_w}" height="{card_h}" rx="44"
- fill="{p["card"]}" fill-opacity="{p["card_opacity"]}" stroke="{p["stroke"]}" stroke-width="4"/>
-<path d="{diamond}" fill="url(#mark)" stroke="url(#mark)" stroke-width="10" stroke-linejoin="round"/>
+<defs>{mark_gradient(p)}</defs>
+{card(p, card_x, card_y, card_w, card_h, 44, 4)}
+{diamond(x0 + mark / 2, mid_y, mark)}
 <text x="{word_x:.1f}" y="{word_y:.1f}" font-family="{FONT}" font-weight="700" font-size="{word_size}" fill="{p["text"]}">dotfiles</text>
 <text x="{meta_x:.1f}" y="{meta_y:.1f}" font-family="{FONT}" font-size="{meta_size}" fill="{p["sub"]}" xml:space="preserve">{meta_spans}</text>
 <text x="{W / 2}" y="{tag_y}" text-anchor="middle" font-family="{FONT}" font-size="{tag_size}" fill="{p["sub"]}">{TAGLINE}</text>

@@ -1,32 +1,40 @@
 #!/usr/bin/env python3
 """Regenerate every README image in .github/assets/ (synthetic but reproducible).
 
-    python3 .github/assets/render/render.py
+    python3 .github/assets/render/render.py [header] [hero] [demo] [social] [dry-run] [failure]
 
-Writes header-dark.png, header-light.png (header.py), hero.png, dry-run.png and
-failure.png, and prints each path. Nothing is captured from a live desktop:
+With no arguments it writes all of them: header-dark.png, header-light.png (header.py),
+hero.png, demo.gif, social.png, dry-run.png and failure.png, and prints each path.
+Nothing is captured from a live desktop:
 
 * The screens are the REAL bin/dotfiles UI. It runs in an interactive zsh inside a
   private tmux server (`tmux -L dotfiles-banner`) with the real Powerlevel10k prompt,
   against a sandbox HOME, a throw-away git remote a few commits ahead (so the repo row
   pulls), a stub `mise` (stub-mise + fixtures/, recorded by capture-fixtures.sh) and a
   stub `sudo`. Real mise, sudo and the real HOME are never touched.
+* One converging run feeds three outputs: `dotfiles` is typed key by key and the pane is
+  sampled until the next prompt settles. Every distinct screen is a frame of demo.gif
+  (played DEMO_SPEED times faster, the last one held); the last screen is also the hero's
+  dotfiles tile and the window in social.png.
 * The other hero tiles are real programs in tmux panes: Neovim with this repo's config
   (plugins cached under ~/.cache/dotfiles-banner/nvim; first run clones them), fastfetch
   and lsd.
 * tmux's `capture-pane -e` output is parsed by termsvg.py into SVG text on an exact grid
   (BerkeleyMono Nerd Font, Catppuccin Mocha) and composed over the Omarchy catppuccin
-  wallpaper with rsvg-convert.
+  wallpaper with rsvg-convert. ffmpeg encodes demo.gif's frames; social.png (GitHub's
+  1280x640 preview) adds header.py's wordmark card and accent strip.
 
-Requirements: python3 (stdlib only), tmux >= 3.2, rsvg-convert, git, jq, zsh, nvim,
-fastfetch, lsd, the BerkeleyMono Nerd Font (commercial; never embedded, only rasterised),
-and an Omarchy machine with these dotfiles applied (zinit's powerlevel10k, the catppuccin
-wallpaper in /usr/share/omarchy). The sandbox and the tmux server are removed on exit.
-Output is deterministic apart from the commit hashes of the checkout it runs in.
+Requirements: python3 (stdlib only), tmux >= 3.2, rsvg-convert (with WebP images), ffmpeg,
+git, jq, zsh, nvim, fastfetch, lsd, the BerkeleyMono Nerd Font (commercial; never embedded,
+only rasterised), and an Omarchy machine with these dotfiles applied (zinit's powerlevel10k,
+the catppuccin wallpaper in /usr/share/omarchy). The sandbox and the tmux server are removed
+on exit. Output is deterministic apart from the commit hashes of the checkout it runs in and
+the spinner frames demo.gif happens to sample.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -35,18 +43,20 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ next to the committed scripts
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import header  # noqa: E402
 import termsvg  # noqa: E402
 
 REPO = HERE.parents[2]
 ASSETS_DIR = HERE.parent
 REAL_HOME = Path(os.environ.get("HOME", "/"))
-WALLPAPER = Path("/usr/share/omarchy/themes/catppuccin/backgrounds/2-waves.png")
+WALLPAPER = Path("/usr/share/omarchy/themes/catppuccin/backgrounds/2-waves.webp")
 NVIM_CACHE = Path(os.environ.get("XDG_CACHE_HOME", REAL_HOME / ".cache")) / "dotfiles-banner" / "nvim"
 SOCKET = "dotfiles-banner"
 PATH = "/usr/local/bin:/usr/bin:/bin"
@@ -99,6 +109,7 @@ class Sandbox:
             d.mkdir(parents=True)
         shutil.copy2(HERE / "stub-mise", self.bin / "mise")
         shutil.copy2(HERE / "stub-sudo", self.bin / "sudo")
+        shutil.copy2(WALLPAPER, self.root / WALLPAPER.name)  # every scene's <image href>
         shutil.copytree(HERE / "fixtures", self.fixtures)
         self._craft_plan()
         self._write_zshrc()
@@ -220,9 +231,15 @@ def screen_ansi(name: str) -> str:
     return tmux("capture-pane", "-p", "-e", "-t", name)
 
 
-def cursor_of(name: str) -> tuple[int, int, bool]:
-    x, y, visible = tmux("display-message", "-p", "-t", name, "#{cursor_x} #{cursor_y} #{cursor_flag}").split()
-    return int(x), int(y), visible == "1"
+def snapshot(name: str) -> tuple[str, tuple[int, int, bool]]:
+    """screen_ansi plus the cursor, read by one tmux command so the two always agree."""
+    out = tmux(
+        "capture-pane", "-p", "-e", "-t", name, ";",
+        "display-message", "-p", "-t", name, "#{cursor_x} #{cursor_y} #{cursor_flag}",
+    )
+    screen, _, cursor = out.rstrip("\n").rpartition("\n")
+    x, y, visible = cursor.split()
+    return screen, (int(x), int(y), visible == "1")
 
 
 def wait_for(name: str, pattern: str, timeout: float = 60.0, what: str = "") -> str:
@@ -251,25 +268,29 @@ def wait_stable(name: str, quiet: float = 2.0, timeout: float = 60.0) -> None:
 
 
 class Capture:
-    def __init__(self, name: str, cols: int, rows: int) -> None:
+    def __init__(self, name: str, cols: int, rows: int, shot: tuple[str, tuple[int, int, bool]] | None = None) -> None:
+        screen, self.cursor = shot or snapshot(name)
         self.cols, self.rows = cols, rows
-        self.grid = termsvg.parse_capture(screen_ansi(name), cols, rows)
-        self.cursor = cursor_of(name)
+        self.grid = termsvg.parse_capture(screen, cols, rows)
 
-    def trim(self) -> "Capture":
-        """Drop blank rows below the last prompt line (the window is sized to its content)."""
-        keep = self.rows - termsvg.blank_rows_at_end(self.grid)
-        keep = max(keep, self.cursor[1] + 1)
-        self.grid = self.grid[:keep]
-        self.rows = keep
-        return self
+    def lines(self) -> list[str]:
+        return ["".join(c.ch for c in row) for row in self.grid]
+
+    def trim(self, rows: int | None = None) -> "Capture":
+        """A copy without the blank rows below the last prompt line (the window is sized to its
+        content), or cut to `rows` so every frame of an animation keeps one window size."""
+        if rows is None:
+            rows = max(self.rows - termsvg.blank_rows_at_end(self.grid), self.cursor[1] + 1)
+        out = copy.copy(self)
+        out.grid, out.rows = self.grid[:rows], rows
+        return out
 
     def drop_wrapped_notice(self, prefix: str) -> "Capture":
         """Remove a one-off plain-text notice that is wider than the 80-column UI (and so wraps in
         this pane) together with its wrapped continuation. Only the dry run prints one, before
         the UI starts: "dotfiles: previewing local modules; no setup, pull, or conflict moves
         (mise may evaluate config templates and update metadata, state and caches)"."""
-        texts = ["".join(c.ch for c in row) for row in self.grid]
+        texts = self.lines()
         start = next((i for i, t in enumerate(texts) if t.startswith(prefix)), None)
         if start is None:
             raise RenderError(f"notice {prefix!r} not found on screen")
@@ -297,9 +318,12 @@ def type_command(name: str, cmd: str) -> None:
     tmux("send-keys", "-t", name, "Enter")
 
 
+FOOTER = r"(converged|dry run|failed) in [0-9.ms ]+\n(?:.*\n){2,6}.*❯"  # the footer and the next prompt
+
+
 def finished(name: str, timeout: float = 90.0) -> None:
     """The footer is printed and a fresh prompt follows it."""
-    wait_for(name, r"(converged|dry run|failed) in [0-9.ms ]+\n(?:.*\n){2,6}.*❯", timeout, "the footer and the next prompt")
+    wait_for(name, FOOTER, timeout, "the footer and the next prompt")
     time.sleep(1.2)  # command_execution_time chip, git chip refresh
 
 
@@ -312,6 +336,39 @@ def cli_capture(sb: Sandbox, name: str, args: str, rows: int, *, behind: int, fa
     cap = Capture(name, CLI_COLS, rows)
     tmux("kill-session", "-t", name, check=False)
     return cap.trim() if trim else cap
+
+
+# demo.gif: the run is typed at a human pace and played back faster.
+DEMO_SPEED = 2.5
+DEMO_HOLD_CS = 400  # the converged screen stays up 4 s before the loop restarts
+TYPE_IDLE, TYPE_GAP, TYPE_ENTER = 2.5, 0.2, 0.6  # seconds before the first key, between keys, before Enter
+
+
+def record_run(sb: Sandbox, name: str, command: str, rows: int, *, behind: int) -> list[tuple[float, Capture]]:
+    """Type `command` key by key at the real prompt and sample the pane until the footer and the
+    next prompt have settled. Returns every distinct screen with the second it appeared."""
+    sb.make_clone(behind)
+    zsh_pane(sb, name, CLI_COLS, rows)
+    keys = [(TYPE_IDLE + i * TYPE_GAP, ("-l", ch)) for i, ch in enumerate(command)]
+    keys.append((keys[-1][0] + TYPE_ENTER, ("Enter",)))
+    footer = re.compile(FOOTER)
+    shots: list[tuple[float, tuple[str, tuple[int, int, bool]]]] = []
+    start = time.time()
+    while True:
+        now = time.time() - start
+        while keys and keys[0][0] <= now:
+            tmux("send-keys", "-t", name, *keys.pop(0)[1])
+        shot = snapshot(name)
+        if not shots or shot != shots[-1][1]:
+            shots.append((now, shot))
+        elif not keys and now - shots[-1][0] >= 2.0:
+            if footer.search("\n".join(Capture(name, CLI_COLS, rows, shot).lines())):
+                break
+        if now > 120:
+            raise RenderError(f"no footer and settled prompt in pane {name}:\n{screen_text(name)}")
+        time.sleep(0.01)
+    tmux("kill-session", "-t", name, check=False)
+    return [(t, Capture(name, CLI_COLS, rows, shot)) for t, shot in shots]
 
 
 def prompt_command(sb: Sandbox, name: str, cols: int, rows: int, command: str, *, cwd: Path | None = None, **env: str) -> Capture:
@@ -438,26 +495,88 @@ def shadow(x: float, y: float, w: float, h: float, radius: float, blur: float, d
     )
 
 
-def standalone_svg(caps: list[Capture]) -> list[tuple[str, int, int]]:
+def window_size(cap: Capture) -> tuple[float, float]:
+    """A lone window's logical size: the grid plus 10 px padding and the 2 px border on each side."""
+    return cap.cols * CELL_W + 2 * 10 + 4, cap.rows * CELL_H + 2 * 10 + 4
+
+
+def window_svg(cap: Capture, x: float, y: float, scale: float) -> str:
+    """The focused Ghostty window and its shadow, top-left at (x, y), drawn at `scale`."""
+    w, h = window_size(cap)
+    return (
+        shadow(x, y, w * scale, h * scale, 8, 16, 10, 0.6, "sh")
+        + f'<g transform="translate({x:.2f} {y:.2f}) scale({scale:.5f})">'
+        + terminal(0, 0, w, h, cap, border=(ACCENT, 1.0), radius=8 / scale, show_cursor=True, balance=False)
+        + "</g>"
+    )
+
+
+def scene(w_img: int, h_img: int, dim: float, body: str) -> str:
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{w_img}" height="{h_img}" viewBox="0 0 {w_img} {h_img}">'
+        + backdrop(w_img, h_img, WALLPAPER, dim)
+        + body
+        + "</svg>"
+    )
+
+
+def standalone_svg(caps: list[Capture]) -> list[str]:
     """One Ghostty window per capture on the wallpaper, all at the same scale (the tallest fits the 6% margin).
     Canvas 1200x960 logical (2400x1920 @2x): both gallery images share a size so their table rows align."""
     w_img, h_img = 1200, 960
-    sizes = [(c.cols * CELL_W + 2 * 10 + 4, c.rows * CELL_H + 2 * 10 + 4) for c in caps]
+    sizes = [window_size(c) for c in caps]
     scale = min(min(0.88 * w_img / w, 0.88 * h_img / h) for w, h in sizes)
-    out = []
-    for cap, (w, h) in zip(caps, sizes):
-        sw, sh = w * scale, h * scale
-        x, y = (w_img - sw) / 2, (h_img - sh) / 2
-        svg = (
-            f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{w_img}" height="{h_img}" viewBox="0 0 {w_img} {h_img}">'
-            + backdrop(w_img, h_img, WALLPAPER, 0.28)
-            + shadow(x, y, sw, sh, 8, 16, 10, 0.6, "sh")
-            + f'<g transform="translate({x:.2f} {y:.2f}) scale({scale:.5f})">'
-            + terminal(0, 0, w, h, cap, border=(ACCENT, 1.0), radius=8 / scale, show_cursor=True, balance=False)
-            + "</g></svg>"
-        )
-        out.append((svg, w_img, h_img))
-    return out
+    return [
+        scene(w_img, h_img, 0.28, window_svg(cap, (w_img - w * scale) / 2, (h_img - h * scale) / 2, scale))
+        for cap, (w, h) in zip(caps, sizes)
+    ]
+
+
+DEMO_MARGIN = 48  # wallpaper around the demo window: room for its shadow
+
+
+def demo_svg(cap: Capture) -> str:
+    w, h = window_size(cap)
+    return scene(round(w) + 2 * DEMO_MARGIN, round(h) + 2 * DEMO_MARGIN, 0.28, window_svg(cap, DEMO_MARGIN, DEMO_MARGIN, 1))
+
+
+SOCIAL_TAGLINE = ("One command to converge", "a whole machine:", "Omarchy or macOS.")  # one sentence, broken for the column
+
+
+def social_svg(cap: Capture) -> str:
+    """GitHub's 1280x640 social preview: header.py's wordmark card, the tagline and the accent
+    strip beside the converged window, everything inside a 48 px margin."""
+    p = header.PALETTES["dark"]
+    w_img, h_img, margin, gap = 1280, 640, 48, 40
+    w, h = window_size(cap)
+    scale = min(0.9, (h_img - 2 * margin) / h)
+    wx, wy = w_img - margin - w * scale, (h_img - h * scale) / 2
+    col_w = wx - gap - margin
+    word, mark, mark_gap, card_h = 68, 50, 22, 112
+    tag_size, tag_lead = 30, 44
+    pill_h, pill_gap = 14, 8
+    block_h = card_h + 40 + len(SOCIAL_TAGLINE) * tag_lead + 24 + pill_h
+    top = (h_img - block_h) / 2
+    mid = top + card_h / 2
+    x0 = margin + (col_w - mark - mark_gap - header.mono_width("dotfiles", word)) / 2
+    tag_y = top + card_h + 40 + tag_size * 0.75
+    tagline = "".join(
+        f'<tspan x="{margin}" y="{tag_y + i * tag_lead:.1f}">{line}</tspan>' for i, line in enumerate(SOCIAL_TAGLINE)
+    )
+    pill_w = (col_w - (len(header.ACCENTS) - 1) * pill_gap) / len(header.ACCENTS)
+    return scene(
+        w_img,
+        h_img,
+        0.4,
+        f"<defs>{header.mark_gradient(p)}</defs>"
+        + header.card(p, margin, top, col_w, card_h, 30, 3)
+        + header.diamond(x0 + mark / 2, mid, mark)
+        + f'<text x="{x0 + mark + mark_gap:.1f}" y="{mid + word * 0.35:.1f}" font-family="{header.FONT}" font-weight="700" '
+        f'font-size="{word}" fill="{p["text"]}">dotfiles</text>'
+        + f'<text font-family="{header.FONT}" font-size="{tag_size}" fill="{p["text"]}">{tagline}</text>'
+        + header.accent_strip(p, margin, top + block_h - pill_h, pill_w, pill_h, pill_gap)
+        + window_svg(cap, wx, wy, scale),
+    )
 
 
 def hero_svg(dotfiles: Capture, lsd: Capture, nvim: Capture, fetch: Capture, layout: "HeroLayout") -> str:
@@ -497,6 +616,7 @@ class HeroLayout:
 
     bar_h, gap, outer = 22, 4, 4
     pad, border = 10, 2
+    rows_top = 27  # the dotfiles and nvim tiles
 
     def __init__(self) -> None:
         self.sw = 1472  # 92% of the 1600 canvas
@@ -510,14 +630,12 @@ class HeroLayout:
         self.xr = self.xl + self.wl + self.gap
         self.wr = self.sw - self.outer - self.xr
         self.cols_r = int((self.wr - 2 * (self.pad + self.border)) // CELL_W)
-        self.rows_top = 27
         self.h1 = self.rows_top * CELL_H + 2 * (self.pad + self.border)
         self.h2 = avail_h - self.gap - self.h1
         self.rows_bottom = int((self.h2 - 2 * (self.pad + self.border)) // CELL_H)
 
 
 def rasterize(svg: str, name: str, sb: Sandbox, out: Path, zoom: int = 2) -> Path:
-    shutil.copy2(WALLPAPER, sb.root / WALLPAPER.name)
     src = stage_file(sb, name, svg)
     run(["rsvg-convert", "-z", str(zoom), "-o", out, src])
     return out
@@ -527,7 +645,8 @@ def rasterize(svg: str, name: str, sb: Sandbox, out: Path, zoom: int = 2) -> Pat
 
 
 def scene_fetch_config(sb: Sandbox) -> None:
-    """fastfetch: the stock defaults minus lines that depend on the terminal or reveal the network."""
+    """fastfetch: the stock defaults minus lines that depend on the terminal or reveal the network,
+    and only the root disk (one line on any machine, so the tile keeps its prompt on screen)."""
     cfg = sb.home / ".config/fastfetch"
     cfg.mkdir(parents=True)
     (cfg / "config.jsonc").write_text(
@@ -536,18 +655,19 @@ def scene_fetch_config(sb: Sandbox) -> None:
                 "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
                 "logo": {"type": "small", "color": {"1": "blue"}},
                 "display": {"color": {"keys": "blue", "title": "blue", "separator": "bright_black"}},
-                "modules": ["title", "separator", "os", "kernel", "shell", "packages", "cpu", "gpu", "memory", "disk"],
+                "modules": [
+                    "title", "separator", "os", "kernel", "shell", "packages", "cpu", "gpu", "memory",
+                    {"type": "disk", "folders": "/"},
+                ],
             },
             indent=2,
         )
     )
 
 
-def build_hero(sb: Sandbox, out: Path) -> Path:
+def build_hero(sb: Sandbox, dotfiles: Capture, out: Path) -> Path:
     L = HeroLayout()
     scene_fetch_config(sb)
-    log("hero: dotfiles tile (a real run against the stub mise, ~25 s)")
-    dotfiles = cli_capture(sb, "hero-cli", "dotfiles", L.rows_top, behind=3, trim=False)
     log("hero: lsd tile")
     lsd = prompt_command(sb, "hero-lsd", L.cols_l, L.rows_bottom, "lsd modules", XDG_CONFIG_HOME=str(REAL_HOME / ".config"))
     log("hero: fastfetch tile")
@@ -558,33 +678,74 @@ def build_hero(sb: Sandbox, out: Path) -> Path:
     return rasterize(hero_svg(dotfiles, lsd, nvim, fetch, L), "hero", sb, out)
 
 
+def build_demo(sb: Sandbox, frames: list[tuple[float, Capture]], out: Path) -> Path:
+    """Every distinct screen of the recorded run as a looping GIF, played DEMO_SPEED times faster."""
+    rows = frames[-1][1].trim().rows
+    # Playback starts in centiseconds, GIF's unit. A screen due for under 2 cs is skipped: browsers
+    # stretch such frames to 10 cs, and a screen that only one sample saw may be half drawn.
+    starts = [round(t * 100 / DEMO_SPEED) for t, _ in frames]
+    shown: list[tuple[int, Capture]] = []
+    for i, (start, (_, cap)) in enumerate(zip(starts, frames)):
+        if i + 1 < len(frames) and starts[i + 1] - start < 2:
+            continue
+        cap = cap.trim(rows)
+        if shown and (cap.grid, cap.cursor) == (shown[-1][1].grid, shown[-1][1].cursor):
+            continue
+        shown.append((start, cap))
+    gaps = [b - a for (a, _), (b, _) in zip(shown, shown[1:])]
+
+    def frame(i: int) -> Path:
+        return rasterize(demo_svg(shown[i][1]), f"demo-{i:04d}", sb, sb.root / f"demo-{i:04d}.png")
+
+    with ThreadPoolExecutor(os.cpu_count()) as pool:
+        pngs = list(pool.map(frame, range(len(shown))))
+    concat = sb.root / "demo.ffconcat"
+    entries = "".join(f"file {png.name}\nduration {cs / 100:.2f}\n" for png, cs in zip(pngs, gaps))
+    concat.write_text(f"ffconcat version 1.0\n{entries}file {pngs[-1].name}\n")
+    palette = sb.root / "demo-palette.png"
+    source = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-i", concat]
+    run([*source, "-vf", "palettegen=stats_mode=full", palette])
+    run([
+        *source, "-i", palette, "-lavfi", "paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
+        "-fps_mode", "vfr", "-loop", "0", "-final_delay", DEMO_HOLD_CS, out,
+    ])
+    log(f"demo: {len(shown)} frames, a {(sum(gaps) + DEMO_HOLD_CS) / 100:.1f} s loop")
+    return out
+
+
 def build_standalone(sb: Sandbox, outs: dict[str, Path]) -> list[Path]:
     dry = cli_capture(sb, "dry", "dotfiles --dry-run", 46, behind=0).drop_wrapped_notice("dotfiles: previewing local modules")
     fail = cli_capture(sb, "fail", "dotfiles", 46, behind=3, fail_stage="tools")
-    paths = []
-    for (svg, _, _), key in zip(standalone_svg([dry, fail]), ("dry-run", "failure")):
-        paths.append(rasterize(svg, key, sb, outs[key]))
-    return paths
+    return [rasterize(svg, key, sb, outs[key]) for svg, key in zip(standalone_svg([dry, fail]), ("dry-run", "failure"))]
+
+
+OUTPUTS = ("header", "hero", "demo", "social", "dry-run", "failure")
 
 
 def main(argv: list[str]) -> int:
-    wanted = set(argv) or {"header", "hero", "dry-run", "failure"}
-    unknown = wanted - {"header", "hero", "dry-run", "failure"}
+    wanted = set(argv) or set(OUTPUTS)
+    unknown = wanted - set(OUTPUTS)
     if unknown:
-        print(f"usage: render.py [header] [hero] [dry-run] [failure]  (unknown: {' '.join(sorted(unknown))})", file=sys.stderr)
+        print(f"usage: render.py {' '.join(f'[{o}]' for o in OUTPUTS)}  (unknown: {' '.join(sorted(unknown))})", file=sys.stderr)
         return 2
     started = time.time()
     written: list[Path] = []
     if "header" in wanted:
-        import header  # header.py: the wordmark banners
-
         written += header.render(ASSETS_DIR)
-    if wanted & {"hero", "dry-run", "failure"}:
+    if wanted - {"header"}:
         sb = Sandbox()
         try:
             tmux_start()
-            if "hero" in wanted:
-                written.append(build_hero(sb, ASSETS_DIR / "hero.png"))
+            if wanted & {"hero", "demo", "social"}:
+                log("dotfiles: a real run against the stub mise, typed and sampled (~35 s)")
+                frames = record_run(sb, "cli", "dotfiles", HeroLayout.rows_top, behind=3)
+                final = frames[-1][1]
+                if "hero" in wanted:
+                    written.append(build_hero(sb, final, ASSETS_DIR / "hero.png"))
+                if "demo" in wanted:
+                    written.append(build_demo(sb, frames, ASSETS_DIR / "demo.gif"))
+                if "social" in wanted:
+                    written.append(rasterize(social_svg(final.trim()), "social", sb, ASSETS_DIR / "social.png", zoom=1))
             if wanted & {"dry-run", "failure"}:
                 outs = {"dry-run": ASSETS_DIR / "dry-run.png", "failure": ASSETS_DIR / "failure.png"}
                 written += build_standalone(sb, outs)

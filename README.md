@@ -18,10 +18,10 @@
 
 <a href="#bootstrap"><kbd> <br> Bootstrap <br> </kbd></a>&ensp;
 <a href="#daily-use"><kbd> <br> Daily use <br> </kbd></a>&ensp;
-<a href="#keybindings"><kbd> <br> Keybindings <br> </kbd></a>&ensp;
 <a href="#gallery"><kbd> <br> Gallery <br> </kbd></a>&ensp;
-<a href="#validation"><kbd> <br> Validation <br> </kbd></a>&ensp;
-<a href="#layout"><kbd> <br> Layout <br> </kbd></a>&ensp;
+<a href="#keybindings"><kbd> <br> Keybindings <br> </kbd></a>&ensp;
+<a href="#steal-this"><kbd> <br> Steal this <br> </kbd></a>&ensp;
+<a href="#make-it-yours"><kbd> <br> Make it yours <br> </kbd></a>&ensp;
 
 <br>
 
@@ -45,7 +45,7 @@ Profiles describe the operating system and session, not the chassis. The wrapper
 Other systems stop with `unsupported machine`. The earlier Ansible provisioning version, which also covered Ubuntu, Fedora and WSL, is tagged [`ansible-final`](https://github.com/TechDufus/dotfiles/tree/ansible-final).
 
 > [!NOTE]
-> Public for reference, not as a framework. Read before you borrow.
+> This is one person's machine, not a framework: it carries my identity, keymap and app choices. Take pieces from [Steal this](#steal-this), or fork the whole thing with [Make it yours](#make-it-yours).
 
 ## Highlights
 
@@ -53,7 +53,7 @@ Other systems stop with `unsupported machine`. The earlier Ansible provisioning 
 - In a terminal, the run goes one stage at a time (packages, system, dotfiles, shell, tools, modules) with a live summary, and mise's full output is kept in `~/.local/state/dotfiles/last-run.log`.
 - Nothing in the way of a link gets overwritten: a conflicting target is preserved in a unique `<target>.pre-dotfiles.<epoch>.<random>/original` directory.
 - Two profiles, `omarchy` and `macos`, describe the OS and session; the work or personal purpose is independent of them.
-- 44 modules, each one mise `conf.d` folder under `modules/`.
+- Every module is one mise `conf.d` folder under `modules/`, with its config, bootstrap step and tests side by side.
 - macOS and Omarchy share the same CapsLock summon leader: **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty.
 - Module test suites (`test:*`) run in CI on Arch (Omarchy environment) and on macOS.
 
@@ -62,6 +62,15 @@ Other systems stop with `unsupported machine`. The earlier Ansible provisioning 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/TechDufus/dotfiles/main/bin/dotfiles)"
 ```
+
+> [!WARNING]
+> That command is for my machines. Unchanged, it applies my Git and jj author name, my GitHub noreply address as the jj email and, on Omarchy, a Dvorak keymap and passwordless sudo. To run this setup yourself, fork it and follow [Make it yours](#make-it-yours) first.
+
+<div align="center">
+<img src=".github/assets/demo.gif" width="820" alt="Terminal recording of the dotfiles command converging an Omarchy machine one stage at a time, ending with a converged summary">
+<br>
+<em>The real UI against a stubbed mise, played back 2.5× faster; <a href=".github/assets/render/render.py"><code>render.py</code></a> records it.</em>
+</div>
 
 ```mermaid
 flowchart TB
@@ -110,36 +119,20 @@ Taskfile maintenance follows the OS profile: Omarchy uses its native updater.
 
 ### Machine purpose
 
-<details>
-<summary>Purpose marker, generated mise settings, and package restrictions</summary>
+Purpose (`work` or `personal`) is independent of the OS profile and lives in a local, untracked marker; an unmarked machine is `personal`. `dotfiles --set-purpose` only saves the marker and regenerates mise's discovery settings: it never provisions. Purpose restricts packages through mise's native `env` option; so far only Discord is personal-only. The marker, the generated settings and how to inspect them are in [docs/purpose.md](docs/purpose.md).
 
-Purpose is independent of the OS profile: any supported profile can be `work` or `personal`. An unmarked machine defaults to `personal`, preserving the usual setup on other machines. The local, untracked marker is `${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/purpose`; invalid or empty stored values stop the wrapper before provisioning rather than silently selecting personal.
+## Gallery
 
-`dotfiles --set-purpose work` and `dotfiles --set-purpose personal` only save that marker and regenerate mise discovery settings. They do not install prerequisites, sync the repo, replace `conf.d`, move conflicts, run tasks, or apply packages/dotfiles. Run the setter on its own, not with bootstrap flags such as `--dry-run`. `dotfiles --purpose` is a read-only query of the effective purpose.
-
-The wrapper owns generated `${XDG_CONFIG_HOME:-$HOME/.config}/mise/miserc.local.toml`; do not hand-edit purpose there. The setter and normal setup keep `auto_env = true` and persist `env = ["work"]` (or `["personal"]`) on macOS, and `env = ["omarchy", "work"]` on Linux (substitute `personal` when selected). Subsequent raw mise commands use this persisted selection; a marker alone does not configure raw mise before the setter or normal setup has generated it.
-
-Package restrictions use mise's native [`[bootstrap.packages]` `env` option](https://mise.jdx.dev/bootstrap/packages/#by-config-environment): `env = "work"` is work-only, `env = "personal"` is personal-only, and omitting `env` is shared, still subject to the existing platform/profile declarations. Discord is personal-only on macOS and Linux; all other app declarations and shared shortcuts are unchanged. Selecting work does **not uninstall** an existing Discord installation or disable its shortcuts.
-
-This is an installation preference, not an allowlist or organizational/security enforcement. It does not restrict unrelated apps installed by bootstrap tasks or external installers; any future restriction on those apps must also cover their installer/configuration owner. Explicit native `MISE_ENV` or `mise -E` selections can intentionally override generated environments; preserve the distro environment when doing so on Linux.
-
-Read-only inspection from HOME, with compatible mise and existing package-manager prerequisites:
-
-```bash
-cd ~
-dotfiles --purpose
-mise bootstrap packages status --json
-# macOS: compare requested packages without changing the saved purpose.
-MISE_AUTO_ENV=true mise -E work bootstrap packages status --json
-MISE_AUTO_ENV=true mise -E personal bootstrap packages status --json
-# Linux: retain the actual distro environment.
-MISE_AUTO_ENV=true mise -E omarchy,work bootstrap packages status --json
-MISE_AUTO_ENV=true mise -E omarchy,personal bootstrap packages status --json
-```
-
-[`status`](https://mise.jdx.dev/cli/bootstrap/packages/status.html) does not install packages or use sudo. Discord should be absent from the work request and present in the personal control; shared package requests should remain unchanged. A work status does not prove Discord is absent from the machine, and cross-platform selection on macOS is not native Linux runtime verification.
-
-</details>
+<table>
+  <tr>
+    <td width="50%"><img src=".github/assets/dry-run.png" alt="Ghostty window running dotfiles --dry-run, with every stage previewed"></td>
+    <td width="50%"><img src=".github/assets/failure.png" alt="Ghostty window showing a failed stage and the last lines of its log"></td>
+  </tr>
+  <tr>
+    <td align="center"><em><code>dotfiles --dry-run</code> previews local modules without setup, pulling, or conflict moves.</em></td>
+    <td align="center"><em>A failed stage stops the run and shows the last lines of its log.</em></td>
+  </tr>
+</table>
 
 ## Keybindings
 
@@ -192,82 +185,39 @@ Super stands in for Command. As on the Mac, each screen has a layout of cells, a
 | `Super+L` | Toggle the workspace between cells and full screen |
 | `Alt+Tab` / `Alt+Shift+Tab` | OmaSwitch window switcher (most recent windows first, type to search); without the plugin, cycle windows on the workspace |
 
-Floating windows that cells does not place, such as dialogs, keep their position and size relative to the screen. Moving a window you tiled with `Super+T` puts it back in its cell. Fullscreen windows stay fullscreen, also across config reloads: Hyprland 0.56 forgets their fullscreen state there without telling the app, and Brave then hides its tabs again on every focus change. When they leave it, a window cells places goes back to its cell; one you tiled or popped out yourself stays where Hyprland restores it. `Super+O` and `Super+Shift+O` replace Omarchy's pop-out and Obsidian bindings. Use CapsLock → `n` to summon Obsidian.
+How cells treats floating, fullscreen and game windows, the two-monitor desk, and the CapsLock/F13 leader on Omarchy: [docs/omarchy.md](docs/omarchy.md#cells-and-screens).
 
-Windows whose class matches a `keep_tiled` entry in `modules/omarchy/hypr/layouts.lua` (Proton and Wine games, `steam_app_*`) stay tiled across the screen instead of floating into a cell: Hyprland lets floating X11 windows move themselves, and on the mixed-scale desk that throws them between screens. An entry is a table with a lowercase Lua-pattern `class` and an optional `except_title`; the Battle.net launcher shares its game's class and is excepted by its title, so it is placed like any other app. `Super+F` still makes tiled games fullscreen. `hypr/games.lua` also turns off focus-on-activate for those games (not for the Battle.net launcher's own windows): Wine asks to be activated again whenever a game loses focus, which otherwise pulls focus and the cursor back from any window floating over it. The Battle.net launcher is a normal window instead of Omarchy's always-on-top float, which stacked above every tiled window and hid summoned apps on the HP's monocle screen: it gets a cell on the 4K and joins the monocle stack on the HP.
+## Steal this
 
-The summon leader is CapsLock or F13, as on the Mac (Karabiner turned CapsLock into F13). A keyboard that sends F13 from its Caps Lock key needs no remap.
+Most of this repo is only useful to me, but these parts stand on their own. Each is a file or two you can read and lift without taking the rest.
 
-Every window is fully opaque, focused or not; Omarchy's default translucency is turned off so video never shows the wallpaper through. Apps that should be see-through set it themselves, such as Ghostty's `background-opacity`.
+| Idea | Where it lives |
+| --- | --- |
+| Cell layouts for Hyprland: every screen has a layout of cells, and every app has a cell in each layout | [`cells.lua`](modules/omarchy/hypr/cells.lua), [`layouts.lua`](modules/omarchy/hypr/layouts.lua) |
+| The same layouts on macOS, through Hammerspoon | [`modules/hammerspoon/config/`](modules/hammerspoon/config), [WorkspaceManager.spoon](https://github.com/TechDufus/WorkspaceManager.spoon) |
+| One CapsLock leader that summons apps on both systems | [`summon.lua`](modules/omarchy/hypr/summon.lua), [`summon_apps.lua`](modules/omarchy/hypr/summon_apps.lua), [`karabiner.json`](modules/hammerspoon/karabiner/karabiner.json) |
+| Wine and Proton games that stay tiled and stop pulling focus back | [`games.lua`](modules/omarchy/hypr/games.lua), [`layouts.lua`](modules/omarchy/hypr/layouts.lua) |
+| A staged progress screen over `mise bootstrap`, with the full log kept | [`bin/dotfiles`](bin/dotfiles) |
+| Files that block a link are moved aside, never overwritten | [`bin/dotfiles`](bin/dotfiles) |
+| Work and personal machines from one repo, using mise environments | [docs/purpose.md](docs/purpose.md) |
+| Sudoers installed only after `visudo` accepts the staged file | [`modules/system/bootstrap.sh`](modules/system/bootstrap.sh), [its test](modules/system/tests/test_sudoers.sh) |
+| One owned include block in a `~/.gitconfig` that other tools also write | [`modules/git/bootstrap.py`](modules/git/bootstrap.py) |
+| SSH keys, signing data and fonts synced from 1Password, rewritten only when they differ | [`modules/secrets/bootstrap.sh`](modules/secrets/bootstrap.sh) |
+| Shell secrets read from 1Password on demand and kept in a local cache | [`vars.secret_functions.zsh`](modules/zsh/zsh/vars.secret_functions.zsh) |
+| README images rendered from the real CLI against a stubbed mise | [`.github/assets/render/`](.github/assets/render) |
+| Module tests in CI on Arch and macOS | [`mise.yml`](.github/workflows/mise.yml) |
 
-`modules/omarchy/hypr/monitors.lua` sets up the desk with the Acer VG281K 4K and the HP P224 1080p. The HP is on the left, the 4K is main, and the cursor starts there at login. Workspaces 1–3 (terminal, browser, Obsidian) live on the 4K, and workspaces 4–5 (chat, music) on the HP. The HP defaults to the Fullscreen layout. These rules match the panels by description, and the workspace bindings apply only while both panels are connected, so other machines are unaffected.
+## Make it yours
 
-## Apps
+Forking works, but there is no settings layer: a fork edits files. Before the first run, change:
 
-### OMP
+- `REPO_URL` in `bin/dotfiles`, or your one-liner installs this repo instead of your fork.
+- The Git, jj and npm author names, and the 1Password account and item references behind the email, SSH keys, signing and fonts.
+- On Omarchy, the Dvorak keymap and the passwordless sudo policy in `modules/system/bootstrap.sh`.
 
-Managed OMP configuration preserves deliberate routing, capability, trust-boundary, and visual choices while omitting redundant default tuning so future upstream defaults can apply.
+Then delete the module folders you don't want and preview with `dotfiles --dry-run`. [docs/fork.md](docs/fork.md) lists every personal value and where it lives.
 
-Shared `devtools` installs [ovnfs](https://github.com/stencil-hq/ovnfs) on both supported profiles. Omarchy also installs `fuse3`; macOS uses its built-in NFS support. OMP detects ovnfs by default without managed backend/path overrides. Subagent filesystem isolation remains opt-in per task with `isolated: true`; installing ovnfs does not isolate every subagent automatically.
-
-The main `omp` configuration defaults to `openai-codex/gpt-6.2-astra:xhigh`, uses GPT-6.2 Sol for task and reviewer roles, and GPT-6.2 Astra for slow, plan, and designer roles. `omp-codex` defaults to `openai-codex/gpt-6.2-sol:max` and uses GPT-6.2 Sol for those five roles. In both configurations, smol and tiny use GPT-6 Luna at low thinking, vision uses GPT-6.1 Terra at high thinking, commit uses Terra at low thinking, and memory and advisor use Terra at medium thinking. Memory is explicit so Mnemopi extraction and consolidation do not fall through to tiny's lightweight Luna model. Prewalk and plan-yolo may select smol for implementation, so Luna is not limited to background tasks. `omp-claude-terra` uses Claude for its main roles and GPT-6.1 Terra for its advisor. `omp-claude-fable` defaults to Claude Fable 5.2, uses Fable for slow, plan, and reviewer roles, Opus 5.5 for task, designer, vision, and a low-thinking advisor, and Sonnet 5.5 for smol, tiny, and commit.
-
-`omp-claude-sol` was renamed to `omp-claude-terra`. On older installs, `~/.local/bin/omp-claude-sol` and `~/.omp/agent/overlays/claude-sol.yml` may remain as dangling symlinks because targeted mise apply creates the new names without pruning the old paths. Inspect these paths before removing them; remove only obsolete managed symlinks, not custom files.
-
-`bootstrap:omp` installs and updates the user-wide Herdr, Worktrunk, and [Impeccable](https://impeccable.style/) skills from upstream Git checkouts in `~/.local/share/dotfiles/`, linked into `~/.omp/agent/skills/`. Existing non-symlink destinations are preserved. To refresh these skills without running the other module bootstraps, run from HOME:
-
-```bash
-MISE_TASK_RUN_AUTO_INSTALL=false MISE_AUTO_ENV=true mise run bootstrap:omp
-```
-
-Start a new OMP session after installation, then invoke Impeccable with `/skill:impeccable critique the settings page` or another subcommand. Installation is user-wide; `init` and `document` create project-specific `PRODUCT.md` and `DESIGN.md` context only when requested. The bootstrap does not enable Impeccable hooks or live mode.
-
-### Tern
-
-Native mise merges and the bootstrap reset both use the standard Tern roots: `~/Library/Application Support/Tern` on macOS and `~/.config/tern` on Linux. `TERN_CONFIG_DIR` and a custom `XDG_CONFIG_HOME` are not supported by this module; the old role's alternate-root behavior is not carried forward.
-
-Tern shares dark Catppuccin styling, Float layout, Glass material, vertical tabs, BerkeleyMono Nerd Font, copy-on-select, and the Console chat style (`surface_chat`). Bootstrap removes the legacy explicit opacity override so Tern's default applies. Use **Reload settings (`Control+Shift+F5`)** after settings cleanup; the macOS held-key-repeat preference in [macOS migration](#macos-migration) instead requires a full quit and reopen.
-
-macOS and Omarchy now share **CapsLock → t** for Tern and **CapsLock → Shift+T** for Ghostty. Linux-only pane keys are `Control+]` / `Control+[` for next/previous pane and `Control+Alt+]` / `Control+Alt+[` for next/previous tab across sessions.
-
-### Omarchy shell plugins
-
-`mise.omarchy.toml` clones four shell plugins into `~/.config/omarchy/plugins/`: [OMP Usage](https://github.com/iamanro/omarchy-omp-usage) (quota, resets and cost for every provider omp is logged in to), [GitHub](https://github.com/robzolkos/omarchy-github) (notifications, review requests, your PRs, Actions), [Resources](https://github.com/Kyotroo/omarchy-bar-resources) (CPU, memory, disk, temperature and network fill-up icons; click for settings) and [OmaSwitch](https://github.com/piyush97/omaswitch) (Alt+Tab switcher with live previews). `bootstrap:omarchy-plugins` enables them, putting the three widgets in the bar, and takes the stock Agents widget out, through the running Omarchy shell, once per plugin list: later changes stay until a list changes. Outside a session it waits for the next run.
-
-Alt+Tab opens OmaSwitch only while it is installed and enabled; on each press `cells.lua` checks the plugin folder and `shell.json`, so `omarchy plugin disable piyush.omaswitch` or `remove` hands Alt+Tab back to plain window cycling without a keybinding change or reload. To drop it for good, delete its `[bootstrap.repos]` entry and its id from `OMARCHY_PLUGINS`, then run `omarchy plugin remove piyush.omaswitch --yes`: mise never deletes a clone.
-
-The GitHub widget reads through `gh`: run `gh auth login`, then `gh auth refresh -h github.com -s notifications -s repo`. `omarchy update` does not update third-party plugins by itself, so a linked post-update hook runs `omarchy plugin update --yes`: every update brings all git-managed plugins to their latest commit, validated and rolled back on failure. `dotfiles --update` also fast-forwards them; a plain `dotfiles` run never fetches them.
-
-### Tailscale
-
-`bootstrap:tailscale` installs the client and nothing else, and warns instead of failing. On Omarchy it installs the `tailscale` package from the `extra` repo and runs `sudo systemctl enable --now tailscaled`; once the daemon is enabled and running, repeat runs change nothing and do not prompt for sudo. On macOS it installs the standalone app with the `tailscale-app` Homebrew cask, and leaves a hand-installed or App Store `/Applications/Tailscale.app` alone.
-
-The module never joins a tailnet, holds no auth key and sets no routes. Joining is a one-time interactive step per device: `sudo tailscale up --accept-routes` on Linux (the browser sign-in URL is printed), or open the app and sign in on macOS. `--accept-routes` is what makes the home subnets reachable when away. At home, leave Tailscale down (`sudo tailscale down` on Linux, turn it off in the menu bar on macOS) so traffic stays on the LAN. Omarchy's own menu installer (`omarchy-install-service-tailscale`) installs the same package and daemon but also joins, sets the operator and adds a bar widget, so use either that or this module's step, not both.
-
-### liquidctl
-
-`bootstrap:liquidctl` (Omarchy) acts only on machines with a Lian Li UNI FAN SL hub (USB `0cf2:a100`); elsewhere it prints a skip line. On those machines it installs `liquidctl` from `extra`, plus a udev rule and a oneshot unit that runs `liquidctl --match "Uni SL" initialize` whenever the hub appears (boot or replug), so the fans follow the motherboard's PWM. It warns instead of failing, and repeat runs change nothing and do not prompt for sudo. Check with `liquidctl status` and `systemctl status liquidctl-lianli-uni-sl.service`.
-
-### Battle.net
-
-`bootstrap:battlenet` (Omarchy) sets Battle.net's **When clicking X** to **Exit Battle.net completely** (`HideOnClose` in each account's settings file in Omarchy's prefix, `~/Games/battlenet`). Under Proton, a Battle.net left waiting in the tray is the fragile part: the tray icon can't bring it back, opening it again only asks the hidden copy to show itself (which can come back blank and frozen), and after a day or so it can hang and block every new launch until the prefix is killed. **On game launch** is left to Battle.net's own Settings; pick **Exit Battle.net completely** there. The task does nothing until Battle.net is installed and logged in, and skips with a message while it is running, because Battle.net rewrites these files when it exits.
-
-### Moonlight
-
-macOS installs [Moonlight](https://moonlight-stream.org/) (`brew-cask:moonlight`) to stream and control the Omarchy desktop. Sunshine, the host side, is not managed here: Omarchy's `omarchy-install-service-sunshine` sets it up, but in Omarchy 4.5 it stops at `systemctl --user enable --now sunshine`, an alias of the packaged `app-dev.lizardbyte.app.Sunshine.service` that systemd refuses to enable, before it opens the firewall ports. Pair each Mac once: add the desktop in Moonlight and enter the PIN it shows in Sunshine Admin's **PIN** tab.
-
-## Gallery
-
-<table>
-  <tr>
-    <td width="50%"><img src=".github/assets/dry-run.png" alt="Ghostty window running dotfiles --dry-run, with every stage previewed"></td>
-    <td width="50%"><img src=".github/assets/failure.png" alt="Ghostty window showing a failed stage and the last lines of its log"></td>
-  </tr>
-  <tr>
-    <td align="center"><em><code>dotfiles --dry-run</code> previews local modules without setup, pulling, or conflict moves.</em></td>
-    <td align="center"><em>A failed stage stops the run and shows the last lines of its log.</em></td>
-  </tr>
-</table>
+There are no releases and no compatibility promise: `main` is whatever my machines run today.
 
 ## Validation
 
@@ -301,68 +251,15 @@ The workflow defines a dedicated `system-sudoers` Ubuntu job that installs packa
 
 </details>
 
-## Migration
+## Documentation
 
-### macOS migration
-
-<details>
-<summary>macOS migration notes</summary>
-
-- Existing stable Raycast is preserved, including hand-installed copies; the stable Homebrew cask is installed only when the app is absent. The migration neither installs Beta nor deletes stable.
-- Existing sudo policy is left untouched. Privileged changes can still require authentication.
-- The 1Password SSH agent selects only `Personal` on macOS; other profiles retain their shared selections.
-- Claude uses a Mac-specific, symlinked settings source containing only theme and TUI. It does not enable the shared permission/plugin/hook profile. The Herdr-generated session hook is neither carried forward nor registered.
-- Hammerspoon uses lowercase `t` for Tern and uppercase `T` for Ghostty. Spoon updates validate both releases before replacement, restore prior installations on failure/interruption, and leave unchanged installs untouched. If restoration fails, the reported transaction directory retains the originals.
-- Tern's macOS profile disables the press-and-hold accent menu for `so.stencil.tern` so held letters and numbers can repeat. Global repeat timing and other apps are unchanged. Fully quit and reopen Tern after applying this preference; reloading its settings alone is insufficient.
-- On macOS, mise shims take precedence over local CLI installations, including app-owned launchers such as Tern's `omp`. Login Zsh restores this order after Apple's `path_helper`. Linux keeps its intentional local-wrapper-first order; optional CLI paths remain available on both platforms. pnpm uses native upstream releases rather than npm lifecycle scripts.
-- Vimscript language-server installation is no longer managed. An existing Bun-global `vim-language-server` must be removed during an approved cutover if OMP's built-in discovery should stop finding it; Vim syntax parsers remain available.
-- Yazi's Mac profile owns its config and theme; its current built-in keymap replaces the empty legacy keymap. Obsolete Plasma, rofimoji, and OpenCode companion links are retired only on macOS.
-- Neovim generates a new ignored `lazy-lock.json` from its configured plugins instead of carrying forward the old role's lock. macOS declares Ruby for Mason's Solargraph and selects it inside Neovim without changing the shell's Ruby. Go-tool builds report installation failures rather than completing before their installers.
-- Neovim's shared theme explicitly selects Catppuccin Mocha, with transparent editing areas and ordinary floating windows rather than near-black overrides. It inherits the terminal background; window opacity remains a terminal setting, and selections/statuslines retain their own contrast.
-- The global TypeScript compiler remains on `latest`. TypeScript language-server 6 carries a private compatible SDK 6 through its mise postinstall hook, without adding competing compiler executables.
-
-</details>
-
-### Migration ownership and rollback
-
-<details>
-<summary>Ownership changes, sudoers validation, and Ansible cutover</summary>
-
-- Ansible is retained as a development-tool dependency for the Ansible language server, not as the provisioning engine. macOS owns standalone Ansible through Homebrew; Linux owns `ansible-core` and `ansible-lint` through pacman. The existing macOS Neovim profile also owns `ansible-lint`.
-- `bootstrap:git` places one owned include block at the end of `~/.gitconfig`, after historical globals. After successful migration, defaults and the generated `~/.config/git/identity.gitconfig` are loaded once; macOS also includes its platform defaults. Explicit repository-local settings still win. Cleanup removes only exact obsolete `dotfiles` / `dotfiles-macos` blocks from `~/.config/git/config` (or an active XDG config root within HOME), preserving unrelated contents and both global files. This transfers ownership without requiring a change to an already-correct identity.
-- Helm bootstrap requires the canonical `traefik` name to point at its required repository URL. It repairs a missing or incorrect alias without a broad repository update; optional Helm failures still warn and skip.
-- Retired Ollama helpers are not deleted automatically. If `~/.config/ollama/Modelfile.qwen-omp` or `~/.local/bin/ollama-qwen`, `ollama-qwen-start`, or `ollama-qwen-stop` remain, review their contents and consumers before manually removing obsolete copies. Customized files or replacement symlinks must not be treated as known historical files.
-- The retired `sesh` popup (`prefix+o`) is removed from the managed tmux config instead of reinstalling its provider. Omarchy's native tmux configuration remains outside this module's ownership.
-- Retired OMP custom agents (`gap-advisor`, `plan-critic`, `risk-assessor`, `security-auditor`, `validator`) are not deleted automatically. On each machine, remove the leftover `~/.omp/agent/agents/<name>.md` links by hand; they point at deleted sources.
-- The short-lived `bootstrap:sunshine` task is retired; Sunshine setups it made stay. To remove one: `systemctl --user disable --now app-dev.lizardbyte.app.Sunshine.service`, then `omarchy-remove-service-sunshine` for the package, `omarchy-sunshine` UFW rules and Sunshine Admin web app.
-- Go is a mise tool in `devtools`, installed before the `go:` tools that build with it, instead of `pacman:go` / `brew:go`; before this, `omarchy update` (which runs `mise up`) failed on those tools until the packages step had run. The retired system package is not removed automatically: after checking nothing else needs it, remove it with `sudo pacman -Rs go` or `brew uninstall go`. A `go` entry hand-added to `~/.config/mise/config.toml` as a workaround can be dropped too.
-- Linux passwordless sudo policy is derived from the actual invoking non-root UID, not `$USER` or a root fallback. `bootstrap:system` protects and validates a root-owned `0440` candidate with real `visudo` before atomic installation, rejects symlink/non-regular destinations, and fails before later udev/keyboard steps if validation or installation fails. Other policy files and macOS sudo policy are left alone.
-
-Git include placement is task-owned: `mise dot apply` / `status` cover the linked source files but do not perform or verify the include migration. After applying those sources, use full bootstrap or the targeted task:
-
-```bash
-cd ~ && MISE_TASK_RUN_AUTO_INSTALL=false mise run bootstrap:git
-```
-
-Python 3 is required. The task warns and skips changed/damaged owned blocks, unsafe/shared files or parents, lock files, or an explicit `GIT_CONFIG_GLOBAL` redirect; inspect its outcome rather than assuming a green dotfile status proves Git ownership.
-
-The new validated include owner is published **before** obsolete includes are removed, so interruption does not remove the signing policy. If cleanup fails after publication, temporary duplicate includes can remain. Review the warning and rerun `bootstrap:git` to complete cleanup and restore single loading; do not delete a global config file to recover.
-
-After an authorized apply on **native Linux**, validate the installed sudoers include graph and file metadata before considering the system step complete:
-
-```bash
-sudo visudo -cf /etc/sudoers
-sudo stat -c '%U:%G:%a' /etc/sudoers.d/techdufus
-sudo -l
-```
-
-Expect `root:root:440` for the managed file and review the invoking account's effective policy. Run bootstrap as the normal user, not root. These post-apply checks complement, rather than replace, the automatic pre-install candidate validation.
-
-For an Ansible cutover, use a plain terminal and a fixed reviewed revision. Preserve unique local commits, copied/merged configurations, and any retired-role configuration you intend to keep before switching branches. Retiring the old `roles/` source tree is not an instruction to delete its former live configuration wholesale: review each local file and its current owner. Remove redundant public CLI installations only after checking consumers; app-owned runtimes such as Tern's OMP and a Bun binary used by a LaunchAgent may still be required.
-
-Relink configurations before broader provisioning, run again to settle permissions on merge-created files, then require clean `mise dot status --missing` and a no-change repeat. Verify signing, service health, actual application behavior, and any fail-soft task outcomes separately. A Git checkout reversal does not undo installed tools, services, shell registration, copies, merges, or removals; preserve a verified private rollback snapshot of the affected live configuration and ownership rather than treating a branch switch as a transaction.
-
-</details>
+| Page | Covers |
+| --- | --- |
+| [Make it yours](docs/fork.md) | Every personal value a fork has to change, and how to preview safely |
+| [Machine purpose](docs/purpose.md) | The work/personal marker, the generated mise settings, package restrictions |
+| [Omarchy desktop](docs/omarchy.md) | How cells places windows, the two-monitor desk, shell plugins, liquidctl, Battle.net |
+| [Apps](docs/apps.md) | OMP model routing and skills, Tern, Tailscale, Moonlight |
+| [Migration notes](docs/migration.md) | Changes for machines that ran the Ansible version or carry state from retired modules |
 
 ## Layout
 
@@ -374,6 +271,7 @@ modules/<name>/       one mise conf.d folder per module
   mise.macos.toml     macOS
   mise.omarchy.toml   Omarchy / Hyprland
   <config files>, bootstrap.sh, tests/
+docs/                 fork guide and reference notes
 .github/assets/       README images; render/render.py regenerates them
 ```
 
